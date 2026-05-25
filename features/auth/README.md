@@ -34,10 +34,9 @@ End-to-end bearer-token authentication. Handles login (BCrypt password check), t
 
 ## Architecture Notes
 
-- Tokens are in-memory `MapKeyValueRepo` on the server — **tokens are lost on server restart**. Add persistence if this matters.
-- `BearerAuthenticationConfigurator` installs `bearer(Constants.bearerAuthName)` Ktor auth block. Protect routes with `authenticate(Constants.bearerAuthName) { ... }`.
-- `getCallerUserIdOrAnswerUnauthorized()` utility (in `auth/server/utils/`) resolves `UserIdPrincipal → UserId` and auto-responds 401 on failure. All ownership-guarded routes use this.
+- Tokens are in-memory `MapKeyValueRepo` on the server — **tokens are lost on server restart**.
+- `BearerAuthenticationConfigurator` installs `bearer()` Ktor auth block. Protect routes with `authenticate() { ... }`.
+- `getCallerUserIdOrAnswerUnauthorized()` utility (in `auth/server/utils/`) resolves `UserIdPrincipal → UserId` and auto-responds 401 on failure. All ownership-guarded routes must use this.
 - `BearerAuthHttpClientConfigurator` installs Ktor `Auth` plugin on `HttpClient`; `refreshTokens` calls the refresh endpoint using the inner `client` (avoids recursion).
 - `sendWithoutRequest` skips preemptive auth for `/auth/login` and `/auth/refresh` endpoints.
 - `ServerUrlStorage` and `AuthCredentialsStorage` use `SmartRWLocker` for concurrent access safety.
-- `auth/server/JVMPlugin` owns the `users.common.JVMPlugin` wiring — a separate `users.server.JVMPlugin` in `sample.config.json` is not required.
