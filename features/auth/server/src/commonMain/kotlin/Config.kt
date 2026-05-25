@@ -1,4 +1,4 @@
-package project_group.project_name.features.auth.server
+package dev.inmo.wishlist.features.auth.server
 
 import kotlinx.serialization.Serializable
 import kotlin.time.Duration

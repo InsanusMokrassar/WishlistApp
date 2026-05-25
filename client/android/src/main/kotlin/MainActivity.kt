@@ -1,4 +1,4 @@
-package project_group.project_name.client
+package dev.inmo.wishlist.client
 
 import android.os.Bundle
 import androidx.activity.compose.setContent
@@ -21,13 +21,13 @@ class MainActivity : AppCompatActivity() {
                 Config(
                     listOf(
                         clientAndroidPlugin,
-                        project_group.project_name.features.common.common.AndroidPlugin,
-                        project_group.project_name.features.common.client.AndroidPlugin,
-                        project_group.project_name.features.sample.client.AndroidPlugin,
-                        project_group.project_name.features.auth.client.AndroidPlugin,
+                        dev.inmo.wishlist.features.common.common.AndroidPlugin,
+                        dev.inmo.wishlist.features.common.client.AndroidPlugin,
+                        dev.inmo.wishlist.features.sample.client.AndroidPlugin,
+                        dev.inmo.wishlist.features.auth.client.AndroidPlugin,
 
-                        project_group.project_name.features.ui.sample.AndroidPlugin,
-                        project_group.project_name.features.ui.auth.AndroidPlugin,
+                        dev.inmo.wishlist.features.ui.sample.AndroidPlugin,
+                        dev.inmo.wishlist.features.ui.auth.AndroidPlugin,
                     )
                 )
             )

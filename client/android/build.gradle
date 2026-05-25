@@ -8,7 +8,7 @@ plugins {
 
 android {
     defaultConfig {
-        applicationId "project_group.project_name.client"
+        applicationId "dev.inmo.wishlist.client"
         minSdk libs.versions.android.minSdk.get().toInteger()
         targetSdk libs.versions.android.compileSdk.get().toInteger()
         compileSdk libs.versions.android.compileSdk.get().toInteger()
@@ -35,5 +35,5 @@ android {
 }
 
 dependencies {
-    api project(":project_name.client")
+    api project(":wishlist.client")
 }

@@ -1,4 +1,4 @@
-package project_group.project_name.features.ui.sample.ui
+package dev.inmo.wishlist.features.ui.sample.ui
 
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
@@ -10,9 +10,9 @@ import dev.inmo.micro_utils.strings.translation
 import dev.inmo.navigation.core.NavigationChain
 import dev.inmo.navigation.mvvm.compose.ComposeView
 import org.koin.core.parameter.parametersOf
-import project_group.project_name.features.common.client.models.ViewConfig
+import dev.inmo.wishlist.features.common.client.models.ViewConfig
 import org.koin.core.component.inject
-import project_group.project_name.features.ui.sample.SampleStrings
+import dev.inmo.wishlist.features.ui.sample.SampleStrings
 
 class SampleView(
     chain: NavigationChain<ViewConfig>,

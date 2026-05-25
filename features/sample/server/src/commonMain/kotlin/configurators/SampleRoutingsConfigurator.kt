@@ -1,4 +1,4 @@
-package project_group.project_name.features.sample.server.configurators
+package dev.inmo.wishlist.features.sample.server.configurators
 
 import dev.inmo.micro_utils.ktor.server.configurators.ApplicationRoutingConfigurator
 import io.ktor.server.auth.authenticate
@@ -6,8 +6,8 @@ import io.ktor.server.response.respondText
 import io.ktor.server.routing.Route
 import io.ktor.server.routing.get
 import io.ktor.server.routing.route
-import project_group.project_name.features.sample.common.Constants
-import project_group.project_name.features.sample.server.SampleFeature
+import dev.inmo.wishlist.features.sample.common.Constants
+import dev.inmo.wishlist.features.sample.server.SampleFeature
 
 class SampleRoutingsConfigurator(
     private val sampleFeature: SampleFeature

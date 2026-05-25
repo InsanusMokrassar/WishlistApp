@@ -1,4 +1,4 @@
-package project_group.project_name.features.ui.sample
+package dev.inmo.wishlist.features.ui.sample
 
 import dev.inmo.micro_utils.koin.singleWithRandomQualifier
 import dev.inmo.micro_utils.startup.plugin.StartPlugin
@@ -6,9 +6,9 @@ import dev.inmo.navigation.core.NavigationNodeFactory
 import kotlinx.serialization.json.JsonObject
 import org.koin.core.Koin
 import org.koin.core.module.Module
-import project_group.project_name.features.common.client.models.ViewConfig
-import project_group.project_name.features.ui.sample.ui.SampleView
-import project_group.project_name.features.ui.sample.ui.SampleViewConfig
+import dev.inmo.wishlist.features.common.client.models.ViewConfig
+import dev.inmo.wishlist.features.ui.sample.ui.SampleView
+import dev.inmo.wishlist.features.ui.sample.ui.SampleViewConfig
 
 object JVMPlugin : StartPlugin {
     override fun Module.setupDI(config: JsonObject) {

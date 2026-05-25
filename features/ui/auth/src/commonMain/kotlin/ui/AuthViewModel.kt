@@ -1,4 +1,4 @@
-package project_group.project_name.features.ui.auth.ui
+package dev.inmo.wishlist.features.ui.auth.ui
 
 import dev.inmo.micro_utils.coroutines.MutableRedeliverStateFlow
 import dev.inmo.micro_utils.coroutines.launchLoggingDropExceptions
@@ -9,10 +9,10 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.stateIn
-import project_group.project_name.features.auth.common.models.Password
-import project_group.project_name.features.common.client.models.ViewConfig
-import project_group.project_name.features.ui.auth.utils.defaultServerUrl
-import project_group.project_name.features.users.common.models.Username
+import dev.inmo.wishlist.features.auth.common.models.Password
+import dev.inmo.wishlist.features.common.client.models.ViewConfig
+import dev.inmo.wishlist.features.ui.auth.utils.defaultServerUrl
+import dev.inmo.wishlist.features.users.common.models.Username
 
 class AuthViewModel(
     private val node: NavigationNode<AuthViewConfig, ViewConfig>,

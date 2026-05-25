@@ -1,4 +1,4 @@
-package project_group.project_name.features.common.server.models
+package dev.inmo.wishlist.features.common.server.models
 
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable

@@ -1,4 +1,4 @@
-package project_group.project_name.{{$module_package}}
+package dev.inmo.wishlist.{{$module_package}}
 
 import dev.inmo.micro_utils.koin.singleWithRandomQualifier
 import dev.inmo.micro_utils.startup.plugin.StartPlugin
@@ -6,10 +6,10 @@ import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.modules.SerializersModule
 import org.koin.core.Koin
 import org.koin.core.module.Module
-import project_group.project_name.features.common.client.models.ViewConfig
-import project_group.project_name.{{$module_package}}.ui.{{$module_ui_name}}Model
-import project_group.project_name.{{$module_package}}.ui.{{$module_ui_name}}ViewConfig
-import project_group.project_name.{{$module_package}}.ui.{{$module_ui_name}}ViewModel
+import dev.inmo.wishlist.features.common.client.models.ViewConfig
+import dev.inmo.wishlist.{{$module_package}}.ui.{{$module_ui_name}}Model
+import dev.inmo.wishlist.{{$module_package}}.ui.{{$module_ui_name}}ViewConfig
+import dev.inmo.wishlist.{{$module_package}}.ui.{{$module_ui_name}}ViewModel
 
 object Plugin : StartPlugin {
     override fun Module.setupDI(config: JsonObject) {

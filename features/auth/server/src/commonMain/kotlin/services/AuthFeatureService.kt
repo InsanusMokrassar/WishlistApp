@@ -1,4 +1,4 @@
-package project_group.project_name.features.auth.server.services
+package dev.inmo.wishlist.features.auth.server.services
 
 import com.benasher44.uuid.uuid4
 import dev.inmo.micro_utils.coroutines.SmartRWLocker
@@ -9,16 +9,16 @@ import dev.inmo.micro_utils.repos.set
 import dev.inmo.micro_utils.repos.unset
 import korlibs.time.DateTime
 import org.mindrot.jbcrypt.BCrypt
-import project_group.project_name.features.auth.server.ServerAuthFeature
-import project_group.project_name.features.auth.common.models.AuthCredentials
-import project_group.project_name.features.auth.common.models.Password
-import project_group.project_name.features.auth.common.models.RefreshToken
-import project_group.project_name.features.auth.common.models.Token
-import project_group.project_name.features.auth.server.repo.PasswordsRepo
-import project_group.project_name.features.users.common.models.RegisteredUser
-import project_group.project_name.features.users.common.models.UserId
-import project_group.project_name.features.users.common.models.Username
-import project_group.project_name.features.users.common.repo.ReadUsersRepo
+import dev.inmo.wishlist.features.auth.server.ServerAuthFeature
+import dev.inmo.wishlist.features.auth.common.models.AuthCredentials
+import dev.inmo.wishlist.features.auth.common.models.Password
+import dev.inmo.wishlist.features.auth.common.models.RefreshToken
+import dev.inmo.wishlist.features.auth.common.models.Token
+import dev.inmo.wishlist.features.auth.server.repo.PasswordsRepo
+import dev.inmo.wishlist.features.users.common.models.RegisteredUser
+import dev.inmo.wishlist.features.users.common.models.UserId
+import dev.inmo.wishlist.features.users.common.models.Username
+import dev.inmo.wishlist.features.users.common.repo.ReadUsersRepo
 import kotlin.time.Duration
 import kotlin.time.Duration.Companion.days
 import kotlin.time.Duration.Companion.minutes

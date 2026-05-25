@@ -1,4 +1,4 @@
-package project_group.project_name.features.common.common.echo
+package dev.inmo.wishlist.features.common.common.echo
 
 object EchoConstants {
     const val prefixPathPart = "echo"

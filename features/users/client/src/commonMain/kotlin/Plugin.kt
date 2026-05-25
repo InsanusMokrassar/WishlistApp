@@ -1,4 +1,4 @@
-package project_group.project_name.features.users.client
+package dev.inmo.wishlist.features.users.client
 
 import dev.inmo.micro_utils.startup.plugin.StartPlugin
 import kotlinx.serialization.json.JsonObject

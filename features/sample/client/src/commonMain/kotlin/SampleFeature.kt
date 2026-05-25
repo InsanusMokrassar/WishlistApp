@@ -1,4 +1,4 @@
-package project_group.project_name.features.sample.client
+package dev.inmo.wishlist.features.sample.client
 
 interface SampleFeature {
     suspend fun getSampleText(): String

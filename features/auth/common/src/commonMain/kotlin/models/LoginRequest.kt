@@ -1,7 +1,7 @@
-package project_group.project_name.features.auth.common.models
+package dev.inmo.wishlist.features.auth.common.models
 
 import kotlinx.serialization.Serializable
-import project_group.project_name.features.users.common.models.Username
+import dev.inmo.wishlist.features.users.common.models.Username
 
 @Serializable
 data class LoginRequest(

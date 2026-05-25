@@ -1,4 +1,4 @@
-package project_group.project_name.features.ui.sample
+package dev.inmo.wishlist.features.ui.sample
 
 import dev.inmo.micro_utils.language_codes.IetfLang
 import dev.inmo.micro_utils.strings.buildStringResource

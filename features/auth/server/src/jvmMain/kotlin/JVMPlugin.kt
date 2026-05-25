@@ -1,4 +1,4 @@
-package project_group.project_name.features.auth.server
+package dev.inmo.wishlist.features.auth.server
 
 import dev.inmo.kslog.common.i
 import dev.inmo.kslog.common.logger
@@ -7,13 +7,13 @@ import dev.inmo.micro_utils.startup.plugin.StartPlugin
 import kotlinx.serialization.json.JsonObject
 import org.koin.core.Koin
 import org.koin.core.module.Module
-import project_group.project_name.features.auth.common.models.Password
-import project_group.project_name.features.auth.server.repo.ExposedPasswordsRepo
-import project_group.project_name.features.auth.server.repo.PasswordsRepo
-import project_group.project_name.features.auth.server.services.AuthFeatureService
-import project_group.project_name.features.users.common.models.NewUser
-import project_group.project_name.features.users.common.models.Username
-import project_group.project_name.features.users.common.repo.UsersRepo
+import dev.inmo.wishlist.features.auth.common.models.Password
+import dev.inmo.wishlist.features.auth.server.repo.ExposedPasswordsRepo
+import dev.inmo.wishlist.features.auth.server.repo.PasswordsRepo
+import dev.inmo.wishlist.features.auth.server.services.AuthFeatureService
+import dev.inmo.wishlist.features.users.common.models.NewUser
+import dev.inmo.wishlist.features.users.common.models.Username
+import dev.inmo.wishlist.features.users.common.repo.UsersRepo
 import java.security.SecureRandom
 
 object JVMPlugin : StartPlugin {
@@ -23,7 +23,7 @@ object JVMPlugin : StartPlugin {
         "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789"
 
     override fun Module.setupDI(config: JsonObject) {
-        with(project_group.project_name.features.auth.common.JVMPlugin) { setupDI(config) }
+        with(dev.inmo.wishlist.features.auth.common.JVMPlugin) { setupDI(config) }
         with(Plugin) { setupDI(config) }
 
         single<PasswordsRepo> { ExposedPasswordsRepo(get()) }
@@ -31,7 +31,7 @@ object JVMPlugin : StartPlugin {
 
     override suspend fun startPlugin(koin: Koin) {
         super.startPlugin(koin)
-        project_group.project_name.features.auth.common.JVMPlugin.startPlugin(koin)
+        dev.inmo.wishlist.features.auth.common.JVMPlugin.startPlugin(koin)
         Plugin.startPlugin(koin)
 
         bootstrapRootUserIfMissing(koin)

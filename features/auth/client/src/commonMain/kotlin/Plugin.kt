@@ -1,14 +1,14 @@
-package project_group.project_name.features.auth.client
+package dev.inmo.wishlist.features.auth.client
 
 import dev.inmo.micro_utils.koin.singleWithRandomQualifier
 import dev.inmo.micro_utils.startup.plugin.StartPlugin
 import kotlinx.serialization.json.JsonObject
 import org.koin.core.Koin
 import org.koin.core.module.Module
-import project_group.project_name.features.auth.client.configurators.BearerAuthHttpClientConfigurator
-import project_group.project_name.features.auth.client.configurators.DefaultUrlHttpClientConfigurator
-import project_group.project_name.features.auth.common.AuthFeature
-import project_group.project_name.features.common.client.configurators.HttpClientConfigurator
+import dev.inmo.wishlist.features.auth.client.configurators.BearerAuthHttpClientConfigurator
+import dev.inmo.wishlist.features.auth.client.configurators.DefaultUrlHttpClientConfigurator
+import dev.inmo.wishlist.features.auth.common.AuthFeature
+import dev.inmo.wishlist.features.common.client.configurators.HttpClientConfigurator
 
 object Plugin : StartPlugin {
     override fun Module.setupDI(config: JsonObject) {

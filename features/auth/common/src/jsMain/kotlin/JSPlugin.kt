@@ -1,4 +1,4 @@
-package project_group.project_name.features.auth.common
+package dev.inmo.wishlist.features.auth.common
 
 import dev.inmo.micro_utils.startup.plugin.StartPlugin
 import kotlinx.serialization.json.JsonObject

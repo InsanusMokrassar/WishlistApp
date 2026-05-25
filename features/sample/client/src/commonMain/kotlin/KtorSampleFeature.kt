@@ -1,9 +1,9 @@
-package project_group.project_name.features.sample.client
+package dev.inmo.wishlist.features.sample.client
 
 import io.ktor.client.HttpClient
 import io.ktor.client.request.get
 import io.ktor.client.statement.bodyAsText
-import project_group.project_name.features.sample.common.Constants
+import dev.inmo.wishlist.features.sample.common.Constants
 
 class KtorSampleFeature(
     private val client: HttpClient

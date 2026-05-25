@@ -1,3 +1,3 @@
-package project_group.project_name.features.common.server
+package dev.inmo.wishlist.features.common.server
 
 expect val isInDebugMode: Boolean

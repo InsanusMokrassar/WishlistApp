@@ -1,4 +1,4 @@
-package project_group.project_name.features.common.client
+package dev.inmo.wishlist.features.common.client
 
 import dev.inmo.micro_utils.coroutines.runCatchingLogging
 import dev.inmo.micro_utils.koin.getAllDistinct
@@ -9,17 +9,17 @@ import dev.inmo.navigation.core.NavigationNodeFactory
 import io.ktor.client.HttpClient
 import io.ktor.client.HttpClientConfig
 import io.ktor.client.engine.HttpClientEngineFactory
-import project_group.project_name.features.common.client.models.ViewConfig
+import dev.inmo.wishlist.features.common.client.models.ViewConfig
 import kotlinx.serialization.json.JsonObject
 import org.koin.core.Koin
 import org.koin.core.module.Module
-import project_group.project_name.features.common.client.configurators.GZipHttpClientConfigurator
-import project_group.project_name.features.common.client.configurators.HttpClientConfigurator
-import project_group.project_name.features.common.client.configurators.SerializationConfigurator
-import project_group.project_name.features.common.client.configurators.TimeoutsHttpClientConfigurator
-import project_group.project_name.features.common.client.echo.EchoFeature
-import project_group.project_name.features.common.client.echo.KtorEchoFeature
-import project_group.project_name.features.common.client.models.EmptyConfig
+import dev.inmo.wishlist.features.common.client.configurators.GZipHttpClientConfigurator
+import dev.inmo.wishlist.features.common.client.configurators.HttpClientConfigurator
+import dev.inmo.wishlist.features.common.client.configurators.SerializationConfigurator
+import dev.inmo.wishlist.features.common.client.configurators.TimeoutsHttpClientConfigurator
+import dev.inmo.wishlist.features.common.client.echo.EchoFeature
+import dev.inmo.wishlist.features.common.client.echo.KtorEchoFeature
+import dev.inmo.wishlist.features.common.client.models.EmptyConfig
 
 object Plugin : StartPlugin {
     override fun Module.setupDI(config: JsonObject) {

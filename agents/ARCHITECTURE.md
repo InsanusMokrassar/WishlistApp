@@ -4,7 +4,7 @@
 
 This is a **Kotlin Multiplatform (KMP)** full-stack application template. The server runs on the JVM, and the client compiles to JavaScript (web), JVM (desktop), and Android. All three share common code via KMP source sets. The system is structured around a **plugin-based startup architecture** using the `dev.inmo:micro_utils.startup` library.
 
-The root package is `project_group.project_name`. When forking this template, replace both `project_group` and `project_name` everywhere (package names, Gradle module names, config references).
+The root package is `dev.inmo.wishlist`. When forking this template, replace both `dev.inmo` and `wishlist` everywhere (package names, Gradle module names, config references).
 
 ---
 
@@ -71,8 +71,8 @@ Each module is split into three submodules:
 
 ## Gradle Module Names
 
-The root project is named `project_name` in `settings.gradle`. Submodules use dotted paths. For example,
-`features/common/common/` have name in gradle `:project_name.features.common.common`
+The root project is named `wishlist` in `settings.gradle`. Submodules use dotted paths. For example,
+`features/common/common/` have name in gradle `:wishlist.features.common.common`
 
 In `settings.gradle`, includes use the colon-path form (e.g. `:features:common:common`), which gets transformed to the dotted name automatically.
 
@@ -101,19 +101,19 @@ Each feature may depend on any other one. Modules of `features/common` CANNOT de
    ```
 
 3. **Add dependencies** to each consumer module:
-   - `server/build.gradle` → `api project(":project_name.features.FEATURE_NAME.server")`
-   - `client/build.gradle` (commonMain) → `api project(":project_name.features.FEATURE_NAME.client")`
-   - `client/android/build.gradle` (commonMain) → `api project(":project_name.features.FEATURE_NAME.client")`
+   - `server/build.gradle` → `api project(":wishlist.features.FEATURE_NAME.server")`
+   - `client/build.gradle` (commonMain) → `api project(":wishlist.features.FEATURE_NAME.client")`
+   - `client/android/build.gradle` (commonMain) → `api project(":wishlist.features.FEATURE_NAME.client")`
 
 4. **Register the server plugin** — add the fully-qualified plugin object name to the `"plugins"` array in `server/sample.config.json` (or whichever config is in use):
    ```json
-   "project_group.project_name.features.FEATURE_NAME.server.JVMPlugin"
+   "dev.inmo.wishlist.features.FEATURE_NAME.server.JVMPlugin"
    ```
 
 5. **Register client plugins** — add the platform-specific plugin object to the plugin list in each client entry point:
-   - `client/src/jsMain/kotlin/Main.kt` → `project_group.project_name.features.FEATURE_NAME.client.JSPlugin`
-   - `client/src/jvmMain/kotlin/Main.kt` → `project_group.project_name.features.FEATURE_NAME.client.JVMPlugin`
-   - `client/android/src/main/kotlin/MainActivity.kt` → `project_group.project_name.features.FEATURE_NAME.client.AndroidPlugin`
+   - `client/src/jsMain/kotlin/Main.kt` → `dev.inmo.wishlist.features.FEATURE_NAME.client.JSPlugin`
+   - `client/src/jvmMain/kotlin/Main.kt` → `dev.inmo.wishlist.features.FEATURE_NAME.client.JVMPlugin`
+   - `client/android/src/main/kotlin/MainActivity.kt` → `dev.inmo.wishlist.features.FEATURE_NAME.client.AndroidPlugin`
 
 ### Plugins (`StartPlugin` inheritors) note
 
@@ -264,13 +264,13 @@ It will prompt for two inputs:
 
 3. **Add dependency in `client/build.gradle`** (commonMain only — Android gets it transitively through `client`):
    ```groovy
-   api project(":project_name.features.ui.MODULE_NAME")
+   api project(":wishlist.features.ui.MODULE_NAME")
    ```
 
 4. **Register client plugins** — add the platform-specific plugin object to the plugin list in each client entry point:
-   - `client/src/jsMain/kotlin/Main.kt` → `project_group.project_name.features.ui.MODULE_NAME.JSPlugin`
-   - `client/src/jvmMain/kotlin/Main.kt` → `project_group.project_name.features.ui.MODULE_NAME.JVMPlugin`
-   - `client/android/src/main/kotlin/MainActivity.kt` → `project_group.project_name.features.ui.MODULE_NAME.AndroidPlugin`
+   - `client/src/jsMain/kotlin/Main.kt` → `dev.inmo.wishlist.features.ui.MODULE_NAME.JSPlugin`
+   - `client/src/jvmMain/kotlin/Main.kt` → `dev.inmo.wishlist.features.ui.MODULE_NAME.JVMPlugin`
+   - `client/android/src/main/kotlin/MainActivity.kt` → `dev.inmo.wishlist.features.ui.MODULE_NAME.AndroidPlugin`
 
 ### UI MVVM Rules
 
@@ -581,7 +581,7 @@ Register elements with `singleWithRandomQualifier<ConfiguratorType.Element>` in 
     "password": "test"
   },
   "plugins": [
-    "project_group.project_name.features.common.server.JVMPlugin"
+    "dev.inmo.wishlist.features.common.server.JVMPlugin"
   ]
 }
 ```
@@ -642,14 +642,14 @@ When adding a new feature, its client plugin must be added to the plugin list in
 ```kotlin
 Config(listOf(
     ClientJSPlugin,
-    project_group.project_name.features.common.common.JSPlugin,
-    project_group.project_name.features.common.client.JSPlugin,
-    project_group.project_name.features.sample.client.JSPlugin,
-    project_group.project_name.features.auth.client.JSPlugin,
+    dev.inmo.wishlist.features.common.common.JSPlugin,
+    dev.inmo.wishlist.features.common.client.JSPlugin,
+    dev.inmo.wishlist.features.sample.client.JSPlugin,
+    dev.inmo.wishlist.features.auth.client.JSPlugin,
 
-    project_group.project_name.features.ui.sample.JSPlugin,
-    project_group.project_name.features.ui.serverAddress.JSPlugin,
-    project_group.project_name.features.ui.auth.JSPlugin,
+    dev.inmo.wishlist.features.ui.sample.JSPlugin,
+    dev.inmo.wishlist.features.ui.serverAddress.JSPlugin,
+    dev.inmo.wishlist.features.ui.auth.JSPlugin,
     // ADD NEW UI FEATURE JS PLUGINS HERE
 ))
 ```
@@ -658,14 +658,14 @@ Config(listOf(
 ```kotlin
 Config(listOf(
     ClientJVMPlugin(appJob),
-    project_group.project_name.features.common.common.JVMPlugin,
-    project_group.project_name.features.common.client.JVMPlugin,
-    project_group.project_name.features.sample.client.JVMPlugin,
-    project_group.project_name.features.auth.client.JVMPlugin,
+    dev.inmo.wishlist.features.common.common.JVMPlugin,
+    dev.inmo.wishlist.features.common.client.JVMPlugin,
+    dev.inmo.wishlist.features.sample.client.JVMPlugin,
+    dev.inmo.wishlist.features.auth.client.JVMPlugin,
 
-    project_group.project_name.features.ui.sample.JVMPlugin,
-    project_group.project_name.features.ui.serverAddress.JVMPlugin,
-    project_group.project_name.features.ui.auth.JVMPlugin,
+    dev.inmo.wishlist.features.ui.sample.JVMPlugin,
+    dev.inmo.wishlist.features.ui.serverAddress.JVMPlugin,
+    dev.inmo.wishlist.features.ui.auth.JVMPlugin,
     // ADD NEW UI FEATURE JVM PLUGINS HERE
 ))
 ```
@@ -674,14 +674,14 @@ Config(listOf(
 ```kotlin
 Config(listOf(
     clientAndroidPlugin,
-    project_group.project_name.features.common.common.AndroidPlugin,
-    project_group.project_name.features.common.client.AndroidPlugin,
-    project_group.project_name.features.sample.client.AndroidPlugin,
-    project_group.project_name.features.auth.client.AndroidPlugin,
+    dev.inmo.wishlist.features.common.common.AndroidPlugin,
+    dev.inmo.wishlist.features.common.client.AndroidPlugin,
+    dev.inmo.wishlist.features.sample.client.AndroidPlugin,
+    dev.inmo.wishlist.features.auth.client.AndroidPlugin,
 
-    project_group.project_name.features.ui.sample.AndroidPlugin,
-    project_group.project_name.features.ui.serverAddress.AndroidPlugin,
-    project_group.project_name.features.ui.auth.AndroidPlugin,
+    dev.inmo.wishlist.features.ui.sample.AndroidPlugin,
+    dev.inmo.wishlist.features.ui.serverAddress.AndroidPlugin,
+    dev.inmo.wishlist.features.ui.auth.AndroidPlugin,
     // ADD NEW UI FEATURE ANDROID PLUGINS HERE
 ))
 ```
@@ -790,7 +790,7 @@ A UI scenario consumes a full-stack feature through its `Model` interface. The V
 **Step 1 — Add the client module as a dependency** in the UI feature's `build.gradle`:
 
 ```groovy
-api project(":project_name.features.FEATURE_NAME.client")
+api project(":wishlist.features.FEATURE_NAME.client")
 ```
 
 **Step 2 — Declare the Model interface** to expose only what the scenario needs (not the full feature surface):
@@ -1139,8 +1139,8 @@ The `features/auth` feature implements end-to-end bearer-token authentication on
 ### Wiring outside the feature
 
 - `settings.gradle` includes the three submodules (`:features:auth:common`, `:features:auth:server`, `:features:auth:client`).
-- `server/build.gradle` adds `api project(":project_name.features.auth.server")` and `server/sample.config.json` adds `"project_group.project_name.features.auth.server.JVMPlugin"` to the `plugins` array (after `features.common.server.JVMPlugin`, which provides the `Database` singleton).
-- `client/build.gradle` adds `api project(":project_name.features.auth.client")`. Each client entry point (`client/src/jsMain/kotlin/Main.kt`, `client/src/jvmMain/kotlin/Main.kt`, `client/android/src/main/kotlin/MainActivity.kt`) appends the corresponding `features.auth.client.{JS,JVM,Android}Plugin` to its `Config(listOf(...))`.
+- `server/build.gradle` adds `api project(":wishlist.features.auth.server")` and `server/sample.config.json` adds `"dev.inmo.wishlist.features.auth.server.JVMPlugin"` to the `plugins` array (after `features.common.server.JVMPlugin`, which provides the `Database` singleton).
+- `client/build.gradle` adds `api project(":wishlist.features.auth.client")`. Each client entry point (`client/src/jsMain/kotlin/Main.kt`, `client/src/jvmMain/kotlin/Main.kt`, `client/android/src/main/kotlin/MainActivity.kt`) appends the corresponding `features.auth.client.{JS,JVM,Android}Plugin` to its `Config(listOf(...))`.
 
 ### Auto-refresh end-to-end
 
@@ -1162,9 +1162,9 @@ The `features/ui/auth` UI feature combines the full-stack `features/auth` featur
 ### Module dependencies (`features/ui/auth/build.gradle`)
 
 ```groovy
-api project(":project_name.features.common.client")
-api project(":project_name.features.auth.client")          // AuthFeature, AuthCredentialsStorage
-api project(":project_name.features.ui.serverAddress")     // ServerUrlStorage
+api project(":wishlist.features.common.client")
+api project(":wishlist.features.auth.client")          // AuthFeature, AuthCredentialsStorage
+api project(":wishlist.features.ui.serverAddress")     // ServerUrlStorage
 ```
 
 UI features are allowed to depend on other UI features when one wraps the other's storage/interactors. Here `ui/auth` reuses `ServerUrlStorage` so the user can set the server address and credentials in one form.
@@ -1237,7 +1237,7 @@ The button always reads `loginEnabledState` for its disabled binding — no view
 ### Wiring outside the feature
 
 - `settings.gradle` adds `:features:ui:auth`.
-- `client/build.gradle` adds `api project(":project_name.features.ui.auth")`.
+- `client/build.gradle` adds `api project(":wishlist.features.ui.auth")`.
 - Each client entry point (`client/src/jsMain/kotlin/Main.kt`, `client/src/jvmMain/kotlin/Main.kt`, `client/android/src/main/kotlin/MainActivity.kt`) appends `features.ui.auth.{JS,JVM,Android}Plugin` to its `Config(listOf(...))`.
 - `client/src/commonMain/kotlin/ClientPlugin.kt` registers the `AuthViewInteractor` implementation (pushes `SampleViewConfig` onto the chain) and replaces the root `InjectNavigationNode(ServerAddressViewConfig())` with `InjectNavigationNode(AuthViewConfig())`.
 

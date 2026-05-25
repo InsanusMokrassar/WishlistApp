@@ -1,12 +1,12 @@
-package project_group.project_name.features.auth.server.configurators
+package dev.inmo.wishlist.features.auth.server.configurators
 
 import io.ktor.server.auth.AuthenticationConfig
 import io.ktor.server.auth.UserIdPrincipal
 import io.ktor.server.auth.bearer
 import io.ktor.server.auth.principal
-import project_group.project_name.features.auth.common.models.Token
-import project_group.project_name.features.auth.server.services.AuthFeatureService
-import project_group.project_name.features.common.server.configurators.ApplicationAuthenticationConfigurator
+import dev.inmo.wishlist.features.auth.common.models.Token
+import dev.inmo.wishlist.features.auth.server.services.AuthFeatureService
+import dev.inmo.wishlist.features.common.server.configurators.ApplicationAuthenticationConfigurator
 
 class BearerAuthenticationConfigurator(
     private val authFeatureService: AuthFeatureService

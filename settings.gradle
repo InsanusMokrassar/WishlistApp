@@ -1,4 +1,4 @@
-rootProject.name = 'project_name'
+rootProject.name = 'wishlist'
 
 String[] includes = [
     ":features:common:common",

@@ -1,4 +1,4 @@
-package project_group.project_name.features.common.client.echo
+package dev.inmo.wishlist.features.common.client.echo
 
 interface EchoFeature {
     suspend fun getEcho(): String

@@ -1,11 +1,11 @@
-package project_group.project_name.features.auth.client.configurators
+package dev.inmo.wishlist.features.auth.client.configurators
 
 import io.ktor.client.HttpClientConfig
 import io.ktor.client.plugins.api.createClientPlugin
 import io.ktor.http.URLBuilder
-import project_group.project_name.features.auth.client.ServerUrlStorage
-import project_group.project_name.features.common.client.configurators.HttpClientConfigurator
-import project_group.project_name.features.common.client.utils.fillAbsentPartsWith
+import dev.inmo.wishlist.features.auth.client.ServerUrlStorage
+import dev.inmo.wishlist.features.common.client.configurators.HttpClientConfigurator
+import dev.inmo.wishlist.features.common.client.utils.fillAbsentPartsWith
 
 class DefaultUrlHttpClientConfigurator(
     private val storage: ServerUrlStorage

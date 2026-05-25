@@ -1,4 +1,4 @@
-package project_group.project_name.features.ui.auth.ui
+package dev.inmo.wishlist.features.ui.auth.ui
 
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -21,8 +21,8 @@ import dev.inmo.navigation.core.NavigationChain
 import dev.inmo.navigation.mvvm.compose.ComposeView
 import org.koin.core.component.inject
 import org.koin.core.parameter.parametersOf
-import project_group.project_name.features.common.client.models.ViewConfig
-import project_group.project_name.features.ui.auth.AuthStrings
+import dev.inmo.wishlist.features.common.client.models.ViewConfig
+import dev.inmo.wishlist.features.ui.auth.AuthStrings
 
 class AuthView(
     chain: NavigationChain<ViewConfig>,

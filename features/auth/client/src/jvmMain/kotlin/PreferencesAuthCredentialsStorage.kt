@@ -1,4 +1,4 @@
-package project_group.project_name.features.auth.client
+package dev.inmo.wishlist.features.auth.client
 
 import dev.inmo.micro_utils.coroutines.MutableRedeliverStateFlow
 import dev.inmo.micro_utils.coroutines.SmartRWLocker
@@ -7,12 +7,12 @@ import dev.inmo.micro_utils.coroutines.withWriteLock
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.serialization.json.Json
-import project_group.project_name.features.auth.common.models.AuthCredentials
+import dev.inmo.wishlist.features.auth.common.models.AuthCredentials
 import java.util.prefs.Preferences
 
 class PreferencesAuthCredentialsStorage(
     private val json: Json,
-    nodeName: String = "project_name/auth",
+    nodeName: String = "wishlist/auth",
     private val key: String = "credentials"
 ) : AuthCredentialsStorage {
     private val preferences: Preferences = Preferences.userRoot().node(nodeName)

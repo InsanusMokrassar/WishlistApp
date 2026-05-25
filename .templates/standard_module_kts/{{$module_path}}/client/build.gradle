@@ -12,8 +12,8 @@ kotlin {
     sourceSets {
         commonMain {
             dependencies {
-                api project(":project_name.{{$module_package}}.common")
-                api project(":project_name.features.common.client")
+                api project(":wishlist.{{$module_package}}.common")
+                api project(":wishlist.features.common.client")
             }
         }
     }

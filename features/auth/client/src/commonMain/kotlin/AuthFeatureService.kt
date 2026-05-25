@@ -1,10 +1,10 @@
-package project_group.project_name.features.auth.client
+package dev.inmo.wishlist.features.auth.client
 
-import project_group.project_name.features.auth.common.models.AuthCredentials
-import project_group.project_name.features.auth.common.models.Password
-import project_group.project_name.features.auth.common.models.RefreshToken
-import project_group.project_name.features.users.common.models.RegisteredUser
-import project_group.project_name.features.users.common.models.Username
+import dev.inmo.wishlist.features.auth.common.models.AuthCredentials
+import dev.inmo.wishlist.features.auth.common.models.Password
+import dev.inmo.wishlist.features.auth.common.models.RefreshToken
+import dev.inmo.wishlist.features.users.common.models.RegisteredUser
+import dev.inmo.wishlist.features.users.common.models.Username
 
 class AuthFeatureService(
     private val storage: AuthCredentialsStorage,

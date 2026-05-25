@@ -11,10 +11,10 @@
     "password": "test"
   },
   "plugins": [
-    "project_group.project_name.features.common.server.JVMPlugin",
-    "project_group.project_name.features.sample.server.JVMPlugin",
-    "project_group.project_name.features.users.server.JVMPlugin",
-    "project_group.project_name.features.auth.server.JVMPlugin"
+    "dev.inmo.wishlist.features.common.server.JVMPlugin",
+    "dev.inmo.wishlist.features.sample.server.JVMPlugin",
+    "dev.inmo.wishlist.features.users.server.JVMPlugin",
+    "dev.inmo.wishlist.features.auth.server.JVMPlugin"
   ],
   "useCache": true,
   "tokenTtl": "PT15M",

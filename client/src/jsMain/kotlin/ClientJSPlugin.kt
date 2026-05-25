@@ -1,9 +1,9 @@
-package project_group.project_name.client
+package dev.inmo.wishlist.client
 
 import androidx.compose.runtime.collectAsState
 import dev.inmo.micro_utils.startup.plugin.StartPlugin
 import dev.inmo.navigation.core.repo.NavigationConfigsRepo
-import project_group.project_name.features.common.client.models.ViewConfig
+import dev.inmo.wishlist.features.common.client.models.ViewConfig
 import kotlinx.serialization.json.JsonObject
 import org.jetbrains.compose.web.renderComposable
 import org.koin.core.Koin

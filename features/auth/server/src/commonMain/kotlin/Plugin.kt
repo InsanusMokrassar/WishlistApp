@@ -1,4 +1,4 @@
-package project_group.project_name.features.auth.server
+package dev.inmo.wishlist.features.auth.server
 
 import dev.inmo.micro_utils.koin.singleWithRandomQualifier
 import dev.inmo.micro_utils.ktor.server.configurators.ApplicationRoutingConfigurator
@@ -7,12 +7,12 @@ import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonObject
 import org.koin.core.Koin
 import org.koin.core.module.Module
-import project_group.project_name.features.auth.common.AuthFeature
-import project_group.project_name.features.auth.server.ServerAuthFeature
-import project_group.project_name.features.auth.server.configurators.AuthRoutingsConfigurator
-import project_group.project_name.features.auth.server.configurators.BearerAuthenticationConfigurator
-import project_group.project_name.features.auth.server.services.AuthFeatureService
-import project_group.project_name.features.common.server.configurators.ApplicationAuthenticationConfigurator
+import dev.inmo.wishlist.features.auth.common.AuthFeature
+import dev.inmo.wishlist.features.auth.server.ServerAuthFeature
+import dev.inmo.wishlist.features.auth.server.configurators.AuthRoutingsConfigurator
+import dev.inmo.wishlist.features.auth.server.configurators.BearerAuthenticationConfigurator
+import dev.inmo.wishlist.features.auth.server.services.AuthFeatureService
+import dev.inmo.wishlist.features.common.server.configurators.ApplicationAuthenticationConfigurator
 
 object Plugin : StartPlugin {
     override fun Module.setupDI(config: JsonObject) {

@@ -1,8 +1,8 @@
-package project_group.project_name.{{$module_package}}.ui
+package dev.inmo.wishlist.{{$module_package}}.ui
 
 import dev.inmo.navigation.core.NavigationNode
 import dev.inmo.navigation.mvvm.ViewModel
-import project_group.project_name.features.common.client.models.ViewConfig
+import dev.inmo.wishlist.features.common.client.models.ViewConfig
 
 class {{$module_ui_name}}ViewModel(
     private val node: NavigationNode<{{$module_ui_name}}ViewConfig, ViewConfig>,

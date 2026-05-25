@@ -9,7 +9,7 @@ kotlin {
     sourceSets {
         commonMain {
             dependencies {
-                api project(":project_name.features.common.common")
+                api project(":wishlist.features.common.common")
                 api libs.microutils.repos.exposed
                 api libs.microutils.repos.cache
                 api libs.microutils.repos.ktor.server

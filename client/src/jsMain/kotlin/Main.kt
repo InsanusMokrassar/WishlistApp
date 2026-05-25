@@ -1,4 +1,4 @@
-package project_group.project_name.client
+package dev.inmo.wishlist.client
 
 import dev.inmo.micro_utils.startup.launcher.Config
 import dev.inmo.micro_utils.startup.launcher.StartLauncherPlugin
@@ -14,13 +14,13 @@ fun main() {
                 Config(
                     listOf(
                         ClientJSPlugin,
-                        project_group.project_name.features.common.common.JSPlugin,
-                        project_group.project_name.features.common.client.JSPlugin,
-                        project_group.project_name.features.sample.client.JSPlugin,
-                        project_group.project_name.features.auth.client.JSPlugin,
+                        dev.inmo.wishlist.features.common.common.JSPlugin,
+                        dev.inmo.wishlist.features.common.client.JSPlugin,
+                        dev.inmo.wishlist.features.sample.client.JSPlugin,
+                        dev.inmo.wishlist.features.auth.client.JSPlugin,
 
-                        project_group.project_name.features.ui.sample.JSPlugin,
-                        project_group.project_name.features.ui.auth.JSPlugin,
+                        dev.inmo.wishlist.features.ui.sample.JSPlugin,
+                        dev.inmo.wishlist.features.ui.auth.JSPlugin,
                     )
                 )
             )

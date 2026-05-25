@@ -1,4 +1,4 @@
-package project_group.project_name.features.auth.client
+package dev.inmo.wishlist.features.auth.client
 
 import android.content.Context
 import dev.inmo.micro_utils.coroutines.MutableRedeliverStateFlow
@@ -8,12 +8,12 @@ import dev.inmo.micro_utils.coroutines.withWriteLock
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.serialization.json.Json
-import project_group.project_name.features.auth.common.models.AuthCredentials
+import dev.inmo.wishlist.features.auth.common.models.AuthCredentials
 
 class SharedPreferencesAuthCredentialsStorage(
     context: Context,
     private val json: Json,
-    fileName: String = "project_name.auth",
+    fileName: String = "wishlist.auth",
     private val key: String = "credentials"
 ) : AuthCredentialsStorage {
     private val prefs = context.getSharedPreferences(fileName, Context.MODE_PRIVATE)

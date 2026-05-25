@@ -1,4 +1,4 @@
-package project_group.project_name.features.auth.client
+package dev.inmo.wishlist.features.auth.client
 
 interface ServerUrlStorage {
     suspend fun getServerUrl(): String?

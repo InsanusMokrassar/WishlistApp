@@ -1,8 +1,8 @@
-package project_group.project_name.features.auth.client
+package dev.inmo.wishlist.features.auth.client
 
-import project_group.project_name.features.auth.common.AuthFeature
-import project_group.project_name.features.users.common.models.RegisteredUser
-import project_group.project_name.features.users.common.models.User
+import dev.inmo.wishlist.features.auth.common.AuthFeature
+import dev.inmo.wishlist.features.users.common.models.RegisteredUser
+import dev.inmo.wishlist.features.users.common.models.User
 
 interface ClientAuthFeature : AuthFeature {
     suspend fun logout()

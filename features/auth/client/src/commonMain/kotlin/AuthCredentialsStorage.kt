@@ -1,9 +1,9 @@
-package project_group.project_name.features.auth.client
+package dev.inmo.wishlist.features.auth.client
 
 import dev.inmo.micro_utils.coroutines.MutableRedeliverStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
-import project_group.project_name.features.auth.common.models.AuthCredentials
+import dev.inmo.wishlist.features.auth.common.models.AuthCredentials
 
 interface AuthCredentialsStorage {
     val userAuthorised: StateFlow<Boolean>

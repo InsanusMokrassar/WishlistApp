@@ -1,4 +1,4 @@
-package project_group.project_name.client
+package dev.inmo.wishlist.client
 
 import dev.inmo.micro_utils.startup.launcher.Config
 import dev.inmo.micro_utils.startup.launcher.StartLauncherPlugin
@@ -10,13 +10,13 @@ suspend fun main() {
         Config(
             listOf(
                 ClientJVMPlugin(appJob),
-                project_group.project_name.features.common.common.JVMPlugin,
-                project_group.project_name.features.common.client.JVMPlugin,
-                project_group.project_name.features.sample.client.JVMPlugin,
-                project_group.project_name.features.auth.client.JVMPlugin,
+                dev.inmo.wishlist.features.common.common.JVMPlugin,
+                dev.inmo.wishlist.features.common.client.JVMPlugin,
+                dev.inmo.wishlist.features.sample.client.JVMPlugin,
+                dev.inmo.wishlist.features.auth.client.JVMPlugin,
 
-                project_group.project_name.features.ui.sample.JVMPlugin,
-                project_group.project_name.features.ui.auth.JVMPlugin,
+                dev.inmo.wishlist.features.ui.sample.JVMPlugin,
+                dev.inmo.wishlist.features.ui.auth.JVMPlugin,
             )
         )
     )

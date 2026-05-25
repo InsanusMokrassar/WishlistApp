@@ -1,4 +1,4 @@
-package project_group.project_name.features.common.server.configurators
+package dev.inmo.wishlist.features.common.server.configurators
 
 import dev.inmo.micro_utils.ktor.server.configurators.KtorApplicationConfigurator
 import io.ktor.serialization.kotlinx.KotlinxWebsocketSerializationConverter

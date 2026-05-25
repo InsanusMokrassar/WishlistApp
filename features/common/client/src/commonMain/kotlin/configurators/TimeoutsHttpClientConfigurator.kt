@@ -1,4 +1,4 @@
-package project_group.project_name.features.common.client.configurators
+package dev.inmo.wishlist.features.common.client.configurators
 
 import io.ktor.client.HttpClientConfig
 import io.ktor.client.plugins.HttpTimeout

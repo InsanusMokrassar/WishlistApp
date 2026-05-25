@@ -1,9 +1,9 @@
 version: "3.4"
 
 services:
-  project_name_postgres:
+  wishlist_postgres:
     image: postgres
-    container_name: project_name_postgres
+    container_name: wishlist_postgres
     environment:
       POSTGRES_USER: "test"
       POSTGRES_PASSWORD: "test"

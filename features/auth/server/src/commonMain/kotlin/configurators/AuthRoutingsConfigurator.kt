@@ -1,4 +1,4 @@
-package project_group.project_name.features.auth.server.configurators
+package dev.inmo.wishlist.features.auth.server.configurators
 
 import dev.inmo.micro_utils.ktor.server.configurators.ApplicationRoutingConfigurator
 import io.ktor.http.HttpHeaders
@@ -11,11 +11,11 @@ import io.ktor.server.routing.Route
 import io.ktor.server.routing.get
 import io.ktor.server.routing.post
 import io.ktor.server.routing.route
-import project_group.project_name.features.auth.common.Constants
-import project_group.project_name.features.auth.common.models.LoginRequest
-import project_group.project_name.features.auth.common.models.RefreshRequest
-import project_group.project_name.features.auth.common.models.Token
-import project_group.project_name.features.auth.server.ServerAuthFeature
+import dev.inmo.wishlist.features.auth.common.Constants
+import dev.inmo.wishlist.features.auth.common.models.LoginRequest
+import dev.inmo.wishlist.features.auth.common.models.RefreshRequest
+import dev.inmo.wishlist.features.auth.common.models.Token
+import dev.inmo.wishlist.features.auth.server.ServerAuthFeature
 
 class AuthRoutingsConfigurator(
     private val authFeature: ServerAuthFeature

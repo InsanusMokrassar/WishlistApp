@@ -1,4 +1,4 @@
-package project_group.project_name.{{$module_package}}.ui
+package dev.inmo.wishlist.{{$module_package}}.ui
 
 interface {{$module_ui_name}}Model {
 

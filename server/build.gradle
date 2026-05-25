@@ -12,10 +12,10 @@ application {
 }
 
 dependencies {
-    api project(":project_name.features.common.server")
-    api project(":project_name.features.sample.server")
-    api project(":project_name.features.users.server")
-    api project(":project_name.features.auth.server")
+    api project(":wishlist.features.common.server")
+    api project(":wishlist.features.sample.server")
+    api project(":wishlist.features.users.server")
+    api project(":wishlist.features.auth.server")
 
     api libs.ktor.websockets
     api libs.ktor.serialization.kotlinx.json
@@ -37,7 +37,7 @@ java {
 
 project.tasks.configureEach {
     if (it.name == "run") {
-        def jsDevelopmentExecutableTask = project(":project_name.client").getTasksByName("jsBrowserDevelopmentExecutableDistribution", true)
+        def jsDevelopmentExecutableTask = project(":wishlist.client").getTasksByName("jsBrowserDevelopmentExecutableDistribution", true)
         it.dependsOn(jsDevelopmentExecutableTask)
         it.shouldRunAfter(jsDevelopmentExecutableTask)
     }

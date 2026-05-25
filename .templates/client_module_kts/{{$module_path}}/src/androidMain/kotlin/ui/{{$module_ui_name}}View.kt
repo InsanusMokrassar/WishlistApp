@@ -1,10 +1,10 @@
-package project_group.project_name.{{$module_package}}.ui
+package dev.inmo.wishlist.{{$module_package}}.ui
 
 import androidx.compose.runtime.Composable
 import dev.inmo.navigation.core.NavigationChain
 import dev.inmo.navigation.mvvm.compose.ComposeView
 import org.koin.core.parameter.parametersOf
-import project_group.project_name.features.common.client.models.ViewConfig
+import dev.inmo.wishlist.features.common.client.models.ViewConfig
 import org.koin.core.component.inject
 
 class {{$module_ui_name}}View(

@@ -1,6 +1,6 @@
-package project_group.project_name.features.common.client.models
+package dev.inmo.wishlist.features.common.client.models
 
-import project_group.project_name.features.common.client.models.ViewConfig
+import dev.inmo.wishlist.features.common.client.models.ViewConfig
 import kotlinx.serialization.Serializable
 
 @Serializable

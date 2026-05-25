@@ -1,6 +1,6 @@
-package project_group.project_name.features.common.client
+package dev.inmo.wishlist.features.common.client
 
-import project_group.project_name.features.common.common.JSPlugin
+import dev.inmo.wishlist.features.common.common.JSPlugin
 import dev.inmo.micro_utils.startup.plugin.StartPlugin
 import io.ktor.client.engine.HttpClientEngine
 import io.ktor.client.engine.HttpClientEngineFactory

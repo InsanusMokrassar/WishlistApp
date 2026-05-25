@@ -1,6 +1,6 @@
-package project_group.project_name.features.sample.server.services
+package dev.inmo.wishlist.features.sample.server.services
 
-import project_group.project_name.features.sample.server.SampleFeature
+import dev.inmo.wishlist.features.sample.server.SampleFeature
 
 class SimpleSampleFeatureService(
     private val sampleText: String

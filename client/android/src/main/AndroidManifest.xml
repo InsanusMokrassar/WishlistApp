@@ -6,9 +6,9 @@
         android:allowBackup="true"
         android:icon="@drawable/ic_launcher_background"
         android:label="@string/app_name"
-        android:theme="@style/Theme.project_name">
+        android:theme="@style/Theme.wishlist">
         <activity
-                android:name="project_group.project_name.client.MainActivity"
+                android:name="dev.inmo.wishlist.client.MainActivity"
                 android:exported="true">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN"/>

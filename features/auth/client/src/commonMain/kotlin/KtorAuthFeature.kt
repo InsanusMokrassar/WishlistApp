@@ -1,4 +1,4 @@
-package project_group.project_name.features.auth.client
+package dev.inmo.wishlist.features.auth.client
 
 import dev.inmo.micro_utils.common.Either
 import dev.inmo.micro_utils.common.either
@@ -15,14 +15,14 @@ import io.ktor.http.ContentType
 import io.ktor.http.HttpStatusCode
 import io.ktor.http.contentType
 import io.ktor.http.isSuccess
-import project_group.project_name.features.auth.common.Constants
-import project_group.project_name.features.auth.common.models.AuthCredentials
-import project_group.project_name.features.auth.common.models.LoginRequest
-import project_group.project_name.features.auth.common.models.Password
-import project_group.project_name.features.auth.common.models.RefreshRequest
-import project_group.project_name.features.auth.common.models.RefreshToken
-import project_group.project_name.features.users.common.models.RegisteredUser
-import project_group.project_name.features.users.common.models.Username
+import dev.inmo.wishlist.features.auth.common.Constants
+import dev.inmo.wishlist.features.auth.common.models.AuthCredentials
+import dev.inmo.wishlist.features.auth.common.models.LoginRequest
+import dev.inmo.wishlist.features.auth.common.models.Password
+import dev.inmo.wishlist.features.auth.common.models.RefreshRequest
+import dev.inmo.wishlist.features.auth.common.models.RefreshToken
+import dev.inmo.wishlist.features.users.common.models.RegisteredUser
+import dev.inmo.wishlist.features.users.common.models.Username
 
 class KtorAuthFeature(
     private val client: HttpClient

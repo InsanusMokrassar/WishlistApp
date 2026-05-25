@@ -12,8 +12,8 @@ kotlin {
     sourceSets {
         commonMain {
             dependencies {
-                api project(":project_name.features.auth.common")
-                api project(":project_name.features.common.client")
+                api project(":wishlist.features.auth.common")
+                api project(":wishlist.features.common.client")
                 api libs.ktor.client.auth
             }
         }

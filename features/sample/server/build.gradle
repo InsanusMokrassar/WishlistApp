@@ -9,8 +9,8 @@ kotlin {
     sourceSets {
         commonMain {
             dependencies {
-                api project(":project_name.features.sample.common")
-                api project(":project_name.features.common.server")
+                api project(":wishlist.features.sample.common")
+                api project(":wishlist.features.common.server")
             }
         }
     }

@@ -1,12 +1,12 @@
-package project_group.project_name.features.auth.server.repo
+package dev.inmo.wishlist.features.auth.server.repo
 
 import dev.inmo.micro_utils.repos.KeyValueRepo
 import dev.inmo.micro_utils.repos.exposed.keyvalue.ExposedKeyValueRepo
 import dev.inmo.micro_utils.repos.mappers.withMapper
 import org.jetbrains.exposed.v1.jdbc.Database
-import project_group.project_name.features.auth.common.models.Password
-import project_group.project_name.features.users.common.models.UserId
-import project_group.project_name.features.users.common.models.Username
+import dev.inmo.wishlist.features.auth.common.models.Password
+import dev.inmo.wishlist.features.users.common.models.UserId
+import dev.inmo.wishlist.features.users.common.models.Username
 
 private fun createDelegate(database: Database): KeyValueRepo<UserId, Password> =
     ExposedKeyValueRepo<Long, String>(

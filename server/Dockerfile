@@ -6,6 +6,6 @@ VOLUME /config.json
 VOLUME /db
 VOLUME /static
 
-ENTRYPOINT ["/project_name.server/bin/project_name.server", "/config.json"]
+ENTRYPOINT ["/wishlist.server/bin/wishlist.server", "/config.json"]
 
-ADD ./build/distributions/project_name.server.tar /
+ADD ./build/distributions/wishlist.server.tar /

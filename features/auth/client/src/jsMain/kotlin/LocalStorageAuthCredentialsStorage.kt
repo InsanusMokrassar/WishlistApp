@@ -1,4 +1,4 @@
-package project_group.project_name.features.auth.client
+package dev.inmo.wishlist.features.auth.client
 
 import dev.inmo.micro_utils.coroutines.MutableRedeliverStateFlow
 import dev.inmo.micro_utils.coroutines.SmartRWLocker
@@ -10,11 +10,11 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.serialization.json.Json
 import org.w3c.dom.get
 import org.w3c.dom.set
-import project_group.project_name.features.auth.common.models.AuthCredentials
+import dev.inmo.wishlist.features.auth.common.models.AuthCredentials
 
 class LocalStorageAuthCredentialsStorage(
     private val json: Json,
-    private val key: String = "project_name.auth.credentials"
+    private val key: String = "wishlist.auth.credentials"
 ) : AuthCredentialsStorage {
     private val _userAuthorised = MutableRedeliverStateFlow(localStorage[key] != null)
     override val userAuthorised: StateFlow<Boolean> = _userAuthorised.asStateFlow()

@@ -12,7 +12,7 @@ kotlin {
     sourceSets {
         commonMain {
             dependencies {
-                api project(":project_name.features.common.common")
+                api project(":wishlist.features.common.common")
                 api libs.navigation.mvvm
                 api libs.microutils.koin
                 api libs.ktor.client.content.negotiation

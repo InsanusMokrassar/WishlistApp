@@ -17,11 +17,11 @@ kotlin {
             dependencies {
                 api libs.microutils.startup.launcher
                 api libs.navigation.mvvm
-                api project(":project_name.features.common.client")
-                api project(":project_name.features.sample.client")
-                api project(":project_name.features.auth.client")
-                api project(":project_name.features.ui.sample")
-                api project(":project_name.features.ui.auth")
+                api project(":wishlist.features.common.client")
+                api project(":wishlist.features.sample.client")
+                api project(":wishlist.features.auth.client")
+                api project(":wishlist.features.ui.sample")
+                api project(":wishlist.features.ui.auth")
             }
         }
     }

@@ -1,4 +1,4 @@
-package project_group.project_name.features.auth.common
+package dev.inmo.wishlist.features.auth.common
 
 object Constants {
     const val prefixPathPart = "auth"

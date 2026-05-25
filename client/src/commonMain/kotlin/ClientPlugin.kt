@@ -1,4 +1,4 @@
-package project_group.project_name.client
+package dev.inmo.wishlist.client
 
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -16,7 +16,7 @@ import dev.inmo.navigation.core.NavigationNode
 import dev.inmo.navigation.core.NavigationNodeFactory
 import dev.inmo.navigation.core.NavigationNodeState
 import dev.inmo.navigation.core.extensions.changesInSubTreeFlow
-import project_group.project_name.features.common.client.models.ViewConfig
+import dev.inmo.wishlist.features.common.client.models.ViewConfig
 import dev.inmo.navigation.core.extensions.changesInSubtreeFlow
 import dev.inmo.navigation.core.extensions.dropNodesInSubTree
 import kotlinx.coroutines.CoroutineScope
@@ -25,11 +25,11 @@ import kotlinx.coroutines.flow.merge
 import kotlinx.serialization.json.JsonObject
 import org.koin.core.Koin
 import org.koin.core.module.Module
-import project_group.project_name.features.common.client.models.EmptyConfig
-import project_group.project_name.features.common.client.models.RootNodeFactoryGetter
-import project_group.project_name.features.ui.auth.ui.AuthViewConfig
-import project_group.project_name.features.ui.auth.ui.AuthViewInteractor
-import project_group.project_name.features.ui.sample.ui.SampleViewConfig
+import dev.inmo.wishlist.features.common.client.models.EmptyConfig
+import dev.inmo.wishlist.features.common.client.models.RootNodeFactoryGetter
+import dev.inmo.wishlist.features.ui.auth.ui.AuthViewConfig
+import dev.inmo.wishlist.features.ui.auth.ui.AuthViewInteractor
+import dev.inmo.wishlist.features.ui.sample.ui.SampleViewConfig
 
 object ClientPlugin : StartPlugin {
     val currentDrawingBlock = MutableRedeliverStateFlow<@Composable () -> Unit>({})

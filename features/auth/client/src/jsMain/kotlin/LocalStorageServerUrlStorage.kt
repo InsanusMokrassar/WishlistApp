@@ -1,4 +1,4 @@
-package project_group.project_name.features.auth.client
+package dev.inmo.wishlist.features.auth.client
 
 import dev.inmo.micro_utils.coroutines.SmartRWLocker
 import dev.inmo.micro_utils.coroutines.withReadAcquire
@@ -8,7 +8,7 @@ import org.w3c.dom.get
 import org.w3c.dom.set
 
 class LocalStorageServerUrlStorage(
-    private val key: String = "project_name.serverAddress.url"
+    private val key: String = "wishlist.serverAddress.url"
 ) : ServerUrlStorage {
     private val locker = SmartRWLocker()
 

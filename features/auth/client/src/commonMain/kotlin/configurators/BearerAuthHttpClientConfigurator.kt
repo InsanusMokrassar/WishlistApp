@@ -1,4 +1,4 @@
-package project_group.project_name.features.auth.client.configurators
+package dev.inmo.wishlist.features.auth.client.configurators
 
 import dev.inmo.micro_utils.coroutines.MutableRedeliverStateFlow
 import dev.inmo.micro_utils.coroutines.runCatchingLogging
@@ -19,13 +19,13 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.dropWhile
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.mapNotNull
-import project_group.project_name.features.auth.client.AuthCredentialsStorage
-import project_group.project_name.features.auth.client.ClientAuthFeature
-import project_group.project_name.features.auth.common.Constants
-import project_group.project_name.features.auth.common.models.AuthCredentials
-import project_group.project_name.features.auth.common.models.RefreshRequest
-import project_group.project_name.features.auth.common.models.RefreshToken
-import project_group.project_name.features.common.client.configurators.HttpClientConfigurator
+import dev.inmo.wishlist.features.auth.client.AuthCredentialsStorage
+import dev.inmo.wishlist.features.auth.client.ClientAuthFeature
+import dev.inmo.wishlist.features.auth.common.Constants
+import dev.inmo.wishlist.features.auth.common.models.AuthCredentials
+import dev.inmo.wishlist.features.auth.common.models.RefreshRequest
+import dev.inmo.wishlist.features.auth.common.models.RefreshToken
+import dev.inmo.wishlist.features.common.client.configurators.HttpClientConfigurator
 
 class BearerAuthHttpClientConfigurator(
     private val storage: AuthCredentialsStorage,

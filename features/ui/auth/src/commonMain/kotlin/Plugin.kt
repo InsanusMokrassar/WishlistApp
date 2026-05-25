@@ -1,4 +1,4 @@
-package project_group.project_name.features.ui.auth
+package dev.inmo.wishlist.features.ui.auth
 
 import dev.inmo.micro_utils.coroutines.subscribeLoggingDropExceptions
 import dev.inmo.micro_utils.koin.singleWithRandomQualifier
@@ -9,17 +9,17 @@ import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.modules.SerializersModule
 import org.koin.core.Koin
 import org.koin.core.module.Module
-import project_group.project_name.features.auth.client.AuthCredentialsStorage
-import project_group.project_name.features.auth.client.ClientAuthFeature
-import project_group.project_name.features.auth.common.AuthFeature
-import project_group.project_name.features.auth.common.models.Password
-import project_group.project_name.features.common.client.models.ViewConfig
-import project_group.project_name.features.ui.auth.ui.AuthModel
-import project_group.project_name.features.ui.auth.ui.AuthViewConfig
-import project_group.project_name.features.ui.auth.ui.AuthViewInteractor
-import project_group.project_name.features.ui.auth.ui.AuthViewModel
-import project_group.project_name.features.auth.client.ServerUrlStorage
-import project_group.project_name.features.users.common.models.Username
+import dev.inmo.wishlist.features.auth.client.AuthCredentialsStorage
+import dev.inmo.wishlist.features.auth.client.ClientAuthFeature
+import dev.inmo.wishlist.features.auth.common.AuthFeature
+import dev.inmo.wishlist.features.auth.common.models.Password
+import dev.inmo.wishlist.features.common.client.models.ViewConfig
+import dev.inmo.wishlist.features.ui.auth.ui.AuthModel
+import dev.inmo.wishlist.features.ui.auth.ui.AuthViewConfig
+import dev.inmo.wishlist.features.ui.auth.ui.AuthViewInteractor
+import dev.inmo.wishlist.features.ui.auth.ui.AuthViewModel
+import dev.inmo.wishlist.features.auth.client.ServerUrlStorage
+import dev.inmo.wishlist.features.users.common.models.Username
 
 object Plugin : StartPlugin {
     override fun Module.setupDI(config: JsonObject) {

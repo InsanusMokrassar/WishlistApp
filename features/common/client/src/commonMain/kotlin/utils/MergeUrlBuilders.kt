@@ -1,4 +1,4 @@
-package project_group.project_name.features.common.client.utils
+package dev.inmo.wishlist.features.common.client.utils
 
 import io.ktor.http.URLBuilder
 

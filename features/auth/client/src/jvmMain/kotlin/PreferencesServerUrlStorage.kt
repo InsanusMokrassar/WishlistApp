@@ -1,4 +1,4 @@
-package project_group.project_name.features.auth.client
+package dev.inmo.wishlist.features.auth.client
 
 import dev.inmo.micro_utils.coroutines.SmartRWLocker
 import dev.inmo.micro_utils.coroutines.withReadAcquire
@@ -6,7 +6,7 @@ import dev.inmo.micro_utils.coroutines.withWriteLock
 import java.util.prefs.Preferences
 
 class PreferencesServerUrlStorage(
-    nodeName: String = "project_name/serverAddress",
+    nodeName: String = "wishlist/serverAddress",
     private val key: String = "url"
 ) : ServerUrlStorage {
     private val preferences: Preferences = Preferences.userRoot().node(nodeName)

@@ -1,7 +1,7 @@
-package project_group.project_name.features.ui.auth.ui
+package dev.inmo.wishlist.features.ui.auth.ui
 
-import project_group.project_name.features.auth.common.models.Password
-import project_group.project_name.features.users.common.models.Username
+import dev.inmo.wishlist.features.auth.common.models.Password
+import dev.inmo.wishlist.features.users.common.models.Username
 
 interface AuthModel {
     suspend fun isAlreadyLoggedIn(): Boolean

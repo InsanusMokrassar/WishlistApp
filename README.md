@@ -1,17 +1,6 @@
-# project_name
+# wishlist
 
 ## Usage of template
-
-### Initiation
-To start project from this template:
-
-* Replace `project_name` in whole project onto your project name with small leading character
-* Replace `project_group` in whole project onto your project group with small leading character
-* Add `local.properties` with content like:
-```properties
-sdk.dir=/full/path/to/android/sdk
-```
-* Remove this section :)
 
 ### Opportunities out-of-the-box
 
@@ -37,7 +26,7 @@ For running server you must build it:
 #!/bin/bash
 
 # In root of project
-./gradlew :project_name.server:build
+./gradlew :wishlist.server:build
 ```
 
 Then in other terminal start postgres database:
@@ -58,7 +47,7 @@ And then run server:
 
 # In root of project
 # It is better to use full path to file with config
-./gradlew :project_name.server:run --args="sample.config.json"
+./gradlew :wishlist.server:run --args="sample.config.json"
 ```
 
 Then you may open http://127.0.0.1:8196 to access web client

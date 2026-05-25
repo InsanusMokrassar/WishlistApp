@@ -1,4 +1,4 @@
-package project_group.project_name.features.auth.client
+package dev.inmo.wishlist.features.auth.client
 
 import android.content.Context
 import dev.inmo.micro_utils.coroutines.SmartRWLocker
@@ -7,7 +7,7 @@ import dev.inmo.micro_utils.coroutines.withWriteLock
 
 class SharedPreferencesServerUrlStorage(
     context: Context,
-    fileName: String = "project_name.serverAddress",
+    fileName: String = "wishlist.serverAddress",
     private val key: String = "url"
 ) : ServerUrlStorage {
     private val prefs = context.getSharedPreferences(fileName, Context.MODE_PRIVATE)

@@ -1,4 +1,4 @@
-package project_group.project_name.{{$module_package}}.server
+package dev.inmo.wishlist.{{$module_package}}.server
 
 import dev.inmo.micro_utils.startup.plugin.StartPlugin
 import kotlinx.serialization.json.JsonObject

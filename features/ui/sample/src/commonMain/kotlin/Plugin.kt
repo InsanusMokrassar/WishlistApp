@@ -1,4 +1,4 @@
-package project_group.project_name.features.ui.sample
+package dev.inmo.wishlist.features.ui.sample
 
 import dev.inmo.micro_utils.coroutines.runCatchingLogging
 import dev.inmo.micro_utils.koin.singleWithRandomQualifier
@@ -11,12 +11,12 @@ import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.modules.SerializersModule
 import org.koin.core.Koin
 import org.koin.core.module.Module
-import project_group.project_name.features.common.client.echo.EchoFeature
-import project_group.project_name.features.common.client.models.ViewConfig
-import project_group.project_name.features.sample.client.SampleFeature
-import project_group.project_name.features.ui.sample.ui.SampleModel
-import project_group.project_name.features.ui.sample.ui.SampleViewConfig
-import project_group.project_name.features.ui.sample.ui.SampleViewModel
+import dev.inmo.wishlist.features.common.client.echo.EchoFeature
+import dev.inmo.wishlist.features.common.client.models.ViewConfig
+import dev.inmo.wishlist.features.sample.client.SampleFeature
+import dev.inmo.wishlist.features.ui.sample.ui.SampleModel
+import dev.inmo.wishlist.features.ui.sample.ui.SampleViewConfig
+import dev.inmo.wishlist.features.ui.sample.ui.SampleViewModel
 
 object Plugin : StartPlugin {
     override fun Module.setupDI(config: JsonObject) {

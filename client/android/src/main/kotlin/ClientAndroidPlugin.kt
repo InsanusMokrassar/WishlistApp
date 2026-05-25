@@ -1,4 +1,4 @@
-package project_group.project_name.client
+package dev.inmo.wishlist.client
 
 import android.app.Application
 import android.content.Context
@@ -8,8 +8,8 @@ import dev.inmo.navigation.core.repo.NavigationConfigsRepo
 import kotlinx.serialization.json.JsonObject
 import org.koin.core.Koin
 import org.koin.core.module.Module
-import project_group.project_name.client.ClientPlugin
-import project_group.project_name.features.common.client.models.ViewConfig
+import dev.inmo.wishlist.client.ClientPlugin
+import dev.inmo.wishlist.features.common.client.models.ViewConfig
 
 class ClientAndroidPlugin(
     private val mainActivity: MainActivity

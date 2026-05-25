@@ -1,1 +1,1 @@
-package project_group.project_name.features.users.common
+package dev.inmo.wishlist.features.users.common

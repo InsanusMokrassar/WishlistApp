@@ -1,7 +1,7 @@
-package project_group.project_name.features.common.server
+package dev.inmo.wishlist.features.common.server
 
-import project_group.project_name.features.common.server.configurators.GZipConfigurator
-import project_group.project_name.features.common.server.configurators.WebSocketsConfiguration
+import dev.inmo.wishlist.features.common.server.configurators.GZipConfigurator
+import dev.inmo.wishlist.features.common.server.configurators.WebSocketsConfiguration
 import dev.inmo.kslog.common.KSLog
 import dev.inmo.kslog.common.d
 import dev.inmo.kslog.common.e
@@ -19,7 +19,7 @@ import dev.inmo.micro_utils.repos.exposed.keyvalue.ExposedKeyValueRepo
 import dev.inmo.micro_utils.repos.versions.KeyValueBasedVersionsRepoProxy
 import dev.inmo.micro_utils.repos.versions.StandardVersionsRepo
 import dev.inmo.micro_utils.repos.versions.VersionsRepo
-import project_group.project_name.features.common.common.JVMPlugin
+import dev.inmo.wishlist.features.common.common.JVMPlugin
 import dev.inmo.micro_utils.startup.plugin.StartPlugin
 import io.ktor.server.application.install
 import io.ktor.server.application.pluginOrNull
@@ -47,10 +47,10 @@ import org.koin.core.module.Module
 import org.koin.core.qualifier.StringQualifier
 import org.slf4j.LoggerFactory
 import org.slf4j.event.Level
-import project_group.project_name.features.common.server.configurators.ApplicationAuthenticationConfigurator
-import project_group.project_name.features.common.server.configurators.ContentNegotiationKtorApplicationConfigurator
-import project_group.project_name.features.common.server.models.Config
-import project_group.project_name.features.common.server.models.KtorConfig
+import dev.inmo.wishlist.features.common.server.configurators.ApplicationAuthenticationConfigurator
+import dev.inmo.wishlist.features.common.server.configurators.ContentNegotiationKtorApplicationConfigurator
+import dev.inmo.wishlist.features.common.server.models.Config
+import dev.inmo.wishlist.features.common.server.models.KtorConfig
 import java.io.File
 
 object JVMPlugin : StartPlugin {

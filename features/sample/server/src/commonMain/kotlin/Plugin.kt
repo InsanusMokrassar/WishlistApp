@@ -1,4 +1,4 @@
-package project_group.project_name.features.sample.server
+package dev.inmo.wishlist.features.sample.server
 
 import dev.inmo.micro_utils.koin.singleWithRandomQualifier
 import dev.inmo.micro_utils.ktor.server.configurators.ApplicationRoutingConfigurator
@@ -6,8 +6,8 @@ import dev.inmo.micro_utils.startup.plugin.StartPlugin
 import kotlinx.serialization.json.JsonObject
 import org.koin.core.Koin
 import org.koin.core.module.Module
-import project_group.project_name.features.sample.server.configurators.SampleRoutingsConfigurator
-import project_group.project_name.features.sample.server.services.SimpleSampleFeatureService
+import dev.inmo.wishlist.features.sample.server.configurators.SampleRoutingsConfigurator
+import dev.inmo.wishlist.features.sample.server.services.SimpleSampleFeatureService
 import kotlin.random.Random
 import kotlin.random.nextUInt
 

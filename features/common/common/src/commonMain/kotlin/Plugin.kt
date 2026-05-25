@@ -1,4 +1,4 @@
-package project_group.project_name.features.common.common
+package dev.inmo.wishlist.features.common.common
 
 import dev.inmo.kslog.common.KSLog
 import dev.inmo.kslog.common.e

@@ -1,4 +1,4 @@
-package project_group.project_name.features.ui.sample.ui
+package dev.inmo.wishlist.features.ui.sample.ui
 
 import kotlinx.coroutines.flow.Flow
 
