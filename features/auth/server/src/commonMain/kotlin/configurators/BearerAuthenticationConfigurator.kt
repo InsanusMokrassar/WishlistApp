@@ -15,11 +15,7 @@ class BearerAuthenticationConfigurator(
         bearer(/*Constants.bearerAuthName*/) {
             authenticate { tokenCredential ->
                 val userId = authFeatureService.authenticate(Token(tokenCredential.token))
-                if (userId != null) {
-                    UserIdPrincipal(userId.long.toString())
-                } else {
-                    null
-                }
+                userId
             }
         }
     }
