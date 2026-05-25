@@ -1,0 +1,17 @@
+plugins {
+    id "org.jetbrains.kotlin.multiplatform"
+    id "org.jetbrains.kotlin.plugin.serialization"
+}
+
+apply from: "$mppJavaProject"
+
+kotlin {
+    sourceSets {
+        commonMain {
+            dependencies {
+                api project(":project_name.{{$module_package}}.common")
+                api project(":project_name.features.common.server")
+            }
+        }
+    }
+}

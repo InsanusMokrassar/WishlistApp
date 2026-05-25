@@ -1,0 +1,40 @@
+plugins {
+    id "org.jetbrains.kotlin.multiplatform"
+    id "org.jetbrains.kotlin.plugin.serialization"
+    id "com.android.library"
+    alias(libs.plugins.compose)
+    alias(libs.plugins.kt.compose)
+}
+
+apply from: "$mppJvmJsAndroidWithCompose"
+
+kotlin {
+    js(IR) {
+        binaries.executable()
+    }
+    sourceSets {
+        commonMain {
+            dependencies {
+                api libs.microutils.startup.launcher
+                api libs.navigation.mvvm
+                api project(":project_name.features.common.client")
+                api project(":project_name.features.sample.client")
+                api project(":project_name.features.auth.client")
+                api project(":project_name.features.ui.sample")
+                api project(":project_name.features.ui.auth")
+            }
+        }
+    }
+}
+
+project.tasks.configureEach {
+    if (it.name == "jsBrowserProductionWebpack") {
+        it.dependsOn("jsDevelopmentExecutableCompileSync")
+    }
+}
+
+project.tasks.configureEach {
+    if (it.name == "jsProductionExecutableCompileSync") {
+        it.dependsOn("jsBrowserDevelopmentWebpack")
+    }
+}

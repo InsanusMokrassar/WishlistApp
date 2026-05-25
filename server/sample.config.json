@@ -1,0 +1,22 @@
+{
+  "host": "0.0.0.0",
+  "port": 8196,
+  "publicHost": "0.0.0.0",
+  "staticFolders": {
+    "": "../client/build/dist/js/developmentExecutable"
+  },
+  "database": {
+    "url": "jdbc:postgresql://127.0.0.1:8301/test",
+    "username": "test",
+    "password": "test"
+  },
+  "plugins": [
+    "project_group.project_name.features.common.server.JVMPlugin",
+    "project_group.project_name.features.sample.server.JVMPlugin",
+    "project_group.project_name.features.users.server.JVMPlugin",
+    "project_group.project_name.features.auth.server.JVMPlugin"
+  ],
+  "useCache": true,
+  "tokenTtl": "PT15M",
+  "refreshTokenTtl": "P7D"
+}

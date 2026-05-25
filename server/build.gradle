@@ -1,0 +1,44 @@
+plugins {
+    id "org.jetbrains.kotlin.jvm"
+    id "org.jetbrains.kotlin.plugin.serialization"
+    id "com.google.devtools.ksp"
+    id "application"
+}
+
+version = null
+
+application {
+    mainClass = "dev.inmo.micro_utils.startup.launcher.MainKt"
+}
+
+dependencies {
+    api project(":project_name.features.common.server")
+    api project(":project_name.features.sample.server")
+    api project(":project_name.features.users.server")
+    api project(":project_name.features.auth.server")
+
+    api libs.ktor.websockets
+    api libs.ktor.serialization.kotlinx.json
+    api libs.exposed.jdbc
+    api libs.psql
+}
+
+compileKotlin {
+    kotlinOptions.jvmTarget = JavaVersion.VERSION_17.toString()
+}
+
+ksp {
+}
+
+java {
+    sourceCompatibility = JavaVersion.VERSION_17
+    targetCompatibility = JavaVersion.VERSION_17
+}
+
+project.tasks.configureEach {
+    if (it.name == "run") {
+        def jsDevelopmentExecutableTask = project(":project_name.client").getTasksByName("jsBrowserDevelopmentExecutableDistribution", true)
+        it.dependsOn(jsDevelopmentExecutableTask)
+        it.shouldRunAfter(jsDevelopmentExecutableTask)
+    }
+}

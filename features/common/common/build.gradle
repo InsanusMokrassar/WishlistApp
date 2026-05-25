@@ -1,0 +1,43 @@
+plugins {
+    id "org.jetbrains.kotlin.multiplatform"
+    id "org.jetbrains.kotlin.plugin.serialization"
+    id "com.android.library"
+}
+
+apply from: "$mppJvmJsAndroid"
+
+kotlin {
+    sourceSets {
+        commonMain {
+            dependencies {
+                api libs.koin.core
+                api libs.ktor.io
+                api libs.ktor.http
+                api libs.kslog
+                api libs.uuid
+                api libs.klock
+                api libs.microutils.common
+                api libs.microutils.coroutines
+                api libs.microutils.transactions
+                api libs.microutils.serialization.typedserializer
+                api libs.microutils.mimetypes
+                api libs.microutils.repos.common
+                api libs.microutils.repos.cache
+                api libs.microutils.startup.plugin
+                api libs.microutils.koin
+                api libs.microutils.resources
+                api libs.microutils.colors.common
+                api libs.kotlin.reflect
+                api libs.navigation.mermaid
+                api libs.microutils.ksp.sealed
+                api libs.microutils.ksp.classcasts
+            }
+        }
+        jvmMain {
+            dependencies {
+                api libs.microutils.repos.exposed
+                api libs.kotlin.reflect
+            }
+        }
+    }
+}

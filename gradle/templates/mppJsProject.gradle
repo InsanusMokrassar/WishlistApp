@@ -1,0 +1,2 @@
+apply from: "$defaultProject"
+apply from: "$enableMPPJs"

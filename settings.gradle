@@ -1,0 +1,38 @@
+rootProject.name = 'project_name'
+
+String[] includes = [
+    ":features:common:common",
+    ":features:common:server",
+    ":features:common:client",
+
+    ":features:sample:common",
+    ":features:sample:server",
+    ":features:sample:client",
+
+    ":features:users:common",
+    ":features:users:server",
+    ":features:users:client",
+
+    ":features:auth:common",
+    ":features:auth:server",
+    ":features:auth:client",
+
+    ":features:ui:sample",
+    ":features:ui:auth",
+
+    ":client",
+    ":client:android",
+//    ":android_client",
+    ":server",
+]
+
+
+includes.each { originalName ->
+    String projectDirectory = "${rootProject.projectDir.getAbsolutePath()}${originalName.replace(":", File.separator)}"
+    String projectName = "${rootProject.name}${originalName.replace(":", ".")}"
+    String projectIdentifier = ":${projectName}"
+    include projectIdentifier
+    ProjectDescriptor project = project(projectIdentifier)
+    project.name = projectName
+    project.projectDir = new File(projectDirectory)
+}

@@ -1,0 +1,27 @@
+project.version = "$version"
+project.group = "$group"
+
+kotlin {
+    compilerOptions {
+        freeCompilerArgs.add("-Xcontext-parameters")
+    }
+    sourceSets {
+        commonMain {
+            dependencies {
+                implementation kotlin('stdlib')
+            }
+        }
+        commonTest {
+            dependencies {
+                implementation kotlin('test-common')
+                implementation kotlin('test-annotations-common')
+                implementation libs.kotlin.coroutines.test
+            }
+        }
+    }
+}
+
+java {
+    sourceCompatibility = JavaVersion.VERSION_17
+    targetCompatibility = JavaVersion.VERSION_17
+}

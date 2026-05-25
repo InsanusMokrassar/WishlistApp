@@ -1,0 +1,14 @@
+apply from: "$defaultProject"
+
+project.version = "$version"
+project.group = "$group"
+
+kotlin {
+    sourceSets {
+        commonMain {
+            dependencies {
+                api libs.kotlin.serialization
+            }
+        }
+    }
+}
