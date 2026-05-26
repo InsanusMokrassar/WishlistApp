@@ -251,6 +251,48 @@ object Plugin : StartPlugin {
 - The feature's `Plugin.kt` does **not** register an implementation. The interface is published from the feature and bound somewhere the feature itself cannot see (it would create a cyclic dependency).
 - **Implementations live in the top-level `client/` module by default**, registered as `single<MyViewInteractor> { ... }` inside `ClientPlugin` (`client/src/commonMain/kotlin/ClientPlugin.kt`). Prefer `commonMain` so all three platforms share one implementation. Drop into a platform-specific source set (`client/src/jsMain`, `client/src/jvmMain`, `client/src/androidMain`) only when the interactor's body genuinely requires it (e.g. it needs `Context`, `window`, or a JVM-only API).
 
+#### Intra-feature navigation interactors (wishlist pattern)
+
+When all navigation is within a single feature's own chain (push a sibling screen, pop back), the interactor implementation needs no injected dependencies — only the `node` parameter passed at call time. Register a stateless anonymous object in `ClientPlugin`:
+
+```kotlin
+// client/src/commonMain/kotlin/ClientPlugin.kt — setupDI:
+single<WishlistsListViewInteractor> {
+    object : WishlistsListViewInteractor {
+        override suspend fun onWishlistSelected(
+            node: NavigationNode<WishlistsListViewConfig, ViewConfig>,
+            wishlistId: WishlistId
+        ) {
+            node.chain.push(WishlistViewConfig(wishlistId))
+        }
+        override suspend fun onCreateWishlist(
+            node: NavigationNode<WishlistsListViewConfig, ViewConfig>
+        ) {
+            node.chain.push(WishlistEditViewConfig(null))
+        }
+    }
+}
+
+single<WishlistEditViewInteractor> {
+    object : WishlistEditViewInteractor {
+        override suspend fun onNavigateBack(node: NavigationNode<WishlistEditViewConfig, ViewConfig>) {
+            node.chain.pop()
+        }
+        override suspend fun onSaved(node: NavigationNode<WishlistEditViewConfig, ViewConfig>) {
+            node.chain.pop()
+        }
+    }
+}
+```
+
+Key rules derived from the wishlist feature:
+
+- Each screen in a multi-screen feature gets its own `XxxViewInteractor` interface — one interactor per ViewModel, not one per feature.
+- Method names describe the **user intent** (`onWishlistSelected`, `onCreateWishlist`, `onNavigateBack`, `onSaved`), not the widget action.
+- The `node` parameter is always the **current screen's node** (`NavigationNode<ThisViewConfig, ViewConfig>`). Push new screens onto `node.chain`; pop via `node.chain.pop()`.
+- For simple push/pop navigation, no Koin `get()` calls are needed inside the `single { }` block — the anonymous object body is stateless.
+- Reserve reactive / stateful interactors (injecting `NavigationChain`, `CoroutineScope`, `MutableRedeliverStateFlow`) for cross-cutting concerns like auth overlay management — see `AuthViewInteractor` in `ClientPlugin` for that pattern.
+
 ### ViewModel
 
 - Extends `ViewModel<ViewConfig>` from `dev.inmo.navigation.mvvm`.

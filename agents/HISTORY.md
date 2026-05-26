@@ -4,6 +4,29 @@
 
 ---
 
+### 2026-05-26 — Session 8: onboarding
+
+**Prompt:** `USE @AGENTS.md`
+
+**Actions:**
+- action=read; target=AGENTS.md; result=AML-HIP protocol loaded
+- action=read; target=agents/SHORTCUTS.md; result=task→file map loaded
+- action=read; target=agents/ALL.md + local.ALL.md; result=mandatory rules + Bootstrap UI rules loaded
+- action=read; target=agents/HISTORY.md; result=project history loaded (Sessions 1-7)
+
+**Project state at session start:**
+- branch=master; last_commit=291a2e7 (add WishlistItemView, public read routes, and MVVM interactors); status=clean
+- features present: sample, users, auth, common, wishlist (full-stack), ui/sample, ui/auth, ui/wishlist
+- wishlist routes: GET /wishlist/getByUserId/{userId}, GET /wishlist/getMy, POST /wishlist/create, PUT /wishlist/update/{id}, DELETE /wishlist/delete/{id}
+- wishlistItem routes: GET /wishlistItem/getByWishlistId/{id}, POST /wishlistItem/create, PUT /wishlistItem/update/{id}, DELETE /wishlistItem/delete/{id}
+- UI navigation: WishlistsList→WishlistView→WishlistEdit/WishlistItemEdit; back=node.chain.pop(); dirty=confirm modal
+- URL navigation (JS): ?wishlist=id, ?edit=true, ?wishlist_item=id via UrlParametersNavigationConfigsRepo
+
+**Source changes:**
+- action=update; target=agents/CODING.md; changes=[Interactor section: added subsection "Intra-feature navigation interactors (wishlist pattern)"; content=stateless anon object pattern, node.chain.push/pop, one-interactor-per-ViewModel rule, method-naming convention, contrast with reactive AuthViewInteractor pattern]
+
+---
+
 ### 2026-05-26 — Session 7: actualize READMEs after commit 871972b
 
 **Prompt:** Fill *.md files according to changes in last commit (replace configs holder storage)
