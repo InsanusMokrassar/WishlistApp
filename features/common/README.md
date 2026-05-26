@@ -21,6 +21,7 @@ Cross-cutting infrastructure loaded by every consumer. Provides: shared domain m
 | `Amount` | `common/common` | Monetary/numeric amount: `intPart: Long`, `decimalPart: Long` (e.g. 12 and 99 for 12.99) |
 | `ViewConfig` | `common/client` | Navigation screen identifier interface; every screen config implements this |
 | `EmptyConfig` | `common/client` | Empty `@Serializable` startup config placeholder |
+| `findConfig<T, R>` | `common/client` | Extension on `ConfigHolder<T>`: DFS traversal (Chain→Node→subnode→subchains) returning first match of type `R`; defined in `utils/ConfigHolderFind.kt` |
 
 ## Architecture Notes
 

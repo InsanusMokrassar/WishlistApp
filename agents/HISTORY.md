@@ -4,6 +4,28 @@
 
 ---
 
+### 2026-05-26 — Session 7: actualize READMEs after commit 871972b
+
+**Prompt:** Fill *.md files according to changes in last commit (replace configs holder storage)
+
+**Commit:** 871972b; message="replace configs holder storage"
+
+**Changed files in commit:**
+- client/src/commonMain/kotlin/ClientPlugin.kt — removed InjectNavigationChain(WishlistsListViewConfig()) block
+- client/src/jsMain/kotlin/ClientJSPlugin.kt — NavigationConfigsRepo changed from InMemory to UrlParametersNavigationConfigsRepo; URL param schema: ?wishlist=id, ?edit=true, ?wishlist_item=id; WishlistsListViewConfig always root in decoder
+- features/common/client/src/commonMain/kotlin/utils/ConfigHolderFind.kt — NEW: findConfig<T,R> extension on ConfigHolder<T>; DFS Chain→Node→subnode→subchains
+- features/common/server/src/jvmMain/kotlin/JVMPlugin.kt — added HttpStatusCode import (minor)
+- features/ui/wishlist/src/commonMain/kotlin/ui/WishlistEditViewModel.kt — init: merge(flowOf(Unit), node.onResumeFlow).takeWhile { inited==false } (first-resume only)
+- features/ui/wishlist/src/commonMain/kotlin/ui/WishlistItemEditViewModel.kt — same first-resume pattern
+- features/ui/wishlist/src/commonMain/kotlin/ui/WishlistViewModel.kt — merge(flowOf(Unit), node.onResumeFlow) every resume; extracted loadWishlist() as private suspend fun
+- features/ui/wishlist/src/commonMain/kotlin/ui/WishlistsListViewModel.kt — same every-resume pattern; loadWishlists() private suspend fun (was public fun)
+
+**README updates:**
+- action=update; target=features/ui/wishlist/README.md; changes=[Architecture Notes: ViewModel reload patterns; JS URL navigation scheme; WishlistsListViewConfig root moved to ClientJSPlugin UrlParametersNavigationConfigsRepo]
+- action=update; target=features/common/README.md; changes=[Models: added findConfig<T,R> utility row]
+
+---
+
 ### 2026-05-26 — Session 6: onboarding
 
 **Prompt:** `USE @AGENTS.md`

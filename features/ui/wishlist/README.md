@@ -36,4 +36,14 @@ JS views use Bootstrap CSS classes via Compose HTML. JVM uses Material v2, Andro
 - JS view packages: `dev.inmo.wishlist.features.ui.wishlist.ui.js`
 - JVM view packages: `dev.inmo.wishlist.features.ui.wishlist.ui.jvm`
 - Android view packages: `dev.inmo.wishlist.features.ui.wishlist.ui.android`
-- `WishlistsListViewConfig` is the application root node (replaces `SampleViewConfig` in `ClientPlugin`).
+- `WishlistsListViewConfig` is the JS application root: always inserted as base config by `UrlParametersNavigationConfigsRepo` decoder in `ClientJSPlugin` (not injected via `ClientPlugin`).
+- **ViewModel reload patterns:**
+  - `WishlistViewModel`, `WishlistsListViewModel`: reload on every resume — `merge(flowOf(Unit), node.onResumeFlow).subscribeLoggingDropExceptions(scope)`.
+  - `WishlistEditViewModel`, `WishlistItemEditViewModel`: load on first resume only — same pattern with `.takeWhile { inited == false }`.
+- `WishlistsListViewModel.loadWishlists()` is `private suspend fun`; not callable externally.
+- **JS URL navigation scheme** (encoded by `UrlParametersNavigationConfigsRepo` in `ClientJSPlugin`):
+  - `?wishlist=<id>` → `WishlistViewConfig(id)`
+  - `?wishlist=<id>&edit=true` → `WishlistViewConfig(id)` + `WishlistEditViewConfig(id)`
+  - `?wishlist=<id>&wishlist_item=<id>&edit=true` → `WishlistViewConfig(id)` + `WishlistItemEditViewConfig(itemId, wishlistId)`
+  - `?edit=true` (no wishlist) → `WishlistEditViewConfig(null)` (create mode)
+  - `WishlistsListViewConfig` always present as root regardless of URL state.
