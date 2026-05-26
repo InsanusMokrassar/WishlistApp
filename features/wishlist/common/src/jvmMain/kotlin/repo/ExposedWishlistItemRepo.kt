@@ -1,6 +1,7 @@
 package dev.inmo.wishlist.features.wishlist.common.repo
 
 import dev.inmo.micro_utils.repos.exposed.AbstractExposedCRUDRepo
+import dev.inmo.micro_utils.repos.exposed.ExposedRepo
 import dev.inmo.micro_utils.repos.exposed.initTable
 import dev.inmo.wishlist.features.common.common.models.Amount
 import dev.inmo.wishlist.features.wishlist.common.models.NewWishlistItem
@@ -55,6 +56,15 @@ class ExposedWishlistItemRepo(
 
     override val primaryKey = PrimaryKey(idColumn)
 
+    private inner class WishlistItemsLinks(override val database: Database) : Table("wishlist_item_links"), ExposedRepo {
+        val itemId = long("item_id").references(idColumn, onDelete = ReferenceOption.CASCADE)
+        val link = text("link")
+        override val primaryKey = PrimaryKey(itemId, link)
+
+        init {
+            this@WishlistItemsLinks.initTable()
+        }
+    }
     /**
      * Internal table holding one row per link per wishlist item.
      * Never accessed outside [ExposedWishlistItemRepo]. Cascade-deletes when the parent item is removed.
@@ -64,15 +74,7 @@ class ExposedWishlistItemRepo(
      * - `link` — TEXT
      * - PK: (item_id, link)
      */
-    private val linksTable = object : Table("wishlist_item_links") {
-        val itemId = long("item_id").references(idColumn, onDelete = ReferenceOption.CASCADE)
-        val link = text("link")
-        override val primaryKey = PrimaryKey(itemId, link)
-
-        init {
-            initTable()
-        }
-    }
+    private val linksTable = WishlistItemsLinks(database)
 
     /** Returns an [Amount] from the current row, or `null` if either price column is absent. */
     private fun ResultRow.amountOrNull(): Amount? {

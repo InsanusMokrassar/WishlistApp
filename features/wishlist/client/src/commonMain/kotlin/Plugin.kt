@@ -1,8 +1,6 @@
 package dev.inmo.wishlist.features.wishlist.client
 
 import dev.inmo.micro_utils.startup.plugin.StartPlugin
-import dev.inmo.wishlist.features.wishlist.common.WishlistsFeature
-import dev.inmo.wishlist.features.wishlist.common.WishlistsItemsFeature
 import kotlinx.serialization.json.JsonObject
 import org.koin.core.Koin
 import org.koin.core.module.Module

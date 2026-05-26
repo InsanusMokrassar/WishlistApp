@@ -30,6 +30,7 @@ import dev.inmo.wishlist.features.common.client.models.RootNodeFactoryGetter
 import dev.inmo.wishlist.features.ui.auth.ui.AuthViewConfig
 import dev.inmo.wishlist.features.ui.auth.ui.AuthViewInteractor
 import dev.inmo.wishlist.features.ui.sample.ui.SampleViewConfig
+import dev.inmo.wishlist.features.ui.wishlist.ui.WishlistsListViewConfig
 
 object ClientPlugin : StartPlugin {
     val currentDrawingBlock = MutableRedeliverStateFlow<@Composable () -> Unit>({})
@@ -118,7 +119,7 @@ object ClientPlugin : StartPlugin {
                 }
                 InjectNavigationChain<ViewConfig> {
                     InjectNavigationNode(
-                        SampleViewConfig()
+                        WishlistsListViewConfig()
                     )
                 }
             }

@@ -25,7 +25,50 @@
 - links schema: wishlist_item_links table (item_id FK CASCADE, link TEXT, PK(item_id,link))
 - BUG DETECTED: ExposedWishlistRepo.kt has duplicate `init { initTable() }` blocks (lines 48 and 75); initTable() called twice on startup
 
-**No source changes made this session.**
+**Source changes: completed after restart — full wishlist UI implemented**
+
+### 2026-05-26 — Session 6 (continued): Wishlist UI — 4 MVVMs
+
+**Prompt summary:** Add UI for wishlists and wishlist items. 4 MVVMs in `features/ui/wishlist`. JS=Bootstrap+Compose HTML, JVM=Material v2, Android=Material3. Back=`node.chain.pop()`; edit views show discard-modal if dirty.
+
+**Actions:**
+- action=create; target=features/ui/wishlist/build.gradle; deps=[common.client, wishlist.client, auth.client]
+- action=create; target=features/ui/wishlist/src/commonMain/kotlin/WishlistStrings.kt
+- action=create; target=features/ui/wishlist/src/commonMain/kotlin/ui/WishlistsModel.kt
+- action=create; target=features/ui/wishlist/src/commonMain/kotlin/ui/WishlistsListViewConfig.kt
+- action=create; target=features/ui/wishlist/src/commonMain/kotlin/ui/WishlistsListViewModel.kt
+- action=create; target=features/ui/wishlist/src/commonMain/kotlin/ui/WishlistViewConfig.kt (wishlistId: WishlistId)
+- action=create; target=features/ui/wishlist/src/commonMain/kotlin/ui/WishlistViewModel.kt
+- action=create; target=features/ui/wishlist/src/commonMain/kotlin/ui/WishlistEditViewConfig.kt (wishlistId: WishlistId? — null=create)
+- action=create; target=features/ui/wishlist/src/commonMain/kotlin/ui/WishlistEditViewModel.kt
+- action=create; target=features/ui/wishlist/src/commonMain/kotlin/ui/WishlistItemEditViewConfig.kt (wishlistItemId: WishlistItemId?, wishlistId: WishlistId)
+- action=create; target=features/ui/wishlist/src/commonMain/kotlin/ui/WishlistItemEditViewModel.kt
+- action=create; target=features/ui/wishlist/src/commonMain/kotlin/Plugin.kt; note=WishlistsModel impl uses getMyWishlists().find for getWishlist(id)
+- action=create; target=features/ui/wishlist/src/jsMain/kotlin/JSPlugin.kt + 4 views (Bootstrap)
+- action=create; target=features/ui/wishlist/src/jvmMain/kotlin/JVMPlugin.kt + 4 views (Material v2)
+- action=create; target=features/ui/wishlist/src/androidMain/kotlin/AndroidPlugin.kt + 4 views (Material3)
+- action=create; target=features/ui/wishlist/README.md
+- action=update; target=settings.gradle; adds=:features:ui:wishlist
+- action=update; target=client/build.gradle; adds=api project(":wishlist.features.ui.wishlist")
+- action=update; target=client/src/jsMain/kotlin/Main.kt; adds=JSPlugin
+- action=update; target=client/src/jvmMain/kotlin/Main.kt; adds=JVMPlugin
+- action=update; target=client/android/src/main/kotlin/MainActivity.kt; adds=AndroidPlugin
+- action=update; target=client/src/commonMain/kotlin/ClientPlugin.kt; changes=[InjectNavigationNode(SampleViewConfig()) → InjectNavigationNode(WishlistsListViewConfig())]
+- action=update; target=agents/local.ALL.md; adds=Bootstrap JS UI rules
+
+**Navigation flow:**
+- WishlistsList (root) → click → WishlistView (push to chain)
+- WishlistView → Edit button (owner only) → WishlistEdit (push)
+- WishlistView → item click (owner only) → WishlistItemEdit (push)
+- WishlistView/WishlistEdit/WishlistItemEdit → back → node.chain.pop()
+- WishlistEdit/WishlistItemEdit → back when dirty → show confirm modal
+
+**Key decisions:**
+- No ViewInteractor: all navigation intra-feature, ViewModel pushes/pops directly
+- isOwner = wishlist.userId == getCurrentUserId() via ClientAuthFeature.getMe()?.id
+- Price: Double string → Amount(double) on save
+- JS modal: inline Bootstrap classes, no Bootstrap JS dependency
+- WishlistsListViewConfig is now root node in ClientPlugin (replaces SampleViewConfig)
 
 ---
 

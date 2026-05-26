@@ -1,0 +1,186 @@
+package dev.inmo.wishlist.features.ui.wishlist.ui
+
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
+import dev.inmo.micro_utils.strings.translation
+import dev.inmo.navigation.core.NavigationChain
+import dev.inmo.navigation.mvvm.compose.ComposeView
+import dev.inmo.wishlist.features.common.client.models.ViewConfig
+import dev.inmo.wishlist.features.ui.wishlist.WishlistStrings
+import dev.inmo.wishlist.features.ui.wishlist.ui.WishlistItemEditViewConfig
+import dev.inmo.wishlist.features.ui.wishlist.ui.WishlistItemEditViewModel
+import org.jetbrains.compose.web.attributes.InputType
+import org.jetbrains.compose.web.attributes.disabled
+import org.jetbrains.compose.web.attributes.forId
+import org.jetbrains.compose.web.attributes.placeholder
+import org.jetbrains.compose.web.dom.Button
+import org.jetbrains.compose.web.dom.Div
+import org.jetbrains.compose.web.dom.H1
+import org.jetbrains.compose.web.dom.Input
+import org.jetbrains.compose.web.dom.Label
+import org.jetbrains.compose.web.dom.Li
+import org.jetbrains.compose.web.dom.P
+import org.jetbrains.compose.web.dom.Span
+import org.jetbrains.compose.web.dom.Text
+import org.jetbrains.compose.web.dom.TextArea
+import org.jetbrains.compose.web.dom.Ul
+import org.koin.core.component.inject
+import org.koin.core.parameter.parametersOf
+
+/** JS Compose-HTML view for the wishlist item create/edit screen. Uses Bootstrap classes. */
+class WishlistItemEditView(
+    chain: NavigationChain<ViewConfig>,
+    config: WishlistItemEditViewConfig,
+) : ComposeView<WishlistItemEditViewConfig, ViewConfig, WishlistItemEditViewModel>(config, chain) {
+    override val viewModel: WishlistItemEditViewModel by inject(mode = LazyThreadSafetyMode.SYNCHRONIZED) {
+        parametersOf(this@WishlistItemEditView)
+    }
+
+    @Composable
+    override fun onDraw() {
+        super.onDraw()
+        val title by viewModel.titleState.collectAsState()
+        val description by viewModel.descriptionState.collectAsState()
+        val price by viewModel.priceState.collectAsState()
+        val priceUnits by viewModel.priceUnitsState.collectAsState()
+        val links by viewModel.linksState.collectAsState()
+        val newLink by viewModel.newLinkState.collectAsState()
+        val loading by viewModel.loadingState.collectAsState()
+        val showDialog by viewModel.showConfirmDialogState.collectAsState()
+
+        if (showDialog) {
+            Div({ classes("modal-backdrop", "fade", "show") })
+            Div({ classes("modal", "d-block"); attr("tabindex", "-1") }) {
+                Div({ classes("modal-dialog") }) {
+                    Div({ classes("modal-content") }) {
+                        Div({ classes("modal-header") }) {
+                            Div({ classes("modal-title", "h5") }) {
+                                Text(WishlistStrings.confirmDiscardTitle.translation())
+                            }
+                        }
+                        Div({ classes("modal-body") }) {
+                            P { Text(WishlistStrings.confirmDiscardMessage.translation()) }
+                        }
+                        Div({ classes("modal-footer") }) {
+                            Button({
+                                classes("btn", "btn-secondary")
+                                onClick { viewModel.onCancelBack() }
+                            }) { Text(WishlistStrings.cancelButton.translation()) }
+                            Button({
+                                classes("btn", "btn-danger")
+                                onClick { viewModel.onConfirmBack() }
+                            }) { Text(WishlistStrings.confirmButton.translation()) }
+                        }
+                    }
+                }
+            }
+        }
+
+        Div({ classes("container", "py-3") }) {
+            Div({ classes("d-flex", "align-items-center", "mb-3", "gap-2") }) {
+                Button({
+                    classes("btn", "btn-outline-secondary")
+                    onClick { viewModel.onBack() }
+                }) {
+                    Text(WishlistStrings.backButton.translation())
+                }
+                H1({ classes("h3", "mb-0") }) {
+                    Text(
+                        if (viewModel.isCreating) WishlistStrings.newItemTitle.translation()
+                        else WishlistStrings.editItemTitle.translation()
+                    )
+                }
+            }
+
+            Div({ classes("mb-3") }) {
+                Label("item-title") { Text(WishlistStrings.titleLabel.translation()) }
+                Input(InputType.Text) {
+                    id("item-title")
+                    classes("form-control")
+                    value(title)
+                    placeholder(WishlistStrings.titleLabel.translation())
+                    onInput { viewModel.onTitleChanged(it.value) }
+                    if (loading) disabled()
+                }
+            }
+
+            Div({ classes("mb-3") }) {
+                Label("item-desc") { Text(WishlistStrings.descriptionLabel.translation()) }
+                TextArea {
+                    id("item-desc")
+                    classes("form-control")
+                    value(description)
+                    onInput { viewModel.onDescriptionChanged(it.value) }
+                    if (loading) disabled()
+                }
+            }
+
+            Div({ classes("row", "mb-3") }) {
+                Div({ classes("col") }) {
+                    Label("item-price") { Text(WishlistStrings.priceLabel.translation()) }
+                    Input(InputType.Text) {
+                        id("item-price")
+                        classes("form-control")
+                        value(price)
+                        placeholder("0.00")
+                        onInput { viewModel.onPriceChanged(it.value) }
+                        if (loading) disabled()
+                    }
+                }
+                Div({ classes("col") }) {
+                    Label("item-units") { Text(WishlistStrings.priceUnitsLabel.translation()) }
+                    Input(InputType.Text) {
+                        id("item-units")
+                        classes("form-control")
+                        value(priceUnits)
+                        placeholder("$, €, USD...")
+                        onInput { viewModel.onPriceUnitsChanged(it.value) }
+                        if (loading) disabled()
+                    }
+                }
+            }
+
+            Div({ classes("mb-3") }) {
+                Label { Text(WishlistStrings.linksLabel.translation()) }
+                if (links.isNotEmpty()) {
+                    Ul({ classes("list-group", "mb-2") }) {
+                        links.forEachIndexed { index, link ->
+                            Li({ classes("list-group-item", "d-flex", "justify-content-between", "align-items-center") }) {
+                                Span({ classes("text-truncate", "me-2") }) { Text(link) }
+                                Button({
+                                    classes("btn", "btn-sm", "btn-outline-danger")
+                                    onClick { viewModel.onRemoveLink(index) }
+                                }) { Text("×") }
+                            }
+                        }
+                    }
+                }
+                Div({ classes("input-group") }) {
+                    Input(InputType.Text) {
+                        classes("form-control")
+                        value(newLink)
+                        placeholder(WishlistStrings.newLinkPlaceholder.translation())
+                        onInput { viewModel.onNewLinkChanged(it.value) }
+                        if (loading) disabled()
+                    }
+                    Button({
+                        classes("btn", "btn-outline-secondary")
+                        onClick { viewModel.onAddLink() }
+                        if (newLink.isBlank()) disabled()
+                    }) {
+                        Text(WishlistStrings.addLinkButton.translation())
+                    }
+                }
+            }
+
+            Button({
+                classes("btn", "btn-primary")
+                onClick { viewModel.onSave() }
+                if (loading || title.isBlank()) disabled()
+            }) {
+                Text(WishlistStrings.saveButton.translation())
+            }
+        }
+    }
+}

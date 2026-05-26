@@ -1,7 +1,6 @@
 package dev.inmo.wishlist.features.wishlist.client
 
 import dev.inmo.wishlist.features.wishlist.common.Constants
-import dev.inmo.wishlist.features.wishlist.common.WishlistsItemsFeature
 import dev.inmo.wishlist.features.wishlist.common.models.NewWishlistItem
 import dev.inmo.wishlist.features.wishlist.common.models.RegisteredWishlistItem
 import dev.inmo.wishlist.features.wishlist.common.models.WishlistId

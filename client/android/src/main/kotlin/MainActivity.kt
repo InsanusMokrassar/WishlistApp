@@ -29,6 +29,7 @@ class MainActivity : AppCompatActivity() {
 
                         dev.inmo.wishlist.features.ui.sample.AndroidPlugin,
                         dev.inmo.wishlist.features.ui.auth.AndroidPlugin,
+                        dev.inmo.wishlist.features.ui.wishlist.AndroidPlugin,
                     )
                 )
             )

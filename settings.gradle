@@ -23,6 +23,7 @@ String[] includes = [
 
     ":features:ui:sample",
     ":features:ui:auth",
+    ":features:ui:wishlist",
 
     ":client",
     ":client:android",

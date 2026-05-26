@@ -71,6 +71,4 @@ class ExposedWishlistRepo(
         transaction(db = database) {
             selectAll().where { userIdColumn eq userId.long }.map { it.asObject }
         }
-
-    init { initTable() }
 }
