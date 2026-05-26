@@ -117,11 +117,6 @@ object ClientPlugin : StartPlugin {
                         println(rootChain.makeChainString(""))
                     }
                 }
-                InjectNavigationChain<ViewConfig> {
-                    InjectNavigationNode(
-                        WishlistsListViewConfig()
-                    )
-                }
             }
         }
     }

@@ -2,7 +2,9 @@ package dev.inmo.wishlist.features.ui.wishlist.ui
 
 import dev.inmo.micro_utils.coroutines.MutableRedeliverStateFlow
 import dev.inmo.micro_utils.coroutines.launchLoggingDropExceptions
+import dev.inmo.micro_utils.coroutines.subscribeLoggingDropExceptions
 import dev.inmo.navigation.core.NavigationNode
+import dev.inmo.navigation.core.onResumeFlow
 import dev.inmo.navigation.mvvm.ViewModel
 import dev.inmo.wishlist.features.common.client.models.ViewConfig
 import dev.inmo.wishlist.features.users.common.models.UserId
@@ -13,6 +15,9 @@ import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.drop
+import kotlinx.coroutines.flow.flowOf
+import kotlinx.coroutines.flow.merge
 import kotlinx.coroutines.flow.stateIn
 
 /**
@@ -54,15 +59,19 @@ class WishlistViewModel(
     val loadingState = _loadingState.asStateFlow()
 
     init {
-        scope.launchLoggingDropExceptions {
-            _loadingState.value = true
-            try {
-                _currentUserIdState.value = model.getCurrentUserId()
-                _wishlistState.value = model.getWishlist(node.config.wishlistId)
-                _itemsState.value = model.getWishlistItems(node.config.wishlistId)
-            } finally {
-                _loadingState.value = false
-            }
+        merge(flowOf(Unit), node.onResumeFlow).subscribeLoggingDropExceptions(scope) {
+            loadWishlist()
+        }
+    }
+
+    private suspend fun loadWishlist() {
+        _loadingState.value = true
+        try {
+            _currentUserIdState.value = model.getCurrentUserId()
+            _wishlistState.value = model.getWishlist(node.config.wishlistId)
+            _itemsState.value = model.getWishlistItems(node.config.wishlistId)
+        } finally {
+            _loadingState.value = false
         }
     }
 

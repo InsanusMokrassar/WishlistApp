@@ -2,12 +2,17 @@ package dev.inmo.wishlist.features.ui.wishlist.ui
 
 import dev.inmo.micro_utils.coroutines.MutableRedeliverStateFlow
 import dev.inmo.micro_utils.coroutines.launchLoggingDropExceptions
+import dev.inmo.micro_utils.coroutines.subscribeLoggingDropExceptions
 import dev.inmo.navigation.core.NavigationNode
+import dev.inmo.navigation.core.onResumeFlow
 import dev.inmo.navigation.mvvm.ViewModel
 import dev.inmo.wishlist.features.common.client.models.ViewConfig
 import dev.inmo.wishlist.features.wishlist.common.models.RegisteredWishlist
 import dev.inmo.wishlist.features.wishlist.common.models.WishlistId
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.drop
+import kotlinx.coroutines.flow.flowOf
+import kotlinx.coroutines.flow.merge
 
 /**
  * ViewModel for the wishlists list screen.
@@ -33,18 +38,18 @@ class WishlistsListViewModel(
     val loadingState = _loadingState.asStateFlow()
 
     init {
-        loadWishlists()
+        merge(flowOf(Unit), node.onResumeFlow).subscribeLoggingDropExceptions(scope) {
+            loadWishlists()
+        }
     }
 
     /** Reloads the wishlist list from the server. */
-    fun loadWishlists() {
-        scope.launchLoggingDropExceptions {
-            _loadingState.value = true
-            try {
-                _wishlistsState.value = model.getMyWishlists()
-            } finally {
-                _loadingState.value = false
-            }
+    private suspend fun loadWishlists() {
+        _loadingState.value = true
+        try {
+            _wishlistsState.value = model.getMyWishlists()
+        } finally {
+            _loadingState.value = false
         }
     }
 

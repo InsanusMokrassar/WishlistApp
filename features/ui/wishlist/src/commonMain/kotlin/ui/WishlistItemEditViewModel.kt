@@ -2,12 +2,18 @@ package dev.inmo.wishlist.features.ui.wishlist.ui
 
 import dev.inmo.micro_utils.coroutines.MutableRedeliverStateFlow
 import dev.inmo.micro_utils.coroutines.launchLoggingDropExceptions
+import dev.inmo.micro_utils.coroutines.subscribeLoggingDropExceptions
 import dev.inmo.navigation.core.NavigationNode
+import dev.inmo.navigation.core.onResumeFlow
 import dev.inmo.navigation.mvvm.ViewModel
 import dev.inmo.wishlist.features.common.client.models.ViewConfig
 import dev.inmo.wishlist.features.common.common.models.Amount
 import dev.inmo.wishlist.features.wishlist.common.models.NewWishlistItem
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.drop
+import kotlinx.coroutines.flow.flowOf
+import kotlinx.coroutines.flow.merge
+import kotlinx.coroutines.flow.takeWhile
 
 /**
  * ViewModel for the wishlist item create/edit screen.
@@ -76,7 +82,8 @@ class WishlistItemEditViewModel(
     val showConfirmDialogState = _showConfirmDialogState.asStateFlow()
 
     init {
-        scope.launchLoggingDropExceptions {
+        var inited = false
+        merge(flowOf(Unit), node.onResumeFlow).takeWhile { inited == false }.subscribeLoggingDropExceptions(scope) {
             node.config.wishlistItemId?.let { itemId ->
                 _loadingState.value = true
                 try {
@@ -92,6 +99,7 @@ class WishlistItemEditViewModel(
                     _loadingState.value = false
                 }
             }
+            inited = true
         }
     }
 

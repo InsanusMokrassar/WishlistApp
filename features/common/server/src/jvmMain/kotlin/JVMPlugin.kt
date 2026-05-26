@@ -51,6 +51,7 @@ import dev.inmo.wishlist.features.common.server.configurators.ApplicationAuthent
 import dev.inmo.wishlist.features.common.server.configurators.ContentNegotiationKtorApplicationConfigurator
 import dev.inmo.wishlist.features.common.server.models.Config
 import dev.inmo.wishlist.features.common.server.models.KtorConfig
+import io.ktor.http.HttpStatusCode
 import java.io.File
 
 object JVMPlugin : StartPlugin {
