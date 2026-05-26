@@ -2,6 +2,12 @@ Always look at the project work rules first. Update them and maintain a history 
 
 ---
 
+In case of needs in search of files you must try to use `ast-index` first. Read about how to use it in `AST_INDEX.md`
+
+In case of changes in source files (any files) you MUST call `ast-index rebuild`
+
+---
+
 ## Feature README.md Rule
 
 Every feature directory MUST contain a `README.md` file.
