@@ -12,9 +12,6 @@ import dev.inmo.navigation.compose.getChainFromLocalProvider
 import dev.inmo.navigation.compose.initNavigation
 import dev.inmo.navigation.compose.nodeFactory
 import dev.inmo.navigation.core.NavigationChain
-import dev.inmo.navigation.core.NavigationNode
-import dev.inmo.navigation.core.NavigationNodeFactory
-import dev.inmo.navigation.core.NavigationNodeState
 import dev.inmo.navigation.core.extensions.changesInSubTreeFlow
 import dev.inmo.wishlist.features.common.client.models.ViewConfig
 import dev.inmo.navigation.core.extensions.changesInSubtreeFlow
@@ -30,7 +27,21 @@ import dev.inmo.wishlist.features.common.client.models.RootNodeFactoryGetter
 import dev.inmo.wishlist.features.ui.auth.ui.AuthViewConfig
 import dev.inmo.wishlist.features.ui.auth.ui.AuthViewInteractor
 import dev.inmo.wishlist.features.ui.sample.ui.SampleViewConfig
+import dev.inmo.wishlist.features.ui.wishlist.ui.WishlistEditViewConfig
+import dev.inmo.wishlist.features.ui.wishlist.ui.WishlistEditViewInteractor
+import dev.inmo.wishlist.features.ui.wishlist.ui.WishlistItemEditViewConfig
+import dev.inmo.wishlist.features.ui.wishlist.ui.WishlistItemEditViewInteractor
+import dev.inmo.wishlist.features.ui.wishlist.ui.WishlistItemViewConfig
+import dev.inmo.wishlist.features.ui.wishlist.ui.WishlistItemViewInteractor
+import dev.inmo.wishlist.features.ui.wishlist.ui.WishlistViewConfig
+import dev.inmo.wishlist.features.ui.wishlist.ui.WishlistViewInteractor
 import dev.inmo.wishlist.features.ui.wishlist.ui.WishlistsListViewConfig
+import dev.inmo.wishlist.features.ui.wishlist.ui.WishlistsListViewInteractor
+import dev.inmo.navigation.core.NavigationNode
+import dev.inmo.navigation.core.NavigationNodeFactory
+import dev.inmo.navigation.core.NavigationNodeState
+import dev.inmo.wishlist.features.wishlist.common.models.WishlistId
+import dev.inmo.wishlist.features.wishlist.common.models.WishlistItemId
 
 object ClientPlugin : StartPlugin {
     val currentDrawingBlock = MutableRedeliverStateFlow<@Composable () -> Unit>({})
@@ -49,6 +60,93 @@ object ClientPlugin : StartPlugin {
         single {
             { drawable: @Composable () -> Unit ->
                 currentDrawingBlock.value = drawable
+            }
+        }
+
+        single<WishlistsListViewInteractor> {
+            object : WishlistsListViewInteractor {
+                override suspend fun onWishlistSelected(
+                    node: NavigationNode<WishlistsListViewConfig, ViewConfig>,
+                    wishlistId: WishlistId
+                ) {
+                    node.chain.push(WishlistViewConfig(wishlistId))
+                }
+                override suspend fun onCreateWishlist(
+                    node: NavigationNode<WishlistsListViewConfig, ViewConfig>
+                ) {
+                    node.chain.push(WishlistEditViewConfig(null))
+                }
+            }
+        }
+
+        single<WishlistViewInteractor> {
+            object : WishlistViewInteractor {
+                override suspend fun onBack(
+                    node: NavigationNode<WishlistViewConfig, ViewConfig>
+                ) {
+                    node.chain.pop()
+                }
+                override suspend fun onEditWishlist(
+                    node: NavigationNode<WishlistViewConfig, ViewConfig>
+                ) {
+                    node.chain.push(WishlistEditViewConfig(node.config.wishlistId))
+                }
+                override suspend fun onViewItem(
+                    node: NavigationNode<WishlistViewConfig, ViewConfig>,
+                    itemId: WishlistItemId
+                ) {
+                    node.chain.push(WishlistItemViewConfig(itemId, node.config.wishlistId))
+                }
+                override suspend fun onAddItem(
+                    node: NavigationNode<WishlistViewConfig, ViewConfig>
+                ) {
+                    node.chain.push(WishlistItemEditViewConfig(null, node.config.wishlistId))
+                }
+            }
+        }
+
+        single<WishlistEditViewInteractor> {
+            object : WishlistEditViewInteractor {
+                override suspend fun onNavigateBack(
+                    node: NavigationNode<WishlistEditViewConfig, ViewConfig>
+                ) {
+                    node.chain.pop()
+                }
+                override suspend fun onSaved(
+                    node: NavigationNode<WishlistEditViewConfig, ViewConfig>
+                ) {
+                    node.chain.pop()
+                }
+            }
+        }
+
+        single<WishlistItemEditViewInteractor> {
+            object : WishlistItemEditViewInteractor {
+                override suspend fun onNavigateBack(
+                    node: NavigationNode<WishlistItemEditViewConfig, ViewConfig>
+                ) {
+                    node.chain.pop()
+                }
+                override suspend fun onSaved(
+                    node: NavigationNode<WishlistItemEditViewConfig, ViewConfig>
+                ) {
+                    node.chain.pop()
+                }
+            }
+        }
+
+        single<WishlistItemViewInteractor> {
+            object : WishlistItemViewInteractor {
+                override suspend fun onBack(
+                    node: NavigationNode<WishlistItemViewConfig, ViewConfig>
+                ) {
+                    node.chain.pop()
+                }
+                override suspend fun onEditItem(
+                    node: NavigationNode<WishlistItemViewConfig, ViewConfig>
+                ) {
+                    node.chain.push(WishlistItemEditViewConfig(node.config.wishlistItemId, node.config.wishlistId))
+                }
             }
         }
 

@@ -16,6 +16,14 @@ import dev.inmo.wishlist.features.wishlist.common.models.WishlistId
  */
 interface WishlistsFeature {
     /**
+     * Returns a single wishlist by [id] without requiring authentication.
+     *
+     * @param id Wishlist primary key.
+     * @return Matching [RegisteredWishlist], or `null` when not found.
+     */
+    suspend fun getById(id: WishlistId): RegisteredWishlist?
+
+    /**
      * Returns all wishlists owned by the given user.
      *
      * @param userId Owner to filter by.

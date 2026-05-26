@@ -10,22 +10,23 @@ import dev.inmo.wishlist.features.common.client.models.ViewConfig
 import dev.inmo.wishlist.features.wishlist.common.models.RegisteredWishlist
 import dev.inmo.wishlist.features.wishlist.common.models.WishlistId
 import kotlinx.coroutines.flow.asStateFlow
-import kotlinx.coroutines.flow.drop
 import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.flow.merge
 
 /**
  * ViewModel for the wishlists list screen.
  *
- * Loads the authenticated caller's wishlists on init and exposes navigation
- * actions to create a new wishlist or open an existing one.
+ * Loads the authenticated caller's wishlists on init and delegates navigation
+ * side-effects to [interactor].
  *
  * @param node Navigation node this ViewModel is bound to.
  * @param model Wishlist data source.
+ * @param interactor Navigation delegate for this screen.
  */
 class WishlistsListViewModel(
     private val node: NavigationNode<WishlistsListViewConfig, ViewConfig>,
-    private val model: WishlistsModel
+    private val model: WishlistsModel,
+    private val interactor: WishlistsListViewInteractor
 ) : ViewModel<ViewConfig>(node) {
     private val _wishlistsState = MutableRedeliverStateFlow<List<RegisteredWishlist>>(emptyList())
 
@@ -54,20 +55,16 @@ class WishlistsListViewModel(
     }
 
     /**
-     * Pushes [WishlistViewConfig] for the selected wishlist onto the navigation chain.
+     * Delegates to [WishlistsListViewInteractor.onWishlistSelected].
      *
      * @param wishlistId Identifier of the wishlist the user tapped.
      */
     fun onWishlistSelected(wishlistId: WishlistId) {
-        scope.launchLoggingDropExceptions {
-            node.chain.push(WishlistViewConfig(wishlistId))
-        }
+        scope.launchLoggingDropExceptions { interactor.onWishlistSelected(node, wishlistId) }
     }
 
-    /** Pushes [WishlistEditViewConfig] with null id (create mode) onto the navigation chain. */
+    /** Delegates to [WishlistsListViewInteractor.onCreateWishlist]. */
     fun onCreateWishlist() {
-        scope.launchLoggingDropExceptions {
-            node.chain.push(WishlistEditViewConfig(null))
-        }
+        scope.launchLoggingDropExceptions { interactor.onCreateWishlist(node) }
     }
 }

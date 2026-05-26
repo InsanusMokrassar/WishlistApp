@@ -22,6 +22,17 @@ class WishlistService(
     private val wishlistRepo: WishlistRepo
 ) {
     /**
+     * Returns the wishlist identified by [id], or `null` when not found.
+     *
+     * Accessible without caller identity — used by the public read endpoint.
+     *
+     * @param id Wishlist primary key.
+     * @return Matching [RegisteredWishlist], or `null` when absent.
+     */
+    suspend fun getById(id: WishlistId): RegisteredWishlist? =
+        wishlistRepo.getById(id)
+
+    /**
      * Returns all wishlists owned by [userId].
      *
      * @param userId Owner to filter by.

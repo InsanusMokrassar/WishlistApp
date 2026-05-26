@@ -14,6 +14,7 @@ import dev.inmo.wishlist.features.common.client.utils.findConfig
 import dev.inmo.wishlist.features.ui.wishlist.ui.WishlistEditViewConfig
 import dev.inmo.wishlist.features.ui.wishlist.ui.WishlistItemEditView
 import dev.inmo.wishlist.features.ui.wishlist.ui.WishlistItemEditViewConfig
+import dev.inmo.wishlist.features.ui.wishlist.ui.WishlistItemViewConfig
 import dev.inmo.wishlist.features.ui.wishlist.ui.WishlistViewConfig
 import dev.inmo.wishlist.features.ui.wishlist.ui.WishlistsListViewConfig
 import dev.inmo.wishlist.features.wishlist.common.models.WishlistId
@@ -35,9 +36,14 @@ object ClientJSPlugin : StartPlugin {
                     if (openedWishlistConfig != null) {
                         parameter("wishlist", openedWishlistConfig.wishlistId.long.toString())
 
-                        val openedWishlistItemConfig = it.findConfig { it as? WishlistItemEditViewConfig }
+                        val openedWishlistItemEditConfig = it.findConfig { it as? WishlistItemEditViewConfig }
+                        if (openedWishlistItemEditConfig != null) {
+                            parameter("wishlist_item", openedWishlistItemEditConfig.wishlistItemId ?.long ?.toString() ?: "new")
+                        }
+
+                        val openedWishlistItemConfig = it.findConfig { it as? WishlistItemViewConfig }
                         if (openedWishlistItemConfig != null) {
-                            parameter("wishlist_item", openedWishlistItemConfig.wishlistItemId ?.long ?.toString() ?: "new")
+                            parameter("wishlist_item", openedWishlistItemConfig.wishlistItemId.long.toString())
                         }
                     } else {
                         val editWishlistConfig = it.findConfig { it as? WishlistEditViewConfig }
@@ -95,7 +101,7 @@ object ClientJSPlugin : StartPlugin {
                                 configs.add(WishlistViewConfig(wishlistId))
                             }
                             else -> {
-                                // TODO::Add WishlistItemViewConfig
+                                configs.add(WishlistItemViewConfig(wishlistItemId, wishlistId))
                             }
                         }
                     }

@@ -6,17 +6,16 @@
 
 ## Overview
 
-Full-stack wishlist management. Users create wishlists and add items to them. All mutation operations enforce **caller ownership**: the server resolves the caller from the bearer token and rejects mutations on resources the caller does not own. Read operations (`getByUserId`, `getByWishlistId`) are accessible to any authenticated user without ownership enforcement. Depends on `features/users` (for `UserId`) and `features/auth/server` (for `getCallerUserIdOrAnswerUnauthorized`).
+Full-stack wishlist management. Users create wishlists and add items to them. All mutation operations enforce **caller ownership**: the server resolves the caller from the bearer token and rejects mutations on resources the caller does not own. Read-only GET routes (`getByUserId`, `getById`, `getByWishlistId`) are **public** — no bearer token required. Depends on `features/users` (for `UserId`) and `features/auth/server` (for `getCallerUserIdOrAnswerUnauthorized`).
 
 ## Routes
 
 ### Wishlists (`/wishlist/...`)
 
-All routes require a valid bearer token (`authenticate {}` block).
-
 | Method | Path | Auth | Body / Response | Description |
 |--------|------|------|-----------------|-------------|
-| GET | `/wishlist/getByUserId/{userId}` | Bearer | `→ List<RegisteredWishlist> \| 400` | All wishlists owned by `userId`; no ownership check |
+| GET | `/wishlist/getByUserId/{userId}` | None | `→ List<RegisteredWishlist> \| 400` | All wishlists owned by `userId`; public |
+| GET | `/wishlist/getById/{id}` | None | `→ RegisteredWishlist \| 400 \| 404` | Single wishlist by id; public |
 | GET | `/wishlist/getMy` | Bearer | `→ List<RegisteredWishlist>` | All wishlists owned by the authenticated caller |
 | POST | `/wishlist/create` | Bearer | `NewWishlistInFeature → RegisteredWishlist \| 500` | Create wishlist; owner resolved from bearer token |
 | PUT | `/wishlist/update/{id}` | Bearer | `NewWishlistInFeature → 200 \| 400 \| 403 \| 404` | Replace wishlist data if caller is owner |
@@ -24,11 +23,9 @@ All routes require a valid bearer token (`authenticate {}` block).
 
 ### Wishlist Items (`/wishlistItem/...`)
 
-All routes require a valid bearer token (`authenticate {}` block).
-
 | Method | Path | Auth | Body / Response | Description |
 |--------|------|------|-----------------|-------------|
-| GET | `/wishlistItem/getByWishlistId/{wishlistId}` | Bearer | `→ List<RegisteredWishlistItem> \| 400` | All items in a wishlist; no ownership check |
+| GET | `/wishlistItem/getByWishlistId/{wishlistId}` | None | `→ List<RegisteredWishlistItem> \| 400` | All items in a wishlist; public |
 | POST | `/wishlistItem/create` | Bearer | `NewWishlistItem → RegisteredWishlistItem \| 500` | Create item; caller must own parent wishlist (null=not found or not owner → 500) |
 | PUT | `/wishlistItem/update/{id}` | Bearer | `NewWishlistItem → 200 \| 400 \| 403 \| 404` | Replace item data if caller owns parent wishlist |
 | DELETE | `/wishlistItem/delete/{id}` | Bearer | `→ 200 \| 400 \| 403 \| 404` | Remove item if caller owns parent wishlist |

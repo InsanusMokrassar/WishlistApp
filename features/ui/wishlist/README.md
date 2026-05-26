@@ -35,7 +35,7 @@ JS views use Bootstrap CSS classes via Compose HTML. JVM uses Material v2, Andro
 - JS modal rendered via Bootstrap classes (`modal d-block` + `modal-backdrop`); JVM/Android use `AlertDialog`.
 - JS view packages: `dev.inmo.wishlist.features.ui.wishlist.ui.js`
 - JVM view packages: `dev.inmo.wishlist.features.ui.wishlist.ui.jvm`
-- Android view packages: `dev.inmo.wishlist.features.ui.wishlist.ui.android`
+- Android view packages: `dev.inmo.wishlist.features.ui.wishlist.ui`
 - `WishlistsListViewConfig` is the JS application root: always inserted as base config by `UrlParametersNavigationConfigsRepo` decoder in `ClientJSPlugin` (not injected via `ClientPlugin`).
 - **ViewModel reload patterns:**
   - `WishlistViewModel`, `WishlistsListViewModel`: reload on every resume — `merge(flowOf(Unit), node.onResumeFlow).subscribeLoggingDropExceptions(scope)`.

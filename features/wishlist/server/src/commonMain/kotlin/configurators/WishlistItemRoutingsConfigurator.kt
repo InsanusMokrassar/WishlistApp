@@ -21,12 +21,10 @@ import io.ktor.server.routing.route
 /**
  * Ktor routing configurator that registers all wishlist item CRUD endpoints under `/wishlistItem`.
  *
- * All routes are wrapped inside an `authenticate {}` block and require a valid bearer token.
- * Mutation routes ([create], [update], [delete]) enforce that the caller owns the parent
- * wishlist; the caller identity is resolved via [getCallerUserIdOrAnswerUnauthorized].
+ * **Public routes** (no auth required):
+ * - `GET /wishlistItem/getByWishlistId/{wishlistId}` — returns all items in the given wishlist
  *
- * Routes registered:
- * - `GET    /wishlistItem/getByWishlistId/{wishlistId}` — returns all items in the given wishlist
+ * **Auth-required routes** (valid bearer token mandatory):
  * - `POST   /wishlistItem/create` — creates a new item if caller owns the parent wishlist; body: [NewWishlistItem]
  * - `PUT    /wishlistItem/update/{id}` — replaces item data if caller owns the parent wishlist; body: [NewWishlistItem]
  * - `DELETE /wishlistItem/delete/{id}` — removes an item if caller owns the parent wishlist
@@ -43,15 +41,17 @@ class WishlistItemRoutingsConfigurator(
     private val wishlistItemService: WishlistItemService
 ) : ApplicationRoutingConfigurator.Element {
     override fun Route.invoke() {
+        route(Constants.wishlistItemPrefixPathPart) {
+            get("${Constants.wishlistItemGetByWishlistIdPathPart}/{wishlistId}") {
+                val wishlistId = call.parameters["wishlistId"]?.toLongOrNull()?.let(::WishlistId) ?: run {
+                    call.respond(HttpStatusCode.BadRequest)
+                    return@get
+                }
+                call.respond(wishlistItemService.getByWishlistId(wishlistId))
+            }
+        }
         authenticate {
             route(Constants.wishlistItemPrefixPathPart) {
-                get("${Constants.wishlistItemGetByWishlistIdPathPart}/{wishlistId}") {
-                    val wishlistId = call.parameters["wishlistId"]?.toLongOrNull()?.let(::WishlistId) ?: run {
-                        call.respond(HttpStatusCode.BadRequest)
-                        return@get
-                    }
-                    call.respond(wishlistItemService.getByWishlistId(wishlistId))
-                }
                 post(Constants.wishlistItemCreatePathPart) {
                     val callerId = getCallerUserIdOrAnswerUnauthorized() ?: return@post
                     val newItem = call.receive<NewWishlistItem>()

@@ -78,7 +78,7 @@ class WishlistView(
                             Column(
                                 modifier = Modifier
                                     .fillMaxWidth()
-                                    .then(if (isOwner) Modifier.clickable { viewModel.onEditItem(item.id) } else Modifier)
+                                    .clickable { viewModel.onViewItem(item.id) }
                                     .padding(12.dp)
                             ) {
                                 Row(

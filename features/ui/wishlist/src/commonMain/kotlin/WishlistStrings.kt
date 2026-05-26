@@ -31,4 +31,7 @@ object WishlistStrings {
     val editWishlistTitle = buildStringResource("Edit Wishlist") { IetfLang.Russian("Редактировать список") }
     val newItemTitle = buildStringResource("New Item") { IetfLang.Russian("Новый товар") }
     val editItemTitle = buildStringResource("Edit Item") { IetfLang.Russian("Редактировать товар") }
+    val viewItemTitle = buildStringResource("Item") { IetfLang.Russian("Товар") }
+    val noPrice = buildStringResource("No price") { IetfLang.Russian("Цена не указана") }
+    val noLinks = buildStringResource("No links") { IetfLang.Russian("Ссылки не указаны") }
 }

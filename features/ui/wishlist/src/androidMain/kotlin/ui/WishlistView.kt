@@ -1,4 +1,4 @@
-package dev.inmo.wishlist.features.ui.wishlist.ui.android
+package dev.inmo.wishlist.features.ui.wishlist.ui
 
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -84,7 +84,7 @@ class WishlistView(
                             Column(
                                 modifier = Modifier
                                     .fillMaxWidth()
-                                    .then(if (isOwner) Modifier.clickable { viewModel.onEditItem(item.id) } else Modifier)
+                                    .clickable { viewModel.onViewItem(item.id) }
                                     .padding(12.dp)
                             ) {
                                 Row(

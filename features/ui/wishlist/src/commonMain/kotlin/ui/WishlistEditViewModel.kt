@@ -19,13 +19,16 @@ import kotlinx.coroutines.flow.takeWhile
  * When non-null, loads the existing wishlist and pre-fills the title field.
  *
  * Back navigation shows a discard-changes confirmation modal when [isDirtyState] is `true`.
+ * Navigation side-effects are delegated to [interactor].
  *
  * @param node Navigation node this ViewModel is bound to.
  * @param model Wishlist data source.
+ * @param interactor Navigation delegate for this screen.
  */
 class WishlistEditViewModel(
     private val node: NavigationNode<WishlistEditViewConfig, ViewConfig>,
-    private val model: WishlistsModel
+    private val model: WishlistsModel,
+    private val interactor: WishlistEditViewInteractor
 ) : ViewModel<ViewConfig>(node) {
     /** `true` when this screen is in create mode (no existing wishlist id). */
     val isCreating: Boolean = node.config.wishlistId == null
@@ -80,20 +83,20 @@ class WishlistEditViewModel(
 
     /**
      * Attempts to navigate back. Shows confirm dialog when [isDirtyState] is `true`,
-     * otherwise pops the current node immediately.
+     * otherwise delegates to [WishlistEditViewInteractor.onNavigateBack].
      */
     fun onBack() {
         if (_isDirtyState.value) {
             _showConfirmDialogState.value = true
         } else {
-            scope.launchLoggingDropExceptions { node.chain.pop() }
+            scope.launchLoggingDropExceptions { interactor.onNavigateBack(node) }
         }
     }
 
-    /** Confirms discarding changes and pops the current node. */
+    /** Confirms discarding changes and delegates to [WishlistEditViewInteractor.onNavigateBack]. */
     fun onConfirmBack() {
         _showConfirmDialogState.value = false
-        scope.launchLoggingDropExceptions { node.chain.pop() }
+        scope.launchLoggingDropExceptions { interactor.onNavigateBack(node) }
     }
 
     /** Cancels the confirm dialog, returning the user to the form. */
@@ -102,7 +105,7 @@ class WishlistEditViewModel(
     }
 
     /**
-     * Saves the wishlist (create or update) and pops the current node on success.
+     * Saves the wishlist (create or update) and delegates to [WishlistEditViewInteractor.onSaved] on success.
      * No-op when [titleState] is blank or a request is already in flight.
      */
     fun onSave() {
@@ -117,7 +120,7 @@ class WishlistEditViewModel(
                 } else {
                     model.updateWishlist(id, title)
                 }
-                node.chain.pop()
+                interactor.onSaved(node)
             } finally {
                 _loadingState.value = false
             }

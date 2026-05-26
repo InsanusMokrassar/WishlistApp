@@ -15,7 +15,6 @@ import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.combine
-import kotlinx.coroutines.flow.drop
 import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.flow.merge
 import kotlinx.coroutines.flow.stateIn
@@ -25,13 +24,16 @@ import kotlinx.coroutines.flow.stateIn
  *
  * Loads the wishlist and its items on init. Exposes [isOwnerState] which is `true`
  * when the authenticated caller is the wishlist owner — used to show edit controls.
+ * Navigation side-effects are delegated to [interactor].
  *
  * @param node Navigation node this ViewModel is bound to.
  * @param model Wishlist data source.
+ * @param interactor Navigation delegate for this screen.
  */
 class WishlistViewModel(
     private val node: NavigationNode<WishlistViewConfig, ViewConfig>,
-    private val model: WishlistsModel
+    private val model: WishlistsModel,
+    private val interactor: WishlistViewInteractor
 ) : ViewModel<ViewConfig>(node) {
     private val _wishlistState = MutableRedeliverStateFlow<RegisteredWishlist?>(null)
 
@@ -75,33 +77,29 @@ class WishlistViewModel(
         }
     }
 
-    /** Pops the current node from its chain, returning to the wishlists list. */
+    /** Delegates to [WishlistViewInteractor.onBack]. */
     fun onBack() {
-        scope.launchLoggingDropExceptions { node.chain.pop() }
+        scope.launchLoggingDropExceptions { interactor.onBack(node) }
     }
 
-    /** Pushes [WishlistEditViewConfig] for this wishlist onto the chain. Requires ownership. */
+    /** Delegates to [WishlistViewInteractor.onEditWishlist]. Requires ownership. */
     fun onEditWishlist() {
-        scope.launchLoggingDropExceptions {
-            node.chain.push(WishlistEditViewConfig(node.config.wishlistId))
-        }
+        scope.launchLoggingDropExceptions { interactor.onEditWishlist(node) }
     }
 
     /**
-     * Pushes [WishlistItemEditViewConfig] for item [itemId] onto the chain.
+     * Delegates to [WishlistViewInteractor.onViewItem].
      *
-     * @param itemId Item to edit.
+     * Both owners and non-owners open the read-only view first; owners may proceed to edit from there.
+     *
+     * @param itemId Item to view.
      */
-    fun onEditItem(itemId: WishlistItemId) {
-        scope.launchLoggingDropExceptions {
-            node.chain.push(WishlistItemEditViewConfig(itemId, node.config.wishlistId))
-        }
+    fun onViewItem(itemId: WishlistItemId) {
+        scope.launchLoggingDropExceptions { interactor.onViewItem(node, itemId) }
     }
 
-    /** Pushes [WishlistItemEditViewConfig] in create mode (null item id) onto the chain. */
+    /** Delegates to [WishlistViewInteractor.onAddItem]. */
     fun onAddItem() {
-        scope.launchLoggingDropExceptions {
-            node.chain.push(WishlistItemEditViewConfig(null, node.config.wishlistId))
-        }
+        scope.launchLoggingDropExceptions { interactor.onAddItem(node) }
     }
 }

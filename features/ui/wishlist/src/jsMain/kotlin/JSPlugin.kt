@@ -6,10 +6,12 @@ import dev.inmo.navigation.core.NavigationNodeFactory
 import dev.inmo.wishlist.features.common.client.models.ViewConfig
 import dev.inmo.wishlist.features.ui.wishlist.ui.WishlistEditViewConfig
 import dev.inmo.wishlist.features.ui.wishlist.ui.WishlistItemEditViewConfig
+import dev.inmo.wishlist.features.ui.wishlist.ui.WishlistItemViewConfig
 import dev.inmo.wishlist.features.ui.wishlist.ui.WishlistViewConfig
 import dev.inmo.wishlist.features.ui.wishlist.ui.WishlistsListViewConfig
 import dev.inmo.wishlist.features.ui.wishlist.ui.WishlistEditView
 import dev.inmo.wishlist.features.ui.wishlist.ui.WishlistItemEditView
+import dev.inmo.wishlist.features.ui.wishlist.ui.WishlistItemView
 import dev.inmo.wishlist.features.ui.wishlist.ui.WishlistView
 import dev.inmo.wishlist.features.ui.wishlist.ui.WishlistsListView
 import kotlinx.serialization.json.JsonObject
@@ -37,6 +39,9 @@ object JSPlugin : StartPlugin {
         }
         singleWithRandomQualifier<NavigationNodeFactory<ViewConfig>> {
             NavigationNodeFactory.Typed<WishlistItemEditViewConfig, ViewConfig> { chain, cfg -> WishlistItemEditView(chain, cfg) }
+        }
+        singleWithRandomQualifier<NavigationNodeFactory<ViewConfig>> {
+            NavigationNodeFactory.Typed<WishlistItemViewConfig, ViewConfig> { chain, cfg -> WishlistItemView(chain, cfg) }
         }
     }
 

@@ -1,4 +1,4 @@
-package dev.inmo.wishlist.features.ui.wishlist.ui.android
+package dev.inmo.wishlist.features.ui.wishlist.ui
 
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column

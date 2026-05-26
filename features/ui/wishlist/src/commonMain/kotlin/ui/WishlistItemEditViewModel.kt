@@ -10,7 +10,6 @@ import dev.inmo.wishlist.features.common.client.models.ViewConfig
 import dev.inmo.wishlist.features.common.common.models.Amount
 import dev.inmo.wishlist.features.wishlist.common.models.NewWishlistItem
 import kotlinx.coroutines.flow.asStateFlow
-import kotlinx.coroutines.flow.drop
 import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.flow.merge
 import kotlinx.coroutines.flow.takeWhile
@@ -25,13 +24,16 @@ import kotlinx.coroutines.flow.takeWhile
  * with [Amount.invoke(Double)] and stored as `null` when blank or not a valid number.
  *
  * Back navigation shows a discard-changes confirmation modal when [isDirtyState] is `true`.
+ * Navigation side-effects are delegated to [interactor].
  *
  * @param node Navigation node this ViewModel is bound to.
  * @param model Wishlist data source.
+ * @param interactor Navigation delegate for this screen.
  */
 class WishlistItemEditViewModel(
     private val node: NavigationNode<WishlistItemEditViewConfig, ViewConfig>,
-    private val model: WishlistsModel
+    private val model: WishlistsModel,
+    private val interactor: WishlistItemEditViewInteractor
 ) : ViewModel<ViewConfig>(node) {
     /** `true` when this screen is in create mode (no existing item id). */
     val isCreating: Boolean = node.config.wishlistItemId == null
@@ -140,20 +142,20 @@ class WishlistItemEditViewModel(
 
     /**
      * Attempts to navigate back. Shows confirm dialog when [isDirtyState] is `true`,
-     * otherwise pops the current node immediately.
+     * otherwise delegates to [WishlistItemEditViewInteractor.onNavigateBack].
      */
     fun onBack() {
         if (_isDirtyState.value) {
             _showConfirmDialogState.value = true
         } else {
-            scope.launchLoggingDropExceptions { node.chain.pop() }
+            scope.launchLoggingDropExceptions { interactor.onNavigateBack(node) }
         }
     }
 
-    /** Confirms discarding changes and pops the current node. */
+    /** Confirms discarding changes and delegates to [WishlistItemEditViewInteractor.onNavigateBack]. */
     fun onConfirmBack() {
         _showConfirmDialogState.value = false
-        scope.launchLoggingDropExceptions { node.chain.pop() }
+        scope.launchLoggingDropExceptions { interactor.onNavigateBack(node) }
     }
 
     /** Cancels the confirm dialog, returning the user to the form. */
@@ -162,7 +164,7 @@ class WishlistItemEditViewModel(
     }
 
     /**
-     * Saves the item (create or update) and pops the current node on success.
+     * Saves the item (create or update) and delegates to [WishlistItemEditViewInteractor.onSaved] on success.
      * No-op when [titleState] is blank or a request is already in flight.
      */
     fun onSave() {
@@ -186,7 +188,7 @@ class WishlistItemEditViewModel(
                 } else {
                     model.updateWishlistItem(itemId, item)
                 }
-                node.chain.pop()
+                interactor.onSaved(node)
             } finally {
                 _loadingState.value = false
             }

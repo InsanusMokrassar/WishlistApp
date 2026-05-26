@@ -17,6 +17,8 @@ import dev.inmo.wishlist.features.ui.wishlist.ui.WishlistEditViewConfig
 import dev.inmo.wishlist.features.ui.wishlist.ui.WishlistEditViewModel
 import dev.inmo.wishlist.features.ui.wishlist.ui.WishlistItemEditViewConfig
 import dev.inmo.wishlist.features.ui.wishlist.ui.WishlistItemEditViewModel
+import dev.inmo.wishlist.features.ui.wishlist.ui.WishlistItemViewConfig
+import dev.inmo.wishlist.features.ui.wishlist.ui.WishlistItemViewModel
 import dev.inmo.wishlist.features.ui.wishlist.ui.WishlistViewConfig
 import dev.inmo.wishlist.features.ui.wishlist.ui.WishlistViewModel
 import dev.inmo.wishlist.features.ui.wishlist.ui.WishlistsListViewConfig
@@ -50,13 +52,16 @@ object Plugin : StartPlugin {
                 polymorphic(ViewConfig::class, WishlistEditViewConfig::class, WishlistEditViewConfig.serializer())
                 polymorphic(Any::class, WishlistItemEditViewConfig::class, WishlistItemEditViewConfig.serializer())
                 polymorphic(ViewConfig::class, WishlistItemEditViewConfig::class, WishlistItemEditViewConfig.serializer())
+                polymorphic(Any::class, WishlistItemViewConfig::class, WishlistItemViewConfig.serializer())
+                polymorphic(ViewConfig::class, WishlistItemViewConfig::class, WishlistItemViewConfig.serializer())
             }
         }
 
-        factory { WishlistsListViewModel(it.get(), get()) }
-        factory { WishlistViewModel(it.get(), get()) }
-        factory { WishlistEditViewModel(it.get(), get()) }
-        factory { WishlistItemEditViewModel(it.get(), get()) }
+        factory { WishlistsListViewModel(it.get(), get(), get()) }
+        factory { WishlistViewModel(it.get(), get(), get()) }
+        factory { WishlistEditViewModel(it.get(), get(), get()) }
+        factory { WishlistItemEditViewModel(it.get(), get(), get()) }
+        factory { WishlistItemViewModel(it.get(), get(), get()) }
 
         single<WishlistsModel> {
             val wishlistsFeature = get<WishlistsFeature>()
@@ -67,7 +72,7 @@ object Plugin : StartPlugin {
                     wishlistsFeature.getMyWishlists()
 
                 override suspend fun getWishlist(id: WishlistId): RegisteredWishlist? =
-                    wishlistsFeature.getMyWishlists().find { it.id == id }
+                    wishlistsFeature.getById(id)
 
                 override suspend fun getWishlistItems(wishlistId: WishlistId): List<RegisteredWishlistItem> =
                     itemsFeature.getByWishlistId(wishlistId)

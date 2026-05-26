@@ -20,6 +20,9 @@ object Constants {
     /** Path segment for the delete route: `.../delete/{id}`. */
     const val wishlistDeletePathPart = "delete"
 
+    /** Path segment for the public getById route: `.../getById/{id}`. No auth required. */
+    const val wishlistGetByIdPathPart = "getById"
+
     /** Root path segment for all wishlist item routes: `/wishlistItem/...`. */
     const val wishlistItemPrefixPathPart = "wishlistItem"
 

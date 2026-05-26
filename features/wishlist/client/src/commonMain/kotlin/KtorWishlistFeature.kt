@@ -31,6 +31,17 @@ import io.ktor.http.isSuccess
 class KtorWishlistFeature(
     private val client: HttpClient
 ) : WishlistsFeature {
+    /**
+     * Fetches a single wishlist by [id] from the public endpoint (no auth token required).
+     *
+     * @param id Wishlist primary key.
+     * @return [RegisteredWishlist] on 2xx, `null` on 404 or any non-2xx response.
+     */
+    override suspend fun getById(id: WishlistId): RegisteredWishlist? {
+        val response = client.get("${Constants.wishlistPrefixPathPart}/${Constants.wishlistGetByIdPathPart}/${id.long}")
+        return if (response.status.isSuccess()) response.body() else null
+    }
+
     override suspend fun getByUserId(userId: UserId): List<RegisteredWishlist> =
         client.get("${Constants.wishlistPrefixPathPart}/${Constants.wishlistGetByUserIdPathPart}/${userId.long}").body()
 
