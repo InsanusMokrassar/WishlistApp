@@ -45,6 +45,10 @@ class ExposedWishlistRepo(
 
     override val selectById: (WishlistId) -> Op<Boolean> = { idColumn.eq(it.long) }
 
+    init {
+        initTable()
+    }
+
     override fun update(id: WishlistId?, value: NewWishlist, it: UpdateBuilder<Int>) {
         it[userIdColumn] = value.userId.long
         it[titleColumn] = value.title

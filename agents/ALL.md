@@ -1,10 +1,12 @@
-Always look at the project work rules first. Update them and maintain a history of changes and prompts in `HISTORY.md`. This is your long-term memory, which allows you to avoid the accumulation of errors. Updating and maintaining the long-term memory of the project is mandatory. Many thanks for your help to me and your work.
+Always starts with `/caveman full`
+
+Always look at the project work rules first. Maintain a history of changes and prompts in `HISTORY.md`. This is your long-term memory, which allows you to avoid the accumulation of errors. Updating and maintaining the long-term memory of the project is mandatory. Many thanks for your help to me and your work.
 
 ---
 
-In case of needs in search of files you must try to use `ast-index` first. Read about how to use it in `AST_INDEX.md`
+if `ast-index` plugin has been installed - use it. Otherwise - in case of needs in search of files you must try to use `ast-index` first. Read about how to use it in `AST_INDEX.md`.
 
-In case of changes in source files (any files) you MUST call `ast-index rebuild`
+In case of changes in source files (any files) you MUST use ast-index rebuild
 
 ---
 

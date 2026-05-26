@@ -4,6 +4,68 @@
 
 ---
 
+### 2026-05-26 — Session 6: onboarding
+
+**Prompt:** `USE @AGENTS.md`
+
+**Actions:**
+- action=read; target=AGENTS.md; result=AML-HIP protocol loaded
+- action=read; target=agents/SHORTCUTS.md; result=task→file map loaded
+- action=read; target=agents/ALL.md; result=mandatory rules loaded
+- action=read; target=agents/HISTORY.md; result=project history loaded (Sessions 1-5)
+- action=read; target=features/wishlist files (4 files); result=current state verified
+
+**Project state at session start:**
+- branch=master; last_commit=81e4f5c (add ast-index); uncommitted_changes=yes
+- staged: agents/ALL.md, agents/CODING.md, agents/HISTORY.md
+- unstaged: features/wishlist/README.md, JVMPlugin.kt, ExposedWishlistItemRepo.kt, ExposedWishlistRepo.kt
+- features present: sample, users, auth, common, wishlist (full-stack), ui/sample, ui/auth
+- wishlist routes: GET /wishlist/getByUserId/{userId}, GET /wishlist/getMy, POST /wishlist/create, PUT /wishlist/update/{id}, DELETE /wishlist/delete/{id}
+- wishlistItem routes: GET /wishlistItem/getByWishlistId/{id}, POST /wishlistItem/create, PUT /wishlistItem/update/{id}, DELETE /wishlistItem/delete/{id}
+- links schema: wishlist_item_links table (item_id FK CASCADE, link TEXT, PK(item_id,link))
+- BUG DETECTED: ExposedWishlistRepo.kt has duplicate `init { initTable() }` blocks (lines 48 and 75); initTable() called twice on startup
+
+**No source changes made this session.**
+
+---
+
+### 2026-05-26 — Session 5: onboarding
+
+**Prompt:** `USE @AGENTS.md`
+
+**Actions:**
+- action=read; target=AGENTS.md; result=AML-HIP protocol loaded
+- action=read; target=agents/SHORTCUTS.md; result=task→file map loaded
+- action=read; target=agents/ALL.md; result=mandatory rules loaded
+- action=read; target=agents/HISTORY.md; result=project history loaded (Sessions 1-4)
+
+**Project state at session start:**
+- branch=master; last_commit=81e4f5c (add ast-index); status=clean
+- features present: sample, users, auth, common, wishlist (full-stack), ui/sample, ui/auth
+- wishlist routes: GET /wishlist/getMy, POST /wishlist/create, PUT /wishlist/update/{id}, DELETE /wishlist/delete/{id}
+- wishlistItem routes: GET /wishlistItem/getByWishlistId/{id}, POST /wishlistItem/create, PUT /wishlistItem/update/{id}, DELETE /wishlistItem/delete/{id}
+- ownership: WishlistService + WishlistItemService enforce callerId == owner; null=not_found, false=unauthorized, true=success
+- all feature dirs have README.md with Operator Notes section
+
+---
+
+### 2026-05-26 — Session 5 (continued): Extract links to separate Exposed table
+
+**Prompt summary:** Extract `links` field from `ExposedWishlistItemRepo` into a private internal `wishlist_item_links` table. Table instantiated and used only within that file.
+
+**Actions:**
+- action=update; target=features/wishlist/common/src/jvmMain/kotlin/repo/ExposedWishlistItemRepo.kt; changes=[remove linksColumn/linksSerializer/Json param; add private linksTable anon object: Table("wishlist_item_links") {itemId FK CASCADE, link TEXT, PK(itemId,link)}; add linksFor(itemId) helper; update.asObject reads linksFor; update() deletes+reinserts links when id!=null; InsertStatement.asObject inserts links; init creates linksTable schema via SchemaUtils; remove kotlinx.serialization imports; add ReferenceOption/Table/SchemaUtils/deleteWhere/insert/selectAll imports]
+- action=update; target=features/wishlist/common/src/jvmMain/kotlin/JVMPlugin.kt; changes=[ExposedWishlistItemRepo(get(),get()) → ExposedWishlistItemRepo(get()): Json param removed]
+- action=update; target=features/wishlist/README.md; changes=[Architecture Notes: links table schema, FK CASCADE note, sub-query read note]
+
+**Schema changes:**
+- table=wishlist_item_links; columns=[item_id BIGINT FK→wishlist_items.id ON DELETE CASCADE, link TEXT]; PK=(item_id,link)
+- wishlist_items: linksColumn (TEXT JSON) removed
+
+**Ownership semantics unchanged. Routes unchanged.**
+
+---
+
 ### 2026-05-26 — Session 4 (continued): Initial README.md for all features
 
 **Prompt summary:** Create README.md for all existing features following the rule from ALL.md.

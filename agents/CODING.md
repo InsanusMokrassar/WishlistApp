@@ -601,6 +601,12 @@ override fun HttpClientConfig<*>.configure() {
 
 ---
 
+## Exposed repositories notes
+
+> **IMPORTANT**: Each exposed database must contains `init` block with calling of `initTable()` (package `dev.inmo.micro_utils.repos.exposed`) to init table
+
+---
+
 ## CRUD Repository Pattern (example: `features/users`)
 
 This section documents the canonical pattern for adding a persistent, cache-backed CRUD repository to a feature, using `features/users` as the reference implementation.

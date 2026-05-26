@@ -6,57 +6,75 @@
 
 ## Overview
 
-Full-stack wishlist management. Users can create wishlists and add items to them. All mutation operations enforce **caller ownership**: the server resolves the caller from the bearer token and rejects mutations on resources the caller does not own. Depends on `features/users` (for `UserId`) and `features/auth/server` (for `getCallerUserIdOrAnswerUnauthorized`).
+Full-stack wishlist management. Users create wishlists and add items to them. All mutation operations enforce **caller ownership**: the server resolves the caller from the bearer token and rejects mutations on resources the caller does not own. Read operations (`getByUserId`, `getByWishlistId`) are accessible to any authenticated user without ownership enforcement. Depends on `features/users` (for `UserId`) and `features/auth/server` (for `getCallerUserIdOrAnswerUnauthorized`).
 
 ## Routes
 
 ### Wishlists (`/wishlist/...`)
 
+All routes require a valid bearer token (`authenticate {}` block).
+
 | Method | Path | Auth | Body / Response | Description |
 |--------|------|------|-----------------|-------------|
-| GET | `/wishlist/getByUserId/{userId}` | Bearer | `→ List<RegisteredWishlist>` | All wishlists owned by a specific user |
+| GET | `/wishlist/getByUserId/{userId}` | Bearer | `→ List<RegisteredWishlist> \| 400` | All wishlists owned by `userId`; no ownership check |
 | GET | `/wishlist/getMy` | Bearer | `→ List<RegisteredWishlist>` | All wishlists owned by the authenticated caller |
 | POST | `/wishlist/create` | Bearer | `NewWishlistInFeature → RegisteredWishlist \| 500` | Create wishlist; owner resolved from bearer token |
-| PUT | `/wishlist/update/{id}` | Bearer | `NewWishlistInFeature → 200 \| 403 \| 404` | Replace wishlist data if caller is owner |
-| DELETE | `/wishlist/delete/{id}` | Bearer | `→ 200 \| 403 \| 404` | Remove wishlist if caller is owner |
+| PUT | `/wishlist/update/{id}` | Bearer | `NewWishlistInFeature → 200 \| 400 \| 403 \| 404` | Replace wishlist data if caller is owner |
+| DELETE | `/wishlist/delete/{id}` | Bearer | `→ 200 \| 400 \| 403 \| 404` | Remove wishlist if caller is owner |
 
 ### Wishlist Items (`/wishlistItem/...`)
 
+All routes require a valid bearer token (`authenticate {}` block).
+
 | Method | Path | Auth | Body / Response | Description |
 |--------|------|------|-----------------|-------------|
-| GET | `/wishlistItem/getByWishlistId/{wishlistId}` | Bearer | `→ List<RegisteredWishlistItem>` | All items in a wishlist |
-| POST | `/wishlistItem/create` | Bearer | `NewWishlistItem → RegisteredWishlistItem \| 500` | Create item; caller must own parent wishlist |
-| PUT | `/wishlistItem/update/{id}` | Bearer | `NewWishlistItem → 200 \| 403 \| 404` | Replace item data if caller owns parent wishlist |
-| DELETE | `/wishlistItem/delete/{id}` | Bearer | `→ 200 \| 403 \| 404` | Remove item if caller owns parent wishlist |
+| GET | `/wishlistItem/getByWishlistId/{wishlistId}` | Bearer | `→ List<RegisteredWishlistItem> \| 400` | All items in a wishlist; no ownership check |
+| POST | `/wishlistItem/create` | Bearer | `NewWishlistItem → RegisteredWishlistItem \| 500` | Create item; caller must own parent wishlist (null=not found or not owner → 500) |
+| PUT | `/wishlistItem/update/{id}` | Bearer | `NewWishlistItem → 200 \| 400 \| 403 \| 404` | Replace item data if caller owns parent wishlist |
+| DELETE | `/wishlistItem/delete/{id}` | Bearer | `→ 200 \| 400 \| 403 \| 404` | Remove item if caller owns parent wishlist |
 
-HTTP ownership semantics: `200` = success, `403` = caller not owner, `404` = not found, `500` = create failure.
+HTTP status semantics:
+- `200` — success
+- `400` — path parameter not a valid Long
+- `403` — resource exists, caller is not the owner
+- `404` — resource not found
+- `500` — create failure (repo returned nothing, parent not found, or caller not owner of parent)
+
+Note: item `create` maps both "parent not found" and "caller not owner" to `null` → `500`, unlike wishlist `update`/`delete` which return `null`=not_found / `false`=unauthorized → `404`/`403`.
 
 ## Models
 
 ### Wishlist
 
-| Type | Description |
-|------|-------------|
-| `WishlistId` | `@JvmInline value class(Long)` — primary key |
-| `NewWishlist` | Internal create payload: `userId: UserId`, `title: String` |
-| `NewWishlistInFeature` | Client-facing create/update payload: `title: String` (no userId) |
-| `RegisteredWishlist` | Persisted entity: `id`, `userId`, `title` |
-| `WishlistsFeature` | Client-facing interface: `getByUserId`, `getMyWishlists`, `create`, `update`, `delete` |
+| Type | Package | Description |
+|------|---------|-------------|
+| `WishlistId` | common | `@JvmInline value class(val long: Long)` — primary key |
+| `Wishlist` | common | Sealed interface; base for `NewWishlist` and `RegisteredWishlist` (`userId`, `title`) |
+| `NewWishlist` | common | Internal create payload: `userId: UserId`, `title: String`; never sent over the wire |
+| `NewWishlistInFeature` | common | Client-facing create/update payload: `title: String` only; owner resolved server-side |
+| `RegisteredWishlist` | common | Persisted entity: `id: WishlistId`, `userId: UserId`, `title: String` |
+| `WishlistsFeature` | client | Client-side interface: `getByUserId`, `getMyWishlists`, `create`, `update`, `delete` |
 
 ### Wishlist Item
 
-| Type | Description |
-|------|-------------|
-| `WishlistItemId` | `@JvmInline value class(Long)` — primary key |
-| `NewWishlistItem` | Create/update payload: `wishlistId`, `title`, `approximatePrice?`, `priceUnits`, `links`, `description` |
-| `RegisteredWishlistItem` | Persisted entity: adds `id: WishlistItemId` to `NewWishlistItem` fields |
-| `WishlistsItemsFeature` | Client-facing interface: `getByWishlistId`, `create`, `update`, `delete` |
+| Type | Package | Description |
+|------|---------|-------------|
+| `WishlistItemId` | common | `@JvmInline value class(val long: Long)` — primary key |
+| `WishlistItem` | common | Sealed interface; base for `NewWishlistItem` and `RegisteredWishlistItem` |
+| `NewWishlistItem` | common | Create/update payload: `wishlistId`, `title`, `approximatePrice?: Amount`, `priceUnits: String`, `links: List<String>`, `description: String` |
+| `RegisteredWishlistItem` | common | Persisted entity: adds `id: WishlistItemId` to `NewWishlistItem` fields |
+| `WishlistsItemsFeature` | client | Client-side interface: `getByWishlistId`, `create`, `update`, `delete` |
 
 ## Architecture Notes
 
-- `WishlistService` and `WishlistItemService` are **not** bound to client-facing feature interfaces in Koin because their mutation methods carry an explicit `callerId: UserId` parameter absent from the client interfaces. Routing configurators inject the services directly.
-- Ownership check for items: `WishlistItemService` resolves parent wishlist via `WishlistRepo` to compare `userId`. For `update`/`delete`, the item is fetched first, then the parent wishlist. For `create`, `NewWishlistItem.wishlistId` identifies the parent.
-- `WishlistItemService(get(), get())` — second `get()` resolves `WishlistRepo` (registered by `wishlist.common.JVMPlugin`).
-- DB tables: `wishlists` (id BIGINT, user_id BIGINT, title TEXT); `wishlist_items` (id BIGINT, wishlist_id BIGINT, title TEXT, approx_price_int BIGINT NULL, approx_price_dec BIGINT NULL, price_units TEXT, links TEXT JSON, description TEXT).
-- `Amount` stored as two separate BIGINT columns (int + decimal parts) — no floating-point.
-- `links` stored as JSON text array in PostgreSQL.
+- `WishlistService` and `WishlistItemService` are **not** bound to `WishlistsFeature` / `WishlistsItemsFeature` in Koin because their mutation methods carry an explicit `callerId: UserId` parameter absent from the client interfaces. Routing configurators inject the services directly.
+- Ownership check for wishlists: `WishlistService.update`/`delete` fetch the entity from the repo, compare `userId == callerId`; `null` = not found, `false` = not owner.
+- Ownership check for items: `WishlistItemService.create` resolves parent wishlist from `NewWishlistItem.wishlistId`; returns `null` for both not found and not owner. `update`/`delete` fetch the item then the parent wishlist; `null` = item or parent not found, `false` = not owner.
+- `WishlistItemService(get(), get())` — two Koin `get()` calls: first resolves `WishlistItemRepo`, second resolves `WishlistRepo` (registered by `wishlist.common.JVMPlugin`).
+- DB tables:
+  - `wishlists`: `id BIGINT PK AUTO`, `user_id BIGINT`, `title TEXT`
+  - `wishlist_items`: `id BIGINT PK AUTO`, `wishlist_id BIGINT`, `title TEXT`, `approx_price_int BIGINT NULL`, `approx_price_dec BIGINT NULL`, `price_units TEXT`, `description TEXT`
+  - `wishlist_item_links`: `item_id BIGINT FK→wishlist_items.id ON DELETE CASCADE`, `link TEXT`, `PK(item_id, link)`
+- `Amount` stored as two BIGINT columns (`approx_price_int` = integer part, `approx_price_dec` = `ULong.decimalPart` stored as signed Long bit pattern). Both null → `Amount` is null.
+- `links` are stored in a separate `wishlist_item_links` table, managed exclusively by `ExposedWishlistItemRepo` (private `linksTable`). On item delete, cascade FK removes link rows automatically. On read, a sub-query per item row fetches links within the same transaction (N+1 trade-off).
+- Client-side interfaces (`WishlistsFeature`, `WishlistsItemsFeature`) are declared in `features/wishlist/client` and implemented by `KtorWishlistFeature` / `KtorWishlistItemFeature`.

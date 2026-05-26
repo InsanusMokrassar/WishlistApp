@@ -30,7 +30,7 @@ object JVMPlugin : StartPlugin {
             CacheWishlistRepo(originalRepo = get<ExposedWishlistRepo>(), scope = get())
         }
 
-        single { ExposedWishlistItemRepo(get(), get()) }
+        single { ExposedWishlistItemRepo(get()) }
         singleWithBinds<WishlistItemRepo> {
             CacheWishlistItemRepo(originalRepo = get<ExposedWishlistItemRepo>(), scope = get())
         }
