@@ -18,6 +18,10 @@ Update the feature `README.md`:
 
 ---
 
+After you are done with changes - you must run required compilation task. In most cases, it is `./gradlew :<MODULE_NAME>:build`. If there are erorrs in output, you must try to fix it. Do only one cycle of fixing, in new cycles do not fix same (fully same) issues again but add in report
+
+---
+
 ## KDoc Requirements
 
 **ALL created `.kt` files MUST contain valid KDocs.**

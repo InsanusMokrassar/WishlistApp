@@ -43,6 +43,22 @@ import dev.inmo.navigation.core.NavigationNodeState
 import dev.inmo.wishlist.features.users.common.models.UserId
 import dev.inmo.wishlist.features.wishlist.common.models.WishlistId
 import dev.inmo.wishlist.features.wishlist.common.models.WishlistItemId
+import dev.inmo.wishlist.features.ui.adminPanel.ui.AdminPanelViewConfig
+import dev.inmo.wishlist.features.ui.adminPanel.ui.AdminPanelViewInteractor
+import dev.inmo.wishlist.features.ui.adminPanel.ui.AdminUserEditViewConfig
+import dev.inmo.wishlist.features.ui.adminPanel.ui.AdminUserEditViewInteractor
+import dev.inmo.wishlist.features.ui.adminPanel.ui.AdminUserViewConfig
+import dev.inmo.wishlist.features.ui.adminPanel.ui.AdminUserViewInteractor
+import dev.inmo.wishlist.features.ui.adminPanel.ui.AdminUsersListViewConfig
+import dev.inmo.wishlist.features.ui.adminPanel.ui.AdminUsersListViewInteractor
+import dev.inmo.wishlist.features.ui.adminPanel.ui.AdminWishlistEditViewConfig
+import dev.inmo.wishlist.features.ui.adminPanel.ui.AdminWishlistEditViewInteractor
+import dev.inmo.wishlist.features.ui.adminPanel.ui.AdminWishlistItemEditViewConfig
+import dev.inmo.wishlist.features.ui.adminPanel.ui.AdminWishlistItemEditViewInteractor
+import dev.inmo.wishlist.features.ui.adminPanel.ui.AdminWishlistViewConfig
+import dev.inmo.wishlist.features.ui.adminPanel.ui.AdminWishlistViewInteractor
+import dev.inmo.wishlist.features.ui.adminPanel.ui.AdminWishlistsListViewConfig
+import dev.inmo.wishlist.features.ui.adminPanel.ui.AdminWishlistsListViewInteractor
 
 object ClientPlugin : StartPlugin {
     val currentDrawingBlock = MutableRedeliverStateFlow<@Composable () -> Unit>({})
@@ -151,6 +167,106 @@ object ClientPlugin : StartPlugin {
             }
         }
 
+        single<AdminPanelViewInteractor> {
+            object : AdminPanelViewInteractor {
+                override suspend fun onOpenUsers(node: NavigationNode<AdminPanelViewConfig, ViewConfig>) {
+                    node.chain.push(AdminUsersListViewConfig())
+                }
+                override suspend fun onOpenWishlists(node: NavigationNode<AdminPanelViewConfig, ViewConfig>) {
+                    node.chain.push(AdminWishlistsListViewConfig())
+                }
+            }
+        }
+
+        single<AdminUsersListViewInteractor> {
+            object : AdminUsersListViewInteractor {
+                override suspend fun onUserSelected(node: NavigationNode<AdminUsersListViewConfig, ViewConfig>, userId: UserId) {
+                    node.chain.push(AdminUserViewConfig(userId))
+                }
+                override suspend fun onCreateUser(node: NavigationNode<AdminUsersListViewConfig, ViewConfig>) {
+                    node.chain.push(AdminUserEditViewConfig(null))
+                }
+            }
+        }
+
+        single<AdminUserViewInteractor> {
+            object : AdminUserViewInteractor {
+                override suspend fun onBack(node: NavigationNode<AdminUserViewConfig, ViewConfig>) {
+                    node.chain.pop()
+                }
+                override suspend fun onEditUser(node: NavigationNode<AdminUserViewConfig, ViewConfig>) {
+                    node.chain.push(AdminUserEditViewConfig(node.config.userId))
+                }
+                override suspend fun onOpenWishlist(node: NavigationNode<AdminUserViewConfig, ViewConfig>, wishlistId: WishlistId) {
+                    node.chain.push(AdminWishlistViewConfig(wishlistId))
+                }
+                override suspend fun onAddWishlist(node: NavigationNode<AdminUserViewConfig, ViewConfig>, userId: UserId) {
+                    node.chain.push(AdminWishlistEditViewConfig(null, userId))
+                }
+            }
+        }
+
+        single<AdminUserEditViewInteractor> {
+            object : AdminUserEditViewInteractor {
+                override suspend fun onNavigateBack(node: NavigationNode<AdminUserEditViewConfig, ViewConfig>) {
+                    node.chain.pop()
+                }
+                override suspend fun onSaved(node: NavigationNode<AdminUserEditViewConfig, ViewConfig>) {
+                    node.chain.pop()
+                }
+            }
+        }
+
+        single<AdminWishlistsListViewInteractor> {
+            object : AdminWishlistsListViewInteractor {
+                override suspend fun onWishlistSelected(node: NavigationNode<AdminWishlistsListViewConfig, ViewConfig>, wishlistId: WishlistId) {
+                    node.chain.push(AdminWishlistViewConfig(wishlistId))
+                }
+                override suspend fun onCreateWishlist(node: NavigationNode<AdminWishlistsListViewConfig, ViewConfig>) {
+                    node.chain.push(AdminWishlistEditViewConfig(null))
+                }
+            }
+        }
+
+        single<AdminWishlistViewInteractor> {
+            object : AdminWishlistViewInteractor {
+                override suspend fun onBack(node: NavigationNode<AdminWishlistViewConfig, ViewConfig>) {
+                    node.chain.pop()
+                }
+                override suspend fun onEditWishlist(node: NavigationNode<AdminWishlistViewConfig, ViewConfig>) {
+                    node.chain.push(AdminWishlistEditViewConfig(node.config.wishlistId))
+                }
+                override suspend fun onAddItem(node: NavigationNode<AdminWishlistViewConfig, ViewConfig>, wishlistId: WishlistId) {
+                    node.chain.push(AdminWishlistItemEditViewConfig(null, wishlistId))
+                }
+                override suspend fun onEditItem(node: NavigationNode<AdminWishlistViewConfig, ViewConfig>, itemId: dev.inmo.wishlist.features.wishlist.common.models.WishlistItemId, wishlistId: WishlistId) {
+                    node.chain.push(AdminWishlistItemEditViewConfig(itemId, wishlistId))
+                }
+            }
+        }
+
+        single<AdminWishlistEditViewInteractor> {
+            object : AdminWishlistEditViewInteractor {
+                override suspend fun onNavigateBack(node: NavigationNode<AdminWishlistEditViewConfig, ViewConfig>) {
+                    node.chain.pop()
+                }
+                override suspend fun onSaved(node: NavigationNode<AdminWishlistEditViewConfig, ViewConfig>) {
+                    node.chain.pop()
+                }
+            }
+        }
+
+        single<AdminWishlistItemEditViewInteractor> {
+            object : AdminWishlistItemEditViewInteractor {
+                override suspend fun onNavigateBack(node: NavigationNode<AdminWishlistItemEditViewConfig, ViewConfig>) {
+                    node.chain.pop()
+                }
+                override suspend fun onSaved(node: NavigationNode<AdminWishlistItemEditViewConfig, ViewConfig>) {
+                    node.chain.pop()
+                }
+            }
+        }
+
         single<AuthViewInteractor> {
             val rootChain = get<NavigationChain<ViewConfig>>()
             val scope = get<CoroutineScope>()
@@ -210,6 +326,7 @@ object ClientPlugin : StartPlugin {
                 dropRedundantChainsOnRestore = true,
                 rootChain = rootChain
             ) {
+                InjectNavigationNode(AdminPanelViewConfig())
                 val rootChain = getChainFromLocalProvider<ViewConfig>()!!
                 LaunchedEffect(rootChain) {
                     rootChain.either<NavigationChain<ViewConfig>, NavigationNode<out ViewConfig, ViewConfig>>().changesInSubtreeFlow().conflate().collect {

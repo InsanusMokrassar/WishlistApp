@@ -4,6 +4,39 @@
 
 ---
 
+### 2026-05-27 — Session 9: Admin panel UI wiring
+
+**Prompt:** `Add UI (scenario) for admin panel. List→View→Edit canvas for users and wishlists. Support adding users/wishlists/items. Wishlist create has owner dropdown. User view shows wishlists.`
+
+**Project state at session start:**
+- branch=master; last_commit=7c898c9 (build fix); status=modified(client/build.gradle, settings.gradle) + untracked(features/ui/adminPanel/)
+- features/ui/adminPanel MVVM already present: 8 ViewConfigs, 8 ViewModels, 8 Interactor interfaces, JS/JVM/Android views — all implemented
+- missing: interactor implementations in ClientPlugin; plugin registrations in Main.kt files; Android plugin only registered AdminPanelView (not all 8)
+
+**Actions:**
+- action=update; target=features/ui/adminPanel/src/androidMain/kotlin/AndroidPlugin.kt; changes=[added 7 missing NavigationNodeFactory entries: AdminUsersListView, AdminUserView, AdminUserEditView, AdminWishlistsListView, AdminWishlistView, AdminWishlistEdit, AdminWishlistItemEditView]
+- action=update; target=client/src/commonMain/kotlin/ClientPlugin.kt; changes=[added 8 admin interactor impls (stateless anon objects, all push/pop); added InjectNavigationNode(AdminPanelViewConfig()) inside initNavigation block; added 18 import lines for admin panel types]
+- action=update; target=client/src/jsMain/kotlin/Main.kt; changes=[added dev.inmo.wishlist.features.ui.adminPanel.JSPlugin]
+- action=update; target=client/src/jvmMain/kotlin/Main.kt; changes=[added dev.inmo.wishlist.features.ui.adminPanel.JVMPlugin]
+- action=update; target=client/android/src/main/kotlin/MainActivity.kt; changes=[added dev.inmo.wishlist.features.admin.client.AndroidPlugin + dev.inmo.wishlist.features.ui.adminPanel.AndroidPlugin]
+- action=create; target=features/ui/adminPanel/README.md
+- action=update; target=HISTORY.md (root); changes=[added session entry]
+
+**Navigation flow wired:**
+- root=AdminPanelViewConfig (InjectNavigationNode in initNavigation)
+- AdminPanelView→onOpenUsers→AdminUsersListViewConfig; →onOpenWishlists→AdminWishlistsListViewConfig
+- AdminUsersListView→onUserSelected(userId)→AdminUserViewConfig(userId); →onCreateUser→AdminUserEditViewConfig(null)
+- AdminUserView→onBack→pop; →onEditUser→AdminUserEditViewConfig(node.config.userId); →onOpenWishlist(id)→AdminWishlistViewConfig(id); →onAddWishlist(userId)→AdminWishlistEditViewConfig(null,userId)
+- AdminUserEditView→onNavigateBack→pop; →onSaved→pop
+- AdminWishlistsListView→onWishlistSelected(id)→AdminWishlistViewConfig(id); →onCreateWishlist→AdminWishlistEditViewConfig(null)
+- AdminWishlistView→onBack→pop; →onEditWishlist→AdminWishlistEditViewConfig(wishlistId); →onAddItem→AdminWishlistItemEditViewConfig(null,wishlistId); →onEditItem(itemId,wishlistId)→AdminWishlistItemEditViewConfig(itemId,wishlistId)
+- AdminWishlistEditView→onNavigateBack→pop; →onSaved→pop
+- AdminWishlistItemEditView→onNavigateBack→pop; →onSaved→pop
+
+**outcome:** admin panel UI fully wired; ast-index rebuild required
+
+---
+
 ### 2026-05-26 — Session 8: onboarding
 
 **Prompt:** `USE @AGENTS.md`

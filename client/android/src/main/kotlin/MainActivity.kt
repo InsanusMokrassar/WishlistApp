@@ -26,10 +26,12 @@ class MainActivity : AppCompatActivity() {
                         dev.inmo.wishlist.features.sample.client.AndroidPlugin,
                         dev.inmo.wishlist.features.auth.client.AndroidPlugin,
                         dev.inmo.wishlist.features.wishlist.client.AndroidPlugin,
+                        dev.inmo.wishlist.features.admin.client.AndroidPlugin,
 
                         dev.inmo.wishlist.features.ui.sample.AndroidPlugin,
                         dev.inmo.wishlist.features.ui.auth.AndroidPlugin,
                         dev.inmo.wishlist.features.ui.wishlist.AndroidPlugin,
+                        dev.inmo.wishlist.features.ui.adminPanel.AndroidPlugin,
                     )
                 )
             )

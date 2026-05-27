@@ -24,6 +24,7 @@ fun main() {
                         dev.inmo.wishlist.features.ui.sample.JSPlugin,
                         dev.inmo.wishlist.features.ui.auth.JSPlugin,
                         dev.inmo.wishlist.features.ui.wishlist.JSPlugin,
+                        dev.inmo.wishlist.features.ui.adminPanel.JSPlugin,
                     )
                 )
             )

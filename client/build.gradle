@@ -25,6 +25,7 @@ kotlin {
                 api project(":wishlist.features.ui.sample")
                 api project(":wishlist.features.ui.auth")
                 api project(":wishlist.features.ui.wishlist")
+                api project(":wishlist.features.ui.adminPanel")
             }
         }
     }
