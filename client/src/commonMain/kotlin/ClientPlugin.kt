@@ -40,6 +40,7 @@ import dev.inmo.wishlist.features.ui.wishlist.ui.WishlistsListViewInteractor
 import dev.inmo.navigation.core.NavigationNode
 import dev.inmo.navigation.core.NavigationNodeFactory
 import dev.inmo.navigation.core.NavigationNodeState
+import dev.inmo.wishlist.features.users.common.models.UserId
 import dev.inmo.wishlist.features.wishlist.common.models.WishlistId
 import dev.inmo.wishlist.features.wishlist.common.models.WishlistItemId
 

@@ -21,6 +21,10 @@ String[] includes = [
     ":features:auth:server",
     ":features:auth:client",
 
+    ":features:admin:common",
+    ":features:admin:server",
+    ":features:admin:client",
+
     ":features:ui:sample",
     ":features:ui:auth",
     ":features:ui:wishlist",
