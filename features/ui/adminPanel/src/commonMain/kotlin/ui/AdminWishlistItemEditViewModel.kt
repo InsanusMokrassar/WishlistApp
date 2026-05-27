@@ -77,7 +77,7 @@ class AdminWishlistItemEditViewModel(
                     val item = items.firstOrNull { it.id == itemId }
                     if (item != null) {
                         _titleState.value = item.title
-                        _priceState.value = item.approximatePrice?.value?.toString() ?: ""
+                        _priceState.value = item.approximatePrice?.toString() ?: ""
                         _priceUnitsState.value = item.priceUnits
                         _descriptionState.value = item.description
                     }

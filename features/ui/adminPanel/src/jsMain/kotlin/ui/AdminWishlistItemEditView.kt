@@ -3,8 +3,10 @@ package dev.inmo.wishlist.features.ui.adminPanel.ui
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import dev.inmo.micro_utils.common.compose.SkeletonAnimation.id
 import dev.inmo.micro_utils.strings.translation
 import dev.inmo.navigation.core.NavigationChain
+import dev.inmo.navigation.core.NavigationNodeState.Companion.value
 import dev.inmo.navigation.mvvm.compose.ComposeView
 import dev.inmo.wishlist.features.common.client.models.ViewConfig
 import dev.inmo.wishlist.features.ui.adminPanel.AdminPanelStrings
@@ -120,14 +122,14 @@ class AdminWishlistItemEditView(
             }
             Div({ classes("mb-3") }) {
                 Label("item-description") { Text(AdminPanelStrings.itemDescriptionLabel.translation()) }
-                TextArea({
+                TextArea(description) {
                     id("item-description")
                     classes("form-control")
                     value(description)
                     placeholder(AdminPanelStrings.itemDescriptionLabel.translation())
                     onInput { viewModel.onDescriptionChanged(it.value) }
                     if (loading) disabled()
-                })
+                }
             }
             Button({
                 classes("btn", "btn-primary")
