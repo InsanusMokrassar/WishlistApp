@@ -4,6 +4,51 @@
 
 ---
 
+### 2026-05-30 — Session 10: Users list + TopBar scaffold + server URL view
+
+**Prompt:** `Main page shows list of users (reuse WishlistsListView for each user's wishlists); Auth shows compact Login/Logout widget; Android/Desktop bootstrap from server URL view first.`
+
+**Project state at session start:**
+- branch=master; last_commit=093a4af (build fix); status=modified(agents/CODING.md, agents/SHORTCUTS.md, client/src/commonMain/kotlin/ClientPlugin.kt, settings.gradle) + untracked(features/ui/scaffold/)
+- features/ui/scaffold already present: ScaffoldViewConfig (topConfig/leftConfig/mainConfig polymorphic), per-platform ScaffoldView (InjectNavigationChain per slot)
+- features/users/{server,client}: stubs only (no routes, no implementations)
+- features/ui/{users,topBar,serverUrl}: did not exist
+
+**Actions:**
+- action=create; target=features/users/server/src/commonMain/kotlin/{UsersFeature.kt,services/UsersService.kt}; changes=[suspend fun getAll(): List<RegisteredUser>; service backed by ReadUsersRepo]
+- action=update; target=features/users/common/src/commonMain/kotlin/Constants.kt; changes=[usersPrefixPathPart="users", usersGetAllPathPart="getAll"]
+- action=create; target=features/users/server/src/jvmMain/kotlin/configurators/UsersRoutingsConfigurator.kt; changes=[GET /users/getAll (root-only, no auth wrapper)]
+- action=update; target=features/users/server/src/{commonMain,jvmMain}/kotlin/{Plugin.kt,JVMPlugin.kt}; changes=[UsersService+Feature binding; UsersRoutingsConfigurator registration]
+- action=create; target=features/users/client/src/commonMain/kotlin/{UsersFeature.kt,KtorUsersFeature.kt}; changes=[client interface + Ktor impl calling /users/getAll]
+- action=update; target=features/users/client/src/commonMain/kotlin/Plugin.kt; changes=[KtorUsersFeature+UsersFeature binding]
+- action=create; target=features/ui/users/*; changes=[new module: build.gradle, README.md, commonMain MVVM (UsersListStrings/ViewConfig/Model/Interactor/ViewModel/Plugin.kt), per-platform UsersListView, JSPlugin/JVMPlugin/AndroidPlugin; Interactor→onUserSelected(userId)→node.chain.push(WishlistsListViewConfig(userId))]
+- action=create; target=features/ui/topBar/*; changes=[new module: build.gradle, README.md, commonMain MVVM (TopBarStrings/ViewConfig/Interactor/ViewModel/Plugin.kt), per-platform TopBarView embedding AuthViewConfig via InjectNavigationChain<ViewConfig>{InjectNavigationNode(AuthViewConfig())}, JSPlugin/JVMPlugin/AndroidPlugin; topBar has LogOut button when auth'd, Change-URL button (JS skips it)]
+- action=create; target=features/ui/serverUrl/*; changes=[new JVM/Android-only module: build.gradle (mppJvmJsAndroidWithCompose for JS commonMain compat), README.md, commonMain MVVM (ServerUrlStrings/ViewConfig/Model/Interactor/ViewModel/Plugin.kt), jvmMain+androidMain views only; Interactor→onSaved→dropNodesInSubTree{it.config is ServerUrlViewConfig}, push Scaffold if absent]
+- action=update; target=features/ui/auth/src/commonMain/kotlin/{AuthStrings.kt,ui/AuthModel.kt,ui/AuthViewModel.kt,Plugin.kt}; changes=[removed serverAddress fields; added userAuthorisedState, logout(); rewritten as compact 3-state widget (collapsed→"Log in", expanded→form, loggedIn→"Log out")]
+- action=rewrite; target=features/ui/auth/src/{jsMain,jvmMain,androidMain}/kotlin/ui/AuthView.kt; changes=[compact Login/form/Logout widget; auth state no longer overlay]
+- action=delete; target=features/ui/auth/src/{commonMain,jsMain,jvmMain,androidMain}/kotlin/utils/DefaultServerUrl*.kt; changes=[4 files removed]
+- action=update; target=features/ui/wishlist/src/commonMain/kotlin/ui/{WishlistsListViewConfig.kt,WishlistsModel.kt,WishlistsListViewModel.kt,Plugin.kt}; changes=[added userId: UserId?=null; getUserWishlists(userId) method; loadWishlists branches on node.config.userId]
+- action=update; target=client/src/commonMain/kotlin/ClientPlugin.kt; changes=[added mainScaffoldConfig(top=TopBarViewConfig, main=UsersListViewConfig); UsersListViewInteractor→push WishlistsListViewConfig(userId); TopBarViewInteractor→push ServerUrlViewConfig(); ServerUrlViewInteractor→push Scaffold if absent, drop self; AuthViewInteractor stateless]
+- action=update; target=client/src/{jsMain,jvmMain}/kotlin/Main.kt + android/src/main/kotlin/MainActivity.kt; changes=[added users.client + ui.scaffold + ui.users + ui.topBar + ui.serverUrl plugin registrations]
+- action=rewrite; target=client/src/jsMain/kotlin/ClientJSPlugin.kt; changes=[dropped UrlParametersNavigationConfigsRepo (was tied to WishlistsListViewConfig root); use InMemoryRepo; push mainScaffoldConfig after startPlugin]
+- action=update; target=client/src/jvmMain/kotlin/ClientJVMPlugin.kt + android/src/main/kotlin/ClientAndroidPlugin.kt; changes=[read ServerUrlStorage.getServerUrl() in startPlugin; push ServerUrlViewConfig if blank else ScaffoldViewConfig]
+- action=update; target=settings.gradle + client/build.gradle; changes=[include features:ui:{users,topBar,serverUrl}; add commonMain dependencies]
+- action=create; target=features/{users,ui/auth,ui/wishlist}/README.md; changes=[per CODING.md feature README rule]
+
+**Navigation flow wired:**
+- root chain: EmptyConfig → (if serverUrl blank on Android/Desktop: ServerUrlViewConfig | else: ScaffoldViewConfig); ServerUrlViewConfig.onSaved→dropNodesInSubTree, push Scaffold; JS always ScaffoldViewConfig
+- ScaffoldViewConfig: topConfig=TopBarViewConfig (via InjectNavigationChain), mainConfig=UsersListViewConfig (via InjectNavigationChain)
+- TopBarView embeds AuthViewConfig via InjectNavigationChain<ViewConfig>{InjectNavigationNode(AuthViewConfig())} — auth owns state, no root overlay
+- UsersListView→onUserSelected(userId)→node.chain.push(WishlistsListViewConfig(userId))
+- TopBarView→onChangeServerUrl→rootChain.push(ServerUrlViewConfig())
+- AuthView: 3 states (logged-out collapsed=login button | logged-out expanded=form | logged-in=logout button)
+
+**Build:** `./gradlew build` BUILD SUCCESSFUL (JVM server+client, JS client, Android)
+
+**outcome:** users CRUD full-stack wired; main page shows users→select→view wishlists; TopBar auth widget compact; Android/Desktop boot from server URL
+
+---
+
 ### 2026-05-27 — Session 9: Admin panel UI wiring
 
 **Prompt:** `Add UI (scenario) for admin panel. List→View→Edit canvas for users and wishlists. Support adding users/wishlists/items. Wishlist create has owner dropdown. User view shows wishlists.`

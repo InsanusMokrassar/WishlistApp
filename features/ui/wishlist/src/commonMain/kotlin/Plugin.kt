@@ -71,6 +71,9 @@ object Plugin : StartPlugin {
                 override suspend fun getMyWishlists(): List<RegisteredWishlist> =
                     wishlistsFeature.getMyWishlists()
 
+                override suspend fun getUserWishlists(userId: UserId): List<RegisteredWishlist> =
+                    wishlistsFeature.getByUserId(userId)
+
                 override suspend fun getWishlist(id: WishlistId): RegisteredWishlist? =
                     wishlistsFeature.getById(id)
 

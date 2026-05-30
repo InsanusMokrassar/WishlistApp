@@ -24,6 +24,7 @@ class MainActivity : AppCompatActivity() {
                         dev.inmo.wishlist.features.common.common.AndroidPlugin,
                         dev.inmo.wishlist.features.common.client.AndroidPlugin,
                         dev.inmo.wishlist.features.sample.client.AndroidPlugin,
+                        dev.inmo.wishlist.features.users.client.AndroidPlugin,
                         dev.inmo.wishlist.features.auth.client.AndroidPlugin,
                         dev.inmo.wishlist.features.wishlist.client.AndroidPlugin,
                         dev.inmo.wishlist.features.admin.client.AndroidPlugin,
@@ -32,6 +33,10 @@ class MainActivity : AppCompatActivity() {
                         dev.inmo.wishlist.features.ui.auth.AndroidPlugin,
                         dev.inmo.wishlist.features.ui.wishlist.AndroidPlugin,
                         dev.inmo.wishlist.features.ui.adminPanel.AndroidPlugin,
+                        dev.inmo.wishlist.features.ui.scaffold.AndroidPlugin,
+                        dev.inmo.wishlist.features.ui.users.AndroidPlugin,
+                        dev.inmo.wishlist.features.ui.topBar.AndroidPlugin,
+                        dev.inmo.wishlist.features.ui.serverUrl.AndroidPlugin,
                     )
                 )
             )

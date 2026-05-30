@@ -14,7 +14,7 @@ JS views use Bootstrap CSS classes via Compose HTML. JVM uses Material v2, Andro
 
 | Screen | ViewConfig | ViewModel | Description |
 |--------|-----------|-----------|-------------|
-| Wishlists List | `WishlistsListViewConfig` | `WishlistsListViewModel` | Home screen; lists caller's wishlists; no back button |
+| Wishlists List | `WishlistsListViewConfig(userId: UserId? = null)` | `WishlistsListViewModel` | Home screen; when `userId` non-null, lists that user's wishlists; when null, lists caller's wishlists; no back button |
 | Wishlist Detail | `WishlistViewConfig(wishlistId)` | `WishlistViewModel` | Shows items; edit controls visible only to owner |
 | Wishlist Edit | `WishlistEditViewConfig(wishlistId?)` | `WishlistEditViewModel` | Create (null id) or edit; back triggers discard modal if dirty |
 | Item Edit | `WishlistItemEditViewConfig(itemId?, wishlistId)` | `WishlistItemEditViewModel` | Create (null id) or edit item; back triggers discard modal if dirty |
@@ -23,7 +23,7 @@ JS views use Bootstrap CSS classes via Compose HTML. JVM uses Material v2, Andro
 
 | Type | Description |
 |------|-------------|
-| `WishlistsModel` | Single interface consumed by all four ViewModels; wraps `WishlistsFeature`, `WishlistsItemsFeature`, `ClientAuthFeature` |
+| `WishlistsModel` | Single interface consumed by all four ViewModels; wraps `WishlistsFeature`, `WishlistsItemsFeature`, `ClientAuthFeature`; new method: `suspend fun getUserWishlists(userId: UserId): List<RegisteredWishlist>` |
 
 ## Architecture Notes
 
@@ -40,7 +40,7 @@ JS views use Bootstrap CSS classes via Compose HTML. JVM uses Material v2, Andro
 - **ViewModel reload patterns:**
   - `WishlistViewModel`, `WishlistsListViewModel`: reload on every resume — `merge(flowOf(Unit), node.onResumeFlow).subscribeLoggingDropExceptions(scope)`.
   - `WishlistEditViewModel`, `WishlistItemEditViewModel`: load on first resume only — same pattern with `.takeWhile { inited == false }`.
-- `WishlistsListViewModel.loadWishlists()` is `private suspend fun`; not callable externally.
+- `WishlistsListViewModel.loadWishlists()` is `private suspend fun` that branches on `node.config.userId`: calls `model.getUserWishlists(userId)` if non-null, otherwise calls `model.getMyWishlists()`; not callable externally.
 - **JS URL navigation scheme** (encoded by `UrlParametersNavigationConfigsRepo` in `ClientJSPlugin`):
   - `?wishlist=<id>` → `WishlistViewConfig(id)`
   - `?wishlist=<id>&edit=true` → `WishlistViewConfig(id)` + `WishlistEditViewConfig(id)`

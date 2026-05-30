@@ -19,6 +19,17 @@ interface WishlistsModel {
     suspend fun getMyWishlists(): List<RegisteredWishlist>
 
     /**
+     * Returns all wishlists owned by the user identified by [userId].
+     *
+     * Used by the public main page when browsing another user's wishlists —
+     * no auth required server-side.
+     *
+     * @param userId Owner to filter by.
+     * @return List of wishlists; empty when none found.
+     */
+    suspend fun getUserWishlists(userId: UserId): List<RegisteredWishlist>
+
+    /**
      * Returns a single wishlist by [id], resolved from the caller's wishlist list.
      *
      * @param id Identifier of the wishlist to retrieve.

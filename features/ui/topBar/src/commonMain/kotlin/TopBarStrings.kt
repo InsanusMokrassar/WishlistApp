@@ -1,0 +1,17 @@
+package dev.inmo.wishlist.features.ui.topBar
+
+import dev.inmo.micro_utils.language_codes.IetfLang
+import dev.inmo.micro_utils.strings.buildStringResource
+
+/** Localized strings for the top bar. */
+object TopBarStrings {
+    /** Application title shown on the left side of the top bar. */
+    val appTitle = buildStringResource("Wishlist") {
+        IetfLang.Russian("Список желаний")
+    }
+
+    /** Label of the "change server URL" button. */
+    val changeServerUrlButton = buildStringResource("Server") {
+        IetfLang.Russian("Сервер")
+    }
+}

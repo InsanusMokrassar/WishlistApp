@@ -30,6 +30,9 @@ String[] includes = [
     ":features:ui:wishlist",
     ":features:ui:adminPanel",
     ":features:ui:scaffold",
+    ":features:ui:users",
+    ":features:ui:topBar",
+    ":features:ui:serverUrl",
 
     ":client",
     ":client:android",

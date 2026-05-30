@@ -17,6 +17,7 @@ fun main() {
                         dev.inmo.wishlist.features.common.common.JSPlugin,
                         dev.inmo.wishlist.features.common.client.JSPlugin,
                         dev.inmo.wishlist.features.sample.client.JSPlugin,
+                        dev.inmo.wishlist.features.users.client.JSPlugin,
                         dev.inmo.wishlist.features.auth.client.JSPlugin,
                         dev.inmo.wishlist.features.wishlist.client.JSPlugin,
                         dev.inmo.wishlist.features.admin.client.JSPlugin,
@@ -25,6 +26,9 @@ fun main() {
                         dev.inmo.wishlist.features.ui.auth.JSPlugin,
                         dev.inmo.wishlist.features.ui.wishlist.JSPlugin,
                         dev.inmo.wishlist.features.ui.adminPanel.JSPlugin,
+                        dev.inmo.wishlist.features.ui.scaffold.JSPlugin,
+                        dev.inmo.wishlist.features.ui.users.JSPlugin,
+                        dev.inmo.wishlist.features.ui.topBar.JSPlugin,
                     )
                 )
             )

@@ -48,7 +48,12 @@ class WishlistsListViewModel(
     private suspend fun loadWishlists() {
         _loadingState.value = true
         try {
-            _wishlistsState.value = model.getMyWishlists()
+            val targetUserId = node.config.userId
+            _wishlistsState.value = if (targetUserId == null) {
+                model.getMyWishlists()
+            } else {
+                model.getUserWishlists(targetUserId)
+            }
         } finally {
             _loadingState.value = false
         }

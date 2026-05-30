@@ -19,6 +19,7 @@ kotlin {
                 api libs.navigation.mvvm
                 api project(":wishlist.features.common.client")
                 api project(":wishlist.features.sample.client")
+                api project(":wishlist.features.users.client")
                 api project(":wishlist.features.auth.client")
                 api project(":wishlist.features.wishlist.client")
                 api project(":wishlist.features.admin.client")
@@ -26,6 +27,10 @@ kotlin {
                 api project(":wishlist.features.ui.auth")
                 api project(":wishlist.features.ui.wishlist")
                 api project(":wishlist.features.ui.adminPanel")
+                api project(":wishlist.features.ui.scaffold")
+                api project(":wishlist.features.ui.users")
+                api project(":wishlist.features.ui.topBar")
+                api project(":wishlist.features.ui.serverUrl")
             }
         }
     }
