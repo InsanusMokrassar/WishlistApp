@@ -149,6 +149,11 @@ object ClientPlugin : StartPlugin {
                 ) {
                     node.chain.push(WishlistEditViewConfig(null))
                 }
+                override suspend fun onBack(
+                    node: NavigationNode<WishlistsListViewConfig, ViewConfig>
+                ) {
+                    node.chain.pop()
+                }
             }
         }
 
@@ -365,6 +370,9 @@ object ClientPlugin : StartPlugin {
                     rootChain.either<NavigationChain<ViewConfig>, NavigationNode<out ViewConfig, ViewConfig>>().changesInSubtreeFlow().conflate().collect {
                         println(rootChain.makeChainString(""))
                     }
+                }
+                InjectNavigationChain<ViewConfig> {
+                    InjectNavigationNode(mainScaffoldConfig)
                 }
             }
         }

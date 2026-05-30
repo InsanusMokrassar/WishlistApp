@@ -4,6 +4,71 @@
 
 ---
 
+### 2026-05-30 — Session 14: WishlistsListView back button via interactor
+
+**Prompt:** `For newly created back button do as you did for other back buttons - in WishlistsListViewModel must be method which will call back in its interactor and in its realization will be called pop`
+
+**Actions:**
+- action=update; target=features/ui/wishlist/src/commonMain/kotlin/ui/WishlistsListViewInteractor.kt; changes=[added suspend fun onBack(node)]
+- action=update; target=features/ui/wishlist/src/commonMain/kotlin/ui/WishlistsListViewModel.kt; changes=[added fun onBack() → scope.launchLoggingDropExceptions { interactor.onBack(node) }]
+- action=update; target=client/src/commonMain/kotlin/ClientPlugin.kt; changes=[added onBack impl in WishlistsListViewInteractor anon object → node.chain.pop()]
+- action=update; target=features/ui/wishlist/src/jsMain/kotlin/ui/WishlistsListView.kt; changes=[chain.pop() → viewModel.onBack()]
+- action=update; target=features/ui/wishlist/src/jvmMain/kotlin/ui/WishlistsListView.kt; changes=[chain.pop() → viewModel.onBack()]
+- action=update; target=features/ui/wishlist/src/androidMain/kotlin/ui/WishlistsListView.kt; changes=[chain.pop() → viewModel.onBack()]
+
+**outcome:** back navigation follows MVVM pattern; views call viewModel.onBack(); interactor impl does node.chain.pop()
+
+---
+
+### 2026-05-30 — Session 13: WishlistsListView back button
+
+**Prompt:** `For all WishlistsListView add back button if this view is not the only in the chain`
+
+**Project state at session start:**
+- branch=master; WishlistsListView exists on JS/JVM/Android; no back button present
+
+**Actions:**
+- action=update; target=features/ui/wishlist/src/jsMain/kotlin/ui/WishlistsListView.kt; changes=[added `val stack by chain.stackFlow.collectAsState()`; wrapped H1 in d-flex gap-2 div; added btn btn-outline-secondary btn-sm Back button visible when stack.size > 1; onClick→chain.pop()]
+- action=update; target=features/ui/wishlist/src/jvmMain/kotlin/ui/WishlistsListView.kt; changes=[added stack collectAsState; added inner Row(spacedBy 8dp) wrapping back Button + title Text; back button visible when stack.size > 1; onClick→chain.pop()]
+- action=update; target=features/ui/wishlist/src/androidMain/kotlin/ui/WishlistsListView.kt; changes=[same as JVM but Material3; translation(resources) form kept]
+
+**Pattern:** `chain.stackFlow.collectAsState()` gives reactive stack size; `chain.pop()` navigates back; `chain` is available as `this.chain` inside ComposeView (the view is the node)
+
+**outcome:** back button appears on all platforms when WishlistsListView is not the root of its chain
+
+---
+
+### 2026-05-30 — Session 12: AuthView rewrite to Bootstrap
+
+**Prompt:** `Rewrite features/ui/auth/src/jsMain/kotlin/ui/AuthView.kt onto bootstrap too`
+
+**Project state at session start:**
+- branch=master; Bootstrap bundled+loaded; TopBarView already Bootstrap (Session 11)
+
+**Actions:**
+- action=rewrite; target=features/ui/auth/src/jsMain/kotlin/ui/AuthView.kt; changes=[removed outer wrapper Div; loggedIn/collapsed states: Button(btn btn-outline-light btn-sm); expanded state: Div(d-flex gap-2 align-items-center) containing form-control form-control-sm inputs + btn-light submit + btn-outline-light cancel + text-warning small error span; updated KDoc]
+
+**outcome:** AuthView renders as inline Bootstrap form inside navbar-dark; consistent with TopBarView Bootstrap context
+
+---
+
+### 2026-05-30 — Session 11: TopBar rewrite to Bootstrap navbar
+
+**Prompt:** `Rewrite top bar onto bootstrap's one`
+
+**Project state at session start:**
+- branch=master; last_commit=7379006 (add main page with users list, top bar, and server URL screen)
+- status=modified(client/android/src/main/kotlin/ClientAndroidPlugin.kt, client/src/commonMain/kotlin/ClientPlugin.kt, client/src/jsMain/kotlin/ClientJSPlugin.kt, client/src/jvmMain/kotlin/ClientJVMPlugin.kt)
+- Bootstrap already bundled: client/src/jsMain/resources/css/bootstrap.min.css + js/bootstrap.bundle.min.js; loaded in index.html
+
+**Actions:**
+- action=rewrite; target=features/ui/topBar/src/jsMain/kotlin/ui/TopBarView.kt; changes=[replaced custom Div+TopBarViewStylesheet layout with Bootstrap navbar: Nav(navbar navbar-expand navbar-dark bg-primary) → container-fluid → navbar-brand (title) + d-flex div (auth widget); removed B import; added Nav+A imports]
+- action=delete; target=features/ui/topBar/src/jsMain/kotlin/ui/TopBarViewStylesheet.kt; reason=no longer needed; Bootstrap utility classes replace all custom CSS
+
+**outcome:** JS TopBarView renders as Bootstrap dark primary navbar; custom stylesheet eliminated
+
+---
+
 ### 2026-05-30 — Session 10: Users list + TopBar scaffold + server URL view
 
 **Prompt:** `Main page shows list of users (reuse WishlistsListView for each user's wishlists); Auth shows compact Login/Logout widget; Android/Desktop bootstrap from server URL view first.`

@@ -72,4 +72,9 @@ class WishlistsListViewModel(
     fun onCreateWishlist() {
         scope.launchLoggingDropExceptions { interactor.onCreateWishlist(node) }
     }
+
+    /** Delegates to [WishlistsListViewInteractor.onBack]. */
+    fun onBack() {
+        scope.launchLoggingDropExceptions { interactor.onBack(node) }
+    }
 }

@@ -9,19 +9,13 @@ import dev.inmo.navigation.mvvm.compose.ComposeView
 import dev.inmo.wishlist.features.common.client.models.ViewConfig
 import dev.inmo.wishlist.features.ui.auth.ui.AuthViewConfig
 import dev.inmo.wishlist.features.ui.topBar.TopBarStrings
-import org.jetbrains.compose.web.dom.B
+import org.jetbrains.compose.web.dom.A
 import org.jetbrains.compose.web.dom.Div
+import org.jetbrains.compose.web.dom.Nav
 import org.jetbrains.compose.web.dom.Text
 import org.koin.core.component.inject
 import org.koin.core.parameter.parametersOf
 
-/**
- * JS Compose-HTML view for the top bar.
- *
- * Renders application title on the left and embeds [AuthViewConfig] via a
- * nested navigation chain on the right. JS does not show the "change server
- * URL" button — the browser controls origin.
- */
 class TopBarView(
     chain: NavigationChain<ViewConfig>,
     config: TopBarViewConfig,
@@ -33,10 +27,14 @@ class TopBarView(
     @Composable
     override fun onDraw() {
         super.onDraw()
-        Div({ classes(TopBarViewStylesheet.topBarContainer) }) {
-            B { Text(TopBarStrings.appTitle.translation()) }
-            Div({ classes(TopBarViewStylesheet.topBarActions) }) {
-                InjectNavigationChain<ViewConfig> { InjectNavigationNode(AuthViewConfig()) }
+        Nav({ classes("navbar", "navbar-expand", "navbar-dark", "bg-primary") }) {
+            Div({ classes("container-fluid") }) {
+                A(href = "#", { classes("navbar-brand") }) {
+                    Text(TopBarStrings.appTitle.translation())
+                }
+                Div({ classes("d-flex") }) {
+                    InjectNavigationChain<ViewConfig> { InjectNavigationNode(AuthViewConfig()) }
+                }
             }
         }
     }

@@ -20,11 +20,11 @@ import org.koin.core.component.inject
 import org.koin.core.parameter.parametersOf
 
 /**
- * JS Compose-HTML view for the inline auth widget.
+ * JS Compose-HTML Bootstrap inline auth widget embedded in the top navbar.
  *
- * - Authenticated: renders a "Log out" button.
- * - Not authenticated, form collapsed: renders a "Log in" button.
- * - Not authenticated, form expanded: renders username + password inputs and a "Submit" / "Cancel" pair.
+ * - Authenticated: "Log out" button.
+ * - Collapsed: "Log in" button.
+ * - Expanded: username/password inputs + Submit/Cancel + optional error span.
  */
 class AuthView(
     chain: NavigationChain<ViewConfig>,
@@ -45,49 +45,49 @@ class AuthView(
         val error by viewModel.errorState.collectAsState()
         val loginEnabled by viewModel.loginEnabledState.collectAsState()
 
-        Div {
-            when {
-                loggedIn -> {
-                    Button(
-                        attrs = {
-                            onClick { viewModel.onLogout() }
-                            if (loading) disabled()
-                        }
-                    ) { Text(AuthStrings.logoutButton.translation()) }
-                }
-                !expanded -> {
-                    Button(
-                        attrs = { onClick { viewModel.onToggleForm() } }
-                    ) { Text(AuthStrings.loginButton.translation()) }
-                }
-                else -> {
-                    Div {
-                        Input(type = InputType.Text) {
-                            value(username)
-                            placeholder(AuthStrings.usernamePlaceholder.translation())
-                            onInput { viewModel.onUsernameChanged(it.value) }
-                            if (loading) disabled()
-                        }
-                        Input(type = InputType.Password) {
-                            value(password)
-                            placeholder(AuthStrings.passwordPlaceholder.translation())
-                            onInput { viewModel.onPasswordChanged(it.value) }
-                            if (loading) disabled()
-                        }
-                        Button(
-                            attrs = {
-                                onClick { viewModel.onAuthorize() }
-                                if (!loginEnabled) disabled()
-                            }
-                        ) { Text(AuthStrings.submitButton.translation()) }
-                        Button(
-                            attrs = {
-                                onClick { viewModel.onToggleForm() }
-                                if (loading) disabled()
-                            }
-                        ) { Text(AuthStrings.cancelButton.translation()) }
-                        if (error) {
-                            Span { Text(AuthStrings.errorLoginFailed.translation()) }
+        when {
+            loggedIn -> {
+                Button(attrs = {
+                    classes("btn", "btn-outline-light", "btn-sm")
+                    onClick { viewModel.onLogout() }
+                    if (loading) disabled()
+                }) { Text(AuthStrings.logoutButton.translation()) }
+            }
+            !expanded -> {
+                Button(attrs = {
+                    classes("btn", "btn-outline-light", "btn-sm")
+                    onClick { viewModel.onToggleForm() }
+                }) { Text(AuthStrings.loginButton.translation()) }
+            }
+            else -> {
+                Div({ classes("d-flex", "gap-2", "align-items-center") }) {
+                    Input(type = InputType.Text) {
+                        classes("form-control", "form-control-sm")
+                        value(username)
+                        placeholder(AuthStrings.usernamePlaceholder.translation())
+                        onInput { viewModel.onUsernameChanged(it.value) }
+                        if (loading) disabled()
+                    }
+                    Input(type = InputType.Password) {
+                        classes("form-control", "form-control-sm")
+                        value(password)
+                        placeholder(AuthStrings.passwordPlaceholder.translation())
+                        onInput { viewModel.onPasswordChanged(it.value) }
+                        if (loading) disabled()
+                    }
+                    Button(attrs = {
+                        classes("btn", "btn-light", "btn-sm")
+                        onClick { viewModel.onAuthorize() }
+                        if (!loginEnabled) disabled()
+                    }) { Text(AuthStrings.submitButton.translation()) }
+                    Button(attrs = {
+                        classes("btn", "btn-outline-light", "btn-sm")
+                        onClick { viewModel.onToggleForm() }
+                        if (loading) disabled()
+                    }) { Text(AuthStrings.cancelButton.translation()) }
+                    if (error) {
+                        Span({ classes("text-warning", "small") }) {
+                            Text(AuthStrings.errorLoginFailed.translation())
                         }
                     }
                 }

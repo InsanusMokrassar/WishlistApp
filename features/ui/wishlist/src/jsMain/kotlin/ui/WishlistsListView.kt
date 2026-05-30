@@ -35,11 +35,22 @@ class WishlistsListView(
         super.onDraw()
         val wishlists by viewModel.wishlistsState.collectAsState()
         val loading by viewModel.loadingState.collectAsState()
+        val stack by chain.stackFlow.collectAsState()
 
         Div({ classes("container", "py-3") }) {
             Div({ classes("d-flex", "justify-content-between", "align-items-center", "mb-3") }) {
-                H1({ classes("h3", "mb-0") }) {
-                    Text(WishlistStrings.wishlistsTitle.translation())
+                Div({ classes("d-flex", "align-items-center", "gap-2") }) {
+                    if (stack.size > 1) {
+                        Button({
+                            classes("btn", "btn-outline-secondary")
+                            onClick { viewModel.onBack() }
+                        }) {
+                            Text(WishlistStrings.backButton.translation())
+                        }
+                    }
+                    H1({ classes("h3", "mb-0") }) {
+                        Text(WishlistStrings.wishlistsTitle.translation())
+                    }
                 }
                 Button({
                     classes("btn", "btn-primary")

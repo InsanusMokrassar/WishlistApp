@@ -32,9 +32,5 @@ object ClientJSPlugin : StartPlugin {
         renderComposable("content") {
             ClientPlugin.currentDrawingBlock.collectAsState().value.invoke()
         }
-        val rootChain = koin.get<NavigationChain<ViewConfig>>()
-        if (rootChain.stackFlow.value.none { it.config is dev.inmo.wishlist.features.ui.scaffold.ui.ScaffoldViewConfig }) {
-            rootChain.push(ClientPlugin.mainScaffoldConfig)
-        }
     }
 }

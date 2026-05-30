@@ -25,4 +25,11 @@ interface WishlistsListViewInteractor {
      * @param node Current navigation node.
      */
     suspend fun onCreateWishlist(node: NavigationNode<WishlistsListViewConfig, ViewConfig>)
+
+    /**
+     * Called when the user taps the back button.
+     *
+     * @param node Current navigation node.
+     */
+    suspend fun onBack(node: NavigationNode<WishlistsListViewConfig, ViewConfig>)
 }

@@ -46,6 +46,7 @@ class WishlistsListView(
         super.onDraw()
         val wishlists by viewModel.wishlistsState.collectAsState()
         val loading by viewModel.loadingState.collectAsState()
+        val stack by chain.stackFlow.collectAsState()
 
         Column(modifier = Modifier.fillMaxSize().padding(16.dp)) {
             Row(
@@ -53,7 +54,17 @@ class WishlistsListView(
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                Text(WishlistStrings.wishlistsTitle.translation(), style = MaterialTheme.typography.h5)
+                Row(
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    if (stack.size > 1) {
+                        Button(onClick = { viewModel.onBack() }) {
+                            Text(WishlistStrings.backButton.translation())
+                        }
+                    }
+                    Text(WishlistStrings.wishlistsTitle.translation(), style = MaterialTheme.typography.h5)
+                }
                 Button(onClick = { viewModel.onCreateWishlist() }) {
                     Text(WishlistStrings.createWishlistButton.translation())
                 }
