@@ -22,7 +22,21 @@ After you are done with changes - you must run required compilation task. In mos
 
 ---
 
+## JS Stylesheet Rule
+
+Every JS (`jsMain`) view that needs custom CSS **MUST** define its styles in a dedicated
+`object <ViewName>Stylesheet : StyleSheet()` placed in the same `ui/` package as the view class.
+
+- Class name: `<ViewName>Stylesheet` (e.g. `ScaffoldViewStylesheet` for `ScaffoldView`).
+- Base class: `org.jetbrains.compose.web.css.StyleSheet`.
+- Apply in `onDraw()` with `Style(<ViewName>Stylesheet)` before rendering DOM elements.
+- Keep all CSS declarations (flex, grid, sizing, overflow, etc.) inside the stylesheet object — do not use inline `style { }` blocks in DOM elements for anything that belongs to the layout skeleton.
+
+---
+
 ## KDoc Requirements
+
+Priority of selecting model for KDocs fills: `haiku` / `sonnet` / `opus`
 
 **ALL created `.kt` files MUST contain valid KDocs.**
 

@@ -273,25 +273,25 @@ object ClientPlugin : StartPlugin {
             object : AuthViewInteractor {
                 private val userLoggedIn = MutableRedeliverStateFlow(true)
 
-                init {
-                    merge(
-                        userLoggedIn,
-                        rootChain.changesInSubTreeFlow()
-                    ).conflate().subscribeLoggingDropExceptions(scope) {
-                        // Place here reaction onto user deauth
-                        // By default - it will push auth view in root chain
-                        when {
-                            userLoggedIn.value -> {
-                                rootChain.dropNodesInSubTree { it.config is AuthViewConfig }
-                            }
-                            else -> {
-                                if (rootChain.stackFlow.value.lastOrNull() ?.config !is AuthViewConfig) {
-                                    rootChain.push(AuthViewConfig())
-                                }
-                            }
-                        }
-                    }
-                }
+//                init {
+//                    merge(
+//                        userLoggedIn,
+//                        rootChain.changesInSubTreeFlow()
+//                    ).conflate().subscribeLoggingDropExceptions(scope) {
+//                        // Place here reaction onto user deauth
+//                        // By default - it will push auth view in root chain
+//                        when {
+//                            userLoggedIn.value -> {
+//                                rootChain.dropNodesInSubTree { it.config is AuthViewConfig }
+//                            }
+//                            else -> {
+//                                if (rootChain.stackFlow.value.lastOrNull() ?.config !is AuthViewConfig) {
+//                                    rootChain.push(AuthViewConfig())
+//                                }
+//                            }
+//                        }
+//                    }
+//                }
 
                 override suspend fun onUserLoggedIn(node: NavigationNode<AuthViewConfig, ViewConfig>) {
                     userLoggedIn.value = true
@@ -326,7 +326,6 @@ object ClientPlugin : StartPlugin {
                 dropRedundantChainsOnRestore = true,
                 rootChain = rootChain
             ) {
-                InjectNavigationNode(AdminPanelViewConfig())
                 val rootChain = getChainFromLocalProvider<ViewConfig>()!!
                 LaunchedEffect(rootChain) {
                     rootChain.either<NavigationChain<ViewConfig>, NavigationNode<out ViewConfig, ViewConfig>>().changesInSubtreeFlow().conflate().collect {
