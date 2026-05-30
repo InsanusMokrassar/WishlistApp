@@ -28,8 +28,9 @@ import org.koin.core.parameter.parametersOf
  *
  * Compact horizontal layout intended for the top bar:
  * - Authenticated: single "Log out" button.
- * - Not authenticated + collapsed: single "Log in" button.
- * - Not authenticated + expanded: username/password fields + "Submit" / "Cancel".
+ * - Collapsed: "Log in" button (and "Register" when registration is enabled).
+ * - Expanded login mode: username/password fields + "Submit" / "Cancel".
+ * - Expanded register mode: username/password fields + "Create account" / "Cancel".
  */
 class AuthView(
     chain: NavigationChain<ViewConfig>,
@@ -44,6 +45,8 @@ class AuthView(
         super.onDraw()
         val loggedIn by viewModel.loggedInState.collectAsState()
         val expanded by viewModel.formExpandedState.collectAsState()
+        val registerMode by viewModel.registerModeState.collectAsState()
+        val registrationEnabled by viewModel.registrationEnabledState.collectAsState()
         val username by viewModel.usernameState.collectAsState()
         val password by viewModel.passwordState.collectAsState()
         val loading by viewModel.loadingState.collectAsState()
@@ -58,8 +61,18 @@ class AuthView(
                 ) { Text(AuthStrings.logoutButton.translation()) }
             }
             !expanded -> {
-                Button(onClick = { viewModel.onToggleForm() }) {
-                    Text(AuthStrings.loginButton.translation())
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(4.dp)
+                ) {
+                    Button(onClick = { viewModel.onToggleForm() }) {
+                        Text(AuthStrings.loginButton.translation())
+                    }
+                    if (registrationEnabled) {
+                        Button(onClick = { viewModel.onToggleRegisterForm() }) {
+                            Text(AuthStrings.registerButton.translation())
+                        }
+                    }
                 }
             }
             else -> {
@@ -86,16 +99,26 @@ class AuthView(
                         keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password),
                         modifier = Modifier.padding(end = 4.dp)
                     )
+                    if (registerMode) {
+                        Button(
+                            onClick = { viewModel.onRegister() },
+                            enabled = loginEnabled
+                        ) { Text(AuthStrings.submitRegisterButton.translation()) }
+                    } else {
+                        Button(
+                            onClick = { viewModel.onAuthorize() },
+                            enabled = loginEnabled
+                        ) { Text(AuthStrings.submitButton.translation()) }
+                    }
                     Button(
-                        onClick = { viewModel.onAuthorize() },
-                        enabled = loginEnabled
-                    ) { Text(AuthStrings.submitButton.translation()) }
-                    Button(
-                        onClick = { viewModel.onToggleForm() },
+                        onClick = { viewModel.onCancelForm() },
                         enabled = !loading
                     ) { Text(AuthStrings.cancelButton.translation()) }
                     if (error) {
-                        Text(AuthStrings.errorLoginFailed.translation())
+                        Text(
+                            if (registerMode) AuthStrings.errorRegisterFailed.translation()
+                            else AuthStrings.errorLoginFailed.translation()
+                        )
                     }
                 }
             }

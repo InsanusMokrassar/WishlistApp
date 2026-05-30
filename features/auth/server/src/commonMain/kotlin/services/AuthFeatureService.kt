@@ -5,20 +5,24 @@ import dev.inmo.micro_utils.coroutines.SmartRWLocker
 import dev.inmo.micro_utils.coroutines.withReadAcquire
 import dev.inmo.micro_utils.coroutines.withWriteLock
 import dev.inmo.micro_utils.repos.MapKeyValueRepo
+import dev.inmo.micro_utils.repos.create
 import dev.inmo.micro_utils.repos.set
 import dev.inmo.micro_utils.repos.unset
 import korlibs.time.DateTime
 import org.mindrot.jbcrypt.BCrypt
 import dev.inmo.wishlist.features.auth.server.ServerAuthFeature
+import dev.inmo.wishlist.features.auth.server.models.AuthConfig
 import dev.inmo.wishlist.features.auth.common.models.AuthCredentials
 import dev.inmo.wishlist.features.auth.common.models.Password
 import dev.inmo.wishlist.features.auth.common.models.RefreshToken
 import dev.inmo.wishlist.features.auth.common.models.Token
 import dev.inmo.wishlist.features.auth.server.repo.PasswordsRepo
+import dev.inmo.wishlist.features.users.common.models.NewUser
 import dev.inmo.wishlist.features.users.common.models.RegisteredUser
 import dev.inmo.wishlist.features.users.common.models.UserId
 import dev.inmo.wishlist.features.users.common.models.Username
 import dev.inmo.wishlist.features.users.common.repo.ReadUsersRepo
+import dev.inmo.wishlist.features.users.common.repo.WriteUsersRepo
 import kotlin.time.Duration
 import kotlin.time.Duration.Companion.days
 import kotlin.time.Duration.Companion.minutes
@@ -27,9 +31,11 @@ import kotlin.time.TimeSource
 
 class AuthFeatureService(
     private val usersRepo: ReadUsersRepo,
+    private val writeUsersRepo: WriteUsersRepo,
     private val passwordsRepo: PasswordsRepo,
     private val tokenTtl: Duration = 15.minutes,
-    private val refreshTokenTtl: Duration = 7.days
+    private val refreshTokenTtl: Duration = 7.days,
+    private val enableRegistration: Boolean = false,
 ) : ServerAuthFeature {
     private data class Entry(val id: UserId, val issued: DateTime)
     private val locker = SmartRWLocker()
@@ -86,6 +92,20 @@ class AuthFeatureService(
             return entry.id
         }
     }
+
+    override suspend fun register(username: Username, password: Password): AuthCredentials? {
+        if (enableRegistration == false) return null
+
+        locker.withWriteLock {
+            if (usersRepo.getUserByUsername(username) != null) return null
+            val created = writeUsersRepo.create(listOf(NewUser(username))).firstOrNull() ?: return null
+            val hashed = BCrypt.hashpw(password.string, BCrypt.gensalt())
+            passwordsRepo.set(created.id to Password(hashed))
+            return issueCredentialsFor(created.id)
+        }
+    }
+
+    override suspend fun isRegistrationAvailable(): Boolean = enableRegistration
 
     suspend fun setPassword(userId: UserId, rawPassword: Password) {
         locker.withWriteLock {

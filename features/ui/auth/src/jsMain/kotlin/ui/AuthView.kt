@@ -23,8 +23,9 @@ import org.koin.core.parameter.parametersOf
  * JS Compose-HTML Bootstrap inline auth widget embedded in the top navbar.
  *
  * - Authenticated: "Log out" button.
- * - Collapsed: "Log in" button.
- * - Expanded: username/password inputs + Submit/Cancel + optional error span.
+ * - Collapsed: "Log in" button (and "Register" when registration is enabled).
+ * - Expanded login mode: username/password inputs + "Submit" + "Cancel".
+ * - Expanded register mode: username/password inputs + "Create account" + "Cancel".
  */
 class AuthView(
     chain: NavigationChain<ViewConfig>,
@@ -39,6 +40,8 @@ class AuthView(
         super.onDraw()
         val loggedIn by viewModel.loggedInState.collectAsState()
         val expanded by viewModel.formExpandedState.collectAsState()
+        val registerMode by viewModel.registerModeState.collectAsState()
+        val registrationEnabled by viewModel.registrationEnabledState.collectAsState()
         val username by viewModel.usernameState.collectAsState()
         val password by viewModel.passwordState.collectAsState()
         val loading by viewModel.loadingState.collectAsState()
@@ -54,10 +57,18 @@ class AuthView(
                 }) { Text(AuthStrings.logoutButton.translation()) }
             }
             !expanded -> {
-                Button(attrs = {
-                    classes("btn", "btn-outline-light", "btn-sm")
-                    onClick { viewModel.onToggleForm() }
-                }) { Text(AuthStrings.loginButton.translation()) }
+                Div({ classes("d-flex", "gap-2") }) {
+                    Button(attrs = {
+                        classes("btn", "btn-outline-light", "btn-sm")
+                        onClick { viewModel.onToggleForm() }
+                    }) { Text(AuthStrings.loginButton.translation()) }
+                    if (registrationEnabled) {
+                        Button(attrs = {
+                            classes("btn", "btn-outline-light", "btn-sm")
+                            onClick { viewModel.onToggleRegisterForm() }
+                        }) { Text(AuthStrings.registerButton.translation()) }
+                    }
+                }
             }
             else -> {
                 Div({ classes("d-flex", "gap-2", "align-items-center") }) {
@@ -75,19 +86,32 @@ class AuthView(
                         onInput { viewModel.onPasswordChanged(it.value) }
                         if (loading) disabled()
                     }
-                    Button(attrs = {
-                        classes("btn", "btn-light", "btn-sm")
-                        onClick { viewModel.onAuthorize() }
-                        if (!loginEnabled) disabled()
-                    }) { Text(AuthStrings.submitButton.translation()) }
+                    if (registerMode) {
+                        Button(attrs = {
+                            classes("btn", "btn-light", "btn-sm")
+                            onClick { viewModel.onRegister() }
+                            if (!loginEnabled) disabled()
+                        }) { Text(AuthStrings.submitRegisterButton.translation()) }
+                    } else {
+                        Button(attrs = {
+                            classes("btn", "btn-light", "btn-sm")
+                            onClick { viewModel.onAuthorize() }
+                            if (!loginEnabled) disabled()
+                        }) { Text(AuthStrings.submitButton.translation()) }
+                    }
                     Button(attrs = {
                         classes("btn", "btn-outline-light", "btn-sm")
-                        onClick { viewModel.onToggleForm() }
+                        onClick { viewModel.onCancelForm() }
                         if (loading) disabled()
                     }) { Text(AuthStrings.cancelButton.translation()) }
                     if (error) {
                         Span({ classes("text-warning", "small") }) {
-                            Text(AuthStrings.errorLoginFailed.translation())
+                            val msg = if (registerMode) {
+                                AuthStrings.errorRegisterFailed.translation()
+                            } else {
+                                AuthStrings.errorLoginFailed.translation()
+                            }
+                            Text(msg)
                         }
                     }
                 }

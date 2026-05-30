@@ -37,4 +37,16 @@ object AuthStrings {
     val errorLoginFailed = buildStringResource("Login failed. Check your credentials.") {
         IetfLang.Russian("Не удалось войти. Проверьте логин и пароль.")
     }
+    /** Caption of the button that opens the registration form. */
+    val registerButton = buildStringResource("Register") {
+        IetfLang.Russian("Регистрация")
+    }
+    /** Caption of the submit button inside the registration form. */
+    val submitRegisterButton = buildStringResource("Create account") {
+        IetfLang.Russian("Создать аккаунт")
+    }
+    /** Error message shown when registration fails. */
+    val errorRegisterFailed = buildStringResource("Registration failed. The username may already be taken.") {
+        IetfLang.Russian("Не удалось зарегистрироваться. Возможно, имя пользователя уже занято.")
+    }
 }

@@ -10,6 +10,7 @@ import dev.inmo.wishlist.features.ui.auth.ui.AuthModel
 import dev.inmo.wishlist.features.ui.auth.ui.AuthViewConfig
 import dev.inmo.wishlist.features.ui.auth.ui.AuthViewModel
 import dev.inmo.wishlist.features.users.common.models.Username
+import dev.inmo.micro_utils.coroutines.runCatchingLogging
 import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.modules.SerializersModule
 import org.koin.core.Koin
@@ -53,6 +54,12 @@ object Plugin : StartPlugin {
                 override suspend fun logout() {
                     authFeature.logout()
                 }
+
+                override suspend fun isRegistrationEnabled(): Boolean =
+                    runCatchingLogging { authFeature.isRegistrationAvailable() }.getOrDefault(false)
+
+                override suspend fun register(username: Username, password: Password): Boolean =
+                    authFeature.register(username, password) != null
             }
         }
     }

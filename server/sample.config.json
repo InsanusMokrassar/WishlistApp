@@ -20,5 +20,6 @@
   ],
   "useCache": true,
   "tokenTtl": "PT15M",
-  "refreshTokenTtl": "P7D"
+  "refreshTokenTtl": "P7D",
+  "enableRegistration": true
 }

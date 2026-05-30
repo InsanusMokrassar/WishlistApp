@@ -1,7 +1,6 @@
 package dev.inmo.wishlist.features.auth.server.configurators
 
 import dev.inmo.micro_utils.ktor.server.configurators.ApplicationRoutingConfigurator
-import io.ktor.http.HttpHeaders
 import io.ktor.http.HttpStatusCode
 import io.ktor.server.auth.authenticate
 import io.ktor.server.auth.parseAuthorizationHeader
@@ -14,14 +13,28 @@ import io.ktor.server.routing.route
 import dev.inmo.wishlist.features.auth.common.Constants
 import dev.inmo.wishlist.features.auth.common.models.LoginRequest
 import dev.inmo.wishlist.features.auth.common.models.RefreshRequest
+import dev.inmo.wishlist.features.auth.common.models.RegisterRequest
 import dev.inmo.wishlist.features.auth.common.models.Token
 import dev.inmo.wishlist.features.auth.server.ServerAuthFeature
+import dev.inmo.wishlist.features.auth.server.models.AuthConfig
 
 class AuthRoutingsConfigurator(
     private val authFeature: ServerAuthFeature
 ) : ApplicationRoutingConfigurator.Element {
     override fun Route.invoke() {
         route(Constants.prefixPathPart) {
+            get(Constants.isRegistrationAvailablePathPart) {
+                call.respond(authFeature.isRegistrationAvailable())
+            }
+            post(Constants.registerPathPart) {
+                val request = call.receive<RegisterRequest>()
+                val credentials = authFeature.register(request.username, request.password)
+                if (credentials == null) {
+                    call.respond(HttpStatusCode.BadRequest)
+                } else {
+                    call.respond(credentials)
+                }
+            }
             post(Constants.loginPathPart) {
                 val request = call.receive<LoginRequest>()
                 val credentials = authFeature.login(request.username, request.password)

@@ -4,6 +4,52 @@
 
 ---
 
+### 2026-05-30 — Session 16: Refactor — AuthConfig server-side only, isRegistrationAvailable on AuthFeature
+
+**Prompt:** `AuthFeature must now provide whole AuthConfig. It must provide flag isRegistrationAvailable instead. AuthConfig must be presented on server side only`
+
+**Actions:**
+- action=delete; target=features/auth/common/src/commonMain/kotlin/models/AuthConfig.kt
+- action=create; target=features/auth/server/src/commonMain/kotlin/models/AuthConfig.kt; changes=[moved AuthConfig here; package=dev.inmo.wishlist.features.auth.server.models]
+- action=update; target=features/auth/common/src/commonMain/kotlin/AuthFeature.kt; changes=[replaced getConfig(): AuthConfig with isRegistrationAvailable(): Boolean]
+- action=update; target=features/auth/server/src/commonMain/kotlin/services/AuthFeatureService.kt; changes=[import AuthConfig from server.models; getConfig() → isRegistrationAvailable() = enableRegistration]
+- action=update; target=features/auth/server/src/commonMain/kotlin/configurators/AuthRoutingsConfigurator.kt; changes=[import server.models.AuthConfig; GET /auth/config responds AuthConfig(authFeature.isRegistrationAvailable())]
+- action=update; target=features/auth/client/src/commonMain/kotlin/KtorAuthFeature.kt; changes=[removed AuthConfig import; getConfig() → isRegistrationAvailable() parses JsonObject["enableRegistration"]]
+- action=update; target=features/auth/client/src/commonMain/kotlin/AuthFeatureService.kt; changes=[removed AuthConfig import; getConfig() → isRegistrationAvailable() delegate]
+- action=update; target=features/ui/auth/src/commonMain/kotlin/Plugin.kt; changes=[authFeature.getConfig().enableRegistration → authFeature.isRegistrationAvailable()]
+
+**outcome:** AuthConfig is server-only DTO; AuthFeature.isRegistrationAvailable() is the single cross-cutting flag; client parses JSON field without importing server type
+
+---
+
+### 2026-05-30 — Session 15: Registration feature in AuthView
+
+**Prompt:** `Add opportunity to register in AuthView. It must be configurable throw server configuration and passed to client via AuthFeature. Registration is also must be there, but also it must respect enableRegistration option in auth feature config`
+
+**Actions:**
+- action=update; target=features/auth/common/src/commonMain/kotlin/Constants.kt; changes=[added registerPathPart, configPathPart]
+- action=create; target=features/auth/common/src/commonMain/kotlin/models/RegisterRequest.kt; changes=[new DTO: username+password]
+- action=create; target=features/auth/common/src/commonMain/kotlin/models/AuthConfig.kt; changes=[new DTO: enableRegistration: Boolean]
+- action=update; target=features/auth/common/src/commonMain/kotlin/AuthFeature.kt; changes=[added register(), getConfig() to interface]
+- action=update; target=features/auth/server/src/commonMain/kotlin/Config.kt; changes=[added enableRegistration: Boolean = false]
+- action=update; target=features/auth/server/src/commonMain/kotlin/services/AuthFeatureService.kt; changes=[added WriteUsersRepo param, enableRegistration param, implemented register() and getConfig()]
+- action=update; target=features/auth/server/src/commonMain/kotlin/Plugin.kt; changes=[pass WriteUsersRepo + enableRegistration to AuthFeatureService]
+- action=update; target=features/auth/server/src/commonMain/kotlin/configurators/AuthRoutingsConfigurator.kt; changes=[added GET /auth/config and POST /auth/register routes]
+- action=update; target=features/auth/client/src/commonMain/kotlin/KtorAuthFeature.kt; changes=[added register() and getConfig() HTTP implementations]
+- action=update; target=features/auth/client/src/commonMain/kotlin/AuthFeatureService.kt; changes=[delegated register() (saves creds) and getConfig()]
+- action=update; target=features/auth/client/src/commonMain/kotlin/configurators/BearerAuthHttpClientConfigurator.kt; changes=[added register+config paths to sendWithoutRequest exclusions]
+- action=update; target=features/ui/auth/src/commonMain/kotlin/ui/AuthModel.kt; changes=[added isRegistrationEnabled() and register() methods]
+- action=update; target=features/ui/auth/src/commonMain/kotlin/ui/AuthViewModel.kt; changes=[added registerModeState, registrationEnabledState, onToggleRegisterForm(), onCancelForm(), onRegister()]
+- action=update; target=features/ui/auth/src/commonMain/kotlin/Plugin.kt; changes=[implemented isRegistrationEnabled() and register() in AuthModel anon object]
+- action=update; target=features/ui/auth/src/commonMain/kotlin/AuthStrings.kt; changes=[added registerButton, submitRegisterButton, errorRegisterFailed strings]
+- action=update; target=features/ui/auth/src/jsMain/kotlin/ui/AuthView.kt; changes=[4-state UI: logged-in / collapsed(+register btn) / expanded-login / expanded-register]
+- action=update; target=features/ui/auth/src/jvmMain/kotlin/ui/AuthView.kt; changes=[same 4-state layout]
+- action=update; target=features/ui/auth/src/androidMain/kotlin/ui/AuthView.kt; changes=[same 4-state layout]
+
+**outcome:** registration fully wired; server gates via enableRegistration in config.json; client discovers capability via GET /auth/config; UI shows Register button only when enabled; all modules build clean
+
+---
+
 ### 2026-05-30 — Session 14: WishlistsListView back button via interactor
 
 **Prompt:** `For newly created back button do as you did for other back buttons - in WishlistsListViewModel must be method which will call back in its interactor and in its realization will be called pop`

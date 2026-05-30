@@ -19,7 +19,14 @@ object Plugin : StartPlugin {
         single { get<Json>().decodeFromJsonElement(Config.serializer(), config) }
         single {
             val config = get<Config>()
-            AuthFeatureService(get(), get(), config.tokenTtl, config.refreshTokenTtl)
+            AuthFeatureService(
+                usersRepo = get(),
+                writeUsersRepo = get(),
+                passwordsRepo = get(),
+                tokenTtl = config.tokenTtl,
+                refreshTokenTtl = config.refreshTokenTtl,
+                enableRegistration = config.enableRegistration
+            )
         }
         single<ServerAuthFeature> { get<AuthFeatureService>() }
         single<AuthFeature> { get<AuthFeatureService>() }

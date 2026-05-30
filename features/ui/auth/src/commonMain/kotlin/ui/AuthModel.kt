@@ -39,4 +39,16 @@ interface AuthModel {
      * Invalidates the active session and clears local credentials.
      */
     suspend fun logout()
+
+    /**
+     * Returns `true` when the server allows self-service account registration.
+     */
+    suspend fun isRegistrationEnabled(): Boolean
+
+    /**
+     * Attempts to create a new account with the given credentials.
+     *
+     * @return `true` when the account was created and credentials are persisted.
+     */
+    suspend fun register(username: Username, password: Password): Boolean
 }

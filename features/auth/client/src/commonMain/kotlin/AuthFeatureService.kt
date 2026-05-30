@@ -27,6 +27,14 @@ class AuthFeatureService(
         storage.save(null)
     }
 
+    override suspend fun register(username: Username, password: Password): AuthCredentials? {
+        val credentials = feature.register(username, password) ?: return null
+        storage.save(credentials)
+        return credentials
+    }
+
+    override suspend fun isRegistrationAvailable(): Boolean = feature.isRegistrationAvailable()
+
     override suspend fun getMe(): RegisteredUser? {
         if (storage.userAuthorised.value == false) {
             return null

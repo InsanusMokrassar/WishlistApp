@@ -27,7 +27,7 @@ import org.koin.core.parameter.parametersOf
 /**
  * Android Compose-Material3 view for the inline auth widget.
  *
- * Same three states as the JVM view; uses material3 widgets and resource-based
+ * Same four states as the JVM view; uses material3 widgets and resource-based
  * translations.
  */
 class AuthView(
@@ -44,6 +44,8 @@ class AuthView(
         val resources = LocalResources.current
         val loggedIn by viewModel.loggedInState.collectAsState()
         val expanded by viewModel.formExpandedState.collectAsState()
+        val registerMode by viewModel.registerModeState.collectAsState()
+        val registrationEnabled by viewModel.registrationEnabledState.collectAsState()
         val username by viewModel.usernameState.collectAsState()
         val password by viewModel.passwordState.collectAsState()
         val loading by viewModel.loadingState.collectAsState()
@@ -58,8 +60,18 @@ class AuthView(
                 ) { Text(AuthStrings.logoutButton.translation(resources)) }
             }
             !expanded -> {
-                Button(onClick = { viewModel.onToggleForm() }) {
-                    Text(AuthStrings.loginButton.translation(resources))
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(4.dp)
+                ) {
+                    Button(onClick = { viewModel.onToggleForm() }) {
+                        Text(AuthStrings.loginButton.translation(resources))
+                    }
+                    if (registrationEnabled) {
+                        Button(onClick = { viewModel.onToggleRegisterForm() }) {
+                            Text(AuthStrings.registerButton.translation(resources))
+                        }
+                    }
                 }
             }
             else -> {
@@ -84,16 +96,26 @@ class AuthView(
                         visualTransformation = PasswordVisualTransformation(),
                         keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password)
                     )
+                    if (registerMode) {
+                        Button(
+                            onClick = { viewModel.onRegister() },
+                            enabled = loginEnabled
+                        ) { Text(AuthStrings.submitRegisterButton.translation(resources)) }
+                    } else {
+                        Button(
+                            onClick = { viewModel.onAuthorize() },
+                            enabled = loginEnabled
+                        ) { Text(AuthStrings.submitButton.translation(resources)) }
+                    }
                     Button(
-                        onClick = { viewModel.onAuthorize() },
-                        enabled = loginEnabled
-                    ) { Text(AuthStrings.submitButton.translation(resources)) }
-                    Button(
-                        onClick = { viewModel.onToggleForm() },
+                        onClick = { viewModel.onCancelForm() },
                         enabled = !loading
                     ) { Text(AuthStrings.cancelButton.translation(resources)) }
                     if (error) {
-                        Text(AuthStrings.errorLoginFailed.translation(resources))
+                        Text(
+                            if (registerMode) AuthStrings.errorRegisterFailed.translation(resources)
+                            else AuthStrings.errorLoginFailed.translation(resources)
+                        )
                     }
                 }
             }
