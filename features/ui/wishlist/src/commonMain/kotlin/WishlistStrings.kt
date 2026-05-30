@@ -34,4 +34,14 @@ object WishlistStrings {
     val viewItemTitle = buildStringResource("Item") { IetfLang.Russian("Товар") }
     val noPrice = buildStringResource("No price") { IetfLang.Russian("Цена не указана") }
     val noLinks = buildStringResource("No links") { IetfLang.Russian("Ссылки не указаны") }
+    val deleteButton = buildStringResource("Delete") { IetfLang.Russian("Удалить") }
+    val confirmDeleteButton = buildStringResource("Delete") { IetfLang.Russian("Удалить") }
+    val confirmDeleteItemTitle = buildStringResource("Delete item?") { IetfLang.Russian("Удалить товар?") }
+    val confirmDeleteItemMessage = buildStringResource("This item will be permanently removed. Continue?") {
+        IetfLang.Russian("Этот товар будет удалён безвозвратно. Продолжить?")
+    }
+    val confirmDeleteWishlistTitle = buildStringResource("Delete wishlist?") { IetfLang.Russian("Удалить список?") }
+    val confirmDeleteWishlistMessage = buildStringResource("This wishlist and all its items will be permanently removed. Continue?") {
+        IetfLang.Russian("Этот список и все его товары будут удалены безвозвратно. Продолжить?")
+    }
 }

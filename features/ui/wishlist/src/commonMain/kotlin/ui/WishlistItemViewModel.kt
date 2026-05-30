@@ -17,7 +17,6 @@ import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.flow.merge
 import kotlinx.coroutines.flow.stateIn
-import kotlinx.coroutines.flow.takeWhile
 
 /**
  * ViewModel for the wishlist item read-only view screen.
@@ -57,18 +56,22 @@ class WishlistItemViewModel(
     val loadingState = _loadingState.asStateFlow()
 
     init {
-        var inited = false
-        merge(flowOf(Unit), node.onResumeFlow).takeWhile { inited == false }.subscribeLoggingDropExceptions(scope) {
+        merge(flowOf(Unit), node.onResumeFlow).subscribeLoggingDropExceptions(scope) {
             _loadingState.value = true
-            try {
+            val item = try {
                 _currentUserIdState.value = model.getCurrentUserId()
                 _wishlistState.value = model.getWishlist(node.config.wishlistId)
-                _itemState.value = model.getWishlistItems(node.config.wishlistId)
+                model.getWishlistItems(node.config.wishlistId)
                     .find { it.id == node.config.wishlistItemId }
+                    .also { _itemState.value = it }
             } finally {
                 _loadingState.value = false
             }
-            inited = true
+            // Item may have been deleted (here or from the edit screen) — leave the screen
+            // automatically when it no longer exists, matching a plain back navigation.
+            if (item == null) {
+                interactor.onBack(node)
+            }
         }
     }
 

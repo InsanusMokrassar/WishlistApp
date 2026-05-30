@@ -10,6 +10,7 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.AlertDialog
 import androidx.compose.material.Button
+import androidx.compose.material.ButtonDefaults
 import androidx.compose.material.Card
 import androidx.compose.material.MaterialTheme
 import androidx.compose.material.OutlinedTextField
@@ -51,6 +52,28 @@ class WishlistItemEditView(
         val newLink by viewModel.newLinkState.collectAsState()
         val loading by viewModel.loadingState.collectAsState()
         val showDialog by viewModel.showConfirmDialogState.collectAsState()
+        val showDeleteDialog by viewModel.showDeleteDialogState.collectAsState()
+
+        if (showDeleteDialog) {
+            AlertDialog(
+                onDismissRequest = { viewModel.onCancelDelete() },
+                title = { Text(WishlistStrings.confirmDeleteItemTitle.translation()) },
+                text = { Text(WishlistStrings.confirmDeleteItemMessage.translation()) },
+                confirmButton = {
+                    Button(
+                        onClick = { viewModel.onConfirmDelete() },
+                        colors = ButtonDefaults.buttonColors(backgroundColor = MaterialTheme.colors.error)
+                    ) {
+                        Text(WishlistStrings.confirmDeleteButton.translation())
+                    }
+                },
+                dismissButton = {
+                    TextButton(onClick = { viewModel.onCancelDelete() }) {
+                        Text(WishlistStrings.cancelButton.translation())
+                    }
+                }
+            )
+        }
 
         if (showDialog) {
             AlertDialog(
@@ -160,6 +183,16 @@ class WishlistItemEditView(
                 modifier = Modifier.fillMaxWidth()
             ) {
                 Text(WishlistStrings.saveButton.translation())
+            }
+            if (viewModel.canDelete) {
+                Button(
+                    onClick = { viewModel.onDelete() },
+                    enabled = !loading,
+                    colors = ButtonDefaults.buttonColors(backgroundColor = MaterialTheme.colors.error),
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Text(WishlistStrings.deleteButton.translation())
+                }
             }
         }
     }

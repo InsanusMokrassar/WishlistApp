@@ -2,8 +2,11 @@ package dev.inmo.wishlist.features.ui.users
 
 import dev.inmo.micro_utils.koin.singleWithRandomQualifier
 import dev.inmo.micro_utils.startup.plugin.StartPlugin
+import dev.inmo.wishlist.features.admin.client.AdminFeature
+import dev.inmo.wishlist.features.auth.client.ClientAuthFeature
 import dev.inmo.wishlist.features.common.client.models.ViewConfig
 import dev.inmo.wishlist.features.users.client.UsersFeature
+import dev.inmo.wishlist.features.users.common.models.UserId
 import dev.inmo.wishlist.features.ui.users.ui.UsersListModel
 import dev.inmo.wishlist.features.ui.users.ui.UsersListViewConfig
 import dev.inmo.wishlist.features.ui.users.ui.UsersListViewModel
@@ -29,8 +32,16 @@ object Plugin : StartPlugin {
         factory { UsersListViewModel(node = it.get(), model = get(), interactor = get()) }
         single<UsersListModel> {
             val feature = get<UsersFeature>()
+            val authFeature = get<ClientAuthFeature>()
+            val adminFeature = get<AdminFeature>()
             object : UsersListModel {
                 override suspend fun getAllUsers() = feature.getAll()
+
+                override suspend fun isCurrentUserRoot(): Boolean =
+                    authFeature.getMe()?.username?.string == "root"
+
+                override suspend fun deleteUser(id: UserId): Boolean =
+                    adminFeature.usersManagement.delete(id)
             }
         }
     }

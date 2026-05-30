@@ -4,6 +4,34 @@
 
 ---
 
+### 2026-05-30 — Session 17: Deletion of wishlist items, wishlists, and users
+
+**Prompt:** `Implement opportunity to delete things: wishlist item (owner, danger button on item edit, modal confirm, back after delete, auto-back on reopen if gone); wishlist (same, on wishlist edit); user (root only, danger button on users list row, double modal confirm, cascade remove wishlists+items+password+sessions)`
+
+**Actions:**
+- action=update; target=features/auth/server/src/commonMain/kotlin/services/AuthFeatureService.kt; changes=[added purgeUser(userId): removes password hash + all access/refresh sessions for user]
+- action=update; target=features/admin/server/src/commonMain/kotlin/UsersManagementFeature.kt; changes=[ctor +WishlistRepo +WishlistItemRepo; delete() cascades: per owned wishlist delete items then wishlist, then authService.purgeUser, then deleteById user]
+- action=update; target=features/admin/server/src/commonMain/kotlin/Plugin.kt; changes=[UsersManagementFeature ctor wired with WishlistRepo + WishlistItemRepo]
+- action=update; target=features/ui/wishlist/src/commonMain/kotlin/WishlistStrings.kt; changes=[+deleteButton, confirmDeleteButton, confirmDeleteItem*, confirmDeleteWishlist*]
+- action=update; target=features/ui/wishlist/src/commonMain/kotlin/ui/WishlistItemEditViewModel.kt; changes=[+canDelete, showDeleteDialogState, onDelete/onConfirmDelete/onCancelDelete → model.deleteWishlistItem then interactor.onNavigateBack]
+- action=update; target=features/ui/wishlist/src/commonMain/kotlin/ui/WishlistEditViewModel.kt; changes=[same delete pattern → model.deleteWishlist]
+- action=update; target=features/ui/wishlist/src/commonMain/kotlin/ui/WishlistItemViewModel.kt; changes=[reload every resume; interactor.onBack when item==null after load]
+- action=update; target=features/ui/wishlist/src/commonMain/kotlin/ui/WishlistViewModel.kt; changes=[interactor.onBack when wishlist==null after load]
+- action=update; target=features/ui/wishlist/src/{js,jvm,android}Main/.../WishlistItemEditView.kt + WishlistEditView.kt; changes=[danger Delete button when canDelete + delete confirm modal/AlertDialog]
+- action=update; target=features/ui/users/build.gradle; changes=[+auth.client +admin.client deps]
+- action=update; target=features/ui/users/src/commonMain/kotlin/ui/UsersListModel.kt; changes=[+isCurrentUserRoot(), +deleteUser(id)]
+- action=update; target=features/ui/users/src/commonMain/kotlin/Plugin.kt; changes=[model impl uses ClientAuthFeature.getMe username=="root" + AdminFeature.usersManagement.delete]
+- action=update; target=features/ui/users/src/commonMain/kotlin/ui/UsersListViewModel.kt; changes=[+isRootState, deleteTargetState, deleteStepState(0/1/2), onDeleteUserRequest/onConfirmDeleteFirst/onConfirmDeleteSecond/onCancelDelete; reload after delete]
+- action=update; target=features/ui/users/src/commonMain/kotlin/UsersListStrings.kt; changes=[+delete/double-confirm strings]
+- action=update; target=features/ui/users/src/{js,jvm,android}Main/.../UsersListView.kt; changes=[per-row danger Delete button when isRoot + two sequential confirm modals/dialogs]
+- action=update; target=READMEs ui/wishlist, ui/users, admin, auth; changes=[documented deletion behavior + cascade + purgeUser]
+
+**outcome:** owner can delete own wishlist/item with confirm + auto-back semantics; root can delete users from users list with double confirm and full server-side cascade. BUILD SUCCESSFUL for :wishlist.features.admin.server, :wishlist.features.ui.wishlist, :wishlist.features.ui.users (JS+JVM+Android+lint). ast-index updated (28 files).
+
+**Constraints respected:** admin user delete reuses existing repos/services (no new repo/table); root gating client-side for UX, server still enforces 403; MVVM (state in VM, dumb views).
+
+---
+
 ### 2026-05-30 — Session 16: Refactor — AuthConfig server-side only, isRegistrationAvailable on AuthFeature
 
 **Prompt:** `AuthFeature must now provide whole AuthConfig. It must provide flag isRegistrationAvailable instead. AuthConfig must be presented on server side only`

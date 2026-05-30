@@ -15,7 +15,14 @@ import org.koin.core.module.Module
 
 object Plugin : StartPlugin {
     override fun Module.setupDI(config: JsonObject) {
-        single { UsersManagementFeature(get<UsersRepo>(), get<AuthFeatureService>()) }
+        single {
+            UsersManagementFeature(
+                usersRepo = get<UsersRepo>(),
+                authService = get<AuthFeatureService>(),
+                wishlistRepo = get<WishlistRepo>(),
+                wishlistItemRepo = get<WishlistItemRepo>()
+            )
+        }
         single { AdminFeature(get()) }
 
         singleWithRandomQualifier<ApplicationRoutingConfigurator.Element> {

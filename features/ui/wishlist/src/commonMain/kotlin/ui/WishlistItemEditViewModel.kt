@@ -83,6 +83,14 @@ class WishlistItemEditViewModel(
     /** `true` when the discard-changes confirmation dialog should be visible. */
     val showConfirmDialogState = _showConfirmDialogState.asStateFlow()
 
+    private val _showDeleteDialogState = MutableRedeliverStateFlow(false)
+
+    /** `true` when the delete-item confirmation dialog should be visible. */
+    val showDeleteDialogState = _showDeleteDialogState.asStateFlow()
+
+    /** `true` when this screen edits an existing item and may therefore offer deletion. */
+    val canDelete: Boolean = !isCreating
+
     init {
         var inited = false
         merge(flowOf(Unit), node.onResumeFlow).takeWhile { inited == false }.subscribeLoggingDropExceptions(scope) {
@@ -161,6 +169,38 @@ class WishlistItemEditViewModel(
     /** Cancels the confirm dialog, returning the user to the form. */
     fun onCancelBack() {
         _showConfirmDialogState.value = false
+    }
+
+    /** Requests item deletion: shows the delete confirmation dialog. No-op in create mode. */
+    fun onDelete() {
+        if (!canDelete) return
+        _showDeleteDialogState.value = true
+    }
+
+    /**
+     * Confirms deletion: removes the item via the model, then navigates back exactly as a
+     * plain "back" would (delegates to [WishlistItemEditViewInteractor.onNavigateBack]).
+     */
+    fun onConfirmDelete() {
+        val itemId = node.config.wishlistItemId ?: run {
+            _showDeleteDialogState.value = false
+            return
+        }
+        scope.launchLoggingDropExceptions {
+            _showDeleteDialogState.value = false
+            _loadingState.value = true
+            try {
+                model.deleteWishlistItem(itemId)
+            } finally {
+                _loadingState.value = false
+            }
+            interactor.onNavigateBack(node)
+        }
+    }
+
+    /** Cancels the delete dialog, returning the user to the form. */
+    fun onCancelDelete() {
+        _showDeleteDialogState.value = false
     }
 
     /**

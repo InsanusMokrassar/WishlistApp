@@ -48,6 +48,35 @@ class WishlistItemEditView(
         val newLink by viewModel.newLinkState.collectAsState()
         val loading by viewModel.loadingState.collectAsState()
         val showDialog by viewModel.showConfirmDialogState.collectAsState()
+        val showDeleteDialog by viewModel.showDeleteDialogState.collectAsState()
+
+        if (showDeleteDialog) {
+            Div({ classes("modal-backdrop", "fade", "show") })
+            Div({ classes("modal", "d-block"); attr("tabindex", "-1") }) {
+                Div({ classes("modal-dialog") }) {
+                    Div({ classes("modal-content") }) {
+                        Div({ classes("modal-header") }) {
+                            Div({ classes("modal-title", "h5") }) {
+                                Text(WishlistStrings.confirmDeleteItemTitle.translation())
+                            }
+                        }
+                        Div({ classes("modal-body") }) {
+                            P { Text(WishlistStrings.confirmDeleteItemMessage.translation()) }
+                        }
+                        Div({ classes("modal-footer") }) {
+                            Button({
+                                classes("btn", "btn-secondary")
+                                onClick { viewModel.onCancelDelete() }
+                            }) { Text(WishlistStrings.cancelButton.translation()) }
+                            Button({
+                                classes("btn", "btn-danger")
+                                onClick { viewModel.onConfirmDelete() }
+                            }) { Text(WishlistStrings.confirmDeleteButton.translation()) }
+                        }
+                    }
+                }
+            }
+        }
 
         if (showDialog) {
             Div({ classes("modal-backdrop", "fade", "show") })
@@ -174,12 +203,23 @@ class WishlistItemEditView(
                 }
             }
 
-            Button({
-                classes("btn", "btn-primary")
-                onClick { viewModel.onSave() }
-                if (loading || title.isBlank()) disabled()
-            }) {
-                Text(WishlistStrings.saveButton.translation())
+            Div({ classes("d-flex", "gap-2") }) {
+                Button({
+                    classes("btn", "btn-primary")
+                    onClick { viewModel.onSave() }
+                    if (loading || title.isBlank()) disabled()
+                }) {
+                    Text(WishlistStrings.saveButton.translation())
+                }
+                if (viewModel.canDelete) {
+                    Button({
+                        classes("btn", "btn-danger")
+                        onClick { viewModel.onDelete() }
+                        if (loading) disabled()
+                    }) {
+                        Text(WishlistStrings.deleteButton.translation())
+                    }
+                }
             }
         }
     }

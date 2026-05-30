@@ -40,7 +40,7 @@ All routes are under `/admin` prefix and require bearer authentication. Caller m
 | GET | `/admin/users/getAll` | — | `List<RegisteredUser>` | Get all registered users |
 | POST | `/admin/users/create` | `NewUserWithPassword` | `RegisteredUser` | Create user with plaintext password |
 | PUT | `/admin/users/update/{id}` | `NewUser` | `200 OK` / `404` | Update user info by id |
-| DELETE | `/admin/users/delete/{id}` | — | `200 OK` / `404` | Delete user by id |
+| DELETE | `/admin/users/delete/{id}` | — | `200 OK` / `404` | Delete user by id; cascades all related data (wishlists, items, password, sessions) |
 
 ### Wishlists Management (`/admin/wishlists/...`)
 
@@ -84,7 +84,7 @@ data class NewWishlist(
 
 ### Server side
 
-- `UsersManagementFeature` — service class; wraps `UsersRepo` (CRUD) + `AuthFeatureService` (password hashing via BCrypt). No new repo or table.
+- `UsersManagementFeature` — service class; wraps `UsersRepo` (CRUD) + `AuthFeatureService` (password hashing via BCrypt) + `WishlistRepo` + `WishlistItemRepo`. No new repo or table. `delete(id)` cascades: for each wishlist owned by the user it deletes all items then the wishlist, then `AuthFeatureService.purgeUser(id)` removes the password hash and all active access/refresh sessions, then the user record is removed.
 - `AdminFeature` — thin wrapper holding `UsersManagementFeature`. Injected into `AdminRoutingsConfigurator`.
 - `AdminRoutingsConfigurator` — registers all `/admin/...` routes under `authenticate { }`. Uses `requireAdmin()` helper (private `RoutingContext` extension) to verify caller is `root`.
   - Wishlist reads delegate to `WishlistService` (existing).

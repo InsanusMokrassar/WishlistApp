@@ -114,6 +114,27 @@ class AuthFeatureService(
         }
     }
 
+    /**
+     * Removes all authentication data tied to [userId]: the stored password hash and every
+     * active access/refresh session. Used by the admin cascade when a user is deleted so no
+     * orphaned credentials or live tokens remain.
+     *
+     * @param userId Identity whose password and sessions must be purged.
+     */
+    suspend fun purgeUser(userId: UserId) {
+        locker.withWriteLock {
+            passwordsRepo.unset(userId)
+            tokens.getAll().filterValues { it.id == userId }.keys.forEach { token ->
+                tokens.unset(token)
+                tokenToRefreshToken.get(token)?.let { refreshTokens.unset(it) }
+                tokenToRefreshToken.unset(token)
+            }
+            refreshTokens.getAll().filterValues { it.id == userId }.keys.forEach { refreshToken ->
+                refreshTokens.unset(refreshToken)
+            }
+        }
+    }
+
     private suspend fun issueCredentialsFor(id: UserId): AuthCredentials {
         val now = DateTime.now()
         val token = Token(uuid4().toString())

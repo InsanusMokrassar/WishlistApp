@@ -68,12 +68,19 @@ class WishlistViewModel(
 
     private suspend fun loadWishlist() {
         _loadingState.value = true
-        try {
+        val wishlist = try {
             _currentUserIdState.value = model.getCurrentUserId()
-            _wishlistState.value = model.getWishlist(node.config.wishlistId)
+            val loaded = model.getWishlist(node.config.wishlistId)
+            _wishlistState.value = loaded
             _itemsState.value = model.getWishlistItems(node.config.wishlistId)
+            loaded
         } finally {
             _loadingState.value = false
+        }
+        // Wishlist may have been deleted (here or from the edit screen) — leave the screen
+        // automatically when it no longer exists, matching a plain back navigation.
+        if (wishlist == null) {
+            interactor.onBack(node)
         }
     }
 
