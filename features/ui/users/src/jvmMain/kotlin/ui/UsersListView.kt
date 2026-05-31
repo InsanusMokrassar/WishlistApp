@@ -11,14 +11,15 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
-import androidx.compose.material.AlertDialog
-import androidx.compose.material.Button
-import androidx.compose.material.ButtonDefaults
-import androidx.compose.material.Card
-import androidx.compose.material.CircularProgressIndicator
-import androidx.compose.material.MaterialTheme
-import androidx.compose.material.Text
-import androidx.compose.material.TextButton
+import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.Card
+import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.ListItem
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
@@ -71,7 +72,7 @@ class UsersListView(
         }
 
         Column(modifier = Modifier.fillMaxSize().padding(16.dp)) {
-            Text(UsersListStrings.title.translation(), style = MaterialTheme.typography.h5)
+            Text(UsersListStrings.title.translation(), style = MaterialTheme.typography.titleMedium)
             Spacer(modifier = Modifier.height(8.dp))
             if (loading) {
                 CircularProgressIndicator()
@@ -80,29 +81,29 @@ class UsersListView(
             } else {
                 LazyColumn(verticalArrangement = Arrangement.spacedBy(4.dp)) {
                     items(users) { user ->
-                        Card(modifier = Modifier.fillMaxWidth()) {
-                            Row(
-                                modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp),
-                                horizontalArrangement = Arrangement.SpaceBetween,
-                                verticalAlignment = Alignment.CenterVertically
-                            ) {
+                        ListItem(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .clickable { viewModel.onUserSelected(user.id) },
+                            headlineContent = {
                                 Text(
                                     text = user.username.string,
                                     modifier = Modifier
                                         .weight(1f)
-                                        .clickable { viewModel.onUserSelected(user.id) }
                                         .padding(vertical = 16.dp)
                                 )
+                            },
+                            trailingContent = {
                                 if (isRoot) {
                                     TextButton(onClick = { viewModel.onDeleteUserRequest(user) }) {
                                         Text(
                                             UsersListStrings.deleteButton.translation(),
-                                            color = MaterialTheme.colors.error
+                                            color = MaterialTheme.colorScheme.error
                                         )
                                     }
                                 }
                             }
-                        }
+                        )
                     }
                 }
             }
@@ -124,7 +125,7 @@ class UsersListView(
             confirmButton = {
                 Button(
                     onClick = onConfirm,
-                    colors = ButtonDefaults.buttonColors(backgroundColor = MaterialTheme.colors.error)
+                    colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.error)
                 ) {
                     Text(confirmLabel)
                 }

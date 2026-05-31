@@ -5,7 +5,9 @@ import io.ktor.client.plugins.api.createClientPlugin
 import io.ktor.http.URLBuilder
 import dev.inmo.wishlist.features.auth.client.ServerUrlStorage
 import dev.inmo.wishlist.features.common.client.configurators.HttpClientConfigurator
+import dev.inmo.wishlist.features.common.client.utils.appendOrSetPartsWith
 import dev.inmo.wishlist.features.common.client.utils.fillAbsentPartsWith
+import dev.inmo.wishlist.features.common.client.utils.set
 
 class DefaultUrlHttpClientConfigurator(
     private val storage: ServerUrlStorage
@@ -17,7 +19,8 @@ class DefaultUrlHttpClientConfigurator(
                 val currentUrl = storage.getServerUrl() ?: return@onRequest
                 val fixedCurrentUrl = if (currentUrl.contains("://") == false) "http://$currentUrl" else currentUrl
                 val newUrlBuilder = URLBuilder(fixedCurrentUrl)
-                request.url.fillAbsentPartsWith(newUrlBuilder)
+                newUrlBuilder.appendOrSetPartsWith(request.url)
+                request.url.set(newUrlBuilder)
             }
         }
         install(plugin)

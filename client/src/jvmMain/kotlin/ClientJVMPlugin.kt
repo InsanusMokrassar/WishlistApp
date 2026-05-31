@@ -49,7 +49,7 @@ class ClientJVMPlugin(
         rootChain.changesInSubTreeFlow().subscribeLoggingDropExceptions(scope) {
             val scaffoldView = rootChain.findNodeInSubTree { it.config is ScaffoldViewConfig }
             val savedUrl = storage.getServerUrl()
-            if (scaffoldView != null && savedUrl == null) {
+            if (scaffoldView != null && savedUrl == null && scaffoldView.chain.stackFlow.value.none { it.config is ServerUrlViewConfig }) {
                 scaffoldView.chain.push(
                     ServerUrlViewConfig()
                 )
