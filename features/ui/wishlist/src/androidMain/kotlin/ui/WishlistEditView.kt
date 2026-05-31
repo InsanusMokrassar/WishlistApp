@@ -24,6 +24,8 @@ import dev.inmo.micro_utils.strings.translation
 import dev.inmo.navigation.core.NavigationChain
 import dev.inmo.navigation.mvvm.compose.ComposeView
 import dev.inmo.wishlist.features.common.client.models.ViewConfig
+import dev.inmo.wishlist.features.common.client.ui.components.BackButton
+import dev.inmo.wishlist.features.common.client.ui.components.ScreenTitle
 import dev.inmo.wishlist.features.ui.wishlist.WishlistStrings
 import dev.inmo.wishlist.features.ui.wishlist.ui.WishlistEditViewConfig
 import dev.inmo.wishlist.features.ui.wishlist.ui.WishlistEditViewModel
@@ -96,13 +98,10 @@ class WishlistEditView(
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                Button(onClick = { viewModel.onBack() }) {
-                    Text(WishlistStrings.backButton.translation(resources))
-                }
-                Text(
-                    text = if (viewModel.isCreating) WishlistStrings.newWishlistTitle.translation(resources)
-                    else WishlistStrings.editWishlistTitle.translation(resources),
-                    style = MaterialTheme.typography.headlineMedium
+                BackButton(WishlistStrings.backButton.translation(resources)) { viewModel.onBack() }
+                ScreenTitle(
+                    if (viewModel.isCreating) WishlistStrings.newWishlistTitle.translation(resources)
+                    else WishlistStrings.editWishlistTitle.translation(resources)
                 )
             }
             OutlinedTextField(

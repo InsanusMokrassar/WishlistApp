@@ -7,13 +7,12 @@ import dev.inmo.micro_utils.strings.translation
 import dev.inmo.navigation.core.NavigationChain
 import dev.inmo.navigation.mvvm.compose.ComposeView
 import dev.inmo.wishlist.features.common.client.models.ViewConfig
+import dev.inmo.wishlist.features.common.client.ui.components.ListRow
+import dev.inmo.wishlist.features.common.client.ui.components.ScreenTitle
 import dev.inmo.wishlist.features.ui.users.UsersListStrings
 import org.jetbrains.compose.web.dom.Button
 import org.jetbrains.compose.web.dom.Div
-import org.jetbrains.compose.web.dom.H1
-import org.jetbrains.compose.web.dom.Li
 import org.jetbrains.compose.web.dom.P
-import org.jetbrains.compose.web.dom.Span
 import org.jetbrains.compose.web.dom.Text
 import org.jetbrains.compose.web.dom.Ul
 import org.koin.core.component.inject
@@ -58,7 +57,7 @@ class UsersListView(
         }
 
         Div({ classes("container", "py-3") }) {
-            H1({ classes("h3", "mb-3") }) { Text(UsersListStrings.title.translation()) }
+            ScreenTitle(UsersListStrings.title.translation(), bottomMarginClass = "mb-3")
             if (loading) {
                 P { Text(UsersListStrings.loading.translation()) }
             } else if (users.isEmpty()) {
@@ -66,20 +65,18 @@ class UsersListView(
             } else {
                 Ul({ classes("list-group") }) {
                     users.forEach { user ->
-                        Li({
-                            classes("list-group-item", "list-group-item-action", "d-flex", "justify-content-between", "align-items-center")
-                        }) {
-                            Span({
-                                style { property("cursor", "pointer") }
-                                onClick { viewModel.onUserSelected(user.id) }
-                            }) { Text(user.username.string) }
-                            if (isRoot) {
-                                Button({
-                                    classes("btn", "btn-sm", "btn-danger")
-                                    onClick { viewModel.onDeleteUserRequest(user) }
-                                }) { Text(UsersListStrings.deleteButton.translation()) }
-                            }
-                        }
+                        ListRow(
+                            text = user.username.string,
+                            onSelect = { viewModel.onUserSelected(user.id) },
+                            trailing = if (isRoot) {
+                                {
+                                    Button({
+                                        classes("btn", "btn-sm", "btn-danger")
+                                        onClick { viewModel.onDeleteUserRequest(user) }
+                                    }) { Text(UsersListStrings.deleteButton.translation()) }
+                                }
+                            } else null
+                        )
                     }
                 }
             }

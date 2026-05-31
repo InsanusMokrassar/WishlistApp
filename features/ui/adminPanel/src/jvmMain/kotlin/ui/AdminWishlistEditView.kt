@@ -28,6 +28,8 @@ import dev.inmo.micro_utils.strings.translation
 import dev.inmo.navigation.core.NavigationChain
 import dev.inmo.navigation.mvvm.compose.ComposeView
 import dev.inmo.wishlist.features.common.client.models.ViewConfig
+import dev.inmo.wishlist.features.common.client.ui.components.BackButton
+import dev.inmo.wishlist.features.common.client.ui.components.ScreenTitle
 import dev.inmo.wishlist.features.ui.adminPanel.AdminPanelStrings
 import org.koin.core.component.inject
 import org.koin.core.parameter.parametersOf
@@ -71,11 +73,10 @@ class AdminWishlistEditView(
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                Button(onClick = { viewModel.onBack() }) { Text(AdminPanelStrings.backButton.translation()) }
-                Text(
-                    text = if (viewModel.isCreating) AdminPanelStrings.newWishlistTitle.translation()
-                    else AdminPanelStrings.editWishlistTitle.translation(),
-                    style = MaterialTheme.typography.h5
+                BackButton(AdminPanelStrings.backButton.translation()) { viewModel.onBack() }
+                ScreenTitle(
+                    if (viewModel.isCreating) AdminPanelStrings.newWishlistTitle.translation()
+                    else AdminPanelStrings.editWishlistTitle.translation()
                 )
             }
             OutlinedTextField(

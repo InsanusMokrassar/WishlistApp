@@ -7,12 +7,13 @@ import dev.inmo.micro_utils.strings.translation
 import dev.inmo.navigation.core.NavigationChain
 import dev.inmo.navigation.mvvm.compose.ComposeView
 import dev.inmo.wishlist.features.common.client.models.ViewConfig
+import dev.inmo.wishlist.features.common.client.ui.components.BackButton
+import dev.inmo.wishlist.features.common.client.ui.components.ListRow
+import dev.inmo.wishlist.features.common.client.ui.components.ScreenTitle
 import dev.inmo.wishlist.features.ui.adminPanel.AdminPanelStrings
 import org.jetbrains.compose.web.dom.Button
 import org.jetbrains.compose.web.dom.Div
-import org.jetbrains.compose.web.dom.H1
 import org.jetbrains.compose.web.dom.H2
-import org.jetbrains.compose.web.dom.Li
 import org.jetbrains.compose.web.dom.P
 import org.jetbrains.compose.web.dom.Span
 import org.jetbrains.compose.web.dom.Text
@@ -38,13 +39,8 @@ class AdminUserView(
 
         Div({ classes("container", "py-3") }) {
             Div({ classes("d-flex", "align-items-center", "mb-3", "gap-2") }) {
-                Button({
-                    classes("btn", "btn-outline-secondary")
-                    onClick { viewModel.onBack() }
-                }) { Text(AdminPanelStrings.backButton.translation()) }
-                H1({ classes("h3", "mb-0") }) {
-                    Text(user?.username?.string ?: "#${config.userId.long}")
-                }
+                BackButton(AdminPanelStrings.backButton.translation()) { viewModel.onBack() }
+                ScreenTitle(user?.username?.string ?: "#${config.userId.long}")
                 Button({
                     classes("btn", "btn-outline-primary", "ms-auto")
                     onClick { viewModel.onEditUser() }
@@ -71,11 +67,7 @@ class AdminUserView(
                     } else {
                         Ul({ classes("list-group") }) {
                             wishlists.forEach { wishlist ->
-                                Li({
-                                    classes("list-group-item", "list-group-item-action", "d-flex", "justify-content-between", "align-items-center")
-                                    style { property("cursor", "pointer") }
-                                    onClick { viewModel.onOpenWishlist(wishlist.id) }
-                                }) {
+                                ListRow(onSelect = { viewModel.onOpenWishlist(wishlist.id) }) {
                                     Span { Text(wishlist.title) }
                                     Span({ classes("badge", "bg-secondary") }) { Text("#${wishlist.id.long}") }
                                 }

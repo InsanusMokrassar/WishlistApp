@@ -7,11 +7,12 @@ import dev.inmo.micro_utils.strings.translation
 import dev.inmo.navigation.core.NavigationChain
 import dev.inmo.navigation.mvvm.compose.ComposeView
 import dev.inmo.wishlist.features.common.client.models.ViewConfig
+import dev.inmo.wishlist.features.common.client.ui.components.BackButton
+import dev.inmo.wishlist.features.common.client.ui.components.ListRow
+import dev.inmo.wishlist.features.common.client.ui.components.ScreenTitle
 import dev.inmo.wishlist.features.ui.wishlist.WishlistStrings
 import org.jetbrains.compose.web.dom.Button
 import org.jetbrains.compose.web.dom.Div
-import org.jetbrains.compose.web.dom.H1
-import org.jetbrains.compose.web.dom.Li
 import org.jetbrains.compose.web.dom.P
 import org.jetbrains.compose.web.dom.Span
 import org.jetbrains.compose.web.dom.Text
@@ -38,15 +39,8 @@ class WishlistView(
 
         Div({ classes("container", "py-3") }) {
             Div({ classes("d-flex", "align-items-center", "mb-3", "gap-2") }) {
-                Button({
-                    classes("btn", "btn-outline-secondary")
-                    onClick { viewModel.onBack() }
-                }) {
-                    Text(WishlistStrings.backButton.translation())
-                }
-                H1({ classes("h3", "mb-0", "flex-grow-1") }) {
-                    Text(wishlist?.title ?: "")
-                }
+                BackButton(WishlistStrings.backButton.translation()) { viewModel.onBack() }
+                ScreenTitle(wishlist?.title ?: "", "mb-0", "flex-grow-1")
                 if (isOwner) {
                     Button({
                         classes("btn", "btn-outline-primary")
@@ -66,22 +60,20 @@ class WishlistView(
             } else {
                 Ul({ classes("list-group", "mb-3") }) {
                     items.forEach { item ->
-                        Li({
-                            classes("list-group-item", "list-group-item-action")
-                            style { property("cursor", "pointer") }
-                            onClick { viewModel.onViewItem(item.id) }
-                        }) {
-                            Div({ classes("d-flex", "justify-content-between", "align-items-center") }) {
-                                Span { Text(item.title) }
-                                item.approximatePrice?.let { price ->
-                                    Span({ classes("text-muted", "small") }) {
-                                        Text("${price} ${item.priceUnits}")
+                        ListRow(onSelect = { viewModel.onViewItem(item.id) }) {
+                            Div({ classes("flex-grow-1") }) {
+                                Div({ classes("d-flex", "justify-content-between", "align-items-center") }) {
+                                    Span { Text(item.title) }
+                                    item.approximatePrice?.let { price ->
+                                        Span({ classes("text-muted", "small") }) {
+                                            Text("${price} ${item.priceUnits}")
+                                        }
                                     }
                                 }
-                            }
-                            if (item.description.isNotBlank()) {
-                                P({ classes("mb-0", "text-muted", "small", "mt-1") }) {
-                                    Text(item.description)
+                                if (item.description.isNotBlank()) {
+                                    P({ classes("mb-0", "text-muted", "small", "mt-1") }) {
+                                        Text(item.description)
+                                    }
                                 }
                             }
                         }

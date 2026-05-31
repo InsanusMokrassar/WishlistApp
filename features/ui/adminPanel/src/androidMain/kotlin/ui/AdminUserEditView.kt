@@ -8,7 +8,6 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
-import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -23,6 +22,8 @@ import dev.inmo.micro_utils.strings.translation
 import dev.inmo.navigation.core.NavigationChain
 import dev.inmo.navigation.mvvm.compose.ComposeView
 import dev.inmo.wishlist.features.common.client.models.ViewConfig
+import dev.inmo.wishlist.features.common.client.ui.components.BackButton
+import dev.inmo.wishlist.features.common.client.ui.components.ScreenTitle
 import dev.inmo.wishlist.features.ui.adminPanel.AdminPanelStrings
 import org.koin.core.component.inject
 import org.koin.core.parameter.parametersOf
@@ -65,11 +66,10 @@ class AdminUserEditView(
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                Button(onClick = { viewModel.onBack() }) { Text(AdminPanelStrings.backButton.translation(resources)) }
-                Text(
-                    text = if (viewModel.isCreating) AdminPanelStrings.newUserTitle.translation(resources)
-                    else AdminPanelStrings.editUserTitle.translation(resources),
-                    style = MaterialTheme.typography.headlineMedium
+                BackButton(AdminPanelStrings.backButton.translation(resources)) { viewModel.onBack() }
+                ScreenTitle(
+                    if (viewModel.isCreating) AdminPanelStrings.newUserTitle.translation(resources)
+                    else AdminPanelStrings.editUserTitle.translation(resources)
                 )
             }
             OutlinedTextField(

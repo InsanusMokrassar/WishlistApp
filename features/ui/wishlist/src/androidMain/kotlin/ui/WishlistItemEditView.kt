@@ -11,7 +11,6 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
-import androidx.compose.material3.Card
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
@@ -27,6 +26,9 @@ import dev.inmo.micro_utils.strings.translation
 import dev.inmo.navigation.core.NavigationChain
 import dev.inmo.navigation.mvvm.compose.ComposeView
 import dev.inmo.wishlist.features.common.client.models.ViewConfig
+import dev.inmo.wishlist.features.common.client.ui.components.BackButton
+import dev.inmo.wishlist.features.common.client.ui.components.ListRow
+import dev.inmo.wishlist.features.common.client.ui.components.ScreenTitle
 import dev.inmo.wishlist.features.ui.wishlist.WishlistStrings
 import dev.inmo.wishlist.features.ui.wishlist.ui.WishlistItemEditViewConfig
 import dev.inmo.wishlist.features.ui.wishlist.ui.WishlistItemEditViewModel
@@ -104,13 +106,10 @@ class WishlistItemEditView(
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                Button(onClick = { viewModel.onBack() }) {
-                    Text(WishlistStrings.backButton.translation(resources))
-                }
-                Text(
-                    text = if (viewModel.isCreating) WishlistStrings.newItemTitle.translation(resources)
-                    else WishlistStrings.editItemTitle.translation(resources),
-                    style = MaterialTheme.typography.headlineMedium
+                BackButton(WishlistStrings.backButton.translation(resources)) { viewModel.onBack() }
+                ScreenTitle(
+                    if (viewModel.isCreating) WishlistStrings.newItemTitle.translation(resources)
+                    else WishlistStrings.editItemTitle.translation(resources)
                 )
             }
             OutlinedTextField(
@@ -150,17 +149,14 @@ class WishlistItemEditView(
             }
             Text(WishlistStrings.linksLabel.translation(resources), style = MaterialTheme.typography.titleSmall)
             links.forEachIndexed { index, link ->
-                Card(modifier = Modifier.fillMaxWidth()) {
-                    Row(
-                        modifier = Modifier.fillMaxWidth().padding(8.dp),
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Text(link, modifier = Modifier.weight(1f), style = MaterialTheme.typography.bodyMedium)
+                ListRow(
+                    trailing = {
                         TextButton(onClick = { viewModel.onRemoveLink(index) }) {
                             Text("×")
                         }
                     }
+                ) {
+                    Text(link, style = MaterialTheme.typography.bodyMedium)
                 }
             }
             Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {

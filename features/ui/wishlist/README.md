@@ -28,6 +28,7 @@ JS views use Bootstrap CSS classes via Compose HTML. JVM uses Material v2, Andro
 
 ## Architecture Notes
 
+- All five views (`WishlistsListView`, `WishlistView`, `WishlistItemView`, `WishlistEditView`, `WishlistItemEditView`) use the shared `ScreenTitle` / `BackButton` / `ListRow` components from `features/common/client` (`ui.components`) for the screen title, back button, and list rows instead of hand-rolling them per platform.
 - All four ViewModels push/pop directly via `node.chain`: no `ViewInteractor` needed (all navigation is intra-feature).
 - `WishlistViewModel.isOwnerState` = `wishlist.userId == currentUserId`; derived via `combine`.
 - `WishlistsModel.getWishlist(id)` resolves by calling `getMyWishlists().find { it.id == id }` — no dedicated server endpoint.

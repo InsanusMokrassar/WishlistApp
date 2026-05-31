@@ -30,6 +30,7 @@ None — client-only UI feature.
 
 ## Architecture Notes
 
+- `UsersListView` uses the shared `ScreenTitle` and `ListRow` components from `features/common/client` (`ui.components`); the per-user delete button is passed as `ListRow`'s `trailing` slot (rendered only when `isRoot`).
 - Interactor implementation lives in `client/ClientPlugin` (intra-feature push pattern).
 - Interactor pushes `WishlistsListViewConfig(userId)` onto `node.chain` —
   the same chain instance that owns the users list, so wishlist navigation

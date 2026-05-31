@@ -1,6 +1,5 @@
 package dev.inmo.wishlist.features.ui.adminPanel.ui
 
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -12,7 +11,6 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material3.Button
-import androidx.compose.material3.Card
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
@@ -27,6 +25,8 @@ import dev.inmo.micro_utils.strings.translation
 import dev.inmo.navigation.core.NavigationChain
 import dev.inmo.navigation.mvvm.compose.ComposeView
 import dev.inmo.wishlist.features.common.client.models.ViewConfig
+import dev.inmo.wishlist.features.common.client.ui.components.ListRow
+import dev.inmo.wishlist.features.common.client.ui.components.ScreenTitle
 import dev.inmo.wishlist.features.ui.adminPanel.AdminPanelStrings
 import org.koin.core.component.inject
 import org.koin.core.parameter.parametersOf
@@ -53,7 +53,7 @@ class AdminWishlistsListView(
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                Text(AdminPanelStrings.wishlistsListTitle.translation(resources), style = MaterialTheme.typography.headlineMedium)
+                ScreenTitle(AdminPanelStrings.wishlistsListTitle.translation(resources))
                 Button(onClick = { viewModel.onCreateWishlist() }) {
                     Text(AdminPanelStrings.addWishlistButton.translation(resources))
                 }
@@ -66,11 +66,9 @@ class AdminWishlistsListView(
             } else {
                 LazyColumn(verticalArrangement = Arrangement.spacedBy(4.dp)) {
                     items(wishlists) { wishlist ->
-                        Card(modifier = Modifier.fillMaxWidth()) {
+                        ListRow(onSelect = { viewModel.onWishlistSelected(wishlist.id) }) {
                             Row(
-                                modifier = Modifier.fillMaxWidth()
-                                    .clickable { viewModel.onWishlistSelected(wishlist.id) }
-                                    .padding(16.dp),
+                                modifier = Modifier.fillMaxWidth(),
                                 horizontalArrangement = Arrangement.SpaceBetween
                             ) {
                                 Text(wishlist.title)

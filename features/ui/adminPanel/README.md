@@ -27,6 +27,7 @@ No server routes — UI-only feature. Consumes `features/admin/client` via `Admi
 
 ## Architecture Notes
 
+- All 8 views use the shared `ScreenTitle` / `BackButton` / `ListRow` components from `features/common/client` (`ui.components`) for titles, back buttons, and list rows. List rows with badges/prices use the `ListRow(onSelect, trailing) { content }` custom-primary overload; item edit/delete buttons are passed via the `trailing` slot.
 - Single `AdminPanelModel` interface consumed by all 8 ViewModels; implemented in `Plugin.kt` as anonymous object wrapping `AdminFeature`.
 - All 8 `*ViewInteractor` interfaces are implemented in `client/src/commonMain/kotlin/ClientPlugin.kt` as stateless anonymous objects (push/pop on `node.chain`).
 - `AdminPanelViewConfig` is the root screen pushed by `InjectNavigationNode` inside `ClientPlugin.startPlugin`.

@@ -7,6 +7,8 @@ import dev.inmo.micro_utils.strings.translation
 import dev.inmo.navigation.core.NavigationChain
 import dev.inmo.navigation.mvvm.compose.ComposeView
 import dev.inmo.wishlist.features.common.client.models.ViewConfig
+import dev.inmo.wishlist.features.common.client.ui.components.BackButton
+import dev.inmo.wishlist.features.common.client.ui.components.ScreenTitle
 import dev.inmo.wishlist.features.ui.adminPanel.AdminPanelStrings
 import org.jetbrains.compose.web.attributes.InputType
 import org.jetbrains.compose.web.attributes.disabled
@@ -14,7 +16,6 @@ import org.jetbrains.compose.web.attributes.forId
 import org.jetbrains.compose.web.attributes.placeholder
 import org.jetbrains.compose.web.dom.Button
 import org.jetbrains.compose.web.dom.Div
-import org.jetbrains.compose.web.dom.H1
 import org.jetbrains.compose.web.dom.Input
 import org.jetbrains.compose.web.dom.Label
 import org.jetbrains.compose.web.dom.P
@@ -69,16 +70,11 @@ class AdminUserEditView(
 
         Div({ classes("container", "py-3") }) {
             Div({ classes("d-flex", "align-items-center", "mb-3", "gap-2") }) {
-                Button({
-                    classes("btn", "btn-outline-secondary")
-                    onClick { viewModel.onBack() }
-                }) { Text(AdminPanelStrings.backButton.translation()) }
-                H1({ classes("h3", "mb-0") }) {
-                    Text(
-                        if (viewModel.isCreating) AdminPanelStrings.newUserTitle.translation()
-                        else AdminPanelStrings.editUserTitle.translation()
-                    )
-                }
+                BackButton(AdminPanelStrings.backButton.translation()) { viewModel.onBack() }
+                ScreenTitle(
+                    if (viewModel.isCreating) AdminPanelStrings.newUserTitle.translation()
+                    else AdminPanelStrings.editUserTitle.translation()
+                )
             }
             Div({ classes("mb-3") }) {
                 Label("user-username") { Text(AdminPanelStrings.usernameLabel.translation()) }

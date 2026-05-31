@@ -11,7 +11,6 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.AlertDialog
 import androidx.compose.material.Button
 import androidx.compose.material.ButtonDefaults
-import androidx.compose.material.Card
 import androidx.compose.material.MaterialTheme
 import androidx.compose.material.OutlinedTextField
 import androidx.compose.material.Text
@@ -26,6 +25,9 @@ import dev.inmo.micro_utils.strings.translation
 import dev.inmo.navigation.core.NavigationChain
 import dev.inmo.navigation.mvvm.compose.ComposeView
 import dev.inmo.wishlist.features.common.client.models.ViewConfig
+import dev.inmo.wishlist.features.common.client.ui.components.BackButton
+import dev.inmo.wishlist.features.common.client.ui.components.ListRow
+import dev.inmo.wishlist.features.common.client.ui.components.ScreenTitle
 import dev.inmo.wishlist.features.ui.wishlist.WishlistStrings
 import dev.inmo.wishlist.features.ui.wishlist.ui.WishlistItemEditViewConfig
 import dev.inmo.wishlist.features.ui.wishlist.ui.WishlistItemEditViewModel
@@ -102,13 +104,10 @@ class WishlistItemEditView(
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                Button(onClick = { viewModel.onBack() }) {
-                    Text(WishlistStrings.backButton.translation())
-                }
-                Text(
-                    text = if (viewModel.isCreating) WishlistStrings.newItemTitle.translation()
-                    else WishlistStrings.editItemTitle.translation(),
-                    style = MaterialTheme.typography.h5
+                BackButton(WishlistStrings.backButton.translation()) { viewModel.onBack() }
+                ScreenTitle(
+                    if (viewModel.isCreating) WishlistStrings.newItemTitle.translation()
+                    else WishlistStrings.editItemTitle.translation()
                 )
             }
             OutlinedTextField(
@@ -148,17 +147,14 @@ class WishlistItemEditView(
             }
             Text(WishlistStrings.linksLabel.translation(), style = MaterialTheme.typography.subtitle2)
             links.forEachIndexed { index, link ->
-                Card(modifier = Modifier.fillMaxWidth()) {
-                    Row(
-                        modifier = Modifier.fillMaxWidth().padding(8.dp),
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Text(link, modifier = Modifier.weight(1f))
+                ListRow(
+                    trailing = {
                         TextButton(onClick = { viewModel.onRemoveLink(index) }) {
                             Text("×")
                         }
                     }
+                ) {
+                    Text(link)
                 }
             }
             Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {

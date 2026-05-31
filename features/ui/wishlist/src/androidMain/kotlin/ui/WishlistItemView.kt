@@ -22,6 +22,8 @@ import dev.inmo.micro_utils.strings.translation
 import dev.inmo.navigation.core.NavigationChain
 import dev.inmo.navigation.mvvm.compose.ComposeView
 import dev.inmo.wishlist.features.common.client.models.ViewConfig
+import dev.inmo.wishlist.features.common.client.ui.components.BackButton
+import dev.inmo.wishlist.features.common.client.ui.components.ScreenTitle
 import dev.inmo.wishlist.features.ui.wishlist.WishlistStrings
 import dev.inmo.wishlist.features.ui.wishlist.ui.WishlistItemViewConfig
 import dev.inmo.wishlist.features.ui.wishlist.ui.WishlistItemViewModel
@@ -54,12 +56,9 @@ class WishlistItemView(
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                Button(onClick = { viewModel.onBack() }) {
-                    Text(WishlistStrings.backButton.translation(resources))
-                }
-                Text(
-                    text = item?.title ?: WishlistStrings.viewItemTitle.translation(resources),
-                    style = MaterialTheme.typography.headlineMedium,
+                BackButton(WishlistStrings.backButton.translation(resources)) { viewModel.onBack() }
+                ScreenTitle(
+                    item?.title ?: WishlistStrings.viewItemTitle.translation(resources),
                     modifier = Modifier.weight(1f).padding(horizontal = 8.dp)
                 )
                 if (isOwner) {

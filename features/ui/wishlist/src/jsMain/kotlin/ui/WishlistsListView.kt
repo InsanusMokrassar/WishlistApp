@@ -7,15 +7,15 @@ import dev.inmo.micro_utils.strings.translation
 import dev.inmo.navigation.core.NavigationChain
 import dev.inmo.navigation.mvvm.compose.ComposeView
 import dev.inmo.wishlist.features.common.client.models.ViewConfig
+import dev.inmo.wishlist.features.common.client.ui.components.BackButton
+import dev.inmo.wishlist.features.common.client.ui.components.ListRow
+import dev.inmo.wishlist.features.common.client.ui.components.ScreenTitle
 import dev.inmo.wishlist.features.ui.wishlist.WishlistStrings
 import dev.inmo.wishlist.features.ui.wishlist.ui.WishlistsListViewConfig
 import dev.inmo.wishlist.features.ui.wishlist.ui.WishlistsListViewModel
 import org.jetbrains.compose.web.dom.Button
 import org.jetbrains.compose.web.dom.Div
-import org.jetbrains.compose.web.dom.H1
-import org.jetbrains.compose.web.dom.Li
 import org.jetbrains.compose.web.dom.P
-import org.jetbrains.compose.web.dom.Span
 import org.jetbrains.compose.web.dom.Text
 import org.jetbrains.compose.web.dom.Ul
 import org.koin.core.component.inject
@@ -41,16 +41,9 @@ class WishlistsListView(
             Div({ classes("d-flex", "justify-content-between", "align-items-center", "mb-3") }) {
                 Div({ classes("d-flex", "align-items-center", "gap-2") }) {
                     if (stack.size > 1) {
-                        Button({
-                            classes("btn", "btn-outline-secondary")
-                            onClick { viewModel.onBack() }
-                        }) {
-                            Text(WishlistStrings.backButton.translation())
-                        }
+                        BackButton(WishlistStrings.backButton.translation()) { viewModel.onBack() }
                     }
-                    H1({ classes("h3", "mb-0") }) {
-                        Text(WishlistStrings.wishlistsTitle.translation())
-                    }
+                    ScreenTitle(WishlistStrings.wishlistsTitle.translation())
                 }
                 Button({
                     classes("btn", "btn-primary")
@@ -68,13 +61,10 @@ class WishlistsListView(
             } else {
                 Ul({ classes("list-group") }) {
                     wishlists.forEach { wishlist ->
-                        Li({
-                            classes("list-group-item", "list-group-item-action", "d-flex", "justify-content-between", "align-items-center")
-                            style { property("cursor", "pointer") }
-                            onClick { viewModel.onWishlistSelected(wishlist.id) }
-                        }) {
-                            Span { Text(wishlist.title) }
-                        }
+                        ListRow(
+                            text = wishlist.title,
+                            onSelect = { viewModel.onWishlistSelected(wishlist.id) }
+                        )
                     }
                 }
             }

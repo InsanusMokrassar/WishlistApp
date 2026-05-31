@@ -8,6 +8,9 @@ import dev.inmo.navigation.core.NavigationChain
 import dev.inmo.navigation.mvvm.compose.ComposeView
 import dev.inmo.wishlist.features.common.client.models.ViewConfig
 import dev.inmo.wishlist.features.ui.wishlist.WishlistStrings
+import dev.inmo.wishlist.features.common.client.ui.components.BackButton
+import dev.inmo.wishlist.features.common.client.ui.components.ListRow
+import dev.inmo.wishlist.features.common.client.ui.components.ScreenTitle
 import dev.inmo.wishlist.features.ui.wishlist.ui.WishlistItemEditViewConfig
 import dev.inmo.wishlist.features.ui.wishlist.ui.WishlistItemEditViewModel
 import org.jetbrains.compose.web.attributes.InputType
@@ -16,10 +19,8 @@ import org.jetbrains.compose.web.attributes.forId
 import org.jetbrains.compose.web.attributes.placeholder
 import org.jetbrains.compose.web.dom.Button
 import org.jetbrains.compose.web.dom.Div
-import org.jetbrains.compose.web.dom.H1
 import org.jetbrains.compose.web.dom.Input
 import org.jetbrains.compose.web.dom.Label
-import org.jetbrains.compose.web.dom.Li
 import org.jetbrains.compose.web.dom.P
 import org.jetbrains.compose.web.dom.Span
 import org.jetbrains.compose.web.dom.Text
@@ -108,18 +109,11 @@ class WishlistItemEditView(
 
         Div({ classes("container", "py-3") }) {
             Div({ classes("d-flex", "align-items-center", "mb-3", "gap-2") }) {
-                Button({
-                    classes("btn", "btn-outline-secondary")
-                    onClick { viewModel.onBack() }
-                }) {
-                    Text(WishlistStrings.backButton.translation())
-                }
-                H1({ classes("h3", "mb-0") }) {
-                    Text(
-                        if (viewModel.isCreating) WishlistStrings.newItemTitle.translation()
-                        else WishlistStrings.editItemTitle.translation()
-                    )
-                }
+                BackButton(WishlistStrings.backButton.translation()) { viewModel.onBack() }
+                ScreenTitle(
+                    if (viewModel.isCreating) WishlistStrings.newItemTitle.translation()
+                    else WishlistStrings.editItemTitle.translation()
+                )
             }
 
             Div({ classes("mb-3") }) {
@@ -175,12 +169,15 @@ class WishlistItemEditView(
                 if (links.isNotEmpty()) {
                     Ul({ classes("list-group", "mb-2") }) {
                         links.forEachIndexed { index, link ->
-                            Li({ classes("list-group-item", "d-flex", "justify-content-between", "align-items-center") }) {
+                            ListRow(
+                                trailing = {
+                                    Button({
+                                        classes("btn", "btn-sm", "btn-outline-danger")
+                                        onClick { viewModel.onRemoveLink(index) }
+                                    }) { Text("×") }
+                                }
+                            ) {
                                 Span({ classes("text-truncate", "me-2") }) { Text(link) }
-                                Button({
-                                    classes("btn", "btn-sm", "btn-outline-danger")
-                                    onClick { viewModel.onRemoveLink(index) }
-                                }) { Text("×") }
                             }
                         }
                     }

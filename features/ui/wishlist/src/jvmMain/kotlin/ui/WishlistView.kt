@@ -1,6 +1,5 @@
 package dev.inmo.wishlist.features.ui.wishlist.ui
 
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -12,7 +11,6 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.Button
-import androidx.compose.material.Card
 import androidx.compose.material.CircularProgressIndicator
 import androidx.compose.material.MaterialTheme
 import androidx.compose.material.Text
@@ -26,6 +24,9 @@ import dev.inmo.micro_utils.strings.translation
 import dev.inmo.navigation.core.NavigationChain
 import dev.inmo.navigation.mvvm.compose.ComposeView
 import dev.inmo.wishlist.features.common.client.models.ViewConfig
+import dev.inmo.wishlist.features.common.client.ui.components.BackButton
+import dev.inmo.wishlist.features.common.client.ui.components.ListRow
+import dev.inmo.wishlist.features.common.client.ui.components.ScreenTitle
 import dev.inmo.wishlist.features.ui.wishlist.WishlistStrings
 import dev.inmo.wishlist.features.ui.wishlist.ui.WishlistViewConfig
 import dev.inmo.wishlist.features.ui.wishlist.ui.WishlistViewModel
@@ -55,10 +56,8 @@ class WishlistView(
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                Button(onClick = { viewModel.onBack() }) {
-                    Text(WishlistStrings.backButton.translation())
-                }
-                Text(wishlist?.title ?: "", style = MaterialTheme.typography.h5, modifier = Modifier.weight(1f).padding(horizontal = 8.dp))
+                BackButton(WishlistStrings.backButton.translation()) { viewModel.onBack() }
+                ScreenTitle(wishlist?.title ?: "", modifier = Modifier.weight(1f).padding(horizontal = 8.dp))
                 if (isOwner) {
                     Button(onClick = { viewModel.onEditWishlist() }) {
                         Text(WishlistStrings.editButton.translation())
@@ -74,13 +73,8 @@ class WishlistView(
             } else {
                 LazyColumn(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(4.dp)) {
                     items(items) { item ->
-                        Card(modifier = Modifier.fillMaxWidth()) {
-                            Column(
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .clickable { viewModel.onViewItem(item.id) }
-                                    .padding(12.dp)
-                            ) {
+                        ListRow(onSelect = { viewModel.onViewItem(item.id) }) {
+                            Column(modifier = Modifier.fillMaxWidth()) {
                                 Row(
                                     modifier = Modifier.fillMaxWidth(),
                                     horizontalArrangement = Arrangement.SpaceBetween

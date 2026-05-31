@@ -1,6 +1,5 @@
 package dev.inmo.wishlist.features.ui.adminPanel.ui
 
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -12,7 +11,6 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.Button
-import androidx.compose.material.Card
 import androidx.compose.material.CircularProgressIndicator
 import androidx.compose.material.MaterialTheme
 import androidx.compose.material.Text
@@ -26,6 +24,8 @@ import dev.inmo.micro_utils.strings.translation
 import dev.inmo.navigation.core.NavigationChain
 import dev.inmo.navigation.mvvm.compose.ComposeView
 import dev.inmo.wishlist.features.common.client.models.ViewConfig
+import dev.inmo.wishlist.features.common.client.ui.components.ListRow
+import dev.inmo.wishlist.features.common.client.ui.components.ScreenTitle
 import dev.inmo.wishlist.features.ui.adminPanel.AdminPanelStrings
 import org.koin.core.component.inject
 import org.koin.core.parameter.parametersOf
@@ -51,7 +51,7 @@ class AdminUsersListView(
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                Text(AdminPanelStrings.usersListTitle.translation(), style = MaterialTheme.typography.h5)
+                ScreenTitle(AdminPanelStrings.usersListTitle.translation())
                 Button(onClick = { viewModel.onCreateUser() }) {
                     Text(AdminPanelStrings.addUserButton.translation())
                 }
@@ -64,11 +64,9 @@ class AdminUsersListView(
             } else {
                 LazyColumn(verticalArrangement = Arrangement.spacedBy(4.dp)) {
                     items(users) { user ->
-                        Card(modifier = Modifier.fillMaxWidth()) {
+                        ListRow(onSelect = { viewModel.onUserSelected(user.id) }) {
                             Row(
-                                modifier = Modifier.fillMaxWidth()
-                                    .clickable { viewModel.onUserSelected(user.id) }
-                                    .padding(16.dp),
+                                modifier = Modifier.fillMaxWidth(),
                                 horizontalArrangement = Arrangement.SpaceBetween
                             ) {
                                 Text(user.username.string)

@@ -4,6 +4,23 @@
 
 ---
 
+### 2026-05-31 — Session 18: Extract shared UI list components (title, back button, list row)
+
+**Prompt:** `Extract from WishlistsListView elements components: for title, for back button, for items. Place them in the common feature in targets from which they will be extracted. In all views replace the items onto new components (e.g. users list uses same list items as wishlistslist). Fully skip .templates folder`
+
+**Actions:**
+- action=create; target=features/common/client/src/{jsMain,jvmMain,androidMain}/kotlin/ui/components/ListComponents.kt; entities=[ScreenTitle, BackButton, ListRow]; notes=[platform-specific Composables, identical public signature per target; JS=Bootstrap/Compose-HTML, JVM+Android=Material3; no expect/actual since callers are per-platform Views; ListRow has String overload + custom-primary-slot overload `ListRow(onSelect, trailing){content}`; ScreenTitle JS takes vararg extraClasses, JVM/Android take modifier]
+- action=update; target=features/ui/wishlist/src/{jsMain,jvmMain,androidMain}/kotlin/ui/{WishlistsListView,WishlistView,WishlistItemView,WishlistEditView,WishlistItemEditView}.kt; changes=[replaced hand-rolled title/back/list-row + link rows with shared components]
+- action=update; target=features/ui/users/src/{jsMain,jvmMain,androidMain}/kotlin/ui/UsersListView.kt; changes=[title→ScreenTitle, rows→ListRow with delete button as trailing slot]
+- action=update; target=features/ui/adminPanel/src/{jsMain,jvmMain,androidMain}/kotlin/ui/{AdminUsersListView,AdminWishlistsListView,AdminWishlistView,AdminUserView,AdminUserEditView,AdminWishlistEditView,AdminWishlistItemEditView}.kt; changes=[title/back/rows→shared components; badges & edit/delete buttons via custom primary slot + trailing]
+- action=skip; target=.templates/; reason=explicitly excluded by prompt
+- action=note; target=AdminPanelView; reason=dashboard h2 title + no back/items, left unchanged (different heading semantics)
+- action=update; target=features/{common,ui/wishlist,ui/users,ui/adminPanel}/README.md; changes=[Architecture Notes document shared components]
+
+**Verification:** check=compile; targets=[common.client, ui.wishlist, ui.users, ui.adminPanel]; result=BUILD SUCCESSFUL for compileKotlinJs + compileKotlinJvm + compileDebugKotlinAndroid on all four modules.
+
+---
+
 ### 2026-05-30 — Session 17: Deletion of wishlist items, wishlists, and users
 
 **Prompt:** `Implement opportunity to delete things: wishlist item (owner, danger button on item edit, modal confirm, back after delete, auto-back on reopen if gone); wishlist (same, on wishlist edit); user (root only, danger button on users list row, double modal confirm, cascade remove wishlists+items+password+sessions)`

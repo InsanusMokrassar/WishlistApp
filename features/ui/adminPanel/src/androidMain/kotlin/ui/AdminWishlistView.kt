@@ -11,7 +11,6 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material3.Button
-import androidx.compose.material3.Card
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
@@ -26,6 +25,9 @@ import dev.inmo.micro_utils.strings.translation
 import dev.inmo.navigation.core.NavigationChain
 import dev.inmo.navigation.mvvm.compose.ComposeView
 import dev.inmo.wishlist.features.common.client.models.ViewConfig
+import dev.inmo.wishlist.features.common.client.ui.components.BackButton
+import dev.inmo.wishlist.features.common.client.ui.components.ListRow
+import dev.inmo.wishlist.features.common.client.ui.components.ScreenTitle
 import dev.inmo.wishlist.features.ui.adminPanel.AdminPanelStrings
 import org.koin.core.component.inject
 import org.koin.core.parameter.parametersOf
@@ -54,9 +56,9 @@ class AdminWishlistView(
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    Button(onClick = { viewModel.onBack() }) { Text(AdminPanelStrings.backButton.translation(resources)) }
+                    BackButton(AdminPanelStrings.backButton.translation(resources)) { viewModel.onBack() }
                     Column {
-                        Text(wishlist?.title ?: "#${config.wishlistId.long}", style = MaterialTheme.typography.headlineMedium)
+                        ScreenTitle(wishlist?.title ?: "#${config.wishlistId.long}")
                         if (wishlist != null) {
                             Text("user #${wishlist!!.userId.long}", style = MaterialTheme.typography.labelMedium)
                         }
@@ -82,21 +84,8 @@ class AdminWishlistView(
                 } else {
                     LazyColumn(verticalArrangement = Arrangement.spacedBy(4.dp)) {
                         items(items) { item ->
-                            Card(modifier = Modifier.fillMaxWidth()) {
-                                Row(
-                                    modifier = Modifier.fillMaxWidth().padding(12.dp),
-                                    horizontalArrangement = Arrangement.SpaceBetween,
-                                    verticalAlignment = Alignment.CenterVertically
-                                ) {
-                                    Column(modifier = Modifier.weight(1f)) {
-                                        Text(item.title)
-                                        if (item.approximatePrice != null) {
-                                            Text(
-                                                "${item.approximatePrice} ${item.priceUnits}".trim(),
-                                                style = MaterialTheme.typography.labelSmall
-                                            )
-                                        }
-                                    }
+                            ListRow(
+                                trailing = {
                                     Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
                                         Button(onClick = { viewModel.onEditItem(item.id) }) {
                                             Text(AdminPanelStrings.editButton.translation(resources))
@@ -104,6 +93,16 @@ class AdminWishlistView(
                                         Button(onClick = { viewModel.onDeleteItem(item.id) }) {
                                             Text(AdminPanelStrings.deleteButton.translation(resources))
                                         }
+                                    }
+                                }
+                            ) {
+                                Column {
+                                    Text(item.title)
+                                    if (item.approximatePrice != null) {
+                                        Text(
+                                            "${item.approximatePrice} ${item.priceUnits}".trim(),
+                                            style = MaterialTheme.typography.labelSmall
+                                        )
                                     }
                                 }
                             }

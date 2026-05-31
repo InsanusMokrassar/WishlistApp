@@ -7,13 +7,14 @@ import dev.inmo.micro_utils.strings.translation
 import dev.inmo.navigation.core.NavigationChain
 import dev.inmo.navigation.mvvm.compose.ComposeView
 import dev.inmo.wishlist.features.common.client.models.ViewConfig
+import dev.inmo.wishlist.features.common.client.ui.components.BackButton
+import dev.inmo.wishlist.features.common.client.ui.components.ListRow
+import dev.inmo.wishlist.features.common.client.ui.components.ScreenTitle
 import dev.inmo.wishlist.features.ui.wishlist.WishlistStrings
 import org.jetbrains.compose.web.dom.A
 import org.jetbrains.compose.web.dom.Button
 import org.jetbrains.compose.web.dom.Div
-import org.jetbrains.compose.web.dom.H1
 import org.jetbrains.compose.web.dom.H6
-import org.jetbrains.compose.web.dom.Li
 import org.jetbrains.compose.web.dom.P
 import org.jetbrains.compose.web.dom.Small
 import org.jetbrains.compose.web.dom.Text
@@ -39,15 +40,8 @@ class WishlistItemView(
 
         Div({ classes("container", "py-3") }) {
             Div({ classes("d-flex", "align-items-center", "mb-3", "gap-2") }) {
-                Button({
-                    classes("btn", "btn-outline-secondary")
-                    onClick { viewModel.onBack() }
-                }) {
-                    Text(WishlistStrings.backButton.translation())
-                }
-                H1({ classes("h3", "mb-0", "flex-grow-1") }) {
-                    Text(item?.title ?: WishlistStrings.viewItemTitle.translation())
-                }
+                BackButton(WishlistStrings.backButton.translation()) { viewModel.onBack() }
+                ScreenTitle(item?.title ?: WishlistStrings.viewItemTitle.translation(), "mb-0", "flex-grow-1")
                 if (isOwner) {
                     Button({
                         classes("btn", "btn-outline-primary")
@@ -88,7 +82,7 @@ class WishlistItemView(
                     } else {
                         Ul({ classes("list-group") }) {
                             it.links.forEach { link ->
-                                Li({ classes("list-group-item") }) {
+                                ListRow {
                                     A(href = link, attrs = { attr("target", "_blank") }) {
                                         Text(link)
                                     }
