@@ -43,7 +43,10 @@ class WishlistsListView(
                     if (stack.size > 1) {
                         BackButton(WishlistStrings.backButton.translation()) { viewModel.onBack() }
                     }
-                    ScreenTitle(WishlistStrings.wishlistsTitle.translation())
+                    ScreenTitle(
+                        (if (viewModel.targetUserId == null) WishlistStrings.wishlistsTitle
+                        else WishlistStrings.userWishlistsTitle).translation()
+                    )
                 }
                 Div({ classes("d-flex", "gap-2") }) {
                     if (viewModel.targetUserId != null) {

@@ -64,7 +64,10 @@ class WishlistsListView(
                     if (stack.size > 1) {
                         BackButton(WishlistStrings.backButton.translation(resources)) { viewModel.onBack() }
                     }
-                    ScreenTitle(WishlistStrings.wishlistsTitle.translation(resources))
+                    ScreenTitle(
+                        (if (viewModel.targetUserId == null) WishlistStrings.wishlistsTitle
+                        else WishlistStrings.userWishlistsTitle).translation(resources)
+                    )
                 }
                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
                     if (viewModel.targetUserId != null) {
