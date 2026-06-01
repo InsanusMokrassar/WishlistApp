@@ -42,6 +42,10 @@ import dev.inmo.wishlist.features.ui.serverUrl.ui.ServerUrlViewConfig
 import dev.inmo.wishlist.features.ui.serverUrl.ui.ServerUrlViewInteractor
 import dev.inmo.wishlist.features.ui.topBar.ui.TopBarViewConfig
 import dev.inmo.wishlist.features.ui.topBar.ui.TopBarViewInteractor
+import dev.inmo.wishlist.features.ui.users.ui.UserEditViewConfig
+import dev.inmo.wishlist.features.ui.users.ui.UserEditViewInteractor
+import dev.inmo.wishlist.features.ui.users.ui.UserViewConfig
+import dev.inmo.wishlist.features.ui.users.ui.UserViewInteractor
 import dev.inmo.wishlist.features.ui.users.ui.UsersListViewConfig
 import dev.inmo.wishlist.features.ui.users.ui.UsersListViewInteractor
 import dev.inmo.wishlist.features.ui.wishlist.ui.WishlistEditViewConfig
@@ -109,6 +113,37 @@ object ClientPlugin : StartPlugin {
                 ) {
                     node.chain.push(WishlistsListViewConfig(userId))
                 }
+                override suspend fun onOpenProfile(
+                    node: NavigationNode<UsersListViewConfig, ViewConfig>,
+                    userId: UserId
+                ) {
+                    node.chain.push(UserViewConfig(userId))
+                }
+            }
+        }
+
+        single<UserViewInteractor> {
+            object : UserViewInteractor {
+                override suspend fun onBack(node: NavigationNode<UserViewConfig, ViewConfig>) {
+                    node.chain.pop()
+                }
+                override suspend fun onEditUser(node: NavigationNode<UserViewConfig, ViewConfig>) {
+                    node.chain.push(UserEditViewConfig(node.config.userId))
+                }
+            }
+        }
+
+        single<UserEditViewInteractor> {
+            object : UserEditViewInteractor {
+                override suspend fun onNavigateBack(node: NavigationNode<UserEditViewConfig, ViewConfig>) {
+                    node.chain.pop()
+                }
+                override suspend fun onSaved(node: NavigationNode<UserEditViewConfig, ViewConfig>) {
+                    node.chain.pop()
+                }
+                override suspend fun onDeleted(node: NavigationNode<UserEditViewConfig, ViewConfig>) {
+                    node.chain.pop()
+                }
             }
         }
 
@@ -161,6 +196,12 @@ object ClientPlugin : StartPlugin {
                     userId: UserId
                 ) {
                     node.chain.push(UserWishlistsViewConfig(userId))
+                }
+                override suspend fun onShowUser(
+                    node: NavigationNode<WishlistsListViewConfig, ViewConfig>,
+                    userId: UserId
+                ) {
+                    node.chain.push(UserViewConfig(userId))
                 }
             }
         }

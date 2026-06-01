@@ -47,6 +47,7 @@ class WishlistsListView(
         super.onDraw()
         val wishlists by viewModel.wishlistsState.collectAsState()
         val loading by viewModel.loadingState.collectAsState()
+        val profileUserId by viewModel.profileUserIdState.collectAsState()
         val stack by chain.stackFlow.collectAsState()
 
         Column(modifier = Modifier.fillMaxSize().padding(16.dp)) {
@@ -68,6 +69,11 @@ class WishlistsListView(
                     )
                 }
                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
+                    if (profileUserId != null) {
+                        OutlinedButton(onClick = { viewModel.onShowProfile() }) {
+                            Text(WishlistStrings.profileButton.translation())
+                        }
+                    }
                     if (viewModel.targetUserId != null) {
                         OutlinedButton(onClick = { viewModel.onShowGrid() }) {
                             Text(WishlistStrings.gridViewButton.translation())

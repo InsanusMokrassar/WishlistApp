@@ -3,6 +3,7 @@ package dev.inmo.wishlist.features.files.client
 import dev.inmo.wishlist.features.files.common.models.FileId
 import dev.inmo.wishlist.features.files.common.models.FinalizeFileRequest
 import dev.inmo.wishlist.features.files.common.models.RegisteredFileMetaInfo
+import dev.inmo.wishlist.features.users.common.models.UserId
 
 /**
  * Client-facing contract for the files feature: pure HTTP operations against the server routes.
@@ -27,4 +28,22 @@ interface FilesFeature {
      * @return [RegisteredFileMetaInfo], or `null` when unknown / non-2xx response.
      */
     suspend fun getMeta(id: FileId): RegisteredFileMetaInfo?
+
+    /**
+     * Fetches the avatar file id currently set for [userId].
+     *
+     * @param userId Identity whose avatar to resolve.
+     * @return Avatar [FileId], or `null` when the user has no avatar / non-2xx response.
+     */
+    suspend fun getAvatar(userId: UserId): FileId?
+
+    /**
+     * Associates the already-finalized file [fileId] as the avatar of [userId]. The server allows
+     * this only for the user themselves or the `root` user.
+     *
+     * @param userId Identity whose avatar to set.
+     * @param fileId Finalized file to use as the avatar.
+     * @return `true` on a 2xx response; `false` otherwise (forbidden, unknown file, network error).
+     */
+    suspend fun setAvatar(userId: UserId, fileId: FileId): Boolean
 }

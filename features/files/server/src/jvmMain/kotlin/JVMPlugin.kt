@@ -3,8 +3,10 @@ package dev.inmo.wishlist.features.files.server
 import dev.inmo.micro_utils.startup.plugin.StartPlugin
 import dev.inmo.wishlist.features.files.common.repo.DiskFilesRepo
 import dev.inmo.wishlist.features.files.common.repo.ExposedFilesMetaInfoRepo
+import dev.inmo.wishlist.features.files.common.repo.ExposedUserAvatarsRepo
 import dev.inmo.wishlist.features.files.common.repo.FilesMetaInfoRepo
 import dev.inmo.wishlist.features.files.common.repo.FilesRepo
+import dev.inmo.wishlist.features.files.common.repo.UserAvatarsRepo
 import dev.inmo.wishlist.features.files.server.models.FilesConfig
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonObject
@@ -34,6 +36,9 @@ object JVMPlugin : StartPlugin {
         }
         single<FilesMetaInfoRepo> {
             ExposedFilesMetaInfoRepo(get(), get())
+        }
+        single<UserAvatarsRepo> {
+            ExposedUserAvatarsRepo(get())
         }
     }
 

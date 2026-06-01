@@ -6,40 +6,55 @@
 
 ## Overview
 
-Main page content. Renders the global list of registered users fetched from the
-public `features/users/client` `UsersFeature.getAll()` endpoint. Selecting a
-user delegates to `UsersListViewInteractor.onUserSelected` which pushes
-`WishlistsListViewConfig(userId)` onto the same navigation chain (the scaffold's
-main slot chain), replacing the users list with that user's wishlists.
+User-facing screens for browsing and managing user profiles. Three screens share one navigation
+chain (the scaffold main slot):
 
-No auth required to view the list — anonymous users can browse. The `root` user
-additionally sees a per-row danger **Delete** button (see below).
+- **Users list** — main page content; the global list of registered users from the public
+  `UsersFeature.getAll()`. Selecting a row pushes that user's `WishlistsListViewConfig(userId)`.
+  A **My profile** button (visible only when logged in) opens the caller's own profile.
+- **User profile view** (`UserViewConfig(userId)`) — public, readable by anyone (anonymous
+  included). Shows the username and avatar (when set). Shows an **Edit** button only to the profile
+  owner and `root`.
+- **User profile edit** (`UserEditViewConfig(userId)`) — reachable by the owner and `root`. A
+  non-root owner has **no editable text fields** but may upload an avatar; `root` may edit the
+  username, set a new password (with a confirmation field that must match), upload an avatar, and
+  **delete** the user. The user id is never editable. User *creation* is not done here (admin panel).
+
+No auth required to view the users list or a profile.
 
 ## Routes
 
-None — client-only UI feature.
+None — client-only UI feature. Consumes `features/users/client` (public read), `features/auth/client`
+(current caller + root check), `features/admin/client` (root-only username/password/delete) and
+`features/files/client` (avatar storage).
 
 ## Models
 
 | Type | Description |
 |------|-------------|
 | `UsersListViewConfig` | Empty `@Serializable class` — main slot root identifier |
-| `UsersListModel` | Wraps `UsersFeature.getAll()`, `ClientAuthFeature` (`isCurrentUserRoot()`), and admin `AdminFeature.usersManagement.delete` (`deleteUser(id)`) |
-| `UsersListViewInteractor` | `onUserSelected(node, userId)` |
-| `UsersListViewModel` | Holds `usersState`, `loadingState`, `isRootState`, `deleteTargetState`, `deleteStepState`; loads users + root flag on init and on resume |
+| `UserViewConfig` | `data class(userId: UserId)` — public profile detail |
+| `UserEditViewConfig` | `data class(userId: UserId)` — profile edit (owner/root) |
+| `UsersModel` | Single feature model (renamed from `UsersListModel`). Wraps `UsersFeature.getAll()`, `ClientAuthFeature` (`getCurrentUserId`, `isCurrentUserRoot`), admin `AdminFeature.usersManagement` (`updateUsername`, `setPassword`, `deleteUser`), and `FilesClientService` (`getAvatar`, `uploadAvatar`, `imageUrl`, `loadImageBytes`); `getUser(id)` resolves from the public list |
+| `UsersListViewInteractor` | `onUserSelected(node, userId)` (→ wishlists), `onOpenProfile(node, userId)` (→ profile view) |
+| `UserViewInteractor` | `onBack(node)`, `onEditUser(node)` (→ edit) |
+| `UserEditViewInteractor` | `onNavigateBack(node)`, `onSaved(node)`, `onDeleted(node)` |
+| `UsersListViewModel` | `usersState`, `loadingState`, `currentUserIdState`; `onUserSelected`, `onMyProfile` |
+| `UserViewModel` | `userState`, `avatarIdState`, `canEditState`, `loadingState`; auto-`onBack` when the user is gone after reload |
+| `UserEditViewModel` | `isRootState`, `usernameState`, `passwordState`, `confirmPasswordState`, `avatarIdState`, `uploadingAvatarState`, `passwordMismatchState`, `canSaveState`, discard/delete dialog states |
 
 ## Architecture Notes
 
-- `UsersListView` uses the shared `ScreenTitle` and `ListRow` components from `features/common/client` (`ui.components`); the per-user delete button is passed as `ListRow`'s `trailing` slot (rendered only when `isRoot`).
-- Interactor implementation lives in `client/ClientPlugin` (intra-feature push pattern).
-- Interactor pushes `WishlistsListViewConfig(userId)` onto `node.chain` —
-  the same chain instance that owns the users list, so wishlist navigation
-  (open wishlist → item → edit) layers on top of the users list naturally.
-- View loads users on init AND on `node.onResumeFlow` so returning to the list
-  after a sub-screen pops refreshes the data.
-- **Root-only user deletion:**
-  - `build.gradle` adds `api project` deps on `features/auth/client` (for `ClientAuthFeature`) and `features/admin/client` (for `AdminFeature`).
-  - Root detection is client-side: `UsersListModel.isCurrentUserRoot()` = `authFeature.getMe()?.username?.string == "root"`. The delete button renders only when `isRootState` is `true`; the server still enforces root via `403` on the admin endpoint.
-  - Deletion uses **two** sequential confirmation dialogs (`deleteStepState`: `0` none / `1` first / `2` final). Flow: `onDeleteUserRequest(user)` → step 1 → `onConfirmDeleteFirst()` → step 2 → `onConfirmDeleteSecond()` → `model.deleteUser(id)` → reload list. `onCancelDelete()` aborts at any stage.
-  - `deleteUser` delegates to `AdminFeature.usersManagement.delete`, which cascades server-side (wishlists, items, password, sessions — see `features/admin`).
-  - JS uses Bootstrap modals (private `ConfirmModal` composable); JVM/Android use `AlertDialog` (private `ConfirmDialog` composable) with an error-colored confirm button.
+- All views use the shared `ScreenTitle` / `BackButton` / `ListRow` components from `features/common/client` (`ui.components`).
+- All three screens' interactors are implemented in `client/ClientPlugin` (intra-feature push/pop). `onOpenProfile`/`UserViewInteractor.onEditUser` push `UserViewConfig`/`UserEditViewConfig` onto `node.chain`.
+- `build.gradle` deps: `features/auth/client` (`ClientAuthFeature`), `features/admin/client` (`AdminFeature`), `features/files/client` (`FilesClientService`).
+- **Single model**: `UsersListModel` was renamed to `UsersModel` and expanded to back all three screens (matching the one-model-per-UI-feature convention used by `wishlist`/`adminPanel`).
+- **Root detection** is client-side (`authFeature.getMe()?.username?.string == "root"`); the server still enforces root on every admin endpoint (`403`) and owner-or-root on the avatar `PUT` (`403`).
+- **My profile**: `UsersListViewModel` loads `currentUserIdState` (= `authFeature.getMe()?.id`); the header button is shown only when non-null and pushes `UserViewConfig(currentUserId)`.
+- **Profile edit gating** (`UserEditViewModel`):
+  - `isRootState` gates the editable username/password fields, the delete button, and `canSaveState`. Non-root owners see read-only username + a "no editable fields" note + the avatar uploader.
+  - `canSaveState` = root && username non-blank && not loading && (password blank or password == confirm). `passwordMismatchState` drives the inline error. `onSave` calls `updateUsername` always and `setPassword` only when a new password was entered.
+  - **Avatar upload** (owner or root): the image picker is the feature's own `utils/pickImageFile` (`expect`/`actual`; JS hidden input, JVM `JFileChooser`, Android `AvatarImagePicker` registered by `MainActivity`). `onAvatarPicked` → `model.uploadAvatar(userId, file)` (finalize + associate) → refresh `avatarIdState`. Avatar changes persist immediately and do not set the dirty flag.
+  - **Delete** (root only) was **moved here from the users list** (per the requirement). A single confirmation dialog → `model.deleteUser(id)` → `interactor.onDeleted(node)` pops the edit screen; `UserViewModel` then reloads, finds the user gone, and auto-`onBack`s.
+- Avatar rendering: JS uses `<img src=imageUrl>`; JVM/Android use a feature-local `RemoteImage` composable (Skia / `BitmapFactory`), mirroring the wishlist feature.
+- JS uses Bootstrap modals; JVM uses Material v2 `AlertDialog`; Android uses Material3 `AlertDialog`.

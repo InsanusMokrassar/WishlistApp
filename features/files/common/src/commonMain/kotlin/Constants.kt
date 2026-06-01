@@ -17,6 +17,13 @@ object Constants {
     const val metaPathPart = "meta"
 
     /**
+     * Path segment for the user-avatar routes: `.../avatar/{userId}`.
+     * `GET` returns the user's avatar [dev.inmo.wishlist.features.files.common.models.FileId] (public);
+     * `PUT` associates an already-finalized file as the user's avatar (owner or root only).
+     */
+    const val avatarPathPart = "avatar"
+
+    /**
      * Full path of the shared temporal upload endpoint (`/temp_upload`), provided by MicroUtils
      * `TemporalFilesRoutingConfigurator`. Clients upload raw bytes here and receive a
      * [dev.inmo.micro_utils.ktor.common.TemporalFileId].

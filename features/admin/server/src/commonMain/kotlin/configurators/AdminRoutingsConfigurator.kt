@@ -5,6 +5,7 @@ import dev.inmo.micro_utils.repos.deleteById
 import dev.inmo.wishlist.features.admin.common.Constants
 import dev.inmo.wishlist.features.admin.common.models.NewUserWithPassword
 import dev.inmo.wishlist.features.admin.server.AdminFeature
+import dev.inmo.wishlist.features.auth.common.models.Password
 import dev.inmo.wishlist.features.auth.server.utils.getCallerUserIdOrAnswerUnauthorized
 import dev.inmo.wishlist.features.users.common.models.NewUser
 import dev.inmo.wishlist.features.users.common.models.UserId
@@ -109,6 +110,19 @@ class AdminRoutingsConfigurator(
                         }
                         val newUser = call.receive<NewUser>()
                         when (adminFeature.usersManagement.update(id, newUser)) {
+                            true -> call.respond(HttpStatusCode.OK)
+                            false -> call.respond(HttpStatusCode.InternalServerError)
+                            null -> call.respond(HttpStatusCode.NotFound)
+                        }
+                    }
+                    put("${Constants.usersSetPasswordPathPart}/{id}") {
+                        requireAdmin() ?: return@put
+                        val id = call.parameters["id"]?.toLongOrNull()?.let(::UserId) ?: run {
+                            call.respond(HttpStatusCode.BadRequest)
+                            return@put
+                        }
+                        val password = call.receive<Password>()
+                        when (adminFeature.usersManagement.setPassword(id, password)) {
                             true -> call.respond(HttpStatusCode.OK)
                             false -> call.respond(HttpStatusCode.InternalServerError)
                             null -> call.respond(HttpStatusCode.NotFound)

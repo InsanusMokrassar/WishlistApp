@@ -2,6 +2,7 @@ package dev.inmo.wishlist.features.admin.client
 
 import dev.inmo.wishlist.features.admin.common.Constants
 import dev.inmo.wishlist.features.admin.common.models.NewUserWithPassword
+import dev.inmo.wishlist.features.auth.common.models.Password
 import dev.inmo.wishlist.features.users.common.models.NewUser
 import dev.inmo.wishlist.features.users.common.models.RegisteredUser
 import dev.inmo.wishlist.features.users.common.models.UserId
@@ -41,6 +42,14 @@ class KtorUsersManagementFeature(
         val response = client.put("$basePath/${Constants.usersUpdatePathPart}/${id.long}") {
             contentType(ContentType.Application.Json)
             setBody(newUser)
+        }
+        return response.status.isSuccess()
+    }
+
+    override suspend fun setPassword(id: UserId, password: Password): Boolean {
+        val response = client.put("$basePath/${Constants.usersSetPasswordPathPart}/${id.long}") {
+            contentType(ContentType.Application.Json)
+            setBody(password)
         }
         return response.status.isSuccess()
     }

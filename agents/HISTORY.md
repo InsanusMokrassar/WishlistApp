@@ -4,6 +4,39 @@
 
 ---
 
+### 2026-06-01 — Session 21: Public User Profile View/Edit + Avatars
+
+**Prompt:** Add user view (all) + user edit (owner/root) scenarios; move root delete-user button onto the edit page; non-root owner has no editable fields but page accessible; root edits all fields with password+confirmation, user id non-editable. In files feature add a users-avatars repo and rename file `ownerId`→`uploaderId`. Avatar upload on the edit page for owner+root; show avatar on the view page. Reach user view via a button on the wishlists list; add a "My profile" button.
+
+**Actions:**
+- action=rename; target=features/files/common/.../models/FileMetaInfo.kt; change=[`ownerId`→`uploaderId` on `FileMetaInfo`/`NewFileMetaInfo`/`RegisteredFileMetaInfo`]; followups=[FilesService.finalize sets `uploaderId`]; WARN=[pre-rename `files_meta` JSON uses `ownerId` key → won't decode; wipe/migrate dev DB]
+- action=create; target=features/files/common/.../repo/UserAvatarsRepo.kt + jvmMain/repo/ExposedUserAvatarsRepo.kt; entity=[`UserAvatarsRepo : KeyValueRepo<UserId, FileId>`; table `user_avatars` (user_id long PK, file_id text); withMapper pattern]
+- action=update; target=features/files/common/.../Constants.kt; add=[`avatarPathPart = "avatar"`]
+- action=update; target=features/files/server/.../services/FilesService.kt; add=[ctor `userAvatarsRepo`; `getAvatar(userId)`, `setAvatar(userId, fileId)` (rejects unknown fileId)]
+- action=update; target=features/files/server/.../configurators/FilesRoutingsConfigurator.kt; add=[ctor `usersRepo: ReadUsersRepo`; `isRoot()` helper; public `GET /files/avatar/{userId}`→FileId|404; auth `PUT /files/avatar/{userId}` body FileId, owner-or-root else 403, 400 unknown file]
+- action=update; target=features/files/server/.../Plugin.kt + jvmMain/JVMPlugin.kt; add=[FilesService 4th get(); FilesRoutingsConfigurator 2nd get(); `single<UserAvatarsRepo>{ExposedUserAvatarsRepo(get())}`]
+- action=update; target=features/files/client/.../{FilesFeature,KtorFilesFeature,FilesClientService}.kt; add=[`getAvatar(UserId)`, `setAvatar(UserId,FileId)`; service `uploadAvatar(userId,file)` = uploadFile then setAvatar]
+- action=update; target=features/admin/{common/Constants,client/UsersManagementFeature,client/KtorUsersManagementFeature,server/UsersManagementFeature,server/configurators/AdminRoutingsConfigurator}; add=[`setPassword(id,Password)` → `PUT /admin/users/setPassword/{id}` delegating to existing `AuthFeatureService.setPassword` (no new functionality)]
+- action=rename+expand; target=features/ui/users/.../ui/UsersModel.kt (was UsersListModel.kt); surface=[getAllUsers, getUser, getCurrentUserId, isCurrentUserRoot, updateUsername, setPassword, deleteUser, getAvatar, uploadAvatar, imageUrl, loadImageBytes]
+- action=create; target=features/ui/users/.../ui/{UserViewConfig,UserViewInteractor,UserViewModel,UserEditViewConfig,UserEditViewInteractor,UserEditViewModel}.kt + {js,jvm,android}/ui/{UserView,UserEditView}.kt + {jvm,android}/ui/RemoteImage.kt + utils/PickImageFile.kt(+3 actuals; Android `AvatarImagePicker`)
+- action=update; target=features/ui/users/.../UsersListStrings.kt; add=[myProfileButton, profileTitle, editProfileTitle, backButton, editButton, saveButton, userIdLabel, usernameLabel, newPasswordLabel, confirmPasswordLabel, passwordMismatch, noEditableFields, avatarLabel, uploadPhotoButton, uploadingPhoto, confirmDiscard*, confirmButton]
+- action=update; target=features/ui/users/.../{Plugin,JSPlugin,JVMPlugin,AndroidPlugin}.kt; add=[2 polymorphic serializers + 2 VM factories + expanded UsersModel impl; node factories for UserView/UserEditView]
+- action=update; target=features/ui/users/.../UsersListViewModel.kt + 3 UsersListView; change=[REMOVED per-row root delete (moved to edit page); ADDED currentUserIdState + onMyProfile + header "My profile" button]
+- action=update; target=features/ui/users/build.gradle; add=[files.client dep]
+- action=update; target=features/ui/wishlist/.../ui/{WishlistsListViewInteractor,WishlistsListViewModel}.kt + 3 WishlistsListView + WishlistStrings.kt; add=[`onShowUser`; `profileUserIdState` = targetUserId ?: getCurrentUserId(); `onShowProfile`; "Profile" button; `profileButton` string]
+- action=update; target=client/src/commonMain/kotlin/ClientPlugin.kt; add=[UsersListViewInteractor.onOpenProfile; UserViewInteractor + UserEditViewInteractor singles; WishlistsListViewInteractor.onShowUser — all push UserViewConfig/UserEditViewConfig]
+- action=update; target=client/android/.../MainActivity.kt; add=[AvatarImagePicker.register(this)]
+
+**Verification:** check=compile; JVM+JS (`:wishlist.client` + files/admin server) PASS; Android (`compileDebugKotlinAndroid` ui.users, ui.wishlist, files.client, admin.client) PASS. Fixed one missing `import kotlinx.coroutines.flow.stateIn` in UserEditViewModel.
+
+**Notes:**
+- One `UsersModel` for all three users screens (one-model-per-UI-feature convention).
+- Public `getUser(id)` resolves via `getAll().find` (no new public endpoint). Root edits route through root-enforced admin endpoints; avatar PUT enforces owner-or-root server-side.
+- `UserViewModel` auto-`onBack`s when the user is gone after reload (mirrors `WishlistViewModel`), so deleting from the edit page unwinds the profile view cleanly.
+- ui/users picker is feature-local (no cross-UI-feature dep on wishlist); Android registers a second `GetContent` launcher (`AvatarImagePicker`) in `MainActivity`.
+
+---
+
 ### 2026-06-01 — Session 20: Image Support for Wishlist Items
 
 **Prompt:** Add image support to wishlist items: new `features/files` full-stack feature; `imageIds: List<FileId>` on items with `wishlist_item_images` child table; UI flow (pick/upload/preview); wiring all modules.

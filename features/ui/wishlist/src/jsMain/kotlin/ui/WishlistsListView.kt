@@ -35,6 +35,7 @@ class WishlistsListView(
         super.onDraw()
         val wishlists by viewModel.wishlistsState.collectAsState()
         val loading by viewModel.loadingState.collectAsState()
+        val profileUserId by viewModel.profileUserIdState.collectAsState()
         val stack by chain.stackFlow.collectAsState()
 
         Div({ classes("container", "py-3") }) {
@@ -49,6 +50,14 @@ class WishlistsListView(
                     )
                 }
                 Div({ classes("d-flex", "gap-2") }) {
+                    if (profileUserId != null) {
+                        Button({
+                            classes("btn", "btn-outline-secondary")
+                            onClick { viewModel.onShowProfile() }
+                        }) {
+                            Text(WishlistStrings.profileButton.translation())
+                        }
+                    }
                     if (viewModel.targetUserId != null) {
                         Button({
                             classes("btn", "btn-outline-secondary")

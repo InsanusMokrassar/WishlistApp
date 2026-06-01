@@ -45,6 +45,15 @@ class WishlistsListViewModel(
      */
     val targetUserId: UserId? = node.config.userId
 
+    private val _profileUserIdState = MutableRedeliverStateFlow<UserId?>(node.config.userId)
+
+    /**
+     * User whose profile the "Profile" button opens: the displayed owner when browsing a concrete
+     * user, otherwise the authenticated caller (own wishlists). `null` hides the button (anonymous
+     * viewing own list).
+     */
+    val profileUserIdState = _profileUserIdState.asStateFlow()
+
     init {
         merge(flowOf(Unit), node.onResumeFlow).subscribeLoggingDropExceptions(scope) {
             loadWishlists()
@@ -61,9 +70,19 @@ class WishlistsListViewModel(
             } else {
                 model.getUserWishlists(targetUserId)
             }
+            _profileUserIdState.value = targetUserId ?: model.getCurrentUserId()
         } finally {
             _loadingState.value = false
         }
+    }
+
+    /**
+     * Opens the profile of the user whose wishlists are displayed (the browsed owner, or the
+     * caller for the own list). No-op when no user could be resolved (anonymous own list).
+     */
+    fun onShowProfile() {
+        val userId = _profileUserIdState.value ?: return
+        scope.launchLoggingDropExceptions { interactor.onShowUser(node, userId) }
     }
 
     /**

@@ -59,4 +59,94 @@ object UsersListStrings {
     val confirmDeleteButton = buildStringResource("Delete permanently") {
         IetfLang.Russian("Удалить навсегда")
     }
+
+    /** Header button that opens the authenticated caller's own profile. */
+    val myProfileButton = buildStringResource("My profile") {
+        IetfLang.Russian("Мой профиль")
+    }
+
+    /** Title of the user profile detail screen. */
+    val profileTitle = buildStringResource("Profile") {
+        IetfLang.Russian("Профиль")
+    }
+
+    /** Title of the user profile edit screen. */
+    val editProfileTitle = buildStringResource("Edit profile") {
+        IetfLang.Russian("Изменить профиль")
+    }
+
+    /** Back navigation label. */
+    val backButton = buildStringResource("Back") {
+        IetfLang.Russian("Назад")
+    }
+
+    /** Edit action label on the profile detail screen (owner / root). */
+    val editButton = buildStringResource("Edit") {
+        IetfLang.Russian("Изменить")
+    }
+
+    /** Save action label on the edit screen. */
+    val saveButton = buildStringResource("Save") {
+        IetfLang.Russian("Сохранить")
+    }
+
+    /** Read-only user id field label. */
+    val userIdLabel = buildStringResource("User ID") {
+        IetfLang.Russian("ID пользователя")
+    }
+
+    /** Username field label. */
+    val usernameLabel = buildStringResource("Username") {
+        IetfLang.Russian("Имя пользователя")
+    }
+
+    /** New-password field label (root only; blank keeps the current password). */
+    val newPasswordLabel = buildStringResource("New password") {
+        IetfLang.Russian("Новый пароль")
+    }
+
+    /** Password confirmation field label (root only). */
+    val confirmPasswordLabel = buildStringResource("Confirm password") {
+        IetfLang.Russian("Подтвердите пароль")
+    }
+
+    /** Inline error shown when the password and confirmation differ. */
+    val passwordMismatch = buildStringResource("Passwords do not match") {
+        IetfLang.Russian("Пароли не совпадают")
+    }
+
+    /** Note shown to a non-root owner who has no editable fields. */
+    val noEditableFields = buildStringResource("No editable fields available.") {
+        IetfLang.Russian("Нет полей, доступных для редактирования.")
+    }
+
+    /** Avatar section label. */
+    val avatarLabel = buildStringResource("Photo") {
+        IetfLang.Russian("Фото")
+    }
+
+    /** Button that opens the image picker to upload an avatar. */
+    val uploadPhotoButton = buildStringResource("Upload photo") {
+        IetfLang.Russian("Загрузить фото")
+    }
+
+    /** Avatar upload in-progress label. */
+    val uploadingPhoto = buildStringResource("Uploading…") {
+        IetfLang.Russian("Загрузка…")
+    }
+
+    /** Title of the discard-changes confirmation dialog. */
+    val confirmDiscardTitle = buildStringResource("Discard changes?") {
+        IetfLang.Russian("Отменить изменения?")
+    }
+
+    /** Body of the discard-changes confirmation dialog. */
+    val confirmDiscardMessage = buildStringResource("Unsaved changes will be lost.") {
+        IetfLang.Russian("Несохранённые изменения будут потеряны.")
+    }
+
+    /** Generic confirm action (discard dialog). */
+    val confirmButton = buildStringResource("Confirm") {
+        IetfLang.Russian("Подтвердить")
+    }
 }

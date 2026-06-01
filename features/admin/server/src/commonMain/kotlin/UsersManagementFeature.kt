@@ -3,6 +3,7 @@ package dev.inmo.wishlist.features.admin.server
 import dev.inmo.micro_utils.repos.create
 import dev.inmo.micro_utils.repos.deleteById
 import dev.inmo.wishlist.features.admin.common.models.NewUserWithPassword
+import dev.inmo.wishlist.features.auth.common.models.Password
 import dev.inmo.wishlist.features.auth.server.services.AuthFeatureService
 import dev.inmo.wishlist.features.users.common.models.NewUser
 import dev.inmo.wishlist.features.users.common.models.RegisteredUser
@@ -42,6 +43,19 @@ class UsersManagementFeature(
     suspend fun update(id: UserId, newUser: NewUser): Boolean? {
         if (!usersRepo.contains(id)) return null
         return usersRepo.update(id, newUser) != null
+    }
+
+    /**
+     * Replaces the password of user [id] using existing [AuthFeatureService.setPassword].
+     *
+     * @param id User whose password to change.
+     * @param password New plaintext password; hashed server-side by the auth service.
+     * @return `true` when the user existed and the password was set; `null` when no such user.
+     */
+    suspend fun setPassword(id: UserId, password: Password): Boolean? {
+        if (!usersRepo.contains(id)) return null
+        authService.setPassword(id, password)
+        return true
     }
 
     /**

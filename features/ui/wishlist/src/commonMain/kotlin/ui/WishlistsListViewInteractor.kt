@@ -41,4 +41,12 @@ interface WishlistsListViewInteractor {
      * @param userId Owner whose wishlists should be shown as a grid.
      */
     suspend fun onShowUserWishlists(node: NavigationNode<WishlistsListViewConfig, ViewConfig>, userId: UserId)
+
+    /**
+     * Called when the user opens the profile of the user whose wishlists are displayed.
+     *
+     * @param node Current navigation node.
+     * @param userId Owner whose profile should be shown.
+     */
+    suspend fun onShowUser(node: NavigationNode<WishlistsListViewConfig, ViewConfig>, userId: UserId)
 }

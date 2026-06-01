@@ -40,6 +40,7 @@ All routes are under `/admin` prefix and require bearer authentication. Caller m
 | GET | `/admin/users/getAll` | — | `List<RegisteredUser>` | Get all registered users |
 | POST | `/admin/users/create` | `NewUserWithPassword` | `RegisteredUser` | Create user with plaintext password |
 | PUT | `/admin/users/update/{id}` | `NewUser` | `200 OK` / `404` | Update user info by id |
+| PUT | `/admin/users/setPassword/{id}` | `Password` | `200 OK` / `404` | Replace a user's password; delegates to existing `AuthFeatureService.setPassword` |
 | DELETE | `/admin/users/delete/{id}` | — | `200 OK` / `404` | Delete user by id; cascades all related data (wishlists, items, password, sessions) |
 
 ### Wishlists Management (`/admin/wishlists/...`)
@@ -100,7 +101,7 @@ Must come after `wishlist.server.JVMPlugin`.
 
 ### Client side
 
-- `UsersManagementFeature` — interface: `getAll`, `create`, `update`, `delete`.
+- `UsersManagementFeature` — interface: `getAll`, `getById`, `create`, `update`, `setPassword`, `delete`. `setPassword(id, Password)` delegates server-side to the existing `AuthFeatureService.setPassword` (no new functionality), used by the public profile-edit screen when `root` changes another user's password.
 - `AdminWishlistsFeature` — interface: `getByUserId`, `getById`, `create`, `update`, `delete`.  
   Create takes `NewWishlist` (explicit `userId`) unlike the regular `WishlistsFeature.create`.
 - `AdminFeature` — interface: `val usersManagement: UsersManagementFeature`, `val wishlists: AdminWishlistsFeature`.

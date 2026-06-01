@@ -5,6 +5,7 @@ import androidx.activity.compose.setContent
 import androidx.appcompat.app.AppCompatActivity
 import dev.inmo.micro_utils.startup.launcher.Config
 import dev.inmo.micro_utils.startup.launcher.StartLauncherPlugin
+import dev.inmo.wishlist.features.ui.users.utils.AvatarImagePicker
 import dev.inmo.wishlist.features.ui.wishlist.utils.AndroidImagePicker
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -18,6 +19,7 @@ class MainActivity : AppCompatActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         AndroidImagePicker.register(this)
+        AvatarImagePicker.register(this)
         scope.launch {
             StartLauncherPlugin.start(
                 Config(

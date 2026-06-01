@@ -8,6 +8,7 @@ import dev.inmo.wishlist.features.files.common.models.FinalizeFileRequest
 import dev.inmo.wishlist.features.files.common.models.RegisteredFileMetaInfo
 import dev.inmo.wishlist.features.files.common.repo.FilesMetaInfoRepo
 import dev.inmo.wishlist.features.files.common.repo.FilesRepo
+import dev.inmo.wishlist.features.files.common.repo.UserAvatarsRepo
 import dev.inmo.wishlist.features.users.common.models.UserId
 
 /**
@@ -23,11 +24,13 @@ import dev.inmo.wishlist.features.users.common.models.UserId
  * @param temporalFiles Shared temporal-upload configurator holding pending temp files by id.
  * @param filesRepo Binary store for permanent payloads.
  * @param metaInfoRepo Metadata store keyed by [FileId].
+ * @param userAvatarsRepo Association store mapping a user to that user's avatar [FileId].
  */
 class FilesService(
     private val temporalFiles: TemporalFilesRoutingConfigurator,
     private val filesRepo: FilesRepo,
-    private val metaInfoRepo: FilesMetaInfoRepo
+    private val metaInfoRepo: FilesMetaInfoRepo,
+    private val userAvatarsRepo: UserAvatarsRepo
 ) {
     /**
      * Moves the temp file referenced by [request] into permanent storage and records its metadata.
@@ -54,10 +57,33 @@ class FilesService(
             fileName = request.fileName,
             mimeType = request.mimeType,
             size = bytes.size.toLong(),
-            ownerId = callerId
+            uploaderId = callerId
         )
         metaInfoRepo.set(fileId, meta)
         return meta
+    }
+
+    /**
+     * Returns the avatar [FileId] currently associated with [userId], or `null` when the user has
+     * no avatar set.
+     *
+     * @param userId Identity whose avatar is requested.
+     */
+    suspend fun getAvatar(userId: UserId): FileId? = userAvatarsRepo.get(userId)
+
+    /**
+     * Associates the already-finalized file [fileId] as the avatar of [userId], overwriting any
+     * previous association. Authorization (caller must be the user or root) is enforced by the route.
+     *
+     * @param userId Identity whose avatar is being set.
+     * @param fileId Finalized file to use as the avatar.
+     * @return `true` when [fileId] references an existing finalized file and the association was
+     * stored; `false` when no such file exists.
+     */
+    suspend fun setAvatar(userId: UserId, fileId: FileId): Boolean {
+        if (metaInfoRepo.get(fileId) == null) return false
+        userAvatarsRepo.set(userId, fileId)
+        return true
     }
 
     /**

@@ -25,7 +25,7 @@ sealed interface FileMetaInfo {
     val size: Long
 
     /** Identity of the user that uploaded the file. */
-    val ownerId: UserId
+    val uploaderId: UserId
 }
 
 /**
@@ -34,14 +34,14 @@ sealed interface FileMetaInfo {
  * @property fileName Original file name supplied by the client.
  * @property mimeType MIME type of the payload.
  * @property size Size of the payload in bytes.
- * @property ownerId Uploading user.
+ * @property uploaderId Uploading user.
  */
 @Serializable
 data class NewFileMetaInfo(
     override val fileName: FileName,
     override val mimeType: String,
     override val size: Long,
-    override val ownerId: UserId
+    override val uploaderId: UserId
 ) : FileMetaInfo
 
 /**
@@ -51,7 +51,7 @@ data class NewFileMetaInfo(
  * @property fileName Original file name supplied by the client.
  * @property mimeType MIME type of the payload.
  * @property size Size of the payload in bytes.
- * @property ownerId Uploading user.
+ * @property uploaderId Uploading user.
  */
 @Serializable
 data class RegisteredFileMetaInfo(
@@ -59,5 +59,5 @@ data class RegisteredFileMetaInfo(
     override val fileName: FileName,
     override val mimeType: String,
     override val size: Long,
-    override val ownerId: UserId
+    override val uploaderId: UserId
 ) : FileMetaInfo

@@ -8,6 +8,7 @@ import dev.inmo.wishlist.features.files.common.Constants
 import dev.inmo.wishlist.features.files.common.models.FileId
 import dev.inmo.wishlist.features.files.common.models.FinalizeFileRequest
 import dev.inmo.wishlist.features.files.common.models.RegisteredFileMetaInfo
+import dev.inmo.wishlist.features.users.common.models.UserId
 import io.ktor.client.HttpClient
 import io.ktor.client.call.body
 import io.ktor.client.request.get
@@ -62,5 +63,25 @@ class FilesClientService(
     suspend fun downloadBytes(id: FileId): ByteArray? {
         val response = client.get(fileUrl(id))
         return if (response.status.isSuccess()) response.body() else null
+    }
+
+    /**
+     * Returns the avatar [FileId] currently set for [userId], or `null` when none / on failure.
+     *
+     * @param userId Identity whose avatar to resolve.
+     */
+    suspend fun getAvatar(userId: UserId): FileId? = feature.getAvatar(userId)
+
+    /**
+     * Uploads [file] and sets it as the avatar of [userId] in a single step (temporal upload →
+     * finalize → associate). Authorized server-side for the user themselves or `root`.
+     *
+     * @param userId Identity whose avatar to set.
+     * @param file Image chosen by the user on the current platform.
+     * @return The stored avatar [FileId], or `null` when the upload, finalize or association failed.
+     */
+    suspend fun uploadAvatar(userId: UserId, file: MPPFile): FileId? {
+        val fileId = uploadFile(file)?.id ?: return null
+        return if (feature.setAvatar(userId, fileId)) fileId else null
     }
 }

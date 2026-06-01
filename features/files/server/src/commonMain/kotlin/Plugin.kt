@@ -30,9 +30,9 @@ object Plugin : StartPlugin {
             get<TemporalFilesRoutingConfigurator>()
         }
 
-        single { FilesService(get(), get(), get()) }
+        single { FilesService(get(), get(), get(), get()) }
         singleWithRandomQualifier<ApplicationRoutingConfigurator.Element> {
-            FilesRoutingsConfigurator(get())
+            FilesRoutingsConfigurator(get(), get())
         }
     }
 

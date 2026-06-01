@@ -32,32 +32,18 @@ class UsersListView(
         super.onDraw()
         val users by viewModel.usersState.collectAsState()
         val loading by viewModel.loadingState.collectAsState()
-        val isRoot by viewModel.isRootState.collectAsState()
-        val deleteTarget by viewModel.deleteTargetState.collectAsState()
-        val deleteStep by viewModel.deleteStepState.collectAsState()
-
-        deleteTarget?.let { target ->
-            if (deleteStep == 1) {
-                ConfirmModal(
-                    title = UsersListStrings.confirmDeleteUserTitle.translation(),
-                    message = "${UsersListStrings.confirmDeleteUserMessageFirst.translation()} ${target.username.string}",
-                    confirmLabel = UsersListStrings.continueButton.translation(),
-                    onConfirm = { viewModel.onConfirmDeleteFirst() },
-                    onCancel = { viewModel.onCancelDelete() }
-                )
-            } else if (deleteStep == 2) {
-                ConfirmModal(
-                    title = UsersListStrings.confirmDeleteUserFinalTitle.translation(),
-                    message = "${UsersListStrings.confirmDeleteUserMessageSecond.translation()} ${target.username.string}",
-                    confirmLabel = UsersListStrings.confirmDeleteButton.translation(),
-                    onConfirm = { viewModel.onConfirmDeleteSecond() },
-                    onCancel = { viewModel.onCancelDelete() }
-                )
-            }
-        }
+        val currentUserId by viewModel.currentUserIdState.collectAsState()
 
         Div({ classes("container", "py-3") }) {
-            ScreenTitle(UsersListStrings.title.translation(), bottomMarginClass = "mb-3")
+            Div({ classes("d-flex", "justify-content-between", "align-items-center", "mb-3") }) {
+                ScreenTitle(UsersListStrings.title.translation())
+                if (currentUserId != null) {
+                    Button({
+                        classes("btn", "btn-outline-primary")
+                        onClick { viewModel.onMyProfile() }
+                    }) { Text(UsersListStrings.myProfileButton.translation()) }
+                }
+            }
             if (loading) {
                 P { Text(UsersListStrings.loading.translation()) }
             } else if (users.isEmpty()) {
@@ -67,49 +53,8 @@ class UsersListView(
                     users.forEach { user ->
                         ListRow(
                             text = user.username.string,
-                            onSelect = { viewModel.onUserSelected(user.id) },
-                            trailing = if (isRoot) {
-                                {
-                                    Button({
-                                        classes("btn", "btn-sm", "btn-danger")
-                                        onClick { viewModel.onDeleteUserRequest(user) }
-                                    }) { Text(UsersListStrings.deleteButton.translation()) }
-                                }
-                            } else null
+                            onSelect = { viewModel.onUserSelected(user.id) }
                         )
-                    }
-                }
-            }
-        }
-    }
-
-    @Composable
-    private fun ConfirmModal(
-        title: String,
-        message: String,
-        confirmLabel: String,
-        onConfirm: () -> Unit,
-        onCancel: () -> Unit,
-    ) {
-        Div({ classes("modal-backdrop", "fade", "show") })
-        Div({ classes("modal", "d-block"); attr("tabindex", "-1") }) {
-            Div({ classes("modal-dialog") }) {
-                Div({ classes("modal-content") }) {
-                    Div({ classes("modal-header") }) {
-                        Div({ classes("modal-title", "h5") }) { Text(title) }
-                    }
-                    Div({ classes("modal-body") }) {
-                        P { Text(message) }
-                    }
-                    Div({ classes("modal-footer") }) {
-                        Button({
-                            classes("btn", "btn-secondary")
-                            onClick { onCancel() }
-                        }) { Text(UsersListStrings.cancelButton.translation()) }
-                        Button({
-                            classes("btn", "btn-danger")
-                            onClick { onConfirm() }
-                        }) { Text(confirmLabel) }
                     }
                 }
             }
