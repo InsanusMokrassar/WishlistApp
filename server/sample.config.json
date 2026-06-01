@@ -16,8 +16,10 @@
     "dev.inmo.wishlist.features.users.server.JVMPlugin",
     "dev.inmo.wishlist.features.auth.server.JVMPlugin",
     "dev.inmo.wishlist.features.wishlist.server.JVMPlugin",
+    "dev.inmo.wishlist.features.files.server.JVMPlugin",
     "dev.inmo.wishlist.features.admin.server.JVMPlugin"
   ],
+  "filesFolder": "./uploaded_files",
   "useCache": true,
   "tokenTtl": "PT15M",
   "refreshTokenTtl": "P7D",

@@ -5,7 +5,9 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.AlertDialog
@@ -19,6 +21,7 @@ import androidx.compose.material.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
@@ -32,7 +35,9 @@ import dev.inmo.wishlist.features.common.client.ui.components.ScreenTitle
 import dev.inmo.wishlist.features.ui.wishlist.WishlistStrings
 import dev.inmo.wishlist.features.ui.wishlist.ui.WishlistItemEditViewConfig
 import dev.inmo.wishlist.features.ui.wishlist.ui.WishlistItemEditViewModel
+import dev.inmo.wishlist.features.ui.wishlist.utils.pickImageFile
 import dev.inmo.wishlist.features.wishlist.common.models.Priority
+import kotlinx.coroutines.launch
 import org.koin.core.component.inject
 import org.koin.core.parameter.parametersOf
 
@@ -55,9 +60,12 @@ class WishlistItemEditView(
         val priority by viewModel.priorityState.collectAsState()
         val links by viewModel.linksState.collectAsState()
         val newLink by viewModel.newLinkState.collectAsState()
+        val imageIds by viewModel.imageIdsState.collectAsState()
+        val uploadingImage by viewModel.uploadingImageState.collectAsState()
         val loading by viewModel.loadingState.collectAsState()
         val showDialog by viewModel.showConfirmDialogState.collectAsState()
         val showDeleteDialog by viewModel.showDeleteDialogState.collectAsState()
+        val scope = rememberCoroutineScope()
 
         if (showDeleteDialog) {
             AlertDialog(
@@ -202,6 +210,38 @@ class WishlistItemEditView(
                     Text(WishlistStrings.addLinkButton.translation())
                 }
             }
+            Text(WishlistStrings.imagesLabel.translation(), style = MaterialTheme.typography.subtitle2)
+            if (imageIds.isNotEmpty()) {
+                Row(
+                    modifier = Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    imageIds.forEachIndexed { index, id ->
+                        Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                            RemoteImage(
+                                key = id.string,
+                                loader = { viewModel.loadImageBytes(id) },
+                                contentDescription = null,
+                                modifier = Modifier.size(96.dp)
+                            )
+                            TextButton(onClick = { viewModel.onRemoveImage(index) }, enabled = !loading) {
+                                Text(WishlistStrings.removeImageButton.translation())
+                            }
+                        }
+                    }
+                }
+            }
+            Button(
+                onClick = { scope.launch { pickImageFile()?.let { viewModel.onAddImage(it) } } },
+                enabled = !loading && !uploadingImage,
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Text(
+                    if (uploadingImage) WishlistStrings.uploadingImage.translation()
+                    else WishlistStrings.addImageButton.translation()
+                )
+            }
+
             Button(
                 onClick = { viewModel.onSave() },
                 enabled = !loading && title.isNotBlank(),

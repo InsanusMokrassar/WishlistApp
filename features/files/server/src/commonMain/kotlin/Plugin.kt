@@ -1,0 +1,42 @@
+package dev.inmo.wishlist.features.files.server
+
+import dev.inmo.micro_utils.koin.singleWithRandomQualifier
+import dev.inmo.micro_utils.ktor.server.TemporalFilesRoutingConfigurator
+import dev.inmo.micro_utils.ktor.server.configurators.ApplicationRoutingConfigurator
+import dev.inmo.micro_utils.startup.plugin.StartPlugin
+import dev.inmo.wishlist.features.files.server.configurators.FilesRoutingsConfigurator
+import dev.inmo.wishlist.features.files.server.services.FilesService
+import kotlinx.serialization.json.JsonObject
+import org.koin.core.Koin
+import org.koin.core.module.Module
+
+/**
+ * Platform-agnostic startup plugin for the files server module.
+ *
+ * Registers in Koin:
+ * - the shared MicroUtils [TemporalFilesRoutingConfigurator] as both a singleton (so [FilesService]
+ *   can consume pending temp files) and an [ApplicationRoutingConfigurator.Element] (so it installs
+ *   the single `POST /temp_upload` endpoint reusable by any feature)
+ * - [FilesService] — promotes temporal uploads into permanent storage
+ * - [FilesRoutingsConfigurator] as [ApplicationRoutingConfigurator.Element] — `/files` routes
+ *
+ * The binary [dev.inmo.wishlist.features.files.common.repo.FilesRepo] and
+ * [dev.inmo.wishlist.features.files.common.repo.FilesMetaInfoRepo] bindings are added by [JVMPlugin].
+ */
+object Plugin : StartPlugin {
+    override fun Module.setupDI(config: JsonObject) {
+        single { TemporalFilesRoutingConfigurator() }
+        singleWithRandomQualifier<ApplicationRoutingConfigurator.Element> {
+            get<TemporalFilesRoutingConfigurator>()
+        }
+
+        single { FilesService(get(), get(), get()) }
+        singleWithRandomQualifier<ApplicationRoutingConfigurator.Element> {
+            FilesRoutingsConfigurator(get())
+        }
+    }
+
+    override suspend fun startPlugin(koin: Koin) {
+        super.startPlugin(koin)
+    }
+}

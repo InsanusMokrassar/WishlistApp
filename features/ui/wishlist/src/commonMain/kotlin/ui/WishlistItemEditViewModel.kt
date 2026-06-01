@@ -6,8 +6,10 @@ import dev.inmo.micro_utils.coroutines.subscribeLoggingDropExceptions
 import dev.inmo.navigation.core.NavigationNode
 import dev.inmo.navigation.core.onResumeFlow
 import dev.inmo.navigation.mvvm.ViewModel
+import dev.inmo.micro_utils.common.MPPFile
 import dev.inmo.wishlist.features.common.client.models.ViewConfig
 import dev.inmo.wishlist.features.common.common.models.Amount
+import dev.inmo.wishlist.features.files.common.models.FileId
 import dev.inmo.wishlist.features.wishlist.common.models.NewWishlistItem
 import dev.inmo.wishlist.features.wishlist.common.models.Priority
 import kotlinx.coroutines.flow.asStateFlow
@@ -74,6 +76,16 @@ class WishlistItemEditViewModel(
     /** Text currently typed in the "add link" input field. */
     val newLinkState = _newLinkState.asStateFlow()
 
+    private val _imageIdsState = MutableRedeliverStateFlow<List<FileId>>(emptyList())
+
+    /** Ids of images attached to the item, in display order. */
+    val imageIdsState = _imageIdsState.asStateFlow()
+
+    private val _uploadingImageState = MutableRedeliverStateFlow(false)
+
+    /** `true` while an image upload is in flight. */
+    val uploadingImageState = _uploadingImageState.asStateFlow()
+
     private val _isDirtyState = MutableRedeliverStateFlow(false)
 
     /** `true` when any field has been modified since the screen was opened. */
@@ -111,6 +123,7 @@ class WishlistItemEditViewModel(
                         _priceUnitsState.value = item.priceUnits
                         _linksState.value = item.links
                         _priorityState.value = item.priority
+                        _imageIdsState.value = item.imageIds
                     }
                 } finally {
                     _loadingState.value = false
@@ -172,6 +185,53 @@ class WishlistItemEditViewModel(
         _linksState.value = _linksState.value.toMutableList().also { it.removeAt(index) }
         _isDirtyState.value = true
     }
+
+    /**
+     * Uploads [file] as an image and appends the resulting [FileId] to [imageIdsState] on success.
+     * Toggles [uploadingImageState] for the duration; failures are logged and ignored.
+     *
+     * @param file Image file chosen by the user.
+     */
+    fun onAddImage(file: MPPFile) {
+        scope.launchLoggingDropExceptions {
+            _uploadingImageState.value = true
+            try {
+                val id = model.uploadImage(file)
+                if (id != null) {
+                    _imageIdsState.value = _imageIdsState.value + id
+                    _isDirtyState.value = true
+                }
+            } finally {
+                _uploadingImageState.value = false
+            }
+        }
+    }
+
+    /**
+     * Removes the image at [index] from the attached images list.
+     *
+     * @param index Zero-based index of the image to remove.
+     */
+    fun onRemoveImage(index: Int) {
+        _imageIdsState.value = _imageIdsState.value.toMutableList().also { it.removeAt(index) }
+        _isDirtyState.value = true
+    }
+
+    /**
+     * Builds the download URL for an attached image so the view can render it.
+     *
+     * @param id Image identifier.
+     * @return Relative download URL.
+     */
+    fun imageUrl(id: FileId): String = model.imageUrl(id)
+
+    /**
+     * Downloads the raw bytes of an attached image (for platforms that decode images locally).
+     *
+     * @param id Image identifier.
+     * @return Payload bytes, or `null` on failure.
+     */
+    suspend fun loadImageBytes(id: FileId): ByteArray? = model.loadImageBytes(id)
 
     /**
      * Attempts to navigate back. Shows confirm dialog when [isDirtyState] is `true`,
@@ -246,7 +306,8 @@ class WishlistItemEditViewModel(
                     priceUnits = _priceUnitsState.value.trim(),
                     approximatePrice = price,
                     links = _linksState.value,
-                    priority = _priorityState.value
+                    priority = _priorityState.value,
+                    imageIds = _imageIdsState.value
                 )
                 val itemId = node.config.wishlistItemId
                 if (itemId == null) {

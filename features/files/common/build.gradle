@@ -1,0 +1,22 @@
+plugins {
+    id "org.jetbrains.kotlin.multiplatform"
+    id "org.jetbrains.kotlin.plugin.serialization"
+    id "com.android.library"
+}
+
+apply from: "$mppJvmJsAndroid"
+
+kotlin {
+    sourceSets {
+        commonMain {
+            dependencies {
+                api project(":wishlist.features.common.common")
+                api project(":wishlist.features.users.common")
+                api libs.microutils.common
+                api libs.microutils.mimetypes
+                api libs.microutils.ktor.common
+                api libs.microutils.repos.common
+            }
+        }
+    }
+}

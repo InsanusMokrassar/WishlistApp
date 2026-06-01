@@ -22,6 +22,7 @@ kotlin {
                 api project(":wishlist.features.users.client")
                 api project(":wishlist.features.auth.client")
                 api project(":wishlist.features.wishlist.client")
+                api project(":wishlist.features.files.client")
                 api project(":wishlist.features.admin.client")
                 api project(":wishlist.features.ui.sample")
                 api project(":wishlist.features.ui.auth")

@@ -25,7 +25,7 @@ JS views use Bootstrap CSS classes via Compose HTML. JVM uses Material v2, Andro
 
 | Type | Description |
 |------|-------------|
-| `WishlistsModel` | Single interface consumed by all ViewModels; wraps `WishlistsFeature`, `WishlistsItemsFeature`, `ClientAuthFeature`; method: `suspend fun getUserWishlists(userId: UserId): List<RegisteredWishlist>` — fetches any user's wishlists (public read) |
+| `WishlistsModel` | Single interface consumed by all ViewModels; wraps `WishlistsFeature`, `WishlistsItemsFeature`, `ClientAuthFeature`, `FilesClientService`; methods: `suspend fun getUserWishlists(userId: UserId): List<RegisteredWishlist>` (fetches any user's wishlists, public read), `suspend fun uploadImage(file: MPPFile): FileId?` (uploads and returns file id, null on failure), `fun imageUrl(id: FileId): String` (constructs image URL), `suspend fun loadImageBytes(id: FileId): ByteArray?` (downloads raw bytes for platform-specific rendering) |
 | `UserWishlistsViewConfig` | `data class(userId: UserId)` — config for the grid-view screen; specifies which user's wishlists to display |
 | `UserWishlistsViewModel` | ViewModel for grid-view screen; exposes `wishlistsState: StateFlow<List<RegisteredWishlist>>`, `onWishlistSelected(wishlist)`, `onBack()` |
 | `UserWishlistsViewInteractor` | Interactor interface with `suspend fun onWishlistSelected(node, wishlist)` (impl: push WishlistViewConfig) and `suspend fun onBack(node)` (impl: pop) |
@@ -43,6 +43,12 @@ JS views use Bootstrap CSS classes via Compose HTML. JVM uses Material v2, Andro
   - `WishlistItemEditViewModel` exposes `priorityState: StateFlow<Priority>`, `onPrioritySelected(Priority)`, `onCustomWeightChanged(String)`. Edit view renders a 4-option selector (Low/Medium/High/Custom) plus a custom weight text field shown only when Custom is selected.
   - `WishlistStrings` includes: `priorityLabel`, `prioritySmall`, `priorityMedium`, `priorityHigh`, `priorityCustom`, `priorityCustomWeightLabel`.
   - `Priority.labelResource()` helper returns the localized string key for display.
+- **Image support:**
+  - `WishlistItemEditViewModel` exposes `imageIdsState: StateFlow<List<FileId>>`, `uploadingImageState: StateFlow<Boolean>`, `onAddImage(file: MPPFile)`, `onRemoveImage(index)`, `imageUrl(id: FileId): String`, `loadImageBytes(id: FileId): ByteArray?`. On `onSave()`, `NewWishlistItem` is built with current `imageIds`.
+  - `WishlistItemViewModel` exposes `imageUrl(id)` and `loadImageBytes(id)` for read-only view to display item images.
+  - Image picking is platform-specific: `expect suspend fun pickImageFile(): MPPFile?` in `commonMain/utils/PickImageFile.kt`; JS uses hidden `<input type="file">` element; JVM uses Swing `JFileChooser`; Android uses `ActivityResultContracts.GetContent` through `AndroidImagePicker`, which `MainActivity` registers in `onCreate()`.
+  - Image preview: JS renders `<img src=imageUrl>` directly. JVM/Android use a `RemoteImage` composable that calls `loadImageBytes` and decodes via platform codec (Skia on desktop, BitmapFactory on Android). No third-party image-loader dependency.
+  - New `WishlistStrings` keys: `imagesLabel`, `addImageButton`, `removeImageButton`, `uploadingImage`, `noImages` (English + Russian translations).
 - **User wishlists grid view:**
   - `UserWishlistsView*` (JS/JVM/Android) renders the same user's wishlists as a card grid. JS/JVM layout uses responsive Bootstrap grid; Android uses 2 cards per row.
   - Tapping a card calls `interactor.onWishlistSelected(node, wishlist)`, which is implemented in `ClientPlugin` to push `WishlistViewConfig(wishlistId)`.

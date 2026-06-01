@@ -4,6 +4,7 @@ import dev.inmo.micro_utils.repos.exposed.AbstractExposedCRUDRepo
 import dev.inmo.micro_utils.repos.exposed.ExposedRepo
 import dev.inmo.micro_utils.repos.exposed.initTable
 import dev.inmo.wishlist.features.common.common.models.Amount
+import dev.inmo.wishlist.features.files.common.models.FileId
 import dev.inmo.wishlist.features.wishlist.common.models.NewWishlistItem
 import dev.inmo.wishlist.features.wishlist.common.models.Priority
 import dev.inmo.wishlist.features.wishlist.common.models.RegisteredWishlistItem
@@ -79,6 +80,28 @@ class ExposedWishlistItemRepo(
      */
     private val linksTable = WishlistItemsLinks(database)
 
+    private inner class WishlistItemImages(override val database: Database) : Table("wishlist_item_images"), ExposedRepo {
+        val itemId = long("item_id").references(idColumn, onDelete = ReferenceOption.CASCADE)
+        val fileId = text("file_id")
+        val order = integer("order")
+        override val primaryKey = PrimaryKey(itemId, fileId)
+
+        init {
+            this@WishlistItemImages.initTable()
+        }
+    }
+    /**
+     * Internal table holding one row per attached image per wishlist item.
+     * Never accessed outside [ExposedWishlistItemRepo]. Cascade-deletes when the parent item is removed.
+     *
+     * Schema (`wishlist_item_images`):
+     * - `item_id` — BIGINT FK → `wishlist_items.id` ON DELETE CASCADE
+     * - `file_id` — TEXT → [FileId] of an image stored in the files feature
+     * - `order` — INT, preserves display order of the images
+     * - PK: (item_id, file_id)
+     */
+    private val imagesTable = WishlistItemImages(database)
+
     /** Returns an [Amount] from the current row, or `null` if either price column is absent. */
     private fun ResultRow.amountOrNull(): Amount? {
         val intPart = get(approxPriceIntColumn) ?: return null
@@ -95,6 +118,18 @@ class ExposedWishlistItemRepo(
     private fun linksFor(itemId: Long): List<String> =
         linksTable.selectAll().where { linksTable.itemId eq itemId }.map { it[linksTable.link] }
 
+    /**
+     * Fetches all image [FileId]s for [itemId] from [imagesTable], ordered by the stored order
+     * column. Must be called within an active transaction.
+     *
+     * @param itemId Raw Long id of the parent item.
+     * @return Ordered list of image ids.
+     */
+    private fun imagesFor(itemId: Long): List<FileId> =
+        imagesTable.selectAll().where { imagesTable.itemId eq itemId }
+            .orderBy(imagesTable.order)
+            .map { FileId(it[imagesTable.fileId]) }
+
     override val ResultRow.asObject: RegisteredWishlistItem
         get() {
             val id = get(idColumn)
@@ -106,7 +141,8 @@ class ExposedWishlistItemRepo(
                 priceUnits = get(priceUnitsColumn),
                 links = linksFor(id),
                 description = get(descriptionColumn),
-                priority = Priority.fromWeight(get(priorityWeightColumn).toUInt())
+                priority = Priority.fromWeight(get(priorityWeightColumn).toUInt()),
+                imageIds = imagesFor(id)
             )
         }
 
@@ -143,6 +179,14 @@ class ExposedWishlistItemRepo(
                     stmt[linksTable.link] = link
                 }
             }
+            imagesTable.deleteWhere { imagesTable.itemId eq id.long }
+            value.imageIds.forEachIndexed { index, imageId ->
+                imagesTable.insert { stmt ->
+                    stmt[imagesTable.itemId] = id.long
+                    stmt[imagesTable.fileId] = imageId.string
+                    stmt[imagesTable.order] = index
+                }
+            }
         }
     }
 
@@ -161,6 +205,13 @@ class ExposedWishlistItemRepo(
                 stmt[linksTable.link] = link
             }
         }
+        value.imageIds.forEachIndexed { index, imageId ->
+            imagesTable.insert { stmt ->
+                stmt[imagesTable.itemId] = id
+                stmt[imagesTable.fileId] = imageId.string
+                stmt[imagesTable.order] = index
+            }
+        }
         return RegisteredWishlistItem(
             id = WishlistItemId(id),
             wishlistId = value.wishlistId,
@@ -169,7 +220,8 @@ class ExposedWishlistItemRepo(
             priceUnits = value.priceUnits,
             links = value.links,
             description = value.description,
-            priority = value.priority
+            priority = value.priority,
+            imageIds = value.imageIds
         )
     }
 

@@ -3,6 +3,7 @@ package dev.inmo.wishlist.features.ui.wishlist.ui
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.rememberCoroutineScope
 import dev.inmo.micro_utils.strings.translation
 import dev.inmo.navigation.core.NavigationChain
 import dev.inmo.navigation.mvvm.compose.ComposeView
@@ -13,13 +14,16 @@ import dev.inmo.wishlist.features.common.client.ui.components.ListRow
 import dev.inmo.wishlist.features.common.client.ui.components.ScreenTitle
 import dev.inmo.wishlist.features.ui.wishlist.ui.WishlistItemEditViewConfig
 import dev.inmo.wishlist.features.ui.wishlist.ui.WishlistItemEditViewModel
+import dev.inmo.wishlist.features.ui.wishlist.utils.pickImageFile
 import dev.inmo.wishlist.features.wishlist.common.models.Priority
+import kotlinx.coroutines.launch
 import org.jetbrains.compose.web.attributes.InputType
 import org.jetbrains.compose.web.attributes.disabled
 import org.jetbrains.compose.web.attributes.forId
 import org.jetbrains.compose.web.attributes.placeholder
 import org.jetbrains.compose.web.dom.Button
 import org.jetbrains.compose.web.dom.Div
+import org.jetbrains.compose.web.dom.Img
 import org.jetbrains.compose.web.dom.Input
 import org.jetbrains.compose.web.dom.Label
 import org.jetbrains.compose.web.dom.P
@@ -49,9 +53,12 @@ class WishlistItemEditView(
         val priority by viewModel.priorityState.collectAsState()
         val links by viewModel.linksState.collectAsState()
         val newLink by viewModel.newLinkState.collectAsState()
+        val imageIds by viewModel.imageIdsState.collectAsState()
+        val uploadingImage by viewModel.uploadingImageState.collectAsState()
         val loading by viewModel.loadingState.collectAsState()
         val showDialog by viewModel.showConfirmDialogState.collectAsState()
         val showDeleteDialog by viewModel.showDeleteDialogState.collectAsState()
+        val scope = rememberCoroutineScope()
 
         if (showDeleteDialog) {
             Div({ classes("modal-backdrop", "fade", "show") })
@@ -226,6 +233,39 @@ class WishlistItemEditView(
                     }) {
                         Text(WishlistStrings.addLinkButton.translation())
                     }
+                }
+            }
+
+            Div({ classes("mb-3") }) {
+                Label { Text(WishlistStrings.imagesLabel.translation()) }
+                if (imageIds.isNotEmpty()) {
+                    Div({ classes("d-flex", "flex-wrap", "gap-2", "mb-2") }) {
+                        imageIds.forEachIndexed { index, id ->
+                            Div({ classes("position-relative") }) {
+                                Img(src = viewModel.imageUrl(id), alt = "") {
+                                    classes("rounded", "border")
+                                    attr("width", "96")
+                                    attr("height", "96")
+                                    attr("style", "object-fit: cover;")
+                                }
+                                Button({
+                                    classes("btn", "btn-sm", "btn-danger", "position-absolute", "top-0", "end-0")
+                                    onClick { viewModel.onRemoveImage(index) }
+                                    if (loading) disabled()
+                                }) { Text("×") }
+                            }
+                        }
+                    }
+                }
+                Button({
+                    classes("btn", "btn-outline-secondary")
+                    onClick { scope.launch { pickImageFile()?.let { viewModel.onAddImage(it) } } }
+                    if (loading || uploadingImage) disabled()
+                }) {
+                    Text(
+                        if (uploadingImage) WishlistStrings.uploadingImage.translation()
+                        else WishlistStrings.addImageButton.translation()
+                    )
                 }
             }
 

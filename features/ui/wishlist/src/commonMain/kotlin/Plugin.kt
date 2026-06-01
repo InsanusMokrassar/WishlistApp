@@ -2,8 +2,11 @@ package dev.inmo.wishlist.features.ui.wishlist
 
 import dev.inmo.micro_utils.koin.singleWithRandomQualifier
 import dev.inmo.micro_utils.startup.plugin.StartPlugin
+import dev.inmo.micro_utils.common.MPPFile
 import dev.inmo.wishlist.features.auth.client.ClientAuthFeature
 import dev.inmo.wishlist.features.common.client.models.ViewConfig
+import dev.inmo.wishlist.features.files.client.FilesClientService
+import dev.inmo.wishlist.features.files.common.models.FileId
 import dev.inmo.wishlist.features.users.common.models.UserId
 import dev.inmo.wishlist.features.wishlist.client.WishlistsFeature
 import dev.inmo.wishlist.features.wishlist.client.WishlistsItemsFeature
@@ -72,6 +75,7 @@ object Plugin : StartPlugin {
             val wishlistsFeature = get<WishlistsFeature>()
             val itemsFeature = get<WishlistsItemsFeature>()
             val authFeature = get<ClientAuthFeature>()
+            val filesService = get<FilesClientService>()
             object : WishlistsModel {
                 override suspend fun getMyWishlists(): List<RegisteredWishlist> =
                     wishlistsFeature.getMyWishlists()
@@ -105,6 +109,15 @@ object Plugin : StartPlugin {
 
                 override suspend fun getCurrentUserId(): UserId? =
                     authFeature.getMe()?.id
+
+                override suspend fun uploadImage(file: MPPFile): FileId? =
+                    filesService.uploadFile(file)?.id
+
+                override fun imageUrl(id: FileId): String =
+                    filesService.fileUrl(id)
+
+                override suspend fun loadImageBytes(id: FileId): ByteArray? =
+                    filesService.downloadBytes(id)
             }
         }
     }

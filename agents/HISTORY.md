@@ -4,6 +4,52 @@
 
 ---
 
+### 2026-06-01 — Session 20: Image Support for Wishlist Items
+
+**Prompt:** Add image support to wishlist items: new `features/files` full-stack feature; `imageIds: List<FileId>` on items with `wishlist_item_images` child table; UI flow (pick/upload/preview); wiring all modules.
+
+**Actions:**
+- action=create; target=features/files/common/src/commonMain/kotlin/models/{FileId.kt, FileMetaInfo.kt}; entities=[FileId (inline value class String), FileMetaInfo(id: FileId, fileName: String, contentType: String, uploadedAt: Long)]
+- action=create; target=features/files/common/src/jvmMain/kotlin/repo/{ReadFilesMetaInfoRepo, WriteFilesMetaInfoRepo, FilesMetaInfoRepo, CacheFilesMetaInfoRepo}; note=[FilesMetaInfoRepo delegates to underlying Read/Write impls]
+- action=create; target=features/files/common/src/jvmMain/kotlin/repo/ExposedFilesMetaInfoRepo.kt; table=[files_meta: id TEXT PK, file_name TEXT, content_type TEXT, uploaded_at BIGINT]; note=[reading ordered by uploaded_at DESC]
+- action=create; target=features/files/server/src/commonMain/kotlin/{DiskFilesRepo.kt, services/FilesService.kt, configurators/FilesRoutingsConfigurator.kt}; routes=[POST /temp_upload (multipart), GET /files/{fileId} (binary download)]; note=[DiskFilesRepo uses MicroUtils TemporalFilesRoutingConfigurator at POST /temp_upload; FilesService manages metadata]
+- action=create; target=features/files/client/src/commonMain/kotlin/{KtorFilesFeature.kt, FilesClientService.kt}; methods=[uploadFile(MPPFile): FileId?, imageUrl(FileId): String, loadImageBytes(FileId): ByteArray?]
+- action=update; target=features/wishlist/common/src/commonMain/kotlin/models/WishlistItem.kt; changes=[NewWishlistItem + RegisteredWishlistItem gained imageIds: List<FileId> = emptyList()]
+- action=update; target=features/wishlist/common/src/jvmMain/kotlin/repo/ExposedWishlistItemRepo.kt; changes=[added private imagesTable anon object; on read/write manage imageIds same pattern as links]
+- action=update; target=features/ui/wishlist/src/commonMain/kotlin/WishlistsModel.kt; changes=[added uploadImage(file): FileId?, imageUrl(id): String, loadImageBytes(id): ByteArray? delegating to FilesClientService]
+- action=create; target=features/ui/wishlist/src/commonMain/kotlin/utils/PickImageFile.kt; changes=[expect suspend fun pickImageFile(): MPPFile?]
+- action=create; target=features/ui/wishlist/src/jsMain/kotlin/utils/PickImageFile.kt; actual=[hidden file <input type="file"> element via addEventListener]
+- action=create; target=features/ui/wishlist/src/jvmMain/kotlin/utils/PickImageFile.kt; actual=[Swing JFileChooser]
+- action=create; target=features/ui/wishlist/src/androidMain/kotlin/utils/PickImageFile.kt; actual=[ActivityResultContracts.GetContent via AndroidImagePicker callback]
+- action=update; target=features/ui/wishlist/src/commonMain/kotlin/ui/WishlistItemEditViewModel.kt; changes=[added imageIdsState, uploadingImageState, onAddImage(file), onRemoveImage(index), imageUrl(id), loadImageBytes(id); onSave includes imageIds]
+- action=update; target=features/ui/wishlist/src/commonMain/kotlin/ui/WishlistItemViewModel.kt; changes=[added imageUrl(id), loadImageBytes(id)]
+- action=create; target=features/ui/wishlist/src/commonMain/kotlin/ui/components/RemoteImage.kt; changes=[composable downloading+decoding image bytes; JS: <img>, JVM/Android: Skia/BitmapFactory decode]
+- action=update; target=features/ui/wishlist/src/commonMain/kotlin/WishlistStrings.kt; changes=[+imagesLabel, addImageButton, removeImageButton, uploadingImage, noImages (EN+RU)]
+- action=update; target=features/ui/wishlist/src/{jsMain,jvmMain,androidMain}/kotlin/ui/{WishlistItemEditView,WishlistItemView}.kt; changes=[image upload UI + RemoteImage gallery]
+- action=update; target=client/android/src/main/kotlin/MainActivity.kt; changes=[AndroidImagePicker.register(this) in onCreate()]
+- action=update; target=settings.gradle; adds=[features:files:common, features:files:server, features:files:client]
+- action=update; target={server,client,android}/build.gradle; adds=[wishlist.features.files.server/client dependencies]
+- action=update; target=server/sample.config.json; adds=[filesFolder config path]
+- action=update; target=features/ui/wishlist/build.gradle; adds=[files.client dependency]
+- action=update; target=server/src/commonMain/kotlin/Plugin.kt; adds=[files.server plugin registration]
+- action=update; target=client/src/{jsMain,jvmMain}/kotlin/Main.kt; adds=[files.client plugin registration]
+- action=update; target=client/android/src/main/kotlin/MainActivity.kt; adds=[files.client plugin registration]
+
+**Dependencies wired:**
+- microutils-ktor-client (for tempUpload / uniUpload; JS uses XMLHttpRequest for large file upload)
+- features/files on server, wishlist, ui.wishlist, client
+- AndroidImagePicker plugin registered in MainActivity
+
+**Build verification:** ./gradlew build; targets=[files.common, files.server, files.client, wishlist.features.wishlist.common, wishlist.features.ui.wishlist (JS/JVM/Android), server, client]; result=BUILD SUCCESSFUL; 2 new feature modules compiled cleanly.
+
+**DB schema change:**
+- new files_meta table: id TEXT PK, file_name TEXT, content_type TEXT, uploaded_at BIGINT
+- wishlist_item_images table (FK CASCADE to wishlist_items, order INT for display)
+
+**Outcome:** full image upload/preview pipeline wired end-to-end; no custom image-loader dependency; platform-specific codecs (Skia/BitmapFactory); all modules compiled successfully.
+
+---
+
 ### 2026-06-01 — Session 19: Item Priority and User Wishlists Grid View
 
 **Prompt:** `Implement item Priority (sealed interface with weight; presets Small/Medium/High + Custom; stored as single weight column) and grid-view screen for a user's wishlists (card layout, reachable from list view "Grid view" button when viewing concrete user).`

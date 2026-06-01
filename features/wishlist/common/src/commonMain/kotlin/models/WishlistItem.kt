@@ -1,6 +1,7 @@
 package dev.inmo.wishlist.features.wishlist.common.models
 
 import dev.inmo.wishlist.features.common.common.models.Amount
+import dev.inmo.wishlist.features.files.common.models.FileId
 import kotlinx.serialization.Serializable
 import kotlin.jvm.JvmInline
 
@@ -36,6 +37,9 @@ sealed interface WishlistItem {
 
     /** Relative importance of the item; defaults to [Priority.Medium]. */
     val priority: Priority
+
+    /** Ids of images attached to the item, in display order. Empty when the item has no images. */
+    val imageIds: List<FileId>
 }
 
 /**
@@ -48,6 +52,7 @@ sealed interface WishlistItem {
  * @property links External URLs related to the item.
  * @property description Free-form additional notes.
  * @property priority Relative importance of the item.
+ * @property imageIds Ids of images attached to the item, in display order.
  */
 @Serializable
 data class NewWishlistItem(
@@ -57,7 +62,8 @@ data class NewWishlistItem(
     override val priceUnits: String = "",
     override val links: List<String> = emptyList(),
     override val description: String = "",
-    override val priority: Priority = Priority.Medium
+    override val priority: Priority = Priority.Medium,
+    override val imageIds: List<FileId> = emptyList()
 ) : WishlistItem
 
 /**
@@ -71,6 +77,7 @@ data class NewWishlistItem(
  * @property links External URLs related to the item.
  * @property description Free-form additional notes.
  * @property priority Relative importance of the item.
+ * @property imageIds Ids of images attached to the item, in display order.
  */
 @Serializable
 data class RegisteredWishlistItem(
@@ -81,5 +88,6 @@ data class RegisteredWishlistItem(
     override val priceUnits: String = "",
     override val links: List<String> = emptyList(),
     override val description: String = "",
-    override val priority: Priority = Priority.Medium
+    override val priority: Priority = Priority.Medium,
+    override val imageIds: List<FileId> = emptyList()
 ) : WishlistItem

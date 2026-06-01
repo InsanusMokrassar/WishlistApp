@@ -43,6 +43,11 @@ object WishlistStrings {
     val priorityCustomWeightLabel = buildStringResource("Weight") { IetfLang.Russian("Вес") }
     val noPrice = buildStringResource("No price") { IetfLang.Russian("Цена не указана") }
     val noLinks = buildStringResource("No links") { IetfLang.Russian("Ссылки не указаны") }
+    val imagesLabel = buildStringResource("Images") { IetfLang.Russian("Изображения") }
+    val addImageButton = buildStringResource("Add image") { IetfLang.Russian("Добавить изображение") }
+    val removeImageButton = buildStringResource("Remove image") { IetfLang.Russian("Удалить изображение") }
+    val uploadingImage = buildStringResource("Uploading image...") { IetfLang.Russian("Загрузка изображения...") }
+    val noImages = buildStringResource("No images") { IetfLang.Russian("Нет изображений") }
     val deleteButton = buildStringResource("Delete") { IetfLang.Russian("Удалить") }
     val confirmDeleteButton = buildStringResource("Delete") { IetfLang.Russian("Удалить") }
     val confirmDeleteItemTitle = buildStringResource("Delete item?") { IetfLang.Russian("Удалить товар?") }

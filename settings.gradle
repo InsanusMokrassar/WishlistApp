@@ -17,6 +17,10 @@ String[] includes = [
     ":features:wishlist:server",
     ":features:wishlist:client",
 
+    ":features:files:common",
+    ":features:files:server",
+    ":features:files:client",
+
     ":features:auth:common",
     ":features:auth:server",
     ":features:auth:client",

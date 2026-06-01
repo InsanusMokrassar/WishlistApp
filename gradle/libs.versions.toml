@@ -116,6 +116,7 @@ microutils-coroutines = { module = "dev.inmo:micro_utils.coroutines", version.re
 microutils-coroutines-compose = { module = "dev.inmo:micro_utils.coroutines.compose", version.ref = "microutils" }
 microutils-koin-generator = { module = "dev.inmo:micro_utils.koin.generator", version.ref = "microutils" }
 microutils-ktor-server = { module = "dev.inmo:micro_utils.ktor.server", version.ref = "microutils" }
+microutils-ktor-client = { module = "dev.inmo:micro_utils.ktor.client", version.ref = "microutils" }
 microutils-ktor-common = { module = "dev.inmo:micro_utils.ktor.common", version.ref = "microutils" }
 microutils-ksp-generator = { module = "dev.inmo:micro_utils.ksp.generator", version.ref = "microutils" }
 microutils-ksp-classcasts = { module = "dev.inmo:micro_utils.ksp.classcasts", version.ref = "microutils" }

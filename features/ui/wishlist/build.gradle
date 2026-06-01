@@ -15,6 +15,7 @@ kotlin {
                 api project(":wishlist.features.common.client")
                 api project(":wishlist.features.wishlist.client")
                 api project(":wishlist.features.auth.client")
+                api project(":wishlist.features.files.client")
             }
         }
     }

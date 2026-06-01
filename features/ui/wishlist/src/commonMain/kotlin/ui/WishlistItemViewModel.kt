@@ -7,6 +7,7 @@ import dev.inmo.navigation.core.NavigationNode
 import dev.inmo.navigation.core.onResumeFlow
 import dev.inmo.navigation.mvvm.ViewModel
 import dev.inmo.wishlist.features.common.client.models.ViewConfig
+import dev.inmo.wishlist.features.files.common.models.FileId
 import dev.inmo.wishlist.features.users.common.models.UserId
 import dev.inmo.wishlist.features.wishlist.common.models.RegisteredWishlist
 import dev.inmo.wishlist.features.wishlist.common.models.RegisteredWishlistItem
@@ -74,6 +75,22 @@ class WishlistItemViewModel(
             }
         }
     }
+
+    /**
+     * Builds the download URL for an image attached to the item so the view can render it.
+     *
+     * @param id Image identifier (one of [RegisteredWishlistItem.imageIds]).
+     * @return Relative download URL.
+     */
+    fun imageUrl(id: FileId): String = model.imageUrl(id)
+
+    /**
+     * Downloads the raw bytes of an attached image (for platforms that decode images locally).
+     *
+     * @param id Image identifier.
+     * @return Payload bytes, or `null` on failure.
+     */
+    suspend fun loadImageBytes(id: FileId): ByteArray? = model.loadImageBytes(id)
 
     /** Delegates to [WishlistItemViewInteractor.onBack]. */
     fun onBack() {

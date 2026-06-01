@@ -1,5 +1,7 @@
 package dev.inmo.wishlist.features.ui.wishlist.ui
 
+import dev.inmo.micro_utils.common.MPPFile
+import dev.inmo.wishlist.features.files.common.models.FileId
 import dev.inmo.wishlist.features.users.common.models.UserId
 import dev.inmo.wishlist.features.wishlist.common.models.NewWishlistItem
 import dev.inmo.wishlist.features.wishlist.common.models.RegisteredWishlist
@@ -101,4 +103,33 @@ interface WishlistsModel {
      * Used to determine ownership of wishlists in [WishlistViewModel].
      */
     suspend fun getCurrentUserId(): UserId?
+
+    /**
+     * Uploads [file] as an image and returns its persistent [FileId] on success.
+     *
+     * Performs the two-step temporal-upload + finalize flow via the files feature; the JS path
+     * uses `XMLHttpRequest` under the hood so arbitrarily large images upload from the browser.
+     *
+     * @param file Image file chosen by the user on the current platform.
+     * @return Stored [FileId], or `null` when the upload/finalize was rejected.
+     */
+    suspend fun uploadImage(file: MPPFile): FileId?
+
+    /**
+     * Builds the download URL of the image stored under [id], suitable as an `<img>` source or
+     * an HTTP GET target.
+     *
+     * @param id Image file identifier.
+     * @return Relative URL resolved against the configured server base URL.
+     */
+    fun imageUrl(id: FileId): String
+
+    /**
+     * Downloads the raw bytes of the image [id]. Used by platforms that decode images themselves
+     * (JVM desktop / Android) rather than rendering directly from a URL.
+     *
+     * @param id Image file identifier.
+     * @return Payload bytes, or `null` on failure.
+     */
+    suspend fun loadImageBytes(id: FileId): ByteArray?
 }

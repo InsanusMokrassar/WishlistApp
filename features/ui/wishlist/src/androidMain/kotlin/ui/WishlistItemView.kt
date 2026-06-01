@@ -1,11 +1,13 @@
 package dev.inmo.wishlist.features.ui.wishlist.ui
 
+import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Button
@@ -101,6 +103,25 @@ class WishlistItemView(
                 } else {
                     it.links.forEach { link ->
                         Text(link, style = MaterialTheme.typography.bodyMedium)
+                    }
+                }
+
+                Text(WishlistStrings.imagesLabel.translation(resources), style = MaterialTheme.typography.titleSmall)
+                if (it.imageIds.isEmpty()) {
+                    Text(WishlistStrings.noImages.translation(resources), style = MaterialTheme.typography.bodySmall)
+                } else {
+                    Row(
+                        modifier = Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        it.imageIds.forEach { id ->
+                            RemoteImage(
+                                key = id.string,
+                                loader = { viewModel.loadImageBytes(id) },
+                                contentDescription = null,
+                                modifier = Modifier.size(160.dp)
+                            )
+                        }
                     }
                 }
             }

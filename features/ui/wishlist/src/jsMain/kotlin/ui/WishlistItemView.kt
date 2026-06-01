@@ -17,6 +17,7 @@ import org.jetbrains.compose.web.dom.A
 import org.jetbrains.compose.web.dom.Button
 import org.jetbrains.compose.web.dom.Div
 import org.jetbrains.compose.web.dom.H6
+import org.jetbrains.compose.web.dom.Img
 import org.jetbrains.compose.web.dom.P
 import org.jetbrains.compose.web.dom.Small
 import org.jetbrains.compose.web.dom.Text
@@ -99,6 +100,22 @@ class WishlistItemView(
                                     A(href = link, attrs = { attr("target", "_blank") }) {
                                         Text(link)
                                     }
+                                }
+                            }
+                        }
+                    }
+                }
+
+                Div({ classes("mb-3") }) {
+                    H6({ classes("text-muted") }) { Text(WishlistStrings.imagesLabel.translation()) }
+                    if (it.imageIds.isEmpty()) {
+                        P({ classes("text-muted") }) { Text(WishlistStrings.noImages.translation()) }
+                    } else {
+                        Div({ classes("d-flex", "flex-wrap", "gap-2") }) {
+                            it.imageIds.forEach { id ->
+                                Img(src = viewModel.imageUrl(id), alt = "") {
+                                    classes("rounded", "border")
+                                    attr("style", "max-width: 200px; max-height: 200px; object-fit: cover;")
                                 }
                             }
                         }
