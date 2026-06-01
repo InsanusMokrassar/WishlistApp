@@ -9,6 +9,7 @@ import dev.inmo.navigation.mvvm.ViewModel
 import dev.inmo.wishlist.features.common.client.models.ViewConfig
 import dev.inmo.wishlist.features.common.common.models.Amount
 import dev.inmo.wishlist.features.wishlist.common.models.NewWishlistItem
+import dev.inmo.wishlist.features.wishlist.common.models.Priority
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.flow.merge
@@ -58,6 +59,11 @@ class WishlistItemEditViewModel(
     /** Current currency or units label. */
     val priceUnitsState = _priceUnitsState.asStateFlow()
 
+    private val _priorityState = MutableRedeliverStateFlow<Priority>(Priority.Medium)
+
+    /** Currently selected item [Priority]; defaults to [Priority.Medium]. */
+    val priorityState = _priorityState.asStateFlow()
+
     private val _linksState = MutableRedeliverStateFlow<List<String>>(emptyList())
 
     /** Current list of external links. */
@@ -104,6 +110,7 @@ class WishlistItemEditViewModel(
                         _priceState.value = item.approximatePrice?.toString() ?: ""
                         _priceUnitsState.value = item.priceUnits
                         _linksState.value = item.links
+                        _priorityState.value = item.priority
                     }
                 } finally {
                     _loadingState.value = false
@@ -124,6 +131,24 @@ class WishlistItemEditViewModel(
 
     /** @param v New currency/units label. */
     fun onPriceUnitsChanged(v: String) { _priceUnitsState.value = v; _isDirtyState.value = true }
+
+    /**
+     * Selects a preset [Priority] (preserving any [Priority.Custom] passed in).
+     *
+     * @param priority New priority value.
+     */
+    fun onPrioritySelected(priority: Priority) { _priorityState.value = priority; _isDirtyState.value = true }
+
+    /**
+     * Switches priority to [Priority.Custom] with the weight parsed from [v].
+     * Non-numeric or blank input is treated as weight `0`.
+     *
+     * @param v New custom weight as a decimal string.
+     */
+    fun onCustomWeightChanged(v: String) {
+        _priorityState.value = Priority.Custom(v.trim().toUIntOrNull() ?: 0u)
+        _isDirtyState.value = true
+    }
 
     /** @param v Text typed in the new-link input. */
     fun onNewLinkChanged(v: String) { _newLinkState.value = v }
@@ -220,7 +245,8 @@ class WishlistItemEditViewModel(
                     description = _descriptionState.value.trim(),
                     priceUnits = _priceUnitsState.value.trim(),
                     approximatePrice = price,
-                    links = _linksState.value
+                    links = _linksState.value,
+                    priority = _priorityState.value
                 )
                 val itemId = node.config.wishlistItemId
                 if (itemId == null) {

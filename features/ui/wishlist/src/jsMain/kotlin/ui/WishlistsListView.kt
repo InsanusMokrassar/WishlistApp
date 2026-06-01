@@ -45,11 +45,21 @@ class WishlistsListView(
                     }
                     ScreenTitle(WishlistStrings.wishlistsTitle.translation())
                 }
-                Button({
-                    classes("btn", "btn-primary")
-                    onClick { viewModel.onCreateWishlist() }
-                }) {
-                    Text(WishlistStrings.createWishlistButton.translation())
+                Div({ classes("d-flex", "gap-2") }) {
+                    if (viewModel.targetUserId != null) {
+                        Button({
+                            classes("btn", "btn-outline-secondary")
+                            onClick { viewModel.onShowGrid() }
+                        }) {
+                            Text(WishlistStrings.gridViewButton.translation())
+                        }
+                    }
+                    Button({
+                        classes("btn", "btn-primary")
+                        onClick { viewModel.onCreateWishlist() }
+                    }) {
+                        Text(WishlistStrings.createWishlistButton.translation())
+                    }
                 }
             }
             if (loading) {

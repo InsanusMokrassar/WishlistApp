@@ -9,6 +9,8 @@ import dev.inmo.wishlist.features.ui.wishlist.ui.WishlistItemEditViewConfig
 import dev.inmo.wishlist.features.ui.wishlist.ui.WishlistItemViewConfig
 import dev.inmo.wishlist.features.ui.wishlist.ui.WishlistViewConfig
 import dev.inmo.wishlist.features.ui.wishlist.ui.WishlistsListViewConfig
+import dev.inmo.wishlist.features.ui.wishlist.ui.UserWishlistsViewConfig
+import dev.inmo.wishlist.features.ui.wishlist.ui.UserWishlistsView
 import dev.inmo.wishlist.features.ui.wishlist.ui.WishlistEditView
 import dev.inmo.wishlist.features.ui.wishlist.ui.WishlistItemEditView
 import dev.inmo.wishlist.features.ui.wishlist.ui.WishlistItemView
@@ -42,6 +44,9 @@ object JSPlugin : StartPlugin {
         }
         singleWithRandomQualifier<NavigationNodeFactory<ViewConfig>> {
             NavigationNodeFactory.Typed<WishlistItemViewConfig, ViewConfig> { chain, cfg -> WishlistItemView(chain, cfg) }
+        }
+        singleWithRandomQualifier<NavigationNodeFactory<ViewConfig>> {
+            NavigationNodeFactory.Typed<UserWishlistsViewConfig, ViewConfig> { chain, cfg -> UserWishlistsView(chain, cfg) }
         }
     }
 

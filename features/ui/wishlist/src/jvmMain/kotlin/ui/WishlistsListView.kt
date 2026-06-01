@@ -12,6 +12,7 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.Button
 import androidx.compose.material.CircularProgressIndicator
+import androidx.compose.material.OutlinedButton
 import androidx.compose.material.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
@@ -63,8 +64,15 @@ class WishlistsListView(
                     }
                     ScreenTitle(WishlistStrings.wishlistsTitle.translation())
                 }
-                Button(onClick = { viewModel.onCreateWishlist() }) {
-                    Text(WishlistStrings.createWishlistButton.translation())
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
+                    if (viewModel.targetUserId != null) {
+                        OutlinedButton(onClick = { viewModel.onShowGrid() }) {
+                            Text(WishlistStrings.gridViewButton.translation())
+                        }
+                    }
+                    Button(onClick = { viewModel.onCreateWishlist() }) {
+                        Text(WishlistStrings.createWishlistButton.translation())
+                    }
                 }
             }
             Spacer(modifier = Modifier.height(8.dp))

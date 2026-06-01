@@ -2,6 +2,7 @@ package dev.inmo.wishlist.features.ui.wishlist
 
 import dev.inmo.micro_utils.language_codes.IetfLang
 import dev.inmo.micro_utils.strings.buildStringResource
+import dev.inmo.wishlist.features.wishlist.common.models.Priority
 
 /** Localized string resources for the wishlist UI feature. */
 object WishlistStrings {
@@ -25,6 +26,8 @@ object WishlistStrings {
     val confirmButton = buildStringResource("Discard") { IetfLang.Russian("Отменить") }
     val cancelButton = buildStringResource("Cancel") { IetfLang.Russian("Отмена") }
     val emptyWishlists = buildStringResource("No wishlists yet") { IetfLang.Russian("Нет списков желаний") }
+    val userWishlistsTitle = buildStringResource("Wishlists") { IetfLang.Russian("Списки желаний") }
+    val gridViewButton = buildStringResource("Grid view") { IetfLang.Russian("Плиткой") }
     val emptyItems = buildStringResource("No items yet") { IetfLang.Russian("Нет товаров") }
     val loading = buildStringResource("Loading...") { IetfLang.Russian("Загрузка...") }
     val newWishlistTitle = buildStringResource("New Wishlist") { IetfLang.Russian("Новый список" ) }
@@ -32,6 +35,12 @@ object WishlistStrings {
     val newItemTitle = buildStringResource("New Item") { IetfLang.Russian("Новый товар") }
     val editItemTitle = buildStringResource("Edit Item") { IetfLang.Russian("Редактировать товар") }
     val viewItemTitle = buildStringResource("Item") { IetfLang.Russian("Товар") }
+    val priorityLabel = buildStringResource("Priority") { IetfLang.Russian("Приоритет") }
+    val prioritySmall = buildStringResource("Low") { IetfLang.Russian("Низкий") }
+    val priorityMedium = buildStringResource("Medium") { IetfLang.Russian("Средний") }
+    val priorityHigh = buildStringResource("High") { IetfLang.Russian("Высокий") }
+    val priorityCustom = buildStringResource("Custom") { IetfLang.Russian("Свой") }
+    val priorityCustomWeightLabel = buildStringResource("Weight") { IetfLang.Russian("Вес") }
     val noPrice = buildStringResource("No price") { IetfLang.Russian("Цена не указана") }
     val noLinks = buildStringResource("No links") { IetfLang.Russian("Ссылки не указаны") }
     val deleteButton = buildStringResource("Delete") { IetfLang.Russian("Удалить") }
@@ -44,4 +53,16 @@ object WishlistStrings {
     val confirmDeleteWishlistMessage = buildStringResource("This wishlist and all its items will be permanently removed. Continue?") {
         IetfLang.Russian("Этот список и все его товары будут удалены безвозвратно. Продолжить?")
     }
+}
+
+/**
+ * Maps a [Priority] to the matching localized label resource.
+ *
+ * @return The preset's localized name, or the generic "Custom" label for [Priority.Custom].
+ */
+fun Priority.labelResource() = when (this) {
+    Priority.Small -> WishlistStrings.prioritySmall
+    Priority.Medium -> WishlistStrings.priorityMedium
+    Priority.High -> WishlistStrings.priorityHigh
+    is Priority.Custom -> WishlistStrings.priorityCustom
 }

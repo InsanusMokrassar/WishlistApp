@@ -12,6 +12,7 @@ import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -32,6 +33,7 @@ import dev.inmo.wishlist.features.common.client.ui.components.ScreenTitle
 import dev.inmo.wishlist.features.ui.wishlist.WishlistStrings
 import dev.inmo.wishlist.features.ui.wishlist.ui.WishlistItemEditViewConfig
 import dev.inmo.wishlist.features.ui.wishlist.ui.WishlistItemEditViewModel
+import dev.inmo.wishlist.features.wishlist.common.models.Priority
 import org.koin.core.component.inject
 import org.koin.core.parameter.parametersOf
 
@@ -52,6 +54,7 @@ class WishlistItemEditView(
         val description by viewModel.descriptionState.collectAsState()
         val price by viewModel.priceState.collectAsState()
         val priceUnits by viewModel.priceUnitsState.collectAsState()
+        val priority by viewModel.priorityState.collectAsState()
         val links by viewModel.linksState.collectAsState()
         val newLink by viewModel.newLinkState.collectAsState()
         val loading by viewModel.loadingState.collectAsState()
@@ -147,6 +150,32 @@ class WishlistItemEditView(
                     modifier = Modifier.weight(1f)
                 )
             }
+            Text(WishlistStrings.priorityLabel.translation(resources), style = MaterialTheme.typography.titleSmall)
+            Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                PriorityChip(WishlistStrings.prioritySmall.translation(resources), priority == Priority.Small, !loading) {
+                    viewModel.onPrioritySelected(Priority.Small)
+                }
+                PriorityChip(WishlistStrings.priorityMedium.translation(resources), priority == Priority.Medium, !loading) {
+                    viewModel.onPrioritySelected(Priority.Medium)
+                }
+                PriorityChip(WishlistStrings.priorityHigh.translation(resources), priority == Priority.High, !loading) {
+                    viewModel.onPrioritySelected(Priority.High)
+                }
+                PriorityChip(WishlistStrings.priorityCustom.translation(resources), priority is Priority.Custom, !loading) {
+                    viewModel.onPrioritySelected(Priority.Custom((priority as? Priority.Custom)?.weight ?: 0u))
+                }
+            }
+            if (priority is Priority.Custom) {
+                OutlinedTextField(
+                    value = (priority as Priority.Custom).weight.toString(),
+                    onValueChange = { viewModel.onCustomWeightChanged(it) },
+                    label = { Text(WishlistStrings.priorityCustomWeightLabel.translation(resources)) },
+                    singleLine = true,
+                    enabled = !loading,
+                    modifier = Modifier.fillMaxWidth()
+                )
+            }
+
             Text(WishlistStrings.linksLabel.translation(resources), style = MaterialTheme.typography.titleSmall)
             links.forEachIndexed { index, link ->
                 ListRow(
@@ -192,6 +221,23 @@ class WishlistItemEditView(
                     Text(WishlistStrings.deleteButton.translation(resources))
                 }
             }
+        }
+    }
+
+    /**
+     * Renders one priority option as a selectable button.
+     *
+     * @param label Localized option text.
+     * @param selected `true` when this option is the active priority (filled vs outlined).
+     * @param enabled Disables the button while a request is in flight.
+     * @param onClick Invoked when the option is clicked.
+     */
+    @Composable
+    private fun PriorityChip(label: String, selected: Boolean, enabled: Boolean, onClick: () -> Unit) {
+        if (selected) {
+            Button(onClick = onClick, enabled = enabled) { Text(label) }
+        } else {
+            OutlinedButton(onClick = onClick, enabled = enabled) { Text(label) }
         }
     }
 }

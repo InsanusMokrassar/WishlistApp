@@ -13,6 +13,7 @@ import dev.inmo.wishlist.features.common.client.ui.components.ListRow
 import dev.inmo.wishlist.features.common.client.ui.components.ScreenTitle
 import dev.inmo.wishlist.features.ui.wishlist.ui.WishlistItemEditViewConfig
 import dev.inmo.wishlist.features.ui.wishlist.ui.WishlistItemEditViewModel
+import dev.inmo.wishlist.features.wishlist.common.models.Priority
 import org.jetbrains.compose.web.attributes.InputType
 import org.jetbrains.compose.web.attributes.disabled
 import org.jetbrains.compose.web.attributes.forId
@@ -45,6 +46,7 @@ class WishlistItemEditView(
         val description by viewModel.descriptionState.collectAsState()
         val price by viewModel.priceState.collectAsState()
         val priceUnits by viewModel.priceUnitsState.collectAsState()
+        val priority by viewModel.priorityState.collectAsState()
         val links by viewModel.linksState.collectAsState()
         val newLink by viewModel.newLinkState.collectAsState()
         val loading by viewModel.loadingState.collectAsState()
@@ -165,6 +167,33 @@ class WishlistItemEditView(
             }
 
             Div({ classes("mb-3") }) {
+                Label { Text(WishlistStrings.priorityLabel.translation()) }
+                Div({ classes("btn-group", "d-flex", "mb-2"); attr("role", "group") }) {
+                    PriorityButton(WishlistStrings.prioritySmall.translation(), priority == Priority.Small, loading) {
+                        viewModel.onPrioritySelected(Priority.Small)
+                    }
+                    PriorityButton(WishlistStrings.priorityMedium.translation(), priority == Priority.Medium, loading) {
+                        viewModel.onPrioritySelected(Priority.Medium)
+                    }
+                    PriorityButton(WishlistStrings.priorityHigh.translation(), priority == Priority.High, loading) {
+                        viewModel.onPrioritySelected(Priority.High)
+                    }
+                    PriorityButton(WishlistStrings.priorityCustom.translation(), priority is Priority.Custom, loading) {
+                        viewModel.onPrioritySelected(Priority.Custom((priority as? Priority.Custom)?.weight ?: 0u))
+                    }
+                }
+                if (priority is Priority.Custom) {
+                    Input(InputType.Text) {
+                        classes("form-control")
+                        value((priority as Priority.Custom).weight.toString())
+                        placeholder(WishlistStrings.priorityCustomWeightLabel.translation())
+                        onInput { viewModel.onCustomWeightChanged(it.value) }
+                        if (loading) disabled()
+                    }
+                }
+            }
+
+            Div({ classes("mb-3") }) {
                 Label { Text(WishlistStrings.linksLabel.translation()) }
                 if (links.isNotEmpty()) {
                     Ul({ classes("list-group", "mb-2") }) {
@@ -218,6 +247,25 @@ class WishlistItemEditView(
                     }
                 }
             }
+        }
+    }
+
+    /**
+     * Renders one priority option as a Bootstrap toggle button.
+     *
+     * @param label Localized option text.
+     * @param selected `true` when this option is the active priority.
+     * @param loading Disables the button while a request is in flight.
+     * @param action Invoked when the option is clicked.
+     */
+    @Composable
+    private fun PriorityButton(label: String, selected: Boolean, loading: Boolean, action: () -> Unit) {
+        Button({
+            classes("btn", if (selected) "btn-primary" else "btn-outline-primary")
+            onClick { action() }
+            if (loading) disabled()
+        }) {
+            Text(label)
         }
     }
 }

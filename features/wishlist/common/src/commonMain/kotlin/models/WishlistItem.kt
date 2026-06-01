@@ -33,6 +33,9 @@ sealed interface WishlistItem {
 
     /** Additional free-form description. */
     val description: String
+
+    /** Relative importance of the item; defaults to [Priority.Medium]. */
+    val priority: Priority
 }
 
 /**
@@ -44,6 +47,7 @@ sealed interface WishlistItem {
  * @property priceUnits Currency or unit label for [approximatePrice].
  * @property links External URLs related to the item.
  * @property description Free-form additional notes.
+ * @property priority Relative importance of the item.
  */
 @Serializable
 data class NewWishlistItem(
@@ -52,7 +56,8 @@ data class NewWishlistItem(
     override val approximatePrice: Amount? = null,
     override val priceUnits: String = "",
     override val links: List<String> = emptyList(),
-    override val description: String = ""
+    override val description: String = "",
+    override val priority: Priority = Priority.Medium
 ) : WishlistItem
 
 /**
@@ -65,6 +70,7 @@ data class NewWishlistItem(
  * @property priceUnits Currency or unit label for [approximatePrice].
  * @property links External URLs related to the item.
  * @property description Free-form additional notes.
+ * @property priority Relative importance of the item.
  */
 @Serializable
 data class RegisteredWishlistItem(
@@ -74,5 +80,6 @@ data class RegisteredWishlistItem(
     override val approximatePrice: Amount? = null,
     override val priceUnits: String = "",
     override val links: List<String> = emptyList(),
-    override val description: String = ""
+    override val description: String = "",
+    override val priority: Priority = Priority.Medium
 ) : WishlistItem

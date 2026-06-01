@@ -24,6 +24,8 @@ import dev.inmo.wishlist.features.ui.wishlist.ui.WishlistViewModel
 import dev.inmo.wishlist.features.ui.wishlist.ui.WishlistsListViewConfig
 import dev.inmo.wishlist.features.ui.wishlist.ui.WishlistsListViewModel
 import dev.inmo.wishlist.features.ui.wishlist.ui.WishlistsModel
+import dev.inmo.wishlist.features.ui.wishlist.ui.UserWishlistsViewConfig
+import dev.inmo.wishlist.features.ui.wishlist.ui.UserWishlistsViewModel
 import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.modules.SerializersModule
 import org.koin.core.Koin
@@ -54,6 +56,8 @@ object Plugin : StartPlugin {
                 polymorphic(ViewConfig::class, WishlistItemEditViewConfig::class, WishlistItemEditViewConfig.serializer())
                 polymorphic(Any::class, WishlistItemViewConfig::class, WishlistItemViewConfig.serializer())
                 polymorphic(ViewConfig::class, WishlistItemViewConfig::class, WishlistItemViewConfig.serializer())
+                polymorphic(Any::class, UserWishlistsViewConfig::class, UserWishlistsViewConfig.serializer())
+                polymorphic(ViewConfig::class, UserWishlistsViewConfig::class, UserWishlistsViewConfig.serializer())
             }
         }
 
@@ -62,6 +66,7 @@ object Plugin : StartPlugin {
         factory { WishlistEditViewModel(it.get(), get(), get()) }
         factory { WishlistItemEditViewModel(it.get(), get(), get()) }
         factory { WishlistItemViewModel(it.get(), get(), get()) }
+        factory { UserWishlistsViewModel(it.get(), get(), get()) }
 
         single<WishlistsModel> {
             val wishlistsFeature = get<WishlistsFeature>()

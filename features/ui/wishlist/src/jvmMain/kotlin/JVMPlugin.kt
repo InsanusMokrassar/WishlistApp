@@ -14,6 +14,8 @@ import dev.inmo.wishlist.features.ui.wishlist.ui.WishlistView
 import dev.inmo.wishlist.features.ui.wishlist.ui.WishlistViewConfig
 import dev.inmo.wishlist.features.ui.wishlist.ui.WishlistsListView
 import dev.inmo.wishlist.features.ui.wishlist.ui.WishlistsListViewConfig
+import dev.inmo.wishlist.features.ui.wishlist.ui.UserWishlistsView
+import dev.inmo.wishlist.features.ui.wishlist.ui.UserWishlistsViewConfig
 import kotlinx.serialization.json.JsonObject
 import org.koin.core.Koin
 import org.koin.core.module.Module
@@ -57,6 +59,9 @@ object JVMPlugin : StartPlugin {
         }
         singleWithRandomQualifier<NavigationNodeFactory<ViewConfig>> {
             NavigationNodeFactory.Typed<WishlistItemViewConfig, ViewConfig> { chain, cfg -> WishlistItemView(chain, cfg) }
+        }
+        singleWithRandomQualifier<NavigationNodeFactory<ViewConfig>> {
+            NavigationNodeFactory.Typed<UserWishlistsViewConfig, ViewConfig> { chain, cfg -> UserWishlistsView(chain, cfg) }
         }
     }
 

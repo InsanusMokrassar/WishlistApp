@@ -5,6 +5,7 @@ import dev.inmo.micro_utils.repos.exposed.ExposedRepo
 import dev.inmo.micro_utils.repos.exposed.initTable
 import dev.inmo.wishlist.features.common.common.models.Amount
 import dev.inmo.wishlist.features.wishlist.common.models.NewWishlistItem
+import dev.inmo.wishlist.features.wishlist.common.models.Priority
 import dev.inmo.wishlist.features.wishlist.common.models.RegisteredWishlistItem
 import dev.inmo.wishlist.features.wishlist.common.models.WishlistId
 import dev.inmo.wishlist.features.wishlist.common.models.WishlistItemId
@@ -33,6 +34,7 @@ import org.jetbrains.exposed.v1.jdbc.transactions.transaction
  * - `approx_price_dec` — BIGINT NULL → [Amount.decimalPart] stored as signed Long bits
  * - `price_units` — TEXT
  * - `description` — TEXT
+ * - `priority_weight` — BIGINT, defaults to [Priority.Medium] weight (`50`) → [Priority]
  *
  * Links are stored in a separate `wishlist_item_links` table (see [linksTable]),
  * private to this class and managed exclusively here. On item delete, the DB cascades
@@ -53,6 +55,7 @@ class ExposedWishlistItemRepo(
     private val approxPriceDecColumn = long("approx_price_dec").nullable()
     private val priceUnitsColumn = text("price_units")
     private val descriptionColumn = text("description")
+    private val priorityWeightColumn = long("priority_weight").default(Priority.Medium.weight.toLong())
 
     override val primaryKey = PrimaryKey(idColumn)
 
@@ -102,7 +105,8 @@ class ExposedWishlistItemRepo(
                 approximatePrice = amountOrNull(),
                 priceUnits = get(priceUnitsColumn),
                 links = linksFor(id),
-                description = get(descriptionColumn)
+                description = get(descriptionColumn),
+                priority = Priority.fromWeight(get(priorityWeightColumn).toUInt())
             )
         }
 
@@ -130,6 +134,7 @@ class ExposedWishlistItemRepo(
         it[approxPriceDecColumn] = value.approximatePrice?.decimalPart?.toLong()
         it[priceUnitsColumn] = value.priceUnits
         it[descriptionColumn] = value.description
+        it[priorityWeightColumn] = value.priority.weight.toLong()
         if (id != null) {
             linksTable.deleteWhere { linksTable.itemId eq id.long }
             value.links.forEach { link ->
@@ -163,7 +168,8 @@ class ExposedWishlistItemRepo(
             approximatePrice = value.approximatePrice,
             priceUnits = value.priceUnits,
             links = value.links,
-            description = value.description
+            description = value.description,
+            priority = value.priority
         )
     }
 

@@ -54,6 +54,8 @@ import dev.inmo.wishlist.features.ui.wishlist.ui.WishlistViewConfig
 import dev.inmo.wishlist.features.ui.wishlist.ui.WishlistViewInteractor
 import dev.inmo.wishlist.features.ui.wishlist.ui.WishlistsListViewConfig
 import dev.inmo.wishlist.features.ui.wishlist.ui.WishlistsListViewInteractor
+import dev.inmo.wishlist.features.ui.wishlist.ui.UserWishlistsViewConfig
+import dev.inmo.wishlist.features.ui.wishlist.ui.UserWishlistsViewInteractor
 import dev.inmo.wishlist.features.users.common.models.UserId
 import dev.inmo.wishlist.features.wishlist.common.models.WishlistId
 import dev.inmo.wishlist.features.wishlist.common.models.WishlistItemId
@@ -151,6 +153,28 @@ object ClientPlugin : StartPlugin {
                 }
                 override suspend fun onBack(
                     node: NavigationNode<WishlistsListViewConfig, ViewConfig>
+                ) {
+                    node.chain.pop()
+                }
+                override suspend fun onShowUserWishlists(
+                    node: NavigationNode<WishlistsListViewConfig, ViewConfig>,
+                    userId: UserId
+                ) {
+                    node.chain.push(UserWishlistsViewConfig(userId))
+                }
+            }
+        }
+
+        single<UserWishlistsViewInteractor> {
+            object : UserWishlistsViewInteractor {
+                override suspend fun onWishlistSelected(
+                    node: NavigationNode<UserWishlistsViewConfig, ViewConfig>,
+                    wishlistId: WishlistId
+                ) {
+                    node.chain.push(WishlistViewConfig(wishlistId))
+                }
+                override suspend fun onBack(
+                    node: NavigationNode<UserWishlistsViewConfig, ViewConfig>
                 ) {
                     node.chain.pop()
                 }

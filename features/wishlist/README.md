@@ -56,9 +56,10 @@ Note: item `create` maps both "parent not found" and "caller not owner" to `null
 
 | Type | Package | Description |
 |------|---------|-------------|
+| `Priority` | common | Sealed interface with `val weight: UInt`; variants: `Small` (weight 0), `Medium` (weight 50), `High` (weight 100), `Custom(weight: UInt)`. Companion `fromWeight(UInt): Priority` maps known weights to presets, else Custom. `PrioritySerializer` encodes weight-only as a single `Long` (`PrimitiveKind.LONG`, serial name `wishlist_item_priority`); deserialize narrows the `Long` back to `UInt` and calls `fromWeight` to reconstruct the preset/custom variant. |
 | `WishlistItemId` | common | `@JvmInline value class(val long: Long)` — primary key |
 | `WishlistItem` | common | Sealed interface; base for `NewWishlistItem` and `RegisteredWishlistItem` |
-| `NewWishlistItem` | common | Create/update payload: `wishlistId`, `title`, `approximatePrice?: Amount`, `priceUnits: String`, `links: List<String>`, `description: String` |
+| `NewWishlistItem` | common | Create/update payload: `wishlistId`, `title`, `priority: Priority = Priority.Medium`, `approximatePrice?: Amount`, `priceUnits: String`, `links: List<String>`, `description: String` |
 | `RegisteredWishlistItem` | common | Persisted entity: adds `id: WishlistItemId` to `NewWishlistItem` fields |
 | `WishlistsItemsFeature` | client | Client-side interface: `getByWishlistId`, `create`, `update`, `delete` |
 
@@ -70,8 +71,9 @@ Note: item `create` maps both "parent not found" and "caller not owner" to `null
 - `WishlistItemService(get(), get())` — two Koin `get()` calls: first resolves `WishlistItemRepo`, second resolves `WishlistRepo` (registered by `wishlist.common.JVMPlugin`).
 - DB tables:
   - `wishlists`: `id BIGINT PK AUTO`, `user_id BIGINT`, `title TEXT`
-  - `wishlist_items`: `id BIGINT PK AUTO`, `wishlist_id BIGINT`, `title TEXT`, `approx_price_int BIGINT NULL`, `approx_price_dec BIGINT NULL`, `price_units TEXT`, `description TEXT`
+  - `wishlist_items`: `id BIGINT PK AUTO`, `wishlist_id BIGINT`, `title TEXT`, `priority_weight BIGINT` (default 50 = Priority.Medium), `approx_price_int BIGINT NULL`, `approx_price_dec BIGINT NULL`, `price_units TEXT`, `description TEXT`
   - `wishlist_item_links`: `item_id BIGINT FK→wishlist_items.id ON DELETE CASCADE`, `link TEXT`, `PK(item_id, link)`
+- `Priority` stored as single BIGINT column `priority_weight = priority.weight.toLong()`. Deserialization via `Priority.fromWeight(stored_weight.toUInt())` reconstructs the preset (Small/Medium/High) if weight matches; otherwise returns `Custom(weight)`.
 - `Amount` stored as two BIGINT columns (`approx_price_int` = integer part, `approx_price_dec` = `ULong.decimalPart` stored as signed Long bit pattern). Both null → `Amount` is null.
 - `links` are stored in a separate `wishlist_item_links` table, managed exclusively by `ExposedWishlistItemRepo` (private `linksTable`). On item delete, cascade FK removes link rows automatically. On read, a sub-query per item row fetches links within the same transaction (N+1 trade-off).
 - Client-side interfaces (`WishlistsFeature`, `WishlistsItemsFeature`) are declared in `features/wishlist/client` and implemented by `KtorWishlistFeature` / `KtorWishlistItemFeature`.

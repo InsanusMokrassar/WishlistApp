@@ -4,6 +4,38 @@
 
 ---
 
+### 2026-06-01 — Session 19: Item Priority and User Wishlists Grid View
+
+**Prompt:** `Implement item Priority (sealed interface with weight; presets Small/Medium/High + Custom; stored as single weight column) and grid-view screen for a user's wishlists (card layout, reachable from list view "Grid view" button when viewing concrete user).`
+
+**Actions:**
+- action=create; target=features/wishlist/common/src/commonMain/kotlin/models/Priority.kt; entities=[Priority sealed interface with weight: UInt; Small(0), Medium(50), High(100), Custom(weight); companion fromWeight(UInt): Priority; PrioritySerializer(UInt-delegated); presets list]
+- action=update; target=features/wishlist/common/src/commonMain/kotlin/models/WishlistItem.kt; changes=[NewWishlistItem + RegisteredWishlistItem gained priority: Priority = Priority.Medium]
+- action=update; target=features/wishlist/common/src/jvmMain/kotlin/repo/ExposedWishlistItemRepo.kt; changes=[added priority_weight BIGINT column (default 50); stored as priority.weight.toLong(); read via Priority.fromWeight(col.toUInt())]
+- action=create; target=features/ui/wishlist/src/commonMain/kotlin/ui/UserWishlistsViewConfig.kt; changes=[data class(userId: UserId)]
+- action=create; target=features/ui/wishlist/src/commonMain/kotlin/ui/UserWishlistsViewModel.kt; changes=[wishlistsState StateFlow, onWishlistSelected(RegisteredWishlist), onBack()]
+- action=create; target=features/ui/wishlist/src/commonMain/kotlin/ui/UserWishlistsViewInteractor.kt; changes=[suspend onWishlistSelected(node, wishlist), suspend onBack(node)]
+- action=create; target=features/ui/wishlist/src/{jsMain,jvmMain,androidMain}/kotlin/ui/UserWishlistsView.kt; changes=[per-platform grid layout: JS=Bootstrap card-grid + UserWishlistsViewStylesheet, JVM=Material, Android=2-cards-per-row]
+- action=update; target=features/ui/wishlist/src/commonMain/kotlin/WishlistStrings.kt; changes=[+priorityLabel, prioritySmall(="Low"), priorityMedium, priorityHigh, priorityCustom, priorityCustomWeightLabel, gridViewButton, userWishlistsTitle]
+- action=update; target=features/ui/wishlist/src/commonMain/kotlin/ui/WishlistItemViewModel.kt; changes=[item read now displays priority]
+- action=update; target=features/ui/wishlist/src/commonMain/kotlin/ui/WishlistItemEditViewModel.kt; changes=[+priorityState StateFlow, +onPrioritySelected(Priority), +onCustomWeightChanged(String)]
+- action=update; target=features/ui/wishlist/src/{jsMain,jvmMain,androidMain}/kotlin/ui/WishlistItemView.kt; changes=[display priority label; show weight in parentheses for Custom]
+- action=update; target=features/ui/wishlist/src/{jsMain,jvmMain,androidMain}/kotlin/ui/WishlistItemEditView.kt; changes=[4-option priority selector + custom weight text field (shown only when Custom)]
+- action=update; target=features/ui/wishlist/src/commonMain/kotlin/Plugin.kt; changes=[added polymorphic serializer for UserWishlistsViewConfig; factory { UserWishlistsViewModel(...) }]
+- action=update; target=features/ui/wishlist/src/{jsMain,jvmMain,androidMain}/kotlin/ui/NavigationNodeFactory.kt; changes=[registered UserWishlistsView factory]
+- action=update; target=client/src/commonMain/kotlin/ClientPlugin.kt; changes=[UserWishlistsViewInteractor impl: onWishlistSelected→push WishlistViewConfig(wishlistId), onBack→node.chain.pop()]
+- action=update; target=features/ui/wishlist/src/commonMain/kotlin/ui/WishlistsListViewInteractor.kt; changes=[+suspend onShowUserWishlists(node, userId)]
+- action=update; target=features/ui/wishlist/src/commonMain/kotlin/ui/WishlistsListViewModel.kt; changes=[+targetUserId: UserId?, +onShowGrid()]
+- action=update; target=features/ui/wishlist/src/{jsMain,jvmMain,androidMain}/kotlin/ui/WishlistsListView.kt; changes=["Grid view" button shown when targetUserId != null; calls onShowGrid()]
+- action=update; target=features/wishlist/README.md; changes=[under Models: added Priority type row, updated NewWishlistItem/RegisteredWishlistItem rows to include priority field; Architecture Notes: updated wishlist_items schema with priority_weight column, added Priority serialization note]
+- action=update; target=features/ui/wishlist/README.md; changes=[Screens: updated existing screens, added UserWishlistsView screen; Models: documented UserWishlistsViewConfig/ViewModel/Interactor; Architecture: documented Priority display/editing in item views and grid-view layout/navigation]
+
+**Verification:** check=compile+build; targets=[wishlist.features.wishlist.common, wishlist.features.ui.wishlist, wishlist.client]; platforms=[JS, JVM, Android, lint]; result=BUILD SUCCESSFUL; ast-index rebuilt (405 files).
+
+**Constraints:** default priority=Medium per operator; Priority serialization wire-format=weight only; grid-view reachable from list when targetUserId non-null; Custom priority shows weight in read view.
+
+---
+
 ### 2026-05-31 — Session 18: Extract shared UI list components (title, back button, list row)
 
 **Prompt:** `Extract from WishlistsListView elements components: for title, for back button, for items. Place them in the common feature in targets from which they will be extracted. In all views replace the items onto new components (e.g. users list uses same list items as wishlistslist). Fully skip .templates folder`

@@ -7,6 +7,7 @@ import dev.inmo.navigation.core.NavigationNode
 import dev.inmo.navigation.core.onResumeFlow
 import dev.inmo.navigation.mvvm.ViewModel
 import dev.inmo.wishlist.features.common.client.models.ViewConfig
+import dev.inmo.wishlist.features.users.common.models.UserId
 import dev.inmo.wishlist.features.wishlist.common.models.RegisteredWishlist
 import dev.inmo.wishlist.features.wishlist.common.models.WishlistId
 import kotlinx.coroutines.flow.asStateFlow
@@ -37,6 +38,12 @@ class WishlistsListViewModel(
 
     /** `true` while a network request is in flight. */
     val loadingState = _loadingState.asStateFlow()
+
+    /**
+     * Owner whose wishlists are shown, or `null` when displaying the caller's own list.
+     * `null` hides the grid-view button (no concrete user to open the grid for).
+     */
+    val targetUserId: UserId? = node.config.userId
 
     init {
         merge(flowOf(Unit), node.onResumeFlow).subscribeLoggingDropExceptions(scope) {
@@ -76,5 +83,14 @@ class WishlistsListViewModel(
     /** Delegates to [WishlistsListViewInteractor.onBack]. */
     fun onBack() {
         scope.launchLoggingDropExceptions { interactor.onBack(node) }
+    }
+
+    /**
+     * Opens the grid presentation of the displayed user's wishlists.
+     * No-op when [targetUserId] is `null` (the caller's own list).
+     */
+    fun onShowGrid() {
+        val userId = targetUserId ?: return
+        scope.launchLoggingDropExceptions { interactor.onShowUserWishlists(node, userId) }
     }
 }

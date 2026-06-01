@@ -2,6 +2,7 @@ package dev.inmo.wishlist.features.ui.wishlist.ui
 
 import dev.inmo.navigation.core.NavigationNode
 import dev.inmo.wishlist.features.common.client.models.ViewConfig
+import dev.inmo.wishlist.features.users.common.models.UserId
 import dev.inmo.wishlist.features.wishlist.common.models.WishlistId
 
 /**
@@ -32,4 +33,12 @@ interface WishlistsListViewInteractor {
      * @param node Current navigation node.
      */
     suspend fun onBack(node: NavigationNode<WishlistsListViewConfig, ViewConfig>)
+
+    /**
+     * Called when the user requests the grid presentation of [userId]'s wishlists.
+     *
+     * @param node Current navigation node.
+     * @param userId Owner whose wishlists should be shown as a grid.
+     */
+    suspend fun onShowUserWishlists(node: NavigationNode<WishlistsListViewConfig, ViewConfig>, userId: UserId)
 }
