@@ -12,6 +12,7 @@ import dev.inmo.wishlist.features.common.client.ui.components.ListRow
 import dev.inmo.wishlist.features.common.client.ui.components.ScreenTitle
 import dev.inmo.wishlist.features.ui.wishlist.WishlistStrings
 import org.jetbrains.compose.web.dom.Div
+import org.jetbrains.compose.web.dom.H6
 import org.jetbrains.compose.web.dom.P
 import org.jetbrains.compose.web.dom.Span
 import org.jetbrains.compose.web.dom.Text
@@ -31,35 +32,46 @@ class UserWishlistsView(
     @Composable
     override fun onDraw() {
         super.onDraw()
-        val items by viewModel.itemsState.collectAsState()
+        val sections by viewModel.sectionsState.collectAsState()
+        val userName by viewModel.userNameState.collectAsState()
         val loading by viewModel.loadingState.collectAsState()
 
         Div({ classes("container", "py-3") }) {
             Div({ classes("d-flex", "align-items-center", "mb-3", "gap-2") }) {
                 BackButton(WishlistStrings.backButton.translation()) { viewModel.onBack() }
-                ScreenTitle(WishlistStrings.allItemsTitle.translation(), "mb-0", "flex-grow-1")
+                ScreenTitle(
+                    userName?.let {
+                        WishlistStrings.userWishesTitleFormat.translation().replace("{name}", it)
+                    } ?: WishlistStrings.allItemsTitle.translation(),
+                    "mb-0", "flex-grow-1"
+                )
             }
 
             if (loading) {
                 P { Text(WishlistStrings.loading.translation()) }
-            } else if (items.isEmpty()) {
+            } else if (sections.isEmpty()) {
                 P({ classes("text-muted") }) { Text(WishlistStrings.emptyItems.translation()) }
             } else {
-                Ul({ classes("list-group") }) {
-                    items.forEach { item ->
-                        ListRow(onSelect = { viewModel.onItemSelected(item) }) {
-                            Div({ classes("flex-grow-1") }) {
-                                Div({ classes("d-flex", "justify-content-between", "align-items-center") }) {
-                                    Span { Text(item.title) }
-                                    item.approximatePrice?.let { price ->
-                                        Span({ classes("text-muted", "small") }) {
-                                            Text("$price ${item.priceUnits}")
+                sections.forEach { section ->
+                    H6({ classes("mt-3", "mb-1", "text-muted", "border-bottom", "pb-1") }) {
+                        Text(section.wishlist.title)
+                    }
+                    Ul({ classes("list-group") }) {
+                        section.items.forEach { item ->
+                            ListRow(onSelect = { viewModel.onItemSelected(item) }) {
+                                Div({ classes("flex-grow-1") }) {
+                                    Div({ classes("d-flex", "justify-content-between", "align-items-center") }) {
+                                        Span { Text(item.title) }
+                                        item.approximatePrice?.let { price ->
+                                            Span({ classes("text-muted", "small") }) {
+                                                Text("$price ${item.priceUnits}")
+                                            }
                                         }
                                     }
-                                }
-                                if (item.description.isNotBlank()) {
-                                    P({ classes("mb-0", "text-muted", "small", "mt-1") }) {
-                                        Text(item.description)
+                                    if (item.description.isNotBlank()) {
+                                        P({ classes("mb-0", "text-muted", "small", "mt-1") }) {
+                                            Text(item.description)
+                                        }
                                     }
                                 }
                             }

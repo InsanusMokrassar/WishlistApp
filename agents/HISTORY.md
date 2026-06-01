@@ -4,6 +4,47 @@
 
 ---
 
+### 2026-06-01 — Session 24: Personalized Titles + User→AllItems Nav
+
+**Prompt:** Replace wishlists-list view with UserWishlists view in node pushes; title user-wishlists-list view as "${UserName}'s Wishlists"; title user-wishlists (all-items) view as "${Username}'s wishes".
+
+**Actions:**
+- action=update; target=client/.../ClientPlugin.kt; change=[`UsersListViewInteractor.onUserSelected` pushes `UserWishlistsViewConfig(userId)` instead of `WishlistsListViewConfig(userId)`]
+- action=update; target=features/ui/wishlist/.../ui/WishlistsModel.kt; add=[`suspend fun getUserName(userId: UserId): String?`]
+- action=update; target=features/ui/wishlist/.../Plugin.kt; add=[inject `UsersFeature`; impl `getUserName` = `usersFeature.getAll().find { it.id == userId }?.username?.string`]
+- action=update; target=features/ui/wishlist/build.gradle; add=[`api project(":wishlist.features.users.client")`]
+- action=update; target=features/ui/wishlist/.../WishlistStrings.kt; add=[`userWishlistsTitleFormat` "{name}'s Wishlists", `userWishesTitleFormat` "{name}'s wishes" (EN+RU, `{name}` placeholder)]
+- action=update; target=features/ui/wishlist/.../ui/WishlistsListViewModel.kt; add=[`userNameState: StateFlow<String?>`; resolved in `loadWishlists` via `getUserName(profileUserId)`]
+- action=update; target=features/ui/wishlist/.../ui/UserWishlistsViewModel.kt; add=[`userNameState`; resolved on load via `getUserName(node.config.userId)`]
+- action=update; target=3x WishlistsListView + 3x UserWishlistsView (js/jvm/android); change=[title built from `userNameState` + format string via `.translation().replace("{name}", name)`, fallback `wishlistsTitle`/`allItemsTitle`]
+- action=update; target=features/ui/users/.../ui/UsersListViewInteractor.kt KDoc + features/ui/users/README.md + features/ui/wishlist/README.md; change=[doc nav target + titles + getUserName + users.client dep]
+
+**Verification:** check=compile; `:wishlist.features.ui.wishlist:build` PASS; `:wishlist.client:build` (JVM+JS) PASS; `:wishlist.client.android:assembleDebug` PASS. ast-index updated.
+
+**Notes:**
+- Multiplatform formatting via `{name}` placeholder + `replace` (no `String.format` on JS).
+- Title falls back to generic when name `null` (anonymous own list / unknown user).
+
+---
+
+### 2026-06-01 — Session 23: All-Items Grouped by Wishlist (Separators)
+
+**Prompt:** In UserWishlistsView add separator for items by their wishlists.
+
+**Actions:**
+- action=update; target=features/ui/wishlist/.../ui/UserWishlistsViewModel.kt; add=[`data class UserWishlistsSection(wishlist, items)`; `itemsState` → `sectionsState: StateFlow<List<UserWishlistsSection>>`; load maps each wishlist to section, filters empty]
+- action=update; target=features/ui/wishlist/.../jsMain/ui/UserWishlistsView.kt; change=[`H6` header per section above Bootstrap `list-group`]
+- action=update; target=features/ui/wishlist/.../jvmMain/ui/UserWishlistsView.kt; change=[single `LazyColumn`; header `item` (Material `Divider`, keyed `header-<wishlistId>`) before each section]
+- action=update; target=features/ui/wishlist/.../androidMain/ui/UserWishlistsView.kt; change=[same; Material3 `HorizontalDivider`, `titleSmall`]
+- action=update; target=features/ui/wishlist/README.md; change=[Screens + Models + arch note reflect grouping]
+
+**Verification:** check=compile; `:wishlist.features.ui.wishlist:build` PASS (JVM+JS+Android).
+
+**Notes:**
+- Wishlists with no items omitted (no empty separator).
+
+---
+
 ### 2026-06-01 — Session 22: README Refresh for All-Items View + Commit
 
 **Prompt:** Refill READMEs not actual vs current changes; make git commit.

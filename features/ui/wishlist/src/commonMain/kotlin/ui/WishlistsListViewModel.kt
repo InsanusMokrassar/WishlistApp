@@ -54,6 +54,15 @@ class WishlistsListViewModel(
      */
     val profileUserIdState = _profileUserIdState.asStateFlow()
 
+    private val _userNameState = MutableRedeliverStateFlow<String?>(null)
+
+    /**
+     * Display name of the user whose wishlists are shown (the browsed owner, or the caller for the
+     * own list), used to build the personalized title. `null` until resolved or when no user could
+     * be resolved (anonymous own list) — the view then falls back to the generic title.
+     */
+    val userNameState = _userNameState.asStateFlow()
+
     private val _isOwnerState = MutableRedeliverStateFlow(false)
 
     /**
@@ -80,7 +89,9 @@ class WishlistsListViewModel(
             } else {
                 model.getUserWishlists(targetUserId)
             }
-            _profileUserIdState.value = targetUserId ?: currentUserId
+            val profileUserId = targetUserId ?: currentUserId
+            _profileUserIdState.value = profileUserId
+            _userNameState.value = profileUserId?.let { model.getUserName(it) }
             _isOwnerState.value = currentUserId != null && (targetUserId == null || targetUserId == currentUserId)
         } finally {
             _loadingState.value = false

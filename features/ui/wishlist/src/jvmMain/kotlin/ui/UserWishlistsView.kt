@@ -8,6 +8,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.material.Divider
 import androidx.compose.material.MaterialTheme
 import androidx.compose.material.Text
 import androidx.compose.runtime.Composable
@@ -39,7 +40,8 @@ class UserWishlistsView(
     @Composable
     override fun onDraw() {
         super.onDraw()
-        val items by viewModel.itemsState.collectAsState()
+        val sections by viewModel.sectionsState.collectAsState()
+        val userName by viewModel.userNameState.collectAsState()
         val loading by viewModel.loadingState.collectAsState()
 
         Column(
@@ -53,34 +55,47 @@ class UserWishlistsView(
             ) {
                 BackButton(WishlistStrings.backButton.translation()) { viewModel.onBack() }
                 ScreenTitle(
-                    WishlistStrings.allItemsTitle.translation(),
+                    userName?.let {
+                        WishlistStrings.userWishesTitleFormat.translation().replace("{name}", it)
+                    } ?: WishlistStrings.allItemsTitle.translation(),
                     modifier = Modifier.weight(1f).padding(horizontal = 8.dp)
                 )
             }
 
             if (loading) {
                 Text(WishlistStrings.loading.translation())
-            } else if (items.isEmpty()) {
+            } else if (sections.isEmpty()) {
                 Text(WishlistStrings.emptyItems.translation(), style = MaterialTheme.typography.caption)
             } else {
                 LazyColumn(verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                    items(items) { item ->
-                        ListRow(onSelect = { viewModel.onItemSelected(item) }) {
-                            Column {
-                                Row(
-                                    modifier = Modifier.fillMaxWidth(),
-                                    horizontalArrangement = Arrangement.SpaceBetween
-                                ) {
-                                    Text(item.title)
-                                    item.approximatePrice?.let { price ->
-                                        Text(
-                                            "$price ${item.priceUnits}",
-                                            style = MaterialTheme.typography.caption
-                                        )
+                    sections.forEach { section ->
+                        item(key = "header-${section.wishlist.id.long}") {
+                            Text(
+                                section.wishlist.title,
+                                modifier = Modifier.fillMaxWidth().padding(top = 8.dp),
+                                style = MaterialTheme.typography.subtitle2,
+                                color = MaterialTheme.colors.primary
+                            )
+                            Divider()
+                        }
+                        items(section.items) { item ->
+                            ListRow(onSelect = { viewModel.onItemSelected(item) }) {
+                                Column {
+                                    Row(
+                                        modifier = Modifier.fillMaxWidth(),
+                                        horizontalArrangement = Arrangement.SpaceBetween
+                                    ) {
+                                        Text(item.title)
+                                        item.approximatePrice?.let { price ->
+                                            Text(
+                                                "$price ${item.priceUnits}",
+                                                style = MaterialTheme.typography.caption
+                                            )
+                                        }
                                     }
-                                }
-                                if (item.description.isNotBlank()) {
-                                    Text(item.description, style = MaterialTheme.typography.caption)
+                                    if (item.description.isNotBlank()) {
+                                        Text(item.description, style = MaterialTheme.typography.caption)
+                                    }
                                 }
                             }
                         }

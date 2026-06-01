@@ -48,6 +48,7 @@ class WishlistsListView(
         val wishlists by viewModel.wishlistsState.collectAsState()
         val loading by viewModel.loadingState.collectAsState()
         val profileUserId by viewModel.profileUserIdState.collectAsState()
+        val userName by viewModel.userNameState.collectAsState()
         val isOwner by viewModel.isOwnerState.collectAsState()
         val stack by chain.stackFlow.collectAsState()
 
@@ -65,8 +66,9 @@ class WishlistsListView(
                         BackButton(WishlistStrings.backButton.translation(resources)) { viewModel.onBack() }
                     }
                     ScreenTitle(
-                        (if (viewModel.targetUserId == null) WishlistStrings.wishlistsTitle
-                        else WishlistStrings.userWishlistsTitle).translation(resources)
+                        userName?.let {
+                            WishlistStrings.userWishlistsTitleFormat.translation(resources).replace("{name}", it)
+                        } ?: WishlistStrings.wishlistsTitle.translation(resources)
                     )
                 }
                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {

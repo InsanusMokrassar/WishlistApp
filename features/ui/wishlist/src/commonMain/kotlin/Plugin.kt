@@ -7,6 +7,7 @@ import dev.inmo.wishlist.features.auth.client.ClientAuthFeature
 import dev.inmo.wishlist.features.common.client.models.ViewConfig
 import dev.inmo.wishlist.features.files.client.FilesClientService
 import dev.inmo.wishlist.features.files.common.models.FileId
+import dev.inmo.wishlist.features.users.client.UsersFeature
 import dev.inmo.wishlist.features.users.common.models.UserId
 import dev.inmo.wishlist.features.wishlist.client.WishlistsFeature
 import dev.inmo.wishlist.features.wishlist.client.WishlistsItemsFeature
@@ -76,6 +77,7 @@ object Plugin : StartPlugin {
             val itemsFeature = get<WishlistsItemsFeature>()
             val authFeature = get<ClientAuthFeature>()
             val filesService = get<FilesClientService>()
+            val usersFeature = get<UsersFeature>()
             object : WishlistsModel {
                 override suspend fun getMyWishlists(): List<RegisteredWishlist> =
                     wishlistsFeature.getMyWishlists()
@@ -109,6 +111,9 @@ object Plugin : StartPlugin {
 
                 override suspend fun getCurrentUserId(): UserId? =
                     authFeature.getMe()?.id
+
+                override suspend fun getUserName(userId: UserId): String? =
+                    usersFeature.getAll().find { it.id == userId }?.username?.string
 
                 override suspend fun uploadImage(file: MPPFile): FileId? =
                     filesService.uploadFile(file)?.id

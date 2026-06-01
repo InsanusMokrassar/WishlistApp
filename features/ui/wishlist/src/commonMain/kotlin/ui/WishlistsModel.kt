@@ -105,6 +105,16 @@ interface WishlistsModel {
     suspend fun getCurrentUserId(): UserId?
 
     /**
+     * Resolves the display name of the user identified by [userId].
+     *
+     * Used to build the personalized screen titles of the wishlists list and all-items screens.
+     *
+     * @param userId User whose name to resolve.
+     * @return Username string, or `null` when no such user is known.
+     */
+    suspend fun getUserName(userId: UserId): String?
+
+    /**
      * Uploads [file] as an image and returns its persistent [FileId] on success.
      *
      * Performs the two-step temporal-upload + finalize flow via the files feature; the JS path

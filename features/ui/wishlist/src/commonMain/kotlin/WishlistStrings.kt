@@ -27,6 +27,12 @@ object WishlistStrings {
     val cancelButton = buildStringResource("Cancel") { IetfLang.Russian("Отмена") }
     val emptyWishlists = buildStringResource("No wishlists yet") { IetfLang.Russian("Нет списков желаний") }
     val userWishlistsTitle = buildStringResource("Wishlists") { IetfLang.Russian("Списки желаний") }
+    val userWishlistsTitleFormat = buildStringResource("{name}'s Wishlists") {
+        IetfLang.Russian("Списки желаний {name}")
+    }
+    val userWishesTitleFormat = buildStringResource("{name}'s wishes") {
+        IetfLang.Russian("Желания {name}")
+    }
     val allItemsButton = buildStringResource("All items") { IetfLang.Russian("Все товары") }
     val allItemsTitle = buildStringResource("All items") { IetfLang.Russian("Все товары") }
     val profileButton = buildStringResource("Profile") { IetfLang.Russian("Профиль") }

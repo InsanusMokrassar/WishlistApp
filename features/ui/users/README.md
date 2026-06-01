@@ -10,7 +10,7 @@ User-facing screens for browsing and managing user profiles. Three screens share
 chain (the scaffold main slot):
 
 - **Users list** — main page content; the global list of registered users from the public
-  `UsersFeature.getAll()`. Selecting a row pushes that user's `WishlistsListViewConfig(userId)`.
+  `UsersFeature.getAll()`. Selecting a row pushes that user's `UserWishlistsViewConfig(userId)` (their all-items view).
   A **My profile** button (visible only when logged in) opens the caller's own profile.
 - **User profile view** (`UserViewConfig(userId)`) — public, readable by anyone (anonymous
   included). Shows the username and avatar (when set). Shows an **Edit** button only to the profile
@@ -36,7 +36,7 @@ None — client-only UI feature. Consumes `features/users/client` (public read),
 | `UserViewConfig` | `data class(userId: UserId)` — public profile detail |
 | `UserEditViewConfig` | `data class(userId: UserId)` — profile edit (owner/root) |
 | `UsersModel` | Single feature model (renamed from `UsersListModel`). Wraps `UsersFeature.getAll()`, `ClientAuthFeature` (`getCurrentUserId`, `isCurrentUserRoot`), admin `AdminFeature.usersManagement` (`updateUsername`, `setPassword`, `deleteUser`), and `FilesClientService` (`getAvatar`, `uploadAvatar`, `imageUrl`, `loadImageBytes`); `getUser(id)` resolves from the public list |
-| `UsersListViewInteractor` | `onUserSelected(node, userId)` (→ wishlists), `onOpenProfile(node, userId)` (→ profile view) |
+| `UsersListViewInteractor` | `onUserSelected(node, userId)` (→ user's all-items view), `onOpenProfile(node, userId)` (→ profile view) |
 | `UserViewInteractor` | `onBack(node)`, `onEditUser(node)` (→ edit) |
 | `UserEditViewInteractor` | `onNavigateBack(node)`, `onSaved(node)`, `onDeleted(node)` |
 | `UsersListViewModel` | `usersState`, `loadingState`, `currentUserIdState`; `onUserSelected`, `onMyProfile` |

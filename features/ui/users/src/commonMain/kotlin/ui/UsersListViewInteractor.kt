@@ -8,7 +8,7 @@ import dev.inmo.wishlist.features.users.common.models.UserId
  * Side-effecting capability for the users list screen.
  *
  * Implementation owned by the top-level `client/` module — pushes
- * `WishlistsListViewConfig(userId)` onto the current node's chain.
+ * `UserWishlistsViewConfig(userId)` onto the current node's chain.
  */
 interface UsersListViewInteractor {
     /**

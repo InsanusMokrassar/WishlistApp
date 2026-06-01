@@ -111,7 +111,7 @@ object ClientPlugin : StartPlugin {
                     node: NavigationNode<UsersListViewConfig, ViewConfig>,
                     userId: UserId
                 ) {
-                    node.chain.push(WishlistsListViewConfig(userId))
+                    node.chain.push(UserWishlistsViewConfig(userId))
                 }
                 override suspend fun onOpenProfile(
                     node: NavigationNode<UsersListViewConfig, ViewConfig>,
