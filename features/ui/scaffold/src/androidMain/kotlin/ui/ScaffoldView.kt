@@ -11,6 +11,7 @@ import dev.inmo.navigation.compose.InjectNavigationChain
 import dev.inmo.navigation.compose.InjectNavigationNode
 import dev.inmo.navigation.core.NavigationChain
 import dev.inmo.navigation.mvvm.compose.ComposeView
+import dev.inmo.wishlist.features.common.client.models.MainNavigationChainId
 import dev.inmo.wishlist.features.common.client.models.ViewConfig
 import org.koin.core.component.inject
 import org.koin.core.parameter.parametersOf
@@ -49,7 +50,7 @@ class ScaffoldView(
                 }
                 cfg.mainConfig?.let { mainConfig ->
                     Box(modifier = androidx.compose.ui.Modifier.weight(1f).fillMaxHeight()) {
-                        InjectNavigationChain<ViewConfig> { InjectNavigationNode(mainConfig) }
+                        InjectNavigationChain<ViewConfig>(id = MainNavigationChainId) { InjectNavigationNode(mainConfig) }
                     }
                 }
             }

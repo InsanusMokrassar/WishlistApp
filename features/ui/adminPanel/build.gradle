@@ -13,6 +13,7 @@ kotlin {
         commonMain {
             dependencies {
                 api project(":wishlist.features.common.client")
+                api project(":wishlist.features.ui.topBar")
                 api project(":wishlist.features.admin.client")
                 api project(":wishlist.features.users.common")
                 api project(":wishlist.features.wishlist.common")

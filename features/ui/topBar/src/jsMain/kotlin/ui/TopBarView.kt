@@ -1,6 +1,8 @@
 package dev.inmo.wishlist.features.ui.topBar.ui
 
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
 import dev.inmo.micro_utils.strings.translation
 import dev.inmo.navigation.compose.InjectNavigationChain
 import dev.inmo.navigation.compose.InjectNavigationNode
@@ -27,10 +29,17 @@ class TopBarView(
     @Composable
     override fun onDraw() {
         super.onDraw()
+        val titleProviders by viewModel.titleProviders.collectAsState()
         Nav({ classes("navbar", "navbar-expand", "navbar-dark", "bg-primary") }) {
             Div({ classes("container-fluid") }) {
                 A(href = "#", { classes("navbar-brand") }) {
-                    Text(TopBarStrings.appTitle.translation())
+                    Text(
+                        titleProviders
+                            .map { it.title }
+                            .takeIf { it.isNotEmpty() }
+                            ?.joinToString(" / ")
+                            ?: TopBarStrings.appTitle.translation()
+                    )
                 }
                 Div({ classes("d-flex") }) {
                     InjectNavigationChain<ViewConfig> { InjectNavigationNode(AuthViewConfig()) }

@@ -24,7 +24,7 @@ import dev.inmo.navigation.core.NavigationChain
 import dev.inmo.navigation.mvvm.compose.ComposeView
 import dev.inmo.wishlist.features.common.client.models.ViewConfig
 import dev.inmo.wishlist.features.common.client.ui.components.ListRow
-import dev.inmo.wishlist.features.common.client.ui.components.ScreenTitle
+import dev.inmo.wishlist.features.ui.topBar.ui.TopBarTitleProvider
 import dev.inmo.wishlist.features.ui.users.UsersListStrings
 import org.koin.core.component.inject
 import org.koin.core.parameter.parametersOf
@@ -33,10 +33,13 @@ import org.koin.core.parameter.parametersOf
 class UsersListView(
     chain: NavigationChain<ViewConfig>,
     config: UsersListViewConfig,
-) : ComposeView<UsersListViewConfig, ViewConfig, UsersListViewModel>(config, chain) {
+) : ComposeView<UsersListViewConfig, ViewConfig, UsersListViewModel>(config, chain), TopBarTitleProvider {
     override val viewModel: UsersListViewModel by inject(mode = LazyThreadSafetyMode.SYNCHRONIZED) {
         parametersOf(this@UsersListView)
     }
+
+    override val title: String
+        @Composable get() = UsersListStrings.title.translation()
 
     @Composable
     override fun onDraw() {
@@ -51,7 +54,6 @@ class UsersListView(
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                ScreenTitle(UsersListStrings.title.translation())
                 if (currentUserId != null) {
                     Button(onClick = { viewModel.onMyProfile() }) {
                         Text(UsersListStrings.myProfileButton.translation())

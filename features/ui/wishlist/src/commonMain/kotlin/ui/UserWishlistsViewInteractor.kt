@@ -2,6 +2,7 @@ package dev.inmo.wishlist.features.ui.wishlist.ui
 
 import dev.inmo.navigation.core.NavigationNode
 import dev.inmo.wishlist.features.common.client.models.ViewConfig
+import dev.inmo.wishlist.features.users.common.models.UserId
 import dev.inmo.wishlist.features.wishlist.common.models.WishlistId
 import dev.inmo.wishlist.features.wishlist.common.models.WishlistItemId
 
@@ -31,4 +32,15 @@ interface UserWishlistsViewInteractor {
      * @param node Current navigation node.
      */
     suspend fun onBack(node: NavigationNode<UserWishlistsViewConfig, ViewConfig>)
+
+    /**
+     * Called when the user opens the target user's public profile.
+     *
+     * @param node Current navigation node.
+     * @param userId Identifier of the user whose profile should be opened.
+     */
+    suspend fun onOpenProfile(
+        node: NavigationNode<UserWishlistsViewConfig, ViewConfig>,
+        userId: UserId
+    )
 }

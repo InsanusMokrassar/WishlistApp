@@ -9,7 +9,7 @@ import dev.inmo.navigation.mvvm.compose.ComposeView
 import dev.inmo.wishlist.features.common.client.models.ViewConfig
 import dev.inmo.wishlist.features.common.client.ui.components.BackButton
 import dev.inmo.wishlist.features.common.client.ui.components.ListRow
-import dev.inmo.wishlist.features.common.client.ui.components.ScreenTitle
+import dev.inmo.wishlist.features.ui.topBar.ui.TopBarTitleProvider
 import dev.inmo.wishlist.features.ui.wishlist.WishlistStrings
 import dev.inmo.wishlist.features.ui.wishlist.labelResource
 import dev.inmo.wishlist.features.wishlist.common.models.Priority
@@ -29,10 +29,16 @@ import org.koin.core.parameter.parametersOf
 class WishlistItemView(
     chain: NavigationChain<ViewConfig>,
     config: WishlistItemViewConfig,
-) : ComposeView<WishlistItemViewConfig, ViewConfig, WishlistItemViewModel>(config, chain) {
+) : ComposeView<WishlistItemViewConfig, ViewConfig, WishlistItemViewModel>(config, chain), TopBarTitleProvider {
     override val viewModel: WishlistItemViewModel by inject(mode = LazyThreadSafetyMode.SYNCHRONIZED) {
         parametersOf(this@WishlistItemView)
     }
+
+    override val title: String
+        @Composable get() {
+            val item by viewModel.itemState.collectAsState()
+            return item?.title ?: WishlistStrings.viewItemTitle.translation()
+        }
 
     @Composable
     override fun onDraw() {
@@ -44,7 +50,7 @@ class WishlistItemView(
         Div({ classes("container", "py-3") }) {
             Div({ classes("d-flex", "align-items-center", "mb-3", "gap-2") }) {
                 BackButton(WishlistStrings.backButton.translation()) { viewModel.onBack() }
-                ScreenTitle(item?.title ?: WishlistStrings.viewItemTitle.translation(), "mb-0", "flex-grow-1")
+                Div({ classes("flex-grow-1") }) {}
                 if (isOwner) {
                     Button({
                         classes("btn", "btn-outline-primary")

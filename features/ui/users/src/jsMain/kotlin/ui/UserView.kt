@@ -8,7 +8,7 @@ import dev.inmo.navigation.core.NavigationChain
 import dev.inmo.navigation.mvvm.compose.ComposeView
 import dev.inmo.wishlist.features.common.client.models.ViewConfig
 import dev.inmo.wishlist.features.common.client.ui.components.BackButton
-import dev.inmo.wishlist.features.common.client.ui.components.ScreenTitle
+import dev.inmo.wishlist.features.ui.topBar.ui.TopBarTitleProvider
 import dev.inmo.wishlist.features.ui.users.UsersListStrings
 import org.jetbrains.compose.web.dom.Button
 import org.jetbrains.compose.web.dom.Div
@@ -22,10 +22,13 @@ import org.koin.core.parameter.parametersOf
 class UserView(
     chain: NavigationChain<ViewConfig>,
     config: UserViewConfig,
-) : ComposeView<UserViewConfig, ViewConfig, UserViewModel>(config, chain) {
+) : ComposeView<UserViewConfig, ViewConfig, UserViewModel>(config, chain), TopBarTitleProvider {
     override val viewModel: UserViewModel by inject(mode = LazyThreadSafetyMode.SYNCHRONIZED) {
         parametersOf(this@UserView)
     }
+
+    override val title: String
+        @Composable get() = UsersListStrings.profileTitle.translation()
 
     @Composable
     override fun onDraw() {
@@ -38,7 +41,6 @@ class UserView(
         Div({ classes("container", "py-3") }) {
             Div({ classes("d-flex", "align-items-center", "mb-3", "gap-2") }) {
                 BackButton(UsersListStrings.backButton.translation()) { viewModel.onBack() }
-                ScreenTitle(UsersListStrings.profileTitle.translation())
                 if (canEdit) {
                     Button({
                         classes("btn", "btn-outline-primary", "ms-auto")

@@ -6,7 +6,7 @@
 
 ## Overview
 
-Compact login/register widget rendered inline within the top navigation bar. When logged in, displays a "Log out" button. When logged out and collapsed, displays "Log in" (and "Register" when server has `enableRegistration=true`). When expanded in login mode: username/password + "Submit" + "Cancel". When expanded in register mode: username/password + "Create account" + "Cancel". Server URL storage is owned by `features/ui/serverUrl`. Depends on `features/auth/client`.
+Compact login/register widget rendered within the top navigation bar. When logged in, displays a "Log out" button. When logged out and collapsed, displays "Log in" (and "Register" when server has `enableRegistration=true`). When expanded, the credentials form appears in a modal dialog — on JS as a Bootstrap modal overlay with header (title + close button), body (inputs + error), and footer (Cancel + Submit); on JVM/Android as a `androidx.compose.ui.window.Dialog` wrapping a Surface-based form with Cancel/Submit buttons. Server URL storage is owned by `features/ui/serverUrl`. Depends on `features/auth/client`.
 
 ## Routes
 
@@ -24,7 +24,7 @@ None. Client-only feature; no server component.
 ## Architecture Notes
 
 - **View embedding:** `features/ui/topBar` embeds `AuthViewConfig` via `InjectNavigationChain<ViewConfig> { InjectNavigationNode(AuthViewConfig()) }`, replacing the old "auth overlay on root chain" pattern.
-- **Inline widget behavior:** `AuthView` per platform (JS/JVM/Android) is a single compact widget that renders conditionally based on `loggedInState` and `formExpandedState`.
+- **Modal dialog behavior:** `AuthView` per platform (JS/JVM/Android) renders log in/register trigger buttons in the navbar. When `formExpandedState` is true, the credentials form renders inside a modal dialog (Bootstrap modal overlay on JS; `androidx.compose.ui.window.Dialog` + Surface on JVM/Android), dismissable via `onCancelForm`. The navbar buttons remain visible while the dialog is open.
 - **Model interface:** `AuthModel.userAuthorisedState: StateFlow<Boolean>` mirrors login state; `logout()` method clears credentials. `getServerAddress()`/`saveServerAddress()` removed — delegated to `features/ui/serverUrl`.
 - **ViewModel:** `loggedInState` derived from `model.userAuthorisedState`; `formExpandedState` tracks collapse/expand toggle; `onToggleForm()` toggles collapse state; `onLogout()` calls `model.logout()`.
 - `loginEnabledState` is a derived `StateFlow<Boolean>` from `combine(usernameState, passwordState, loadingState)` — all inputs non-blank and no request in flight. Shared for both login and register submit buttons.

@@ -220,6 +220,12 @@ object ClientPlugin : StartPlugin {
                 ) {
                     node.chain.pop()
                 }
+                override suspend fun onOpenProfile(
+                    node: NavigationNode<UserWishlistsViewConfig, ViewConfig>,
+                    userId: UserId
+                ) {
+                    node.chain.push(UserViewConfig(userId))
+                }
             }
         }
 

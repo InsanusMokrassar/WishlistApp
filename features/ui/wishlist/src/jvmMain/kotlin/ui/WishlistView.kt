@@ -26,7 +26,7 @@ import dev.inmo.navigation.mvvm.compose.ComposeView
 import dev.inmo.wishlist.features.common.client.models.ViewConfig
 import dev.inmo.wishlist.features.common.client.ui.components.BackButton
 import dev.inmo.wishlist.features.common.client.ui.components.ListRow
-import dev.inmo.wishlist.features.common.client.ui.components.ScreenTitle
+import dev.inmo.wishlist.features.ui.topBar.ui.TopBarTitleProvider
 import dev.inmo.wishlist.features.ui.wishlist.WishlistStrings
 import dev.inmo.wishlist.features.ui.wishlist.ui.WishlistViewConfig
 import dev.inmo.wishlist.features.ui.wishlist.ui.WishlistViewModel
@@ -37,15 +37,20 @@ import org.koin.core.parameter.parametersOf
 class WishlistView(
     chain: NavigationChain<ViewConfig>,
     config: WishlistViewConfig,
-) : ComposeView<WishlistViewConfig, ViewConfig, WishlistViewModel>(config, chain) {
+) : ComposeView<WishlistViewConfig, ViewConfig, WishlistViewModel>(config, chain), TopBarTitleProvider {
     override val viewModel: WishlistViewModel by inject(mode = LazyThreadSafetyMode.SYNCHRONIZED) {
         parametersOf(this@WishlistView)
     }
 
+    override val title: String
+        @Composable get() {
+            val wishlist by viewModel.wishlistState.collectAsState()
+            return wishlist?.title ?: ""
+        }
+
     @Composable
     override fun onDraw() {
         super.onDraw()
-        val wishlist by viewModel.wishlistState.collectAsState()
         val items by viewModel.itemsState.collectAsState()
         val isOwner by viewModel.isOwnerState.collectAsState()
         val loading by viewModel.loadingState.collectAsState()
@@ -57,7 +62,7 @@ class WishlistView(
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 BackButton(WishlistStrings.backButton.translation()) { viewModel.onBack() }
-                ScreenTitle(wishlist?.title ?: "", modifier = Modifier.weight(1f).padding(horizontal = 8.dp))
+                Spacer(modifier = Modifier.weight(1f))
                 if (isOwner) {
                     Button(onClick = { viewModel.onEditWishlist() }) {
                         Text(WishlistStrings.editButton.translation())

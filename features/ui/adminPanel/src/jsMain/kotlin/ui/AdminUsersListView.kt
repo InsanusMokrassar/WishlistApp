@@ -8,7 +8,7 @@ import dev.inmo.navigation.core.NavigationChain
 import dev.inmo.navigation.mvvm.compose.ComposeView
 import dev.inmo.wishlist.features.common.client.models.ViewConfig
 import dev.inmo.wishlist.features.common.client.ui.components.ListRow
-import dev.inmo.wishlist.features.common.client.ui.components.ScreenTitle
+import dev.inmo.wishlist.features.ui.topBar.ui.TopBarTitleProvider
 import dev.inmo.wishlist.features.ui.adminPanel.AdminPanelStrings
 import org.jetbrains.compose.web.dom.Button
 import org.jetbrains.compose.web.dom.Div
@@ -23,10 +23,13 @@ import org.koin.core.parameter.parametersOf
 class AdminUsersListView(
     chain: NavigationChain<ViewConfig>,
     config: AdminUsersListViewConfig,
-) : ComposeView<AdminUsersListViewConfig, ViewConfig, AdminUsersListViewModel>(config, chain) {
+) : ComposeView<AdminUsersListViewConfig, ViewConfig, AdminUsersListViewModel>(config, chain), TopBarTitleProvider {
     override val viewModel: AdminUsersListViewModel by inject(mode = LazyThreadSafetyMode.SYNCHRONIZED) {
         parametersOf(this@AdminUsersListView)
     }
+
+    override val title: String
+        @Composable get() = AdminPanelStrings.usersListTitle.translation()
 
     @Composable
     override fun onDraw() {
@@ -36,7 +39,6 @@ class AdminUsersListView(
 
         Div({ classes("container", "py-3") }) {
             Div({ classes("d-flex", "justify-content-between", "align-items-center", "mb-3") }) {
-                ScreenTitle(AdminPanelStrings.usersListTitle.translation())
                 Button({
                     classes("btn", "btn-primary")
                     onClick { viewModel.onCreateUser() }

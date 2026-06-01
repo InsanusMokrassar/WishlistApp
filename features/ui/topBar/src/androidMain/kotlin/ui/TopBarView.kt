@@ -8,6 +8,8 @@ import androidx.compose.material3.Button
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalResources
@@ -41,12 +43,20 @@ class TopBarView(
     override fun onDraw() {
         super.onDraw()
         val resources = LocalResources.current
+        val titleProviders by viewModel.titleProviders.collectAsState()
         Row(
             modifier = Modifier.fillMaxWidth().padding(8.dp),
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.SpaceBetween
         ) {
-            Text(TopBarStrings.appTitle.translation(resources), style = MaterialTheme.typography.titleLarge)
+            Text(
+                titleProviders
+                    .map { it.title }
+                    .takeIf { it.isNotEmpty() }
+                    ?.joinToString(" / ")
+                    ?: TopBarStrings.appTitle.translation(resources),
+                style = MaterialTheme.typography.titleLarge
+            )
             Row(
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.spacedBy(8.dp)

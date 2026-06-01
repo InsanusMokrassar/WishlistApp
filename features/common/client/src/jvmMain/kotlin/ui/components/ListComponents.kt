@@ -40,42 +40,47 @@ fun BackButton(text: String, onClick: () -> Unit) {
 }
 
 /**
- * Single clickable list row inside a `LazyColumn`, carrying a primary label and optional trailing content.
+ * Single clickable list row inside a `LazyColumn`, carrying a primary label and optional leading/trailing content.
  *
  * @param text Already-translated primary label of the row.
  * @param onSelect Invoked when the user clicks the row label; `null` makes the label non-interactive.
+ * @param leading Optional leading content (e.g. an avatar/thumbnail) rendered at the row's start.
  * @param trailing Optional trailing content (e.g. action buttons) rendered at the row's end.
  */
 @Composable
 fun ListRow(
     text: String,
     onSelect: (() -> Unit)? = null,
+    leading: (@Composable () -> Unit)? = null,
     trailing: (@Composable () -> Unit)? = null,
 ) {
     ListRow(
         onSelect = onSelect,
+        leading = leading,
         trailing = trailing,
         content = { Text(text) },
     )
 }
 
 /**
- * Single clickable list row inside a `LazyColumn`, with a caller-provided primary content slot and optional trailing content.
+ * Single clickable list row inside a `LazyColumn`, with a caller-provided primary content slot and optional leading/trailing content.
  *
  * Use this overload when the primary cell needs more than a single label (secondary text, prices, etc.).
  *
  * @param onSelect Invoked when the user clicks the primary content; `null` makes the content non-interactive.
+ * @param leading Optional leading content (e.g. an avatar/thumbnail) rendered at the row's start.
  * @param trailing Optional trailing content (e.g. action buttons) rendered at the row's end.
  * @param content Primary content of the row.
  */
 @Composable
 fun ListRow(
     onSelect: (() -> Unit)? = null,
+    leading: (@Composable () -> Unit)? = null,
     trailing: (@Composable () -> Unit)? = null,
     content: @Composable () -> Unit,
 ) {
     Card(modifier = Modifier.fillMaxWidth()) {
-        if (trailing == null) {
+        if (leading == null && trailing == null) {
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -88,13 +93,18 @@ fun ListRow(
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                Box(
+                Row(
                     modifier = Modifier
                         .weight(1f)
                         .let { if (onSelect != null) it.clickable { onSelect() } else it }
-                        .padding(vertical = 16.dp)
-                ) { content() }
-                trailing()
+                        .padding(vertical = 16.dp),
+                    horizontalArrangement = Arrangement.spacedBy(12.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    leading?.invoke()
+                    Box(modifier = Modifier.weight(1f)) { content() }
+                }
+                trailing?.invoke()
             }
         }
     }

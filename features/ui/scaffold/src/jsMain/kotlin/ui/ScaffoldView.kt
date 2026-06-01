@@ -5,6 +5,7 @@ import dev.inmo.navigation.compose.InjectNavigationChain
 import dev.inmo.navigation.compose.InjectNavigationNode
 import dev.inmo.navigation.core.NavigationChain
 import dev.inmo.navigation.mvvm.compose.ComposeView
+import dev.inmo.wishlist.features.common.client.models.MainNavigationChainId
 import dev.inmo.wishlist.features.common.client.models.ViewConfig
 import org.jetbrains.compose.web.css.Style
 import org.jetbrains.compose.web.dom.Div
@@ -49,7 +50,7 @@ class ScaffoldView(
                 }
                 cfg.mainConfig?.let { mainConfig ->
                     Div({ classes(ScaffoldViewStylesheet.scaffoldMain) }) {
-                        InjectNavigationChain<ViewConfig> { InjectNavigationNode(mainConfig) }
+                        InjectNavigationChain<ViewConfig>(id = MainNavigationChainId) { InjectNavigationNode(mainConfig) }
                     }
                 }
             }

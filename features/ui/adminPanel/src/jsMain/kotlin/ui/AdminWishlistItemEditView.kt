@@ -10,7 +10,7 @@ import dev.inmo.navigation.core.NavigationNodeState.Companion.value
 import dev.inmo.navigation.mvvm.compose.ComposeView
 import dev.inmo.wishlist.features.common.client.models.ViewConfig
 import dev.inmo.wishlist.features.common.client.ui.components.BackButton
-import dev.inmo.wishlist.features.common.client.ui.components.ScreenTitle
+import dev.inmo.wishlist.features.ui.topBar.ui.TopBarTitleProvider
 import dev.inmo.wishlist.features.ui.adminPanel.AdminPanelStrings
 import org.jetbrains.compose.web.attributes.InputType
 import org.jetbrains.compose.web.attributes.disabled
@@ -30,10 +30,14 @@ import org.koin.core.parameter.parametersOf
 class AdminWishlistItemEditView(
     chain: NavigationChain<ViewConfig>,
     config: AdminWishlistItemEditViewConfig,
-) : ComposeView<AdminWishlistItemEditViewConfig, ViewConfig, AdminWishlistItemEditViewModel>(config, chain) {
+) : ComposeView<AdminWishlistItemEditViewConfig, ViewConfig, AdminWishlistItemEditViewModel>(config, chain), TopBarTitleProvider {
     override val viewModel: AdminWishlistItemEditViewModel by inject(mode = LazyThreadSafetyMode.SYNCHRONIZED) {
         parametersOf(this@AdminWishlistItemEditView)
     }
+
+    override val title: String
+        @Composable get() = if (viewModel.isCreating) AdminPanelStrings.newItemTitle.translation()
+            else AdminPanelStrings.editItemTitle.translation()
 
     @Composable
     override fun onDraw() {
@@ -76,10 +80,6 @@ class AdminWishlistItemEditView(
         Div({ classes("container", "py-3") }) {
             Div({ classes("d-flex", "align-items-center", "mb-3", "gap-2") }) {
                 BackButton(AdminPanelStrings.backButton.translation()) { viewModel.onBack() }
-                ScreenTitle(
-                    if (viewModel.isCreating) AdminPanelStrings.newItemTitle.translation()
-                    else AdminPanelStrings.editItemTitle.translation()
-                )
             }
             Div({ classes("mb-3") }) {
                 Label("item-title") { Text(AdminPanelStrings.itemTitleLabel.translation()) }

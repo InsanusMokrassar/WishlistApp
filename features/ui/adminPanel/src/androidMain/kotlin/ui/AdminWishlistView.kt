@@ -27,7 +27,7 @@ import dev.inmo.navigation.mvvm.compose.ComposeView
 import dev.inmo.wishlist.features.common.client.models.ViewConfig
 import dev.inmo.wishlist.features.common.client.ui.components.BackButton
 import dev.inmo.wishlist.features.common.client.ui.components.ListRow
-import dev.inmo.wishlist.features.common.client.ui.components.ScreenTitle
+import dev.inmo.wishlist.features.ui.topBar.ui.TopBarTitleProvider
 import dev.inmo.wishlist.features.ui.adminPanel.AdminPanelStrings
 import org.koin.core.component.inject
 import org.koin.core.parameter.parametersOf
@@ -36,10 +36,16 @@ import org.koin.core.parameter.parametersOf
 class AdminWishlistView(
     chain: NavigationChain<ViewConfig>,
     config: AdminWishlistViewConfig,
-) : ComposeView<AdminWishlistViewConfig, ViewConfig, AdminWishlistViewModel>(config, chain) {
+) : ComposeView<AdminWishlistViewConfig, ViewConfig, AdminWishlistViewModel>(config, chain), TopBarTitleProvider {
     override val viewModel: AdminWishlistViewModel by inject(mode = LazyThreadSafetyMode.SYNCHRONIZED) {
         parametersOf(this@AdminWishlistView)
     }
+
+    override val title: String
+        @Composable get() {
+            val wishlist by viewModel.wishlistState.collectAsState()
+            return wishlist?.title ?: "#${config.wishlistId.long}"
+        }
 
     @Composable
     override fun onDraw() {
@@ -57,11 +63,8 @@ class AdminWishlistView(
             ) {
                 Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                     BackButton(AdminPanelStrings.backButton.translation(resources)) { viewModel.onBack() }
-                    Column {
-                        ScreenTitle(wishlist?.title ?: "#${config.wishlistId.long}")
-                        if (wishlist != null) {
-                            Text("user #${wishlist!!.userId.long}", style = MaterialTheme.typography.labelMedium)
-                        }
+                    if (wishlist != null) {
+                        Text("user #${wishlist!!.userId.long}", style = MaterialTheme.typography.labelMedium)
                     }
                 }
                 Button(onClick = { viewModel.onEditWishlist() }) { Text(AdminPanelStrings.editButton.translation(resources)) }

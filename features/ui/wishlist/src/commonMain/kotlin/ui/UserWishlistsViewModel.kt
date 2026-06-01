@@ -7,6 +7,7 @@ import dev.inmo.navigation.core.NavigationNode
 import dev.inmo.navigation.core.onResumeFlow
 import dev.inmo.navigation.mvvm.ViewModel
 import dev.inmo.wishlist.features.common.client.models.ViewConfig
+import dev.inmo.wishlist.features.files.common.models.FileId
 import dev.inmo.wishlist.features.wishlist.common.models.RegisteredWishlist
 import dev.inmo.wishlist.features.wishlist.common.models.RegisteredWishlistItem
 import kotlinx.coroutines.flow.asStateFlow
@@ -90,4 +91,15 @@ class UserWishlistsViewModel(
     fun onBack() {
         scope.launchLoggingDropExceptions { interactor.onBack(node) }
     }
+
+    /** Opens the target user's public profile via [UserWishlistsViewInteractor.onOpenProfile]. */
+    fun onOpenProfile() {
+        scope.launchLoggingDropExceptions { interactor.onOpenProfile(node, node.config.userId) }
+    }
+
+    /** Download URL of image [id], for platforms that render directly from a URL (JS). */
+    fun imageUrl(id: FileId): String = model.imageUrl(id)
+
+    /** Raw bytes of image [id], for platforms that decode images locally (JVM/Android). */
+    suspend fun loadImageBytes(id: FileId): ByteArray? = model.loadImageBytes(id)
 }

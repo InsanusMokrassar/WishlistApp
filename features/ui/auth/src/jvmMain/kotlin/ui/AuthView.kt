@@ -1,11 +1,14 @@
 package dev.inmo.wishlist.features.ui.auth.ui
 
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.Button
 import androidx.compose.material.OutlinedTextField
+import androidx.compose.material.Surface
 import androidx.compose.material.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
@@ -15,6 +18,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.window.Dialog
 import dev.inmo.micro_utils.strings.translation
 import dev.inmo.navigation.core.NavigationChain
 import dev.inmo.navigation.mvvm.compose.ComposeView
@@ -53,41 +57,47 @@ class AuthView(
         val error by viewModel.errorState.collectAsState()
         val loginEnabled by viewModel.loginEnabledState.collectAsState()
 
-        when {
-            loggedIn -> {
-                Button(
-                    onClick = { viewModel.onLogout() },
-                    enabled = !loading
-                ) { Text(AuthStrings.logoutButton.translation()) }
+        if (loggedIn) {
+            Button(
+                onClick = { viewModel.onLogout() },
+                enabled = !loading
+            ) { Text(AuthStrings.logoutButton.translation()) }
+            return
+        }
+
+        Row(
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(4.dp)
+        ) {
+            Button(onClick = { viewModel.onToggleForm() }) {
+                Text(AuthStrings.loginButton.translation())
             }
-            !expanded -> {
-                Row(
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(4.dp)
-                ) {
-                    Button(onClick = { viewModel.onToggleForm() }) {
-                        Text(AuthStrings.loginButton.translation())
-                    }
-                    if (registrationEnabled) {
-                        Button(onClick = { viewModel.onToggleRegisterForm() }) {
-                            Text(AuthStrings.registerButton.translation())
-                        }
-                    }
+            if (registrationEnabled) {
+                Button(onClick = { viewModel.onToggleRegisterForm() }) {
+                    Text(AuthStrings.registerButton.translation())
                 }
             }
-            else -> {
-                Row(
-                    modifier = Modifier.padding(start = 8.dp),
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(4.dp)
+        }
+
+        if (!expanded) return
+
+        Dialog(onDismissRequest = { if (!loading) viewModel.onCancelForm() }) {
+            Surface {
+                Column(
+                    modifier = Modifier.padding(16.dp),
+                    verticalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
+                    Text(
+                        if (registerMode) AuthStrings.registerButton.translation()
+                        else AuthStrings.loginButton.translation()
+                    )
                     OutlinedTextField(
                         value = username,
                         onValueChange = { viewModel.onUsernameChanged(it) },
                         placeholder = { Text(AuthStrings.usernamePlaceholder.translation()) },
                         singleLine = true,
                         enabled = !loading,
-                        modifier = Modifier.padding(end = 4.dp)
+                        modifier = Modifier.fillMaxWidth()
                     )
                     OutlinedTextField(
                         value = password,
@@ -97,28 +107,33 @@ class AuthView(
                         enabled = !loading,
                         visualTransformation = PasswordVisualTransformation(),
                         keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password),
-                        modifier = Modifier.padding(end = 4.dp)
+                        modifier = Modifier.fillMaxWidth()
                     )
-                    if (registerMode) {
-                        Button(
-                            onClick = { viewModel.onRegister() },
-                            enabled = loginEnabled
-                        ) { Text(AuthStrings.submitRegisterButton.translation()) }
-                    } else {
-                        Button(
-                            onClick = { viewModel.onAuthorize() },
-                            enabled = loginEnabled
-                        ) { Text(AuthStrings.submitButton.translation()) }
-                    }
-                    Button(
-                        onClick = { viewModel.onCancelForm() },
-                        enabled = !loading
-                    ) { Text(AuthStrings.cancelButton.translation()) }
                     if (error) {
                         Text(
                             if (registerMode) AuthStrings.errorRegisterFailed.translation()
                             else AuthStrings.errorLoginFailed.translation()
                         )
+                    }
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp, Alignment.End)
+                    ) {
+                        Button(
+                            onClick = { viewModel.onCancelForm() },
+                            enabled = !loading
+                        ) { Text(AuthStrings.cancelButton.translation()) }
+                        if (registerMode) {
+                            Button(
+                                onClick = { viewModel.onRegister() },
+                                enabled = loginEnabled
+                            ) { Text(AuthStrings.submitRegisterButton.translation()) }
+                        } else {
+                            Button(
+                                onClick = { viewModel.onAuthorize() },
+                                enabled = loginEnabled
+                            ) { Text(AuthStrings.submitButton.translation()) }
+                        }
                     }
                 }
             }

@@ -26,7 +26,7 @@ import dev.inmo.navigation.core.NavigationChain
 import dev.inmo.navigation.mvvm.compose.ComposeView
 import dev.inmo.wishlist.features.common.client.models.ViewConfig
 import dev.inmo.wishlist.features.common.client.ui.components.ListRow
-import dev.inmo.wishlist.features.common.client.ui.components.ScreenTitle
+import dev.inmo.wishlist.features.ui.topBar.ui.TopBarTitleProvider
 import dev.inmo.wishlist.features.ui.adminPanel.AdminPanelStrings
 import org.koin.core.component.inject
 import org.koin.core.parameter.parametersOf
@@ -35,10 +35,13 @@ import org.koin.core.parameter.parametersOf
 class AdminWishlistsListView(
     chain: NavigationChain<ViewConfig>,
     config: AdminWishlistsListViewConfig,
-) : ComposeView<AdminWishlistsListViewConfig, ViewConfig, AdminWishlistsListViewModel>(config, chain) {
+) : ComposeView<AdminWishlistsListViewConfig, ViewConfig, AdminWishlistsListViewModel>(config, chain), TopBarTitleProvider {
     override val viewModel: AdminWishlistsListViewModel by inject(mode = LazyThreadSafetyMode.SYNCHRONIZED) {
         parametersOf(this@AdminWishlistsListView)
     }
+
+    override val title: String
+        @Composable get() = AdminPanelStrings.wishlistsListTitle.translation(LocalResources.current)
 
     @Composable
     override fun onDraw() {
@@ -53,7 +56,6 @@ class AdminWishlistsListView(
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                ScreenTitle(AdminPanelStrings.wishlistsListTitle.translation(resources))
                 Button(onClick = { viewModel.onCreateWishlist() }) {
                     Text(AdminPanelStrings.addWishlistButton.translation(resources))
                 }

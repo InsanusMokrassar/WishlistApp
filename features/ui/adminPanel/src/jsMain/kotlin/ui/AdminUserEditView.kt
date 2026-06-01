@@ -8,7 +8,7 @@ import dev.inmo.navigation.core.NavigationChain
 import dev.inmo.navigation.mvvm.compose.ComposeView
 import dev.inmo.wishlist.features.common.client.models.ViewConfig
 import dev.inmo.wishlist.features.common.client.ui.components.BackButton
-import dev.inmo.wishlist.features.common.client.ui.components.ScreenTitle
+import dev.inmo.wishlist.features.ui.topBar.ui.TopBarTitleProvider
 import dev.inmo.wishlist.features.ui.adminPanel.AdminPanelStrings
 import org.jetbrains.compose.web.attributes.InputType
 import org.jetbrains.compose.web.attributes.disabled
@@ -27,10 +27,14 @@ import org.koin.core.parameter.parametersOf
 class AdminUserEditView(
     chain: NavigationChain<ViewConfig>,
     config: AdminUserEditViewConfig,
-) : ComposeView<AdminUserEditViewConfig, ViewConfig, AdminUserEditViewModel>(config, chain) {
+) : ComposeView<AdminUserEditViewConfig, ViewConfig, AdminUserEditViewModel>(config, chain), TopBarTitleProvider {
     override val viewModel: AdminUserEditViewModel by inject(mode = LazyThreadSafetyMode.SYNCHRONIZED) {
         parametersOf(this@AdminUserEditView)
     }
+
+    override val title: String
+        @Composable get() = if (viewModel.isCreating) AdminPanelStrings.newUserTitle.translation()
+            else AdminPanelStrings.editUserTitle.translation()
 
     @Composable
     override fun onDraw() {
@@ -71,10 +75,6 @@ class AdminUserEditView(
         Div({ classes("container", "py-3") }) {
             Div({ classes("d-flex", "align-items-center", "mb-3", "gap-2") }) {
                 BackButton(AdminPanelStrings.backButton.translation()) { viewModel.onBack() }
-                ScreenTitle(
-                    if (viewModel.isCreating) AdminPanelStrings.newUserTitle.translation()
-                    else AdminPanelStrings.editUserTitle.translation()
-                )
             }
             Div({ classes("mb-3") }) {
                 Label("user-username") { Text(AdminPanelStrings.usernameLabel.translation()) }

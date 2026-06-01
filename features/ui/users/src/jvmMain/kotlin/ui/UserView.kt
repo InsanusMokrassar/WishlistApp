@@ -24,7 +24,7 @@ import dev.inmo.navigation.core.NavigationChain
 import dev.inmo.navigation.mvvm.compose.ComposeView
 import dev.inmo.wishlist.features.common.client.models.ViewConfig
 import dev.inmo.wishlist.features.common.client.ui.components.BackButton
-import dev.inmo.wishlist.features.common.client.ui.components.ScreenTitle
+import dev.inmo.wishlist.features.ui.topBar.ui.TopBarTitleProvider
 import dev.inmo.wishlist.features.ui.users.UsersListStrings
 import org.koin.core.component.inject
 import org.koin.core.parameter.parametersOf
@@ -33,10 +33,13 @@ import org.koin.core.parameter.parametersOf
 class UserView(
     chain: NavigationChain<ViewConfig>,
     config: UserViewConfig,
-) : ComposeView<UserViewConfig, ViewConfig, UserViewModel>(config, chain) {
+) : ComposeView<UserViewConfig, ViewConfig, UserViewModel>(config, chain), TopBarTitleProvider {
     override val viewModel: UserViewModel by inject(mode = LazyThreadSafetyMode.SYNCHRONIZED) {
         parametersOf(this@UserView)
     }
+
+    override val title: String
+        @Composable get() = UsersListStrings.profileTitle.translation()
 
     @Composable
     override fun onDraw() {
@@ -52,10 +55,7 @@ class UserView(
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    BackButton(UsersListStrings.backButton.translation()) { viewModel.onBack() }
-                    ScreenTitle(UsersListStrings.profileTitle.translation())
-                }
+                BackButton(UsersListStrings.backButton.translation()) { viewModel.onBack() }
                 if (canEdit) {
                     Button(onClick = { viewModel.onEditUser() }) {
                         Text(UsersListStrings.editButton.translation())

@@ -9,7 +9,7 @@ import dev.inmo.navigation.mvvm.compose.ComposeView
 import dev.inmo.wishlist.features.common.client.models.ViewConfig
 import dev.inmo.wishlist.features.common.client.ui.components.BackButton
 import dev.inmo.wishlist.features.common.client.ui.components.ListRow
-import dev.inmo.wishlist.features.common.client.ui.components.ScreenTitle
+import dev.inmo.wishlist.features.ui.topBar.ui.TopBarTitleProvider
 import dev.inmo.wishlist.features.ui.adminPanel.AdminPanelStrings
 import org.jetbrains.compose.web.dom.Button
 import org.jetbrains.compose.web.dom.Div
@@ -25,10 +25,16 @@ import org.koin.core.parameter.parametersOf
 class AdminUserView(
     chain: NavigationChain<ViewConfig>,
     config: AdminUserViewConfig,
-) : ComposeView<AdminUserViewConfig, ViewConfig, AdminUserViewModel>(config, chain) {
+) : ComposeView<AdminUserViewConfig, ViewConfig, AdminUserViewModel>(config, chain), TopBarTitleProvider {
     override val viewModel: AdminUserViewModel by inject(mode = LazyThreadSafetyMode.SYNCHRONIZED) {
         parametersOf(this@AdminUserView)
     }
+
+    override val title: String
+        @Composable get() {
+            val user by viewModel.userState.collectAsState()
+            return user?.username?.string ?: "#${config.userId.long}"
+        }
 
     @Composable
     override fun onDraw() {
@@ -40,7 +46,6 @@ class AdminUserView(
         Div({ classes("container", "py-3") }) {
             Div({ classes("d-flex", "align-items-center", "mb-3", "gap-2") }) {
                 BackButton(AdminPanelStrings.backButton.translation()) { viewModel.onBack() }
-                ScreenTitle(user?.username?.string ?: "#${config.userId.long}")
                 Button({
                     classes("btn", "btn-outline-primary", "ms-auto")
                     onClick { viewModel.onEditUser() }

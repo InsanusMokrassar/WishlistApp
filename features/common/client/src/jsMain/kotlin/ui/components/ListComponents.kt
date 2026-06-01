@@ -39,60 +39,69 @@ fun BackButton(text: String, onClick: () -> Unit) {
 }
 
 /**
- * Single Bootstrap `list-group-item` row carrying a primary label and optional trailing content.
+ * Single Bootstrap `list-group-item` row carrying a primary label and optional leading/trailing content.
  *
  * Must be rendered inside a `Ul` with the `list-group` class.
  *
  * @param text Already-translated primary label of the row.
  * @param onSelect Invoked when the user clicks the row label; `null` makes the label non-interactive.
+ * @param leading Optional leading content (e.g. an avatar/thumbnail) rendered at the row's start.
  * @param trailing Optional trailing content (e.g. action buttons) rendered at the row's end.
  */
 @Composable
 fun ListRow(
     text: String,
     onSelect: (() -> Unit)? = null,
+    leading: (@Composable () -> Unit)? = null,
     trailing: (@Composable () -> Unit)? = null,
 ) {
     ListRow(
         onSelect = onSelect,
+        leading = leading,
         trailing = trailing,
         content = { Span { Text(text) } },
     )
 }
 
 /**
- * Single Bootstrap `list-group-item` row with a caller-provided primary content slot and optional trailing content.
+ * Single Bootstrap `list-group-item` row with a caller-provided primary content slot and optional leading/trailing content.
  *
  * Must be rendered inside a `Ul` with the `list-group` class. Use this overload when the primary cell needs more
  * than a single label (badges, secondary text, etc.).
  *
  * @param onSelect Invoked when the user clicks the primary content; `null` makes the content non-interactive.
+ * @param leading Optional leading content (e.g. an avatar/thumbnail) rendered at the row's start.
  * @param trailing Optional trailing content (e.g. action buttons) rendered at the row's end.
  * @param content Primary content of the row.
  */
 @Composable
 fun ListRow(
     onSelect: (() -> Unit)? = null,
+    leading: (@Composable () -> Unit)? = null,
     trailing: (@Composable () -> Unit)? = null,
     content: @Composable () -> Unit,
 ) {
     Li({
         classes("list-group-item", "list-group-item-action", "d-flex", "justify-content-between", "align-items-center")
-        if (trailing == null && onSelect != null) {
+        if (leading == null && trailing == null && onSelect != null) {
             style { property("cursor", "pointer") }
             onClick { onSelect() }
         }
     }) {
-        if (trailing == null) {
+        if (leading == null && trailing == null) {
             content()
         } else {
             Div({
+                classes("d-flex", "align-items-center", "gap-3", "flex-grow-1")
                 if (onSelect != null) {
                     style { property("cursor", "pointer") }
                     onClick { onSelect() }
                 }
-            }) { content() }
-            trailing()
+            }) {
+                leading?.invoke()
+                Div({ classes("flex-grow-1") }) { content() }
+            }
+            trailing?.invoke()
         }
     }
 }

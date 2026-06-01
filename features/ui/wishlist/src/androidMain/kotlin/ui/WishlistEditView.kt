@@ -25,7 +25,7 @@ import dev.inmo.navigation.core.NavigationChain
 import dev.inmo.navigation.mvvm.compose.ComposeView
 import dev.inmo.wishlist.features.common.client.models.ViewConfig
 import dev.inmo.wishlist.features.common.client.ui.components.BackButton
-import dev.inmo.wishlist.features.common.client.ui.components.ScreenTitle
+import dev.inmo.wishlist.features.ui.topBar.ui.TopBarTitleProvider
 import dev.inmo.wishlist.features.ui.wishlist.WishlistStrings
 import org.koin.core.component.inject
 import org.koin.core.parameter.parametersOf
@@ -34,10 +34,17 @@ import org.koin.core.parameter.parametersOf
 class WishlistEditView(
     chain: NavigationChain<ViewConfig>,
     config: WishlistEditViewConfig,
-) : ComposeView<WishlistEditViewConfig, ViewConfig, WishlistEditViewModel>(config, chain) {
+) : ComposeView<WishlistEditViewConfig, ViewConfig, WishlistEditViewModel>(config, chain), TopBarTitleProvider {
     override val viewModel: WishlistEditViewModel by inject(mode = LazyThreadSafetyMode.SYNCHRONIZED) {
         parametersOf(this@WishlistEditView)
     }
+
+    override val title: String
+        @Composable get() {
+            val resources = LocalResources.current
+            return if (viewModel.isCreating) WishlistStrings.createWishlistButton.translation(resources)
+                else WishlistStrings.editWishlistTitle.translation(resources)
+        }
 
     @Composable
     override fun onDraw() {
@@ -97,10 +104,6 @@ class WishlistEditView(
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 BackButton(WishlistStrings.backButton.translation(resources)) { viewModel.onBack() }
-                ScreenTitle(
-                    if (viewModel.isCreating) WishlistStrings.createWishlistButton.translation(resources)
-                    else WishlistStrings.editWishlistTitle.translation(resources)
-                )
             }
             OutlinedTextField(
                 value = title,

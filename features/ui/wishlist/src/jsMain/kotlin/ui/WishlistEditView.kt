@@ -9,7 +9,7 @@ import dev.inmo.navigation.mvvm.compose.ComposeView
 import dev.inmo.wishlist.features.common.client.models.ViewConfig
 import dev.inmo.wishlist.features.ui.wishlist.WishlistStrings
 import dev.inmo.wishlist.features.common.client.ui.components.BackButton
-import dev.inmo.wishlist.features.common.client.ui.components.ScreenTitle
+import dev.inmo.wishlist.features.ui.topBar.ui.TopBarTitleProvider
 import org.jetbrains.compose.web.attributes.InputType
 import org.jetbrains.compose.web.attributes.disabled
 import org.jetbrains.compose.web.attributes.placeholder
@@ -26,10 +26,14 @@ import org.koin.core.parameter.parametersOf
 class WishlistEditView(
     chain: NavigationChain<ViewConfig>,
     config: WishlistEditViewConfig,
-) : ComposeView<WishlistEditViewConfig, ViewConfig, WishlistEditViewModel>(config, chain) {
+) : ComposeView<WishlistEditViewConfig, ViewConfig, WishlistEditViewModel>(config, chain), TopBarTitleProvider {
     override val viewModel: WishlistEditViewModel by inject(mode = LazyThreadSafetyMode.SYNCHRONIZED) {
         parametersOf(this@WishlistEditView)
     }
+
+    override val title: String
+        @Composable get() = if (viewModel.isCreating) WishlistStrings.createWishlistButton.translation()
+            else WishlistStrings.editWishlistTitle.translation()
 
     @Composable
     override fun onDraw() {
@@ -98,10 +102,6 @@ class WishlistEditView(
         Div({ classes("container", "py-3") }) {
             Div({ classes("d-flex", "align-items-center", "mb-3", "gap-2") }) {
                 BackButton(WishlistStrings.backButton.translation()) { viewModel.onBack() }
-                ScreenTitle(
-                    if (viewModel.isCreating) WishlistStrings.createWishlistButton.translation()
-                    else WishlistStrings.editWishlistTitle.translation()
-                )
             }
             Div({ classes("mb-3") }) {
                 Label("wl-title") {

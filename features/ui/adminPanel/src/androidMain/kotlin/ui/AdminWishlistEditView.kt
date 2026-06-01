@@ -30,7 +30,7 @@ import dev.inmo.navigation.core.NavigationChain
 import dev.inmo.navigation.mvvm.compose.ComposeView
 import dev.inmo.wishlist.features.common.client.models.ViewConfig
 import dev.inmo.wishlist.features.common.client.ui.components.BackButton
-import dev.inmo.wishlist.features.common.client.ui.components.ScreenTitle
+import dev.inmo.wishlist.features.ui.topBar.ui.TopBarTitleProvider
 import dev.inmo.wishlist.features.ui.adminPanel.AdminPanelStrings
 import org.koin.core.component.inject
 import org.koin.core.parameter.parametersOf
@@ -39,10 +39,17 @@ import org.koin.core.parameter.parametersOf
 class AdminWishlistEditView(
     chain: NavigationChain<ViewConfig>,
     config: AdminWishlistEditViewConfig,
-) : ComposeView<AdminWishlistEditViewConfig, ViewConfig, AdminWishlistEditViewModel>(config, chain) {
+) : ComposeView<AdminWishlistEditViewConfig, ViewConfig, AdminWishlistEditViewModel>(config, chain), TopBarTitleProvider {
     override val viewModel: AdminWishlistEditViewModel by inject(mode = LazyThreadSafetyMode.SYNCHRONIZED) {
         parametersOf(this@AdminWishlistEditView)
     }
+
+    override val title: String
+        @Composable get() {
+            val resources = LocalResources.current
+            return if (viewModel.isCreating) AdminPanelStrings.newWishlistTitle.translation(resources)
+                else AdminPanelStrings.editWishlistTitle.translation(resources)
+        }
 
     @Composable
     override fun onDraw() {
@@ -76,10 +83,6 @@ class AdminWishlistEditView(
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 BackButton(AdminPanelStrings.backButton.translation(resources)) { viewModel.onBack() }
-                ScreenTitle(
-                    if (viewModel.isCreating) AdminPanelStrings.newWishlistTitle.translation(resources)
-                    else AdminPanelStrings.editWishlistTitle.translation(resources)
-                )
             }
             OutlinedTextField(
                 value = title,

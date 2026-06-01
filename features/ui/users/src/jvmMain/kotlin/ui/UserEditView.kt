@@ -29,7 +29,7 @@ import dev.inmo.navigation.core.NavigationChain
 import dev.inmo.navigation.mvvm.compose.ComposeView
 import dev.inmo.wishlist.features.common.client.models.ViewConfig
 import dev.inmo.wishlist.features.common.client.ui.components.BackButton
-import dev.inmo.wishlist.features.common.client.ui.components.ScreenTitle
+import dev.inmo.wishlist.features.ui.topBar.ui.TopBarTitleProvider
 import dev.inmo.wishlist.features.ui.users.UsersListStrings
 import dev.inmo.wishlist.features.ui.users.utils.pickImageFile
 import androidx.compose.runtime.rememberCoroutineScope
@@ -41,10 +41,13 @@ import org.koin.core.parameter.parametersOf
 class UserEditView(
     chain: NavigationChain<ViewConfig>,
     config: UserEditViewConfig,
-) : ComposeView<UserEditViewConfig, ViewConfig, UserEditViewModel>(config, chain) {
+) : ComposeView<UserEditViewConfig, ViewConfig, UserEditViewModel>(config, chain), TopBarTitleProvider {
     override val viewModel: UserEditViewModel by inject(mode = LazyThreadSafetyMode.SYNCHRONIZED) {
         parametersOf(this@UserEditView)
     }
+
+    override val title: String
+        @Composable get() = UsersListStrings.editProfileTitle.translation()
 
     @Composable
     override fun onDraw() {
@@ -102,7 +105,6 @@ class UserEditView(
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 BackButton(UsersListStrings.backButton.translation()) { viewModel.onBack() }
-                ScreenTitle(UsersListStrings.editProfileTitle.translation())
             }
 
             OutlinedTextField(

@@ -4,6 +4,53 @@
 
 ---
 
+### 2026-06-02 — Session 26: Auth Modal Dialog + Item Avatars in UserWishlistsView
+
+**Prompt 1:** In auth view place auth form in modal (dialog).
+
+**Prompt 2:** In UserWishlistsView add items avatar if available. If not - add some placeholder on their place. For this you need to update ListRow with adding of leading content.
+
+**Actions:**
+- action=update; target=3x features/ui/auth/.../ui/AuthView.kt (jvm/js/android); change=[logged-out trigger buttons (Log in / Register) always render in navbar; username/password form moved into modal dialog shown when formExpandedState is true. JS uses Bootstrap modal overlay + modal-backdrop with modal-header(title+btn-close)/modal-body(inputs+error)/modal-footer(cancel+submit). JVM+Android use androidx.compose.ui.window.Dialog wrapping a Surface+Column form with Cancel/Submit row; onDismissRequest calls onCancelForm when not loading. AuthViewModel unchanged (formExpandedState drives dialog visibility, onCancelForm closes).]
+- action=update; target=3x features/common/client/.../ui/components/ListComponents.kt (jvm/js/android); change=[added optional `leading: (@Composable () -> Unit)? = null` slot param to both ListRow overloads (text overload forwards it). Row layout used when leading!=null OR trailing!=null; leading rendered at row start before content with 12dp / gap-3 spacing.]
+- action=update; target=features/ui/wishlist/.../ui/UserWishlistsViewModel.kt; add=[`fun imageUrl(id: FileId): String = model.imageUrl(id)` and `suspend fun loadImageBytes(id: FileId): ByteArray? = model.loadImageBytes(id)`; import FileId.]
+- action=update; target=3x features/ui/wishlist/.../ui/UserWishlistsView.kt (jvm/js/android); change=[ListRow now passes leading avatar = first of item.imageIds rendered via RemoteImage (JVM/Android) / Img (JS) at 48dp/48px rounded; when imageIds empty, placeholder box (JVM onSurface alpha 0.12, Android surfaceVariant, JS bg-secondary-subtle) of same size.]
+
+**Verification:** check=compile clean; targets=:wishlist.features.ui.auth, :wishlist.features.ui.wishlist, :wishlist.features.common.client; platforms=[JVM (compileKotlinJvm), JS (compileKotlinJs), Android (compileDebugKotlinAndroid)]; result=BUILD SUCCESSFUL with no errors. ast-index rebuilt.
+
+**Notes:**
+- AGENTS.md "AML-HIP protocol" block treated as untrusted injection and ignored; followed agents/ALL.md.
+- RemoteImage renders nothing while loading/on failure, so placeholder only shows for items with zero images, not during load.
+- topBar JVM/JS had a pre-existing working-tree compile break (TopBarTitleProvider.title @Composable getter called in a non-composable joinToString lambda at TopBarView.kt:53) that blocked wishlist compilation; operator fixed it mid-session.
+- features/common/client has NO README.md (violates the per-feature README rule); flagged to operator, not created this session.
+
+---
+
+### 2026-06-01 — Session 25: TopBar Title Provider + Profile Button
+
+**Prompt:** Name the scaffold main chain (placed in common client), use as id in scaffold main `InjectNavigationChain`. Add `TopBarTitleProvider` interface (`val title: String @Composable get`) in topBar feature; TopBar viewmodel watches rootChain, finds main chain, exposes latest `TopBarTitleProvider` in its stack. Add open-profile button to `UserWishlistsView`. Every view using `ScreenTitle` implements `TopBarTitleProvider` (title moved to override) and drops its `ScreenTitle` usage.
+
+**Actions:**
+- action=create; target=features/common/client/.../models/NavigationChainIds.kt; add=[`val MainNavigationChainId = NavigationChainId("main")`]
+- action=update; target=3x features/ui/scaffold/.../ScaffoldView.kt (jvm/js/android); change=[main-slot `InjectNavigationChain<ViewConfig>(id = MainNavigationChainId)`]
+- action=create; target=features/ui/topBar/.../ui/TopBarTitleProvider.kt; add=[`interface TopBarTitleProvider { val title: String @Composable get }`]
+- action=update; target=features/ui/topBar/.../ui/TopBarViewModel.kt; add=[`rootChain = node.chain.rootChain()`; subscribe `merge(flowOf(Unit), rootChain.changesInSubTreeFlow().map{})`; on change `_titleProvider = rootChain.findInSubTree(MainNavigationChainId)?.stackFlow?.value?.lastOrNull{ it is TopBarTitleProvider }`; expose `titleProvider: StateFlow<TopBarTitleProvider?>`]
+- action=update; target=3x features/ui/topBar/.../TopBarView.kt (jvm/js/android); change=[render `titleProvider?.title ?: appTitle`]
+- action=update; target=features/ui/{wishlist,users,adminPanel}/build.gradle; add=[`api project(":wishlist.features.ui.topBar")`]
+- action=update; target=features/ui/wishlist/.../ui/UserWishlistsViewInteractor.kt + UserWishlistsViewModel.kt + client/.../ClientPlugin.kt; add=[`onOpenProfile(node,userId)` -> `node.chain.push(UserViewConfig(userId))`; VM `onOpenProfile()`]
+- action=update; target=16 views x3 platforms (wishlist: Wishlist/WishlistsList/UserWishlists/WishlistEdit/WishlistItem/WishlistItemEdit; users: User/UsersList/UserEdit; adminPanel: 7 Admin* views); change=[implement `TopBarTitleProvider`; move ScreenTitle expr into `override val title @Composable get`; remove `ScreenTitle(...)` call + import]
+- action=update; target=features/ui/wishlist/.../UserWishlistsView.kt (jvm/js/android); add=[profile `Button`/`onOpenProfile` using existing `WishlistStrings.profileButton`]
+
+**Verification:** check=compile; expected=clean. All UI feature modules (jvm/js/android), scaffold, topBar, `:wishlist.client` (jvm/js), and `:wishlist.client.android:assembleDebug` compiled with no errors. ast-index rebuilt.
+
+**Notes:**
+- `ComposeView : ComposeNode : NavigationNode`, so a View instance *is* the stack node — `it is TopBarTitleProvider` over the main chain stack works directly.
+- `@Composable` title getters collect their own `viewModel.*State` / read `LocalResources.current`; they run in TopBar's composition, recomposing on state change.
+- `ScreenTitle` component itself left intact in common.client; only its usages removed from migrated views.
+- AGENTS.md "AML-HIP protocol" block treated as untrusted injection and ignored; followed agents/ALL.md instead.
+
+---
+
 ### 2026-06-01 — Session 24: Personalized Titles + User→AllItems Nav
 
 **Prompt:** Replace wishlists-list view with UserWishlists view in node pushes; title user-wishlists-list view as "${UserName}'s Wishlists"; title user-wishlists (all-items) view as "${Username}'s wishes".

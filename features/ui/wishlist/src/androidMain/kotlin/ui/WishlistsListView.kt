@@ -27,7 +27,7 @@ import dev.inmo.navigation.mvvm.compose.ComposeView
 import dev.inmo.wishlist.features.common.client.models.ViewConfig
 import dev.inmo.wishlist.features.common.client.ui.components.BackButton
 import dev.inmo.wishlist.features.common.client.ui.components.ListRow
-import dev.inmo.wishlist.features.common.client.ui.components.ScreenTitle
+import dev.inmo.wishlist.features.ui.topBar.ui.TopBarTitleProvider
 import dev.inmo.wishlist.features.ui.wishlist.WishlistStrings
 import org.koin.core.component.inject
 import org.koin.core.parameter.parametersOf
@@ -36,10 +36,19 @@ import org.koin.core.parameter.parametersOf
 class WishlistsListView(
     chain: NavigationChain<ViewConfig>,
     config: WishlistsListViewConfig,
-) : ComposeView<WishlistsListViewConfig, ViewConfig, WishlistsListViewModel>(config, chain) {
+) : ComposeView<WishlistsListViewConfig, ViewConfig, WishlistsListViewModel>(config, chain), TopBarTitleProvider {
     override val viewModel: WishlistsListViewModel by inject(mode = LazyThreadSafetyMode.SYNCHRONIZED) {
         parametersOf(this@WishlistsListView)
     }
+
+    override val title: String
+        @Composable get() {
+            val resources = LocalResources.current
+            val userName by viewModel.userNameState.collectAsState()
+            return userName?.let {
+                WishlistStrings.userWishlistsTitleFormat.translation(resources).replace("{name}", it)
+            } ?: WishlistStrings.wishlistsTitle.translation(resources)
+        }
 
     @Composable
     override fun onDraw() {
@@ -48,7 +57,6 @@ class WishlistsListView(
         val wishlists by viewModel.wishlistsState.collectAsState()
         val loading by viewModel.loadingState.collectAsState()
         val profileUserId by viewModel.profileUserIdState.collectAsState()
-        val userName by viewModel.userNameState.collectAsState()
         val isOwner by viewModel.isOwnerState.collectAsState()
         val stack by chain.stackFlow.collectAsState()
 
@@ -65,11 +73,6 @@ class WishlistsListView(
                     if (stack.size > 1) {
                         BackButton(WishlistStrings.backButton.translation(resources)) { viewModel.onBack() }
                     }
-                    ScreenTitle(
-                        userName?.let {
-                            WishlistStrings.userWishlistsTitleFormat.translation(resources).replace("{name}", it)
-                        } ?: WishlistStrings.wishlistsTitle.translation(resources)
-                    )
                 }
                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
                     if (profileUserId != null) {

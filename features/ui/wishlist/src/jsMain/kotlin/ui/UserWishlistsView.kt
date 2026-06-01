@@ -9,10 +9,15 @@ import dev.inmo.navigation.mvvm.compose.ComposeView
 import dev.inmo.wishlist.features.common.client.models.ViewConfig
 import dev.inmo.wishlist.features.common.client.ui.components.BackButton
 import dev.inmo.wishlist.features.common.client.ui.components.ListRow
-import dev.inmo.wishlist.features.common.client.ui.components.ScreenTitle
+import dev.inmo.wishlist.features.ui.topBar.ui.TopBarTitleProvider
 import dev.inmo.wishlist.features.ui.wishlist.WishlistStrings
+import org.jetbrains.compose.web.css.height
+import org.jetbrains.compose.web.css.px
+import org.jetbrains.compose.web.css.width
+import org.jetbrains.compose.web.dom.Button
 import org.jetbrains.compose.web.dom.Div
 import org.jetbrains.compose.web.dom.H6
+import org.jetbrains.compose.web.dom.Img
 import org.jetbrains.compose.web.dom.P
 import org.jetbrains.compose.web.dom.Span
 import org.jetbrains.compose.web.dom.Text
@@ -24,27 +29,34 @@ import org.koin.core.parameter.parametersOf
 class UserWishlistsView(
     chain: NavigationChain<ViewConfig>,
     config: UserWishlistsViewConfig,
-) : ComposeView<UserWishlistsViewConfig, ViewConfig, UserWishlistsViewModel>(config, chain) {
+) : ComposeView<UserWishlistsViewConfig, ViewConfig, UserWishlistsViewModel>(config, chain), TopBarTitleProvider {
     override val viewModel: UserWishlistsViewModel by inject(mode = LazyThreadSafetyMode.SYNCHRONIZED) {
         parametersOf(this@UserWishlistsView)
     }
+
+    override val title: String
+        @Composable get() {
+            val userName by viewModel.userNameState.collectAsState()
+            return userName?.let {
+                WishlistStrings.userWishesTitleFormat.translation().replace("{name}", it)
+            } ?: WishlistStrings.allItemsTitle.translation()
+        }
 
     @Composable
     override fun onDraw() {
         super.onDraw()
         val sections by viewModel.sectionsState.collectAsState()
-        val userName by viewModel.userNameState.collectAsState()
         val loading by viewModel.loadingState.collectAsState()
 
         Div({ classes("container", "py-3") }) {
             Div({ classes("d-flex", "align-items-center", "mb-3", "gap-2") }) {
                 BackButton(WishlistStrings.backButton.translation()) { viewModel.onBack() }
-                ScreenTitle(
-                    userName?.let {
-                        WishlistStrings.userWishesTitleFormat.translation().replace("{name}", it)
-                    } ?: WishlistStrings.allItemsTitle.translation(),
-                    "mb-0", "flex-grow-1"
-                )
+                Button({
+                    classes("btn", "btn-outline-primary", "ms-auto")
+                    onClick { viewModel.onOpenProfile() }
+                }) {
+                    Text(WishlistStrings.profileButton.translation())
+                }
             }
 
             if (loading) {
@@ -58,7 +70,30 @@ class UserWishlistsView(
                     }
                     Ul({ classes("list-group") }) {
                         section.items.forEach { item ->
-                            ListRow(onSelect = { viewModel.onItemSelected(item) }) {
+                            ListRow(
+                                onSelect = { viewModel.onItemSelected(item) },
+                                leading = {
+                                    val firstImage = item.imageIds.firstOrNull()
+                                    if (firstImage != null) {
+                                        Img(src = viewModel.imageUrl(firstImage), alt = "") {
+                                            classes("rounded", "flex-shrink-0")
+                                            style {
+                                                width(48.px)
+                                                height(48.px)
+                                                property("object-fit", "cover")
+                                            }
+                                        }
+                                    } else {
+                                        Div({
+                                            classes("rounded", "bg-secondary-subtle", "flex-shrink-0")
+                                            style {
+                                                width(48.px)
+                                                height(48.px)
+                                            }
+                                        })
+                                    }
+                                }
+                            ) {
                                 Div({ classes("flex-grow-1") }) {
                                     Div({ classes("d-flex", "justify-content-between", "align-items-center") }) {
                                         Span { Text(item.title) }
