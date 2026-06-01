@@ -14,8 +14,8 @@ JS views use Bootstrap CSS classes via Compose HTML. JVM uses Material v2, Andro
 
 | Screen | ViewConfig | ViewModel | Description |
 |--------|-----------|-----------|-------------|
-| Wishlists List | `WishlistsListViewConfig(userId: UserId? = null)` | `WishlistsListViewModel` | Home screen; when `userId` non-null, lists that user's wishlists; when null, lists caller's wishlists; when `userId` non-null, shows "Grid view" button to switch to card grid layout |
-| User Wishlists Grid | `UserWishlistsViewConfig(userId: UserId)` | `UserWishlistsViewModel` | Card-grid layout showing a concrete user's wishlists; tapping a card opens the wishlist detail; reachable via "Grid view" button on `WishlistsListView` when viewing a concrete user |
+| Wishlists List | `WishlistsListViewConfig(userId: UserId? = null)` | `WishlistsListViewModel` | Home screen; when `userId` non-null, lists that user's wishlists; when null, lists caller's wishlists; when `userId` non-null, shows "All items" button opening the all-items screen. "New Wishlist" button shown only when the caller owns the displayed list (`isOwnerState`) |
+| All Items | `UserWishlistsViewConfig(userId: UserId)` | `UserWishlistsViewModel` | Flat list (shared `ListRow`) of every item across all of a user's wishlists (aggregated client-side); tapping a row opens that item's detail; reachable via "All items" button on `WishlistsListView` when viewing a concrete user |
 | Wishlist Detail | `WishlistViewConfig(wishlistId)` | `WishlistViewModel` | Shows items; edit controls visible only to owner; auto-pops on resume when wishlist no longer exists |
 | Wishlist Edit | `WishlistEditViewConfig(wishlistId?)` | `WishlistEditViewModel` | Create (null id) or edit; back triggers discard modal if dirty; edit mode shows danger Delete (confirm modal → delete → back) |
 | Item Read | `WishlistItemViewConfig(itemId, wishlistId)` | `WishlistItemViewModel` | Read-only item view showing priority and other fields; auto-pops on resume when item no longer exists |
@@ -26,14 +26,14 @@ JS views use Bootstrap CSS classes via Compose HTML. JVM uses Material v2, Andro
 | Type | Description |
 |------|-------------|
 | `WishlistsModel` | Single interface consumed by all ViewModels; wraps `WishlistsFeature`, `WishlistsItemsFeature`, `ClientAuthFeature`, `FilesClientService`; methods: `suspend fun getUserWishlists(userId: UserId): List<RegisteredWishlist>` (fetches any user's wishlists, public read), `suspend fun uploadImage(file: MPPFile): FileId?` (uploads and returns file id, null on failure), `fun imageUrl(id: FileId): String` (constructs image URL), `suspend fun loadImageBytes(id: FileId): ByteArray?` (downloads raw bytes for platform-specific rendering) |
-| `UserWishlistsViewConfig` | `data class(userId: UserId)` — config for the grid-view screen; specifies which user's wishlists to display |
-| `UserWishlistsViewModel` | ViewModel for grid-view screen; exposes `wishlistsState: StateFlow<List<RegisteredWishlist>>`, `onWishlistSelected(wishlist)`, `onBack()` |
-| `UserWishlistsViewInteractor` | Interactor interface with `suspend fun onWishlistSelected(node, wishlist)` (impl: push WishlistViewConfig) and `suspend fun onBack(node)` (impl: pop) |
+| `UserWishlistsViewConfig` | `data class(userId: UserId)` — config for the all-items screen; specifies whose items to aggregate |
+| `UserWishlistsViewModel` | ViewModel for the all-items screen; aggregates items via `getUserWishlists(userId).flatMap { getWishlistItems(it.id) }`; exposes `itemsState: StateFlow<List<RegisteredWishlistItem>>`, `onItemSelected(item)`, `onBack()` |
+| `UserWishlistsViewInteractor` | Interactor interface with `suspend fun onItemSelected(node, itemId, wishlistId)` (impl: push `WishlistItemViewConfig`) and `suspend fun onBack(node)` (impl: pop) |
 
 ## Architecture Notes
 
 - All views (`WishlistsListView`, `UserWishlistsView`, `WishlistView`, `WishlistItemView`, `WishlistEditView`, `WishlistItemEditView`) use the shared `ScreenTitle` / `BackButton` / `ListRow` components from `features/common/client` (`ui.components`) for the screen title, back button, and list rows instead of hand-rolling them per platform.
-- All ViewModels push/pop directly via `node.chain`: `ViewInteractor` pattern used only for grid-view screen (UserWishlistsViewInteractor) where interactor bridges navigation between configs. Intra-feature views (List/Detail/Edit) push/pop directly in ViewModel.
+- All ViewModels push/pop directly via `node.chain`: `ViewInteractor` pattern used only for the all-items screen (UserWishlistsViewInteractor) where interactor bridges navigation between configs. Intra-feature views (List/Detail/Edit) push/pop directly in ViewModel.
 - `WishlistViewModel.isOwnerState` = `wishlist.userId == currentUserId`; derived via `combine`.
 - `WishlistsModel.getWishlist(id)` resolves by calling `getMyWishlists().find { it.id == id }` — no dedicated server endpoint.
 - `WishlistItemEditViewModel` loads item by calling `getWishlistItems(wishlistId).find { it.id == itemId }` — requires wishlistId in config.
@@ -49,12 +49,12 @@ JS views use Bootstrap CSS classes via Compose HTML. JVM uses Material v2, Andro
   - Image picking is platform-specific: `expect suspend fun pickImageFile(): MPPFile?` in `commonMain/utils/PickImageFile.kt`; JS uses hidden `<input type="file">` element; JVM uses Swing `JFileChooser`; Android uses `ActivityResultContracts.GetContent` through `AndroidImagePicker`, which `MainActivity` registers in `onCreate()`.
   - Image preview: JS renders `<img src=imageUrl>` directly. JVM/Android use a `RemoteImage` composable that calls `loadImageBytes` and decodes via platform codec (Skia on desktop, BitmapFactory on Android). No third-party image-loader dependency.
   - New `WishlistStrings` keys: `imagesLabel`, `addImageButton`, `removeImageButton`, `uploadingImage`, `noImages` (English + Russian translations).
-- **User wishlists grid view:**
-  - `UserWishlistsView*` (JS/JVM/Android) renders the same user's wishlists as a card grid. JS/JVM layout uses responsive Bootstrap grid; Android uses 2 cards per row.
-  - Tapping a card calls `interactor.onWishlistSelected(node, wishlist)`, which is implemented in `ClientPlugin` to push `WishlistViewConfig(wishlistId)`.
-  - "Grid view" button on `WishlistsListView` is shown only when `WishlistsListViewModel.targetUserId != null` (concrete user). Calls `onShowGrid()` which pushes `UserWishlistsViewConfig(userId)`.
-  - `WishlistsListViewInteractor` gained `onShowUserWishlists(node, userId)` method (impl in ClientPlugin pushes `UserWishlistsViewConfig(userId)`).
-  - Grid view is reachable from list view when viewing a concrete user's wishlists; back from grid view pops back to the list view.
+- **All-items view:**
+  - `UserWishlistsView*` (JS/JVM/Android) renders every item across all the target user's wishlists as a flat list built from the shared `ListRow` component (title + optional price + optional description), same item rendering as `WishlistView`. JS uses a Bootstrap `list-group`; JVM/Android use a `LazyColumn`. Items are aggregated client-side in `UserWishlistsViewModel` (`getUserWishlists(userId).flatMap { getWishlistItems(it.id) }`).
+  - Tapping a row calls `interactor.onItemSelected(node, itemId, wishlistId)`, implemented in `ClientPlugin` to push `WishlistItemViewConfig(itemId, wishlistId)` (the item's `wishlistId` comes from `RegisteredWishlistItem.wishlistId`).
+  - "All items" button (`WishlistStrings.allItemsButton`) on `WishlistsListView` is shown only when `WishlistsListViewModel.targetUserId != null` (concrete user). Calls `onShowUserWishlists()` which pushes `UserWishlistsViewConfig(userId)`.
+  - `WishlistsListViewInteractor` has `onShowUserWishlists(node, userId)` (impl in ClientPlugin pushes `UserWishlistsViewConfig(userId)`).
+  - Reachable from list view when viewing a concrete user; back pops to the list view.
 - **Profile button:** `WishlistsListView` shows a "Profile" button that opens the profile of the user whose wishlists are displayed. `WishlistsListViewModel.profileUserIdState` = `targetUserId ?: model.getCurrentUserId()` (the browsed owner, or the caller for the own list); the button is hidden when that resolves to `null` (anonymous viewing own list). `onShowProfile()` delegates to `WishlistsListViewInteractor.onShowUser(node, userId)`, implemented in `ClientPlugin` to push `UserViewConfig(userId)` from `features/ui/users`.
 - JS modal rendered via Bootstrap classes (`modal d-block` + `modal-backdrop`); JVM/Android use `AlertDialog`.
 - **Deletion** (owner only; server enforces ownership, returning `403`/`false` for non-owners):
@@ -67,7 +67,7 @@ JS views use Bootstrap CSS classes via Compose HTML. JVM uses Material v2, Andro
 - **ViewModel reload patterns:**
   - `WishlistViewModel`, `WishlistItemViewModel`, `WishlistsListViewModel`: reload on every resume — `merge(flowOf(Unit), node.onResumeFlow).subscribeLoggingDropExceptions(scope)`. `WishlistViewModel`/`WishlistItemViewModel` also auto-`onBack` when the entity is gone after reload.
   - `WishlistEditViewModel`: load on first resume only — same pattern with `.takeWhile { inited == false }`. (`WishlistItemEditViewModel` likewise loads once.)
-- `WishlistsListViewModel.loadWishlists()` is `private suspend fun` that branches on `node.config.userId`: calls `model.getUserWishlists(userId)` if non-null, otherwise calls `model.getMyWishlists()`; not callable externally.
+- `WishlistsListViewModel.loadWishlists()` is `private suspend fun` that branches on `node.config.userId`: calls `model.getUserWishlists(userId)` if non-null, otherwise calls `model.getMyWishlists()`; not callable externally. It also fetches `getCurrentUserId()` once and sets `isOwnerState = currentUserId != null && (targetUserId == null || targetUserId == currentUserId)` — the views gate the "New Wishlist" button on this flag so non-owners (and anonymous viewers) never see it.
 - **JS URL navigation scheme** (encoded by `UrlParametersNavigationConfigsRepo` in `ClientJSPlugin`):
   - `?wishlist=<id>` → `WishlistViewConfig(id)`
   - `?wishlist=<id>&edit=true` → `WishlistViewConfig(id)` + `WishlistEditViewConfig(id)`

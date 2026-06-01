@@ -11,8 +11,6 @@ import dev.inmo.wishlist.features.common.client.ui.components.BackButton
 import dev.inmo.wishlist.features.common.client.ui.components.ListRow
 import dev.inmo.wishlist.features.common.client.ui.components.ScreenTitle
 import dev.inmo.wishlist.features.ui.wishlist.WishlistStrings
-import dev.inmo.wishlist.features.ui.wishlist.ui.WishlistsListViewConfig
-import dev.inmo.wishlist.features.ui.wishlist.ui.WishlistsListViewModel
 import org.jetbrains.compose.web.dom.Button
 import org.jetbrains.compose.web.dom.Div
 import org.jetbrains.compose.web.dom.P
@@ -36,6 +34,7 @@ class WishlistsListView(
         val wishlists by viewModel.wishlistsState.collectAsState()
         val loading by viewModel.loadingState.collectAsState()
         val profileUserId by viewModel.profileUserIdState.collectAsState()
+        val isOwner by viewModel.isOwnerState.collectAsState()
         val stack by chain.stackFlow.collectAsState()
 
         Div({ classes("container", "py-3") }) {
@@ -61,16 +60,18 @@ class WishlistsListView(
                     if (viewModel.targetUserId != null) {
                         Button({
                             classes("btn", "btn-outline-secondary")
-                            onClick { viewModel.onShowGrid() }
+                            onClick { viewModel.onShowUserWishlists() }
                         }) {
-                            Text(WishlistStrings.gridViewButton.translation())
+                            Text(WishlistStrings.allItemsButton.translation())
                         }
                     }
-                    Button({
-                        classes("btn", "btn-primary")
-                        onClick { viewModel.onCreateWishlist() }
-                    }) {
-                        Text(WishlistStrings.createWishlistButton.translation())
+                    if (isOwner) {
+                        Button({
+                            classes("btn", "btn-primary")
+                            onClick { viewModel.onCreateWishlist() }
+                        }) {
+                            Text(WishlistStrings.createWishlistButton.translation())
+                        }
                     }
                 }
             }

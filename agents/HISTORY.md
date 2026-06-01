@@ -4,6 +4,21 @@
 
 ---
 
+### 2026-06-01 — Session 22: README Refresh for All-Items View + Commit
+
+**Prompt:** Refill READMEs not actual vs current changes; make git commit.
+
+**Actions:**
+- action=investigate; target=staged diff; finding=[all changes confined to features/ui/wishlist + client/ClientPlugin.kt + CLAUDE.md; only stale README = features/ui/wishlist/README.md]
+- action=update; target=features/ui/wishlist/README.md; change=[line 55 `onShowGrid()` -> `onShowUserWishlists()` to match WishlistsListViewModel rename]; note=[rest of README already reflected the grid->all-items rework]
+- action=commit; sha=824f612; msg="feat: replace wishlist grid view with flattened all-items view"; scope=[16 files: UserWishlistsView/Model/Interactor all-items rework, WishlistsListViewModel isOwnerState + onShowGrid->onShowUserWishlists, WishlistStrings gridViewButton->allItemsButton/allItemsTitle drop newWishlistTitle, ClientPlugin onWishlistSelected->onItemSelected, JS/JVM/Android views, CLAUDE.md header trim, README]
+
+**Notes:**
+- No ast-index config present (.claude/ has only settings.local.json) -> no rebuild needed.
+- Doc edit delegated to haiku agent per agents/ALL.md rule 4.
+
+---
+
 ### 2026-06-01 — Session 21: Public User Profile View/Edit + Avatars
 
 **Prompt:** Add user view (all) + user edit (owner/root) scenarios; move root delete-user button onto the edit page; non-root owner has no editable fields but page accessible; root edits all fields with password+confirmation, user id non-editable. In files feature add a users-avatars repo and rename file `ownerId`→`uploaderId`. Avatar upload on the edit page for owner+root; show avatar on the view page. Reach user view via a button on the wishlists list; add a "My profile" button.

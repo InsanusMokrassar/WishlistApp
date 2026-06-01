@@ -54,6 +54,15 @@ class WishlistsListViewModel(
      */
     val profileUserIdState = _profileUserIdState.asStateFlow()
 
+    private val _isOwnerState = MutableRedeliverStateFlow(false)
+
+    /**
+     * `true` when the authenticated caller owns the displayed list and may create wishlists in it:
+     * either browsing their own list ([targetUserId] is `null`) or browsing themselves by id.
+     * `false` for anonymous callers and when browsing another user — hides the "New Wishlist" button.
+     */
+    val isOwnerState = _isOwnerState.asStateFlow()
+
     init {
         merge(flowOf(Unit), node.onResumeFlow).subscribeLoggingDropExceptions(scope) {
             loadWishlists()
@@ -65,12 +74,14 @@ class WishlistsListViewModel(
         _loadingState.value = true
         try {
             val targetUserId = node.config.userId
+            val currentUserId = model.getCurrentUserId()
             _wishlistsState.value = if (targetUserId == null) {
                 model.getMyWishlists()
             } else {
                 model.getUserWishlists(targetUserId)
             }
-            _profileUserIdState.value = targetUserId ?: model.getCurrentUserId()
+            _profileUserIdState.value = targetUserId ?: currentUserId
+            _isOwnerState.value = currentUserId != null && (targetUserId == null || targetUserId == currentUserId)
         } finally {
             _loadingState.value = false
         }
@@ -108,7 +119,7 @@ class WishlistsListViewModel(
      * Opens the grid presentation of the displayed user's wishlists.
      * No-op when [targetUserId] is `null` (the caller's own list).
      */
-    fun onShowGrid() {
+    fun onShowUserWishlists() {
         val userId = targetUserId ?: return
         scope.launchLoggingDropExceptions { interactor.onShowUserWishlists(node, userId) }
     }

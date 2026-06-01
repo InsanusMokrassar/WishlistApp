@@ -208,11 +208,12 @@ object ClientPlugin : StartPlugin {
 
         single<UserWishlistsViewInteractor> {
             object : UserWishlistsViewInteractor {
-                override suspend fun onWishlistSelected(
+                override suspend fun onItemSelected(
                     node: NavigationNode<UserWishlistsViewConfig, ViewConfig>,
+                    itemId: WishlistItemId,
                     wishlistId: WishlistId
                 ) {
-                    node.chain.push(WishlistViewConfig(wishlistId))
+                    node.chain.push(WishlistItemViewConfig(itemId, wishlistId))
                 }
                 override suspend fun onBack(
                     node: NavigationNode<UserWishlistsViewConfig, ViewConfig>

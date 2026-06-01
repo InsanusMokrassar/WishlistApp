@@ -3,10 +3,8 @@ package dev.inmo.wishlist.features.ui.wishlist.ui
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material.AlertDialog
 import androidx.compose.material.Button
@@ -28,8 +26,6 @@ import dev.inmo.wishlist.features.common.client.models.ViewConfig
 import dev.inmo.wishlist.features.common.client.ui.components.BackButton
 import dev.inmo.wishlist.features.common.client.ui.components.ScreenTitle
 import dev.inmo.wishlist.features.ui.wishlist.WishlistStrings
-import dev.inmo.wishlist.features.ui.wishlist.ui.WishlistEditViewConfig
-import dev.inmo.wishlist.features.ui.wishlist.ui.WishlistEditViewModel
 import org.koin.core.component.inject
 import org.koin.core.parameter.parametersOf
 
@@ -100,7 +96,7 @@ class WishlistEditView(
             ) {
                 BackButton(WishlistStrings.backButton.translation()) { viewModel.onBack() }
                 ScreenTitle(
-                    if (viewModel.isCreating) WishlistStrings.newWishlistTitle.translation()
+                    if (viewModel.isCreating) WishlistStrings.createWishlistButton.translation()
                     else WishlistStrings.editWishlistTitle.translation()
                 )
             }

@@ -8,26 +8,18 @@ import dev.inmo.navigation.core.NavigationChain
 import dev.inmo.navigation.mvvm.compose.ComposeView
 import dev.inmo.wishlist.features.common.client.models.ViewConfig
 import dev.inmo.wishlist.features.common.client.ui.components.BackButton
+import dev.inmo.wishlist.features.common.client.ui.components.ListRow
 import dev.inmo.wishlist.features.common.client.ui.components.ScreenTitle
 import dev.inmo.wishlist.features.ui.wishlist.WishlistStrings
-import org.jetbrains.compose.web.css.Style
-import org.jetbrains.compose.web.css.StyleSheet
 import org.jetbrains.compose.web.dom.Div
-import org.jetbrains.compose.web.dom.H5
 import org.jetbrains.compose.web.dom.P
+import org.jetbrains.compose.web.dom.Span
 import org.jetbrains.compose.web.dom.Text
+import org.jetbrains.compose.web.dom.Ul
 import org.koin.core.component.inject
 import org.koin.core.parameter.parametersOf
 
-/** Custom CSS for [UserWishlistsView] — only the clickable-card affordance. */
-object UserWishlistsViewStylesheet : StyleSheet() {
-    /** Pointer cursor applied to each wishlist card to signal it is clickable. */
-    val clickableCard by style {
-        property("cursor", "pointer")
-    }
-}
-
-/** JS Compose-HTML grid presentation of a user's wishlists. Uses Bootstrap card grid. */
+/** JS Compose-HTML list of every item across a user's wishlists. Uses the shared Bootstrap [ListRow]. */
 class UserWishlistsView(
     chain: NavigationChain<ViewConfig>,
     config: UserWishlistsViewConfig,
@@ -39,30 +31,36 @@ class UserWishlistsView(
     @Composable
     override fun onDraw() {
         super.onDraw()
-        Style(UserWishlistsViewStylesheet)
-        val wishlists by viewModel.wishlistsState.collectAsState()
+        val items by viewModel.itemsState.collectAsState()
         val loading by viewModel.loadingState.collectAsState()
 
         Div({ classes("container", "py-3") }) {
             Div({ classes("d-flex", "align-items-center", "mb-3", "gap-2") }) {
                 BackButton(WishlistStrings.backButton.translation()) { viewModel.onBack() }
-                ScreenTitle(WishlistStrings.userWishlistsTitle.translation(), "mb-0", "flex-grow-1")
+                ScreenTitle(WishlistStrings.allItemsTitle.translation(), "mb-0", "flex-grow-1")
             }
 
             if (loading) {
                 P { Text(WishlistStrings.loading.translation()) }
-            } else if (wishlists.isEmpty()) {
-                P({ classes("text-muted") }) { Text(WishlistStrings.emptyWishlists.translation()) }
+            } else if (items.isEmpty()) {
+                P({ classes("text-muted") }) { Text(WishlistStrings.emptyItems.translation()) }
             } else {
-                Div({ classes("row", "row-cols-1", "row-cols-md-2", "row-cols-lg-3", "g-3") }) {
-                    wishlists.forEach { wishlist ->
-                        Div({ classes("col") }) {
-                            Div({
-                                classes("card", "h-100", "shadow-sm", UserWishlistsViewStylesheet.clickableCard)
-                                onClick { viewModel.onWishlistSelected(wishlist.id) }
-                            }) {
-                                Div({ classes("card-body") }) {
-                                    H5({ classes("card-title", "mb-0") }) { Text(wishlist.title) }
+                Ul({ classes("list-group") }) {
+                    items.forEach { item ->
+                        ListRow(onSelect = { viewModel.onItemSelected(item) }) {
+                            Div({ classes("flex-grow-1") }) {
+                                Div({ classes("d-flex", "justify-content-between", "align-items-center") }) {
+                                    Span { Text(item.title) }
+                                    item.approximatePrice?.let { price ->
+                                        Span({ classes("text-muted", "small") }) {
+                                            Text("$price ${item.priceUnits}")
+                                        }
+                                    }
+                                }
+                                if (item.description.isNotBlank()) {
+                                    P({ classes("mb-0", "text-muted", "small", "mt-1") }) {
+                                        Text(item.description)
+                                    }
                                 }
                             }
                         }

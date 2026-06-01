@@ -27,8 +27,6 @@ import dev.inmo.wishlist.features.common.client.models.ViewConfig
 import dev.inmo.wishlist.features.common.client.ui.components.BackButton
 import dev.inmo.wishlist.features.common.client.ui.components.ScreenTitle
 import dev.inmo.wishlist.features.ui.wishlist.WishlistStrings
-import dev.inmo.wishlist.features.ui.wishlist.ui.WishlistEditViewConfig
-import dev.inmo.wishlist.features.ui.wishlist.ui.WishlistEditViewModel
 import org.koin.core.component.inject
 import org.koin.core.parameter.parametersOf
 
@@ -100,7 +98,7 @@ class WishlistEditView(
             ) {
                 BackButton(WishlistStrings.backButton.translation(resources)) { viewModel.onBack() }
                 ScreenTitle(
-                    if (viewModel.isCreating) WishlistStrings.newWishlistTitle.translation(resources)
+                    if (viewModel.isCreating) WishlistStrings.createWishlistButton.translation(resources)
                     else WishlistStrings.editWishlistTitle.translation(resources)
                 )
             }

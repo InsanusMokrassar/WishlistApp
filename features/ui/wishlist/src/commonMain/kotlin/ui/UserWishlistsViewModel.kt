@@ -7,17 +7,17 @@ import dev.inmo.navigation.core.NavigationNode
 import dev.inmo.navigation.core.onResumeFlow
 import dev.inmo.navigation.mvvm.ViewModel
 import dev.inmo.wishlist.features.common.client.models.ViewConfig
-import dev.inmo.wishlist.features.wishlist.common.models.RegisteredWishlist
-import dev.inmo.wishlist.features.wishlist.common.models.WishlistId
+import dev.inmo.wishlist.features.wishlist.common.models.RegisteredWishlistItem
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.flow.merge
 
 /**
- * ViewModel for the grid presentation of a user's wishlists.
+ * ViewModel for the "all items" presentation of a user's wishlists.
  *
- * Loads the wishlists of [UserWishlistsViewConfig.userId] on init and node resume,
- * delegating navigation side-effects to [interactor].
+ * Loads every item across all wishlists owned by [UserWishlistsViewConfig.userId] on init and on
+ * node resume, flattening them into a single list, and delegates navigation side-effects to
+ * [interactor].
  *
  * @param node Navigation node this ViewModel is bound to.
  * @param model Wishlist data source.
@@ -28,10 +28,10 @@ class UserWishlistsViewModel(
     private val model: WishlistsModel,
     private val interactor: UserWishlistsViewInteractor
 ) : ViewModel<ViewConfig>(node) {
-    private val _wishlistsState = MutableRedeliverStateFlow<List<RegisteredWishlist>>(emptyList())
+    private val _itemsState = MutableRedeliverStateFlow<List<RegisteredWishlistItem>>(emptyList())
 
-    /** Current list of the target user's wishlists. */
-    val wishlistsState = _wishlistsState.asStateFlow()
+    /** All items across every wishlist of the target user, flattened into one list. */
+    val itemsState = _itemsState.asStateFlow()
 
     private val _loadingState = MutableRedeliverStateFlow(false)
 
@@ -42,7 +42,8 @@ class UserWishlistsViewModel(
         merge(flowOf(Unit), node.onResumeFlow).subscribeLoggingDropExceptions(scope) {
             _loadingState.value = true
             try {
-                _wishlistsState.value = model.getUserWishlists(node.config.userId)
+                _itemsState.value = model.getUserWishlists(node.config.userId)
+                    .flatMap { model.getWishlistItems(it.id) }
             } finally {
                 _loadingState.value = false
             }
@@ -50,12 +51,12 @@ class UserWishlistsViewModel(
     }
 
     /**
-     * Delegates to [UserWishlistsViewInteractor.onWishlistSelected].
+     * Delegates to [UserWishlistsViewInteractor.onItemSelected].
      *
-     * @param wishlistId Identifier of the wishlist the user tapped.
+     * @param item Item whose detail screen should be opened.
      */
-    fun onWishlistSelected(wishlistId: WishlistId) {
-        scope.launchLoggingDropExceptions { interactor.onWishlistSelected(node, wishlistId) }
+    fun onItemSelected(item: RegisteredWishlistItem) {
+        scope.launchLoggingDropExceptions { interactor.onItemSelected(node, item.id, item.wishlistId) }
     }
 
     /** Delegates to [UserWishlistsViewInteractor.onBack]. */

@@ -10,11 +10,8 @@ import dev.inmo.wishlist.features.common.client.models.ViewConfig
 import dev.inmo.wishlist.features.ui.wishlist.WishlistStrings
 import dev.inmo.wishlist.features.common.client.ui.components.BackButton
 import dev.inmo.wishlist.features.common.client.ui.components.ScreenTitle
-import dev.inmo.wishlist.features.ui.wishlist.ui.WishlistEditViewConfig
-import dev.inmo.wishlist.features.ui.wishlist.ui.WishlistEditViewModel
 import org.jetbrains.compose.web.attributes.InputType
 import org.jetbrains.compose.web.attributes.disabled
-import org.jetbrains.compose.web.attributes.forId
 import org.jetbrains.compose.web.attributes.placeholder
 import org.jetbrains.compose.web.dom.Button
 import org.jetbrains.compose.web.dom.Div
@@ -102,7 +99,7 @@ class WishlistEditView(
             Div({ classes("d-flex", "align-items-center", "mb-3", "gap-2") }) {
                 BackButton(WishlistStrings.backButton.translation()) { viewModel.onBack() }
                 ScreenTitle(
-                    if (viewModel.isCreating) WishlistStrings.newWishlistTitle.translation()
+                    if (viewModel.isCreating) WishlistStrings.createWishlistButton.translation()
                     else WishlistStrings.editWishlistTitle.translation()
                 )
             }

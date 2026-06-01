@@ -27,11 +27,11 @@ object WishlistStrings {
     val cancelButton = buildStringResource("Cancel") { IetfLang.Russian("Отмена") }
     val emptyWishlists = buildStringResource("No wishlists yet") { IetfLang.Russian("Нет списков желаний") }
     val userWishlistsTitle = buildStringResource("Wishlists") { IetfLang.Russian("Списки желаний") }
-    val gridViewButton = buildStringResource("Grid view") { IetfLang.Russian("Плиткой") }
+    val allItemsButton = buildStringResource("All items") { IetfLang.Russian("Все товары") }
+    val allItemsTitle = buildStringResource("All items") { IetfLang.Russian("Все товары") }
     val profileButton = buildStringResource("Profile") { IetfLang.Russian("Профиль") }
     val emptyItems = buildStringResource("No items yet") { IetfLang.Russian("Нет товаров") }
     val loading = buildStringResource("Loading...") { IetfLang.Russian("Загрузка...") }
-    val newWishlistTitle = buildStringResource("New Wishlist") { IetfLang.Russian("Новый список" ) }
     val editWishlistTitle = buildStringResource("Edit Wishlist") { IetfLang.Russian("Редактировать список") }
     val newItemTitle = buildStringResource("New Item") { IetfLang.Russian("Новый товар") }
     val editItemTitle = buildStringResource("Edit Item") { IetfLang.Russian("Редактировать товар") }

@@ -28,8 +28,6 @@ import dev.inmo.wishlist.features.common.client.ui.components.BackButton
 import dev.inmo.wishlist.features.common.client.ui.components.ListRow
 import dev.inmo.wishlist.features.common.client.ui.components.ScreenTitle
 import dev.inmo.wishlist.features.ui.wishlist.WishlistStrings
-import dev.inmo.wishlist.features.ui.wishlist.ui.WishlistsListViewConfig
-import dev.inmo.wishlist.features.ui.wishlist.ui.WishlistsListViewModel
 import org.koin.core.component.inject
 import org.koin.core.parameter.parametersOf
 
@@ -48,6 +46,7 @@ class WishlistsListView(
         val wishlists by viewModel.wishlistsState.collectAsState()
         val loading by viewModel.loadingState.collectAsState()
         val profileUserId by viewModel.profileUserIdState.collectAsState()
+        val isOwner by viewModel.isOwnerState.collectAsState()
         val stack by chain.stackFlow.collectAsState()
 
         Column(modifier = Modifier.fillMaxSize().padding(16.dp)) {
@@ -75,12 +74,14 @@ class WishlistsListView(
                         }
                     }
                     if (viewModel.targetUserId != null) {
-                        OutlinedButton(onClick = { viewModel.onShowGrid() }) {
-                            Text(WishlistStrings.gridViewButton.translation())
+                        OutlinedButton(onClick = { viewModel.onShowUserWishlists() }) {
+                            Text(WishlistStrings.allItemsButton.translation())
                         }
                     }
-                    Button(onClick = { viewModel.onCreateWishlist() }) {
-                        Text(WishlistStrings.createWishlistButton.translation())
+                    if (isOwner) {
+                        Button(onClick = { viewModel.onCreateWishlist() }) {
+                            Text(WishlistStrings.createWishlistButton.translation())
+                        }
                     }
                 }
             }
