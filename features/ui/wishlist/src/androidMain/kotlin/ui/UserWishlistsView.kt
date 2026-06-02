@@ -105,12 +105,21 @@ class UserWishlistsView(
                     if (sortMode == WishlistSortMode.None) {
                         sections.forEach { section ->
                             item(key = "header-${section.wishlist.id.long}") {
-                                Text(
-                                    section.wishlist.title,
+                                Row(
                                     modifier = Modifier.fillMaxWidth().padding(top = 8.dp),
-                                    style = MaterialTheme.typography.titleSmall,
-                                    color = MaterialTheme.colorScheme.primary
-                                )
+                                    horizontalArrangement = Arrangement.SpaceBetween,
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    Text(
+                                        section.wishlist.title,
+                                        modifier = Modifier.weight(1f),
+                                        style = MaterialTheme.typography.titleSmall,
+                                        color = MaterialTheme.colorScheme.primary
+                                    )
+                                    Button(onClick = { viewModel.onWishlistSelected(section.wishlist) }) {
+                                        Text(WishlistStrings.openWishlistButton.translation(resources))
+                                    }
+                                }
                                 HorizontalDivider()
                             }
                             items(section.items, key = { it.id.long }) { item ->

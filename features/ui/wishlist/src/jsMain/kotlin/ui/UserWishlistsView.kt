@@ -84,8 +84,16 @@ class UserWishlistsView(
 
                 if (sortMode == WishlistSortMode.None) {
                     sections.forEach { section ->
-                        H6({ classes("mt-3", "mb-1", "text-muted", "border-bottom", "pb-1") }) {
-                            Text(section.wishlist.title)
+                        Div({
+                            classes("d-flex", "align-items-center", "justify-content-between", "mt-3", "mb-1", "border-bottom", "pb-1")
+                        }) {
+                            H6({ classes("mb-0", "text-muted") }) { Text(section.wishlist.title) }
+                            Button({
+                                classes("btn", "btn-sm", "btn-outline-primary")
+                                onClick { viewModel.onWishlistSelected(section.wishlist) }
+                            }) {
+                                Text(WishlistStrings.openWishlistButton.translation())
+                            }
                         }
                         Ul({ classes("list-group") }) {
                             section.items.forEach { item -> ItemRow(item, null) }

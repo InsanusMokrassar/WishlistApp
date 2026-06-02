@@ -155,6 +155,15 @@ class UserWishlistsViewModel(
     }
 
     /**
+     * Delegates to [UserWishlistsViewInteractor.onWishlistSelected].
+     *
+     * @param wishlist Wishlist whose detail screen should be opened.
+     */
+    fun onWishlistSelected(wishlist: RegisteredWishlist) {
+        scope.launchLoggingDropExceptions { interactor.onWishlistSelected(node, wishlist.id) }
+    }
+
+    /**
      * Changes the active ordering of the items.
      *
      * @param mode New sort mode; [WishlistSortMode.None] restores the grouped presentation.

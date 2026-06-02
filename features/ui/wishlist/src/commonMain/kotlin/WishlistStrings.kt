@@ -37,6 +37,7 @@ object WishlistStrings {
     }
     val allItemsButton = buildStringResource("All items") { IetfLang.Russian("Все товары") }
     val allItemsTitle = buildStringResource("All items") { IetfLang.Russian("Все товары") }
+    val openWishlistButton = buildStringResource("Open") { IetfLang.Russian("Открыть") }
     val profileButton = buildStringResource("Profile") { IetfLang.Russian("Профиль") }
     val emptyItems = buildStringResource("No items yet") { IetfLang.Russian("Нет товаров") }
     val sortLabel = buildStringResource("Sort") { IetfLang.Russian("Сортировка") }
