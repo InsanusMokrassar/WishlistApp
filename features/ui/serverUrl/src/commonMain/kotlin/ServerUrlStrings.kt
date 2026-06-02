@@ -2,6 +2,7 @@ package dev.inmo.wishlist.features.ui.serverUrl
 
 import dev.inmo.micro_utils.language_codes.IetfLang
 import dev.inmo.micro_utils.strings.buildStringResource
+import dev.inmo.wishlist.features.common.client.CommonStrings
 
 /** Localized strings for the server URL editor screen. */
 object ServerUrlStrings {
@@ -16,7 +17,5 @@ object ServerUrlStrings {
     }
 
     /** Save button caption. */
-    val saveButton = buildStringResource("Save") {
-        IetfLang.Russian("Сохранить")
-    }
+    val saveButton = CommonStrings.save
 }

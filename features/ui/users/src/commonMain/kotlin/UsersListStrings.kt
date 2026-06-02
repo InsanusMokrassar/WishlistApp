@@ -2,6 +2,7 @@ package dev.inmo.wishlist.features.ui.users
 
 import dev.inmo.micro_utils.language_codes.IetfLang
 import dev.inmo.micro_utils.strings.buildStringResource
+import dev.inmo.wishlist.features.common.client.CommonStrings
 
 /** Localized strings used by the users list view. */
 object UsersListStrings {
@@ -26,9 +27,7 @@ object UsersListStrings {
     }
 
     /** Cancel action shared by both delete confirmation dialogs. */
-    val cancelButton = buildStringResource("Cancel") {
-        IetfLang.Russian("Отмена")
-    }
+    val cancelButton = CommonStrings.cancel
 
     /** Title of the first delete confirmation dialog. */
     val confirmDeleteUserTitle = buildStringResource("Delete user?") {
@@ -86,9 +85,7 @@ object UsersListStrings {
     }
 
     /** Save action label on the edit screen. */
-    val saveButton = buildStringResource("Save") {
-        IetfLang.Russian("Сохранить")
-    }
+    val saveButton = CommonStrings.save
 
     /** Read-only user id field label. */
     val userIdLabel = buildStringResource("User ID") {

@@ -2,6 +2,7 @@ package dev.inmo.wishlist.features.ui.wishlist
 
 import dev.inmo.micro_utils.language_codes.IetfLang
 import dev.inmo.micro_utils.strings.buildStringResource
+import dev.inmo.wishlist.features.common.client.CommonStrings
 import dev.inmo.wishlist.features.wishlist.common.models.Priority
 
 /** Localized string resources for the wishlist UI feature. */
@@ -9,7 +10,7 @@ object WishlistStrings {
     val wishlistsTitle = buildStringResource("My Wishlists") { IetfLang.Russian("Мои списки желаний") }
     val backButton = buildStringResource("Back") { IetfLang.Russian("Назад") }
     val editButton = buildStringResource("Edit") { IetfLang.Russian("Редактировать") }
-    val saveButton = buildStringResource("Save") { IetfLang.Russian("Сохранить") }
+    val saveButton = CommonStrings.save
     val addItemButton = buildStringResource("Add Item") { IetfLang.Russian("Добавить товар") }
     val createWishlistButton = buildStringResource("New Wishlist") { IetfLang.Russian("Новый список") }
     val titleLabel = buildStringResource("Title") { IetfLang.Russian("Название") }
@@ -24,7 +25,7 @@ object WishlistStrings {
         IetfLang.Russian("Есть несохранённые изменения. Отменить и вернуться?")
     }
     val confirmButton = buildStringResource("Discard") { IetfLang.Russian("Отменить") }
-    val cancelButton = buildStringResource("Cancel") { IetfLang.Russian("Отмена") }
+    val cancelButton = CommonStrings.cancel
     val emptyWishlists = buildStringResource("No wishlists yet") { IetfLang.Russian("Нет списков желаний") }
     val userWishlistsTitle = buildStringResource("Wishlists") { IetfLang.Russian("Списки желаний") }
     val userWishlistsTitleFormat = buildStringResource("{name}'s Wishlists") {

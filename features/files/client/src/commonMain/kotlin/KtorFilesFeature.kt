@@ -11,8 +11,6 @@ import io.ktor.client.request.get
 import io.ktor.client.request.post
 import io.ktor.client.request.put
 import io.ktor.client.request.setBody
-import io.ktor.http.ContentType
-import io.ktor.http.contentType
 import io.ktor.http.isSuccess
 
 /**
@@ -29,7 +27,6 @@ class KtorFilesFeature(
 ) : FilesFeature {
     override suspend fun finalize(request: FinalizeFileRequest): RegisteredFileMetaInfo? {
         val response = client.post("${Constants.filesPrefixPathPart}/${Constants.finalizePathPart}") {
-            contentType(ContentType.Application.Json)
             setBody(request)
         }
         return if (response.status.isSuccess()) response.body() else null
@@ -47,7 +44,6 @@ class KtorFilesFeature(
 
     override suspend fun setAvatar(userId: UserId, fileId: FileId): Boolean {
         val response = client.put("${Constants.filesPrefixPathPart}/${Constants.avatarPathPart}/${userId.long}") {
-            contentType(ContentType.Application.Json)
             setBody(fileId)
         }
         return response.status.isSuccess()
