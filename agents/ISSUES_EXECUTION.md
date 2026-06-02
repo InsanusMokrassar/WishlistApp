@@ -20,6 +20,7 @@ Repo: `InsanusMokrassar/WishlistApp`.
    `gh pr create --repo InsanusMokrassar/WishlistApp --base master --head fix/issue-<N>-<slug> --title "..." --body "Closes #<N> ..."`.
 9. Set reviewer = repo owner (operator):
    `gh pr edit <PR#> --repo InsanusMokrassar/WishlistApp --add-reviewer InsanusMokrassar`.
+10. Get back onto `master` branch
 
 ## Rules
 
