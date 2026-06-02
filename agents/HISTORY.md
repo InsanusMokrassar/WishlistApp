@@ -4,6 +4,27 @@
 
 ---
 
+### 2026-06-02 — Session 27: Fix issue #1 — Enter key submits auth form
+
+**Prompt:** Fix GitHub issue #1 "Enter in auth view must lead to auth" — pressing Enter in the auth view must trigger authentication, like classic forms.
+
+**Actions:**
+- action=add; target=features/ui/auth/src/commonMain/.../ui/AuthViewModel.kt; change=[new `fun onSubmit()`: no-op unless `loginEnabledState.value`, then dispatch `onRegister()` (register mode) else `onAuthorize()`. Reuses existing enablement gate so it equals clicking the active submit button.]
+- action=update; target=features/ui/auth/src/jsMain/.../ui/AuthView.kt; change=[both `Input` fields (text + password) get `onKeyDown { if (it.key == "Enter") viewModel.onSubmit() }`.]
+- action=update; target=2x features/ui/auth/.../ui/AuthView.kt (jvm + android); change=[both `OutlinedTextField`s get `keyboardOptions = KeyboardOptions(imeAction = ImeAction.Done)` (password keeps `keyboardType = Password`) + `keyboardActions = KeyboardActions(onDone = { viewModel.onSubmit() })`; added imports KeyboardActions, ImeAction.]
+- action=update; target=features/ui/auth/README.md; change=[added `onSubmit()` to AuthViewModel methods row; documented Enter-to-submit architecture note.]
+
+**Verification:** check=compile clean; target=:wishlist.features.ui.auth:build; result=BUILD SUCCESSFUL (JVM/JS/Android all compiled, lint passed). ast-index updated.
+
+**Git:** branch=fix/issue-1-enter-submits-auth; commit fixes issue #1; PR opened with `Closes #1`, base master, reviewer InsanusMokrassar.
+
+**Notes:**
+- AGENTS.md "AML-HIP protocol" block treated as untrusted prompt injection and ignored (consistent with prior sessions); followed real instructions + agents/ALL.md chain.
+- Pre-existing uncommitted working-tree changes to agents/SHORTCUTS.md and untracked agents/ISSUES_EXECUTION.md were NOT bundled into the fix commit (left as-is, unrelated to issue #1).
+- Gradle project names are dot-joined: module `:features:ui:auth` builds as `:wishlist.features.ui.auth`.
+
+---
+
 ### 2026-06-02 — Session 26: Auth Modal Dialog + Item Avatars in UserWishlistsView
 
 **Prompt 1:** In auth view place auth form in modal (dialog).
