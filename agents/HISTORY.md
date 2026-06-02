@@ -4,6 +4,22 @@
 
 ---
 
+### 2026-06-02 — Session 28: Commonize agent doc samples (agents/CODING.md)
+
+**Prompt:** Rework all `agents/*.md`. Commonize the samples — they are too specific (e.g. `WishlistsListViewInteractor` koin propagation). If a sample is already generic enough, keep it but report.
+
+**Actions:**
+- action=update; target=agents/CODING.md "Intra-feature navigation interactors"; change=[renamed heading "(wishlist pattern)" → "(multi-screen feature)"; rewrote sample with generic `Item`/`ItemId` entity, `ItemsListViewInteractor`+`ItemEditViewInteractor`, `Items/Item/ItemEditViewConfig`. Added "Reference implementation: features/ui/wishlist" pointer. Generalized key-rules bullets.]
+- action=update; target=agents/CODING.md "CRUD Repository Pattern"; change=[dropped "(example: features/users)" from heading; rewrote whole section with generic `Item`/`ItemId`/`ItemName`/`Items*Repo`/`ExposedItemsRepo`/`CacheItemsRepo`, table `items`, `features.FEATURE_NAME.common.JVMPlugin`. Added "Reference implementation: features/users" pointer.]
+
+**Kept unchanged (reported, judged generic-enough or intentionally concrete):**
+- CODING.md generic MVVM/plugin/routes/koin sections already use `MyFeature`/`FEATURE_NAME`/`MyView` placeholders.
+- CODING.md "Bearer Auth Pattern" + "Auth UI Pattern": descriptive docs of concrete subsystems (bcrypt, tokens, overlay) — generic rename would erase the actual content; kept as named references.
+- CODING.md "Connecting a UI Scenario" + "Server Address feature" notes: `sample`/`ServerUrlStorage` — `sample` is the template's own generic placeholder feature.
+- ARCHITECTURE.md, AST_INDEX.md, ALL.md, SHORTCUTS.md, ISSUES_EXECUTION.md: no per-feature code samples to commonize (placeholders/real config refs only).
+
+---
+
 ### 2026-06-02 — Session 27: Fix issue #1 — Enter key submits auth form
 
 **Prompt:** Fix GitHub issue #1 "Enter in auth view must lead to auth" — pressing Enter in the auth view must trigger authentication, like classic forms.
