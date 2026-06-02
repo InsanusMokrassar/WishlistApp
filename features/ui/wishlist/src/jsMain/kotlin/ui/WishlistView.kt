@@ -39,6 +39,8 @@ class WishlistView(
     override fun onDraw() {
         super.onDraw()
         val items by viewModel.itemsState.collectAsState()
+        val sortMode by viewModel.sortModeState.collectAsState()
+        val sortedItems by viewModel.sortedItemsState.collectAsState()
         val isOwner by viewModel.isOwnerState.collectAsState()
         val loading by viewModel.loadingState.collectAsState()
 
@@ -63,8 +65,13 @@ class WishlistView(
                     Text(WishlistStrings.emptyItems.translation())
                 }
             } else {
+                WishlistSortSelector(
+                    selected = sortMode,
+                    onSortModeSelected = viewModel::onSortModeSelected,
+                    noneLabel = WishlistStrings.sortDefault
+                )
                 Ul({ classes("list-group", "mb-3") }) {
-                    items.forEach { item ->
+                    sortedItems.forEach { item ->
                         ListRow(onSelect = { viewModel.onViewItem(item.id) }) {
                             Div({ classes("flex-grow-1") }) {
                                 Div({ classes("d-flex", "justify-content-between", "align-items-center") }) {

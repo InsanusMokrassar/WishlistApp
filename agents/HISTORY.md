@@ -4,6 +4,18 @@
 
 ---
 
+### 2026-06-02 — Session 30: Fix PR #10 review — extract reusable WishlistSortSelector component
+
+**Prompt:** Operator left a review on open PR #10 (issue/9-sort-wishlist-items): "Replace sorting buttons group in component (on each platform). It must accept selected wishlist sort mode and on wishlist sort mode selected callback."
+
+**Actions:**
+- action=add; target=3x features/ui/wishlist/src/{jvmMain,jsMain,androidMain}/kotlin/ui/WishlistSortSelector.kt; change=[new reusable per-platform composable `WishlistSortSelector(selected: WishlistSortMode, onSortModeSelected: (WishlistSortMode) -> Unit, noneLabel: StringResource = WishlistStrings.sortNone)`; renders "Sort" caption + one button per mode, selected filled / others outlined; jvm=Material v2, js=Compose-HTML Bootstrap btn-group, android=Material3 (Button/OutlinedButton, LocalResources)].
+- action=update; target=6x features/ui/wishlist/src/{jvmMain,jsMain,androidMain}/kotlin/ui/{WishlistView,UserWishlistsView}.kt; change=[replaced duplicated inline sort-buttons block with WishlistSortSelector call; WishlistView passes noneLabel=WishlistStrings.sortDefault, UserWishlistsView uses default sortNone; removed now-unused imports (ButtonDefaults/OutlinedButton/labelResource per file)].
+- action=update; target=features/ui/wishlist/README.md; change=[one-line note documenting reusable WishlistSortSelector shared by both views].
+- action=verify; target=:wishlist.features.ui.wishlist:build; result=BUILD SUCCESSFUL (net -122/+28 lines).
+
+---
+
 ### 2026-06-02 — Session 29: Fix issue #5 — item sorting in UserWishlistsView (all-items screen)
 
 **Prompt:** Fix GitHub issue #5 "Add opportunity for sorting of items in UserWishlistsView" — add sorting of items by Cost / Priority (weight) / Title; when custom sort enabled, hide wishlist titles, show items as a plain list, with each item's wishlist title written after the item title in brackets `()`.

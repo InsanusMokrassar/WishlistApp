@@ -54,6 +54,8 @@ class WishlistView(
         super.onDraw()
         val resources = LocalResources.current
         val items by viewModel.itemsState.collectAsState()
+        val sortMode by viewModel.sortModeState.collectAsState()
+        val sortedItems by viewModel.sortedItemsState.collectAsState()
         val isOwner by viewModel.isOwnerState.collectAsState()
         val loading by viewModel.loadingState.collectAsState()
 
@@ -78,8 +80,14 @@ class WishlistView(
             } else if (items.isEmpty()) {
                 Text(WishlistStrings.emptyItems.translation(resources))
             } else {
+                WishlistSortSelector(
+                    selected = sortMode,
+                    onSortModeSelected = viewModel::onSortModeSelected,
+                    noneLabel = WishlistStrings.sortDefault
+                )
+                Spacer(modifier = Modifier.height(8.dp))
                 LazyColumn(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                    items(items) { item ->
+                    items(sortedItems) { item ->
                         ListRow(onSelect = { viewModel.onViewItem(item.id) }) {
                             Column(modifier = Modifier.fillMaxWidth()) {
                                 Row(

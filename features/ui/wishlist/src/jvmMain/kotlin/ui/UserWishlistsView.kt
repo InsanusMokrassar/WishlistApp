@@ -13,7 +13,6 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.Button
-import androidx.compose.material.ButtonDefaults
 import androidx.compose.material.Divider
 import androidx.compose.material.MaterialTheme
 import androidx.compose.material.Text
@@ -32,7 +31,6 @@ import dev.inmo.wishlist.features.common.client.ui.components.BackButton
 import dev.inmo.wishlist.features.common.client.ui.components.ListRow
 import dev.inmo.wishlist.features.ui.topBar.ui.TopBarTitleProvider
 import dev.inmo.wishlist.features.ui.wishlist.WishlistStrings
-import dev.inmo.wishlist.features.ui.wishlist.labelResource
 import dev.inmo.wishlist.features.wishlist.common.models.RegisteredWishlistItem
 import org.koin.core.component.inject
 import org.koin.core.parameter.parametersOf
@@ -82,26 +80,10 @@ class UserWishlistsView(
             } else if (sections.isEmpty()) {
                 Text(WishlistStrings.emptyItems.translation(), style = MaterialTheme.typography.caption)
             } else {
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(4.dp),
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Text(WishlistStrings.sortLabel.translation(), style = MaterialTheme.typography.caption)
-                    WishlistSortMode.entries.forEach { mode ->
-                        val active = mode == sortMode
-                        Button(
-                            onClick = { viewModel.onSortModeSelected(mode) },
-                            colors = if (active) {
-                                ButtonDefaults.buttonColors()
-                            } else {
-                                ButtonDefaults.outlinedButtonColors()
-                            }
-                        ) {
-                            Text(mode.labelResource().translation())
-                        }
-                    }
-                }
+                WishlistSortSelector(
+                    selected = sortMode,
+                    onSortModeSelected = viewModel::onSortModeSelected
+                )
 
                 LazyColumn(verticalArrangement = Arrangement.spacedBy(4.dp)) {
                     if (sortMode == WishlistSortMode.None) {

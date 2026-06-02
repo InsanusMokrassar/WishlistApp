@@ -42,6 +42,7 @@ object WishlistStrings {
     val emptyItems = buildStringResource("No items yet") { IetfLang.Russian("Нет товаров") }
     val sortLabel = buildStringResource("Sort") { IetfLang.Russian("Сортировка") }
     val sortNone = buildStringResource("Grouped") { IetfLang.Russian("По спискам") }
+    val sortDefault = buildStringResource("Default") { IetfLang.Russian("По умолчанию") }
     val sortCost = buildStringResource("Cost") { IetfLang.Russian("Цена") }
     val sortPriority = buildStringResource("Priority") { IetfLang.Russian("Приоритет") }
     val sortTitle = buildStringResource("Title") { IetfLang.Russian("Название") }

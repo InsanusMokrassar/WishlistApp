@@ -60,6 +60,29 @@ class WishlistViewModel(
     /** `true` while a network request is in flight. */
     val loadingState = _loadingState.asStateFlow()
 
+    private val _sortModeState = MutableRedeliverStateFlow(WishlistSortMode.None)
+
+    /**
+     * Currently selected ordering of the items. [WishlistSortMode.None] keeps the stored order;
+     * any other value reorders [sortedItemsState] accordingly.
+     */
+    val sortModeState = _sortModeState.asStateFlow()
+
+    /**
+     * Items of the loaded wishlist reordered according to [sortModeState]. For
+     * [WishlistSortMode.None] the stored order from [itemsState] is preserved. Mirrors the sort
+     * orders used by the all-items screen so both screens behave the same.
+     */
+    val sortedItemsState: StateFlow<List<RegisteredWishlistItem>> =
+        combine(_itemsState, _sortModeState) { items, mode ->
+            when (mode) {
+                WishlistSortMode.None -> items
+                WishlistSortMode.Cost -> items.sortedWith(compareBy(nullsLast()) { it.approximatePrice })
+                WishlistSortMode.Priority -> items.sortedByDescending { it.priority.weight }
+                WishlistSortMode.Title -> items.sortedBy { it.title.lowercase() }
+            }
+        }.stateIn(scope, SharingStarted.Eagerly, emptyList())
+
     init {
         merge(flowOf(Unit), node.onResumeFlow).subscribeLoggingDropExceptions(scope) {
             loadWishlist()
@@ -103,6 +126,15 @@ class WishlistViewModel(
      */
     fun onViewItem(itemId: WishlistItemId) {
         scope.launchLoggingDropExceptions { interactor.onViewItem(node, itemId) }
+    }
+
+    /**
+     * Changes the active ordering of the items.
+     *
+     * @param mode New sort mode; [WishlistSortMode.None] restores the stored order.
+     */
+    fun onSortModeSelected(mode: WishlistSortMode) {
+        _sortModeState.value = mode
     }
 
     /** Delegates to [WishlistViewInteractor.onAddItem]. */
