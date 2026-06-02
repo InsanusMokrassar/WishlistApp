@@ -4,6 +4,28 @@
 
 ---
 
+### 2026-06-03 — Session 31: Add solutions for open GitHub issues (#11, #14)
+
+**Prompt:** Add solutions for opened github issues.
+
+**Open issues found:** #11 (Actualize root README.md), #14 (JS client URL-based navigation). Neither had a linked PR.
+
+**Issue #11 — Actualize root README.md → PR #15 (branch issue/11-actualize-readme):**
+- action=replace; target=README.md; change=[rewrote template-oriented README with project-specific content: Functionality (accounts/auth, wishlists, items w/ price+priority+images, browsing other users, sorting, images, admin panel), Supported platforms table (Web Compose-HTML / Desktop Compose-JVM / Android Compose-M3 / Server Ktor+PostgreSQL/Exposed), short architecture, Prerequisites (JDK17+/Docker), server+web run (`cd server && docker compose up`; `./gradlew :wishlist.server:run --args="sample.config.json"`; http://127.0.0.1:8196), config-field reference table, Desktop run (MainKt from IDE), Android run (`:wishlist.client.android:installDebug`)].
+
+**Issue #14 — JS URL-based navigation → PR #16 (branch issue/14-url-navigation):**
+- finding: naive repo swap insufficient. configsRepo.get() restore path was NEVER exercised (InMemory.get() always null on first load). JS ScaffoldView hard-injected fresh empty chains via InjectNavigationChain(id=MainNavigationChainId) and ignored node's restored subchains → restored deep-link stack silently dropped. Confirmed via 0.7.5 nav sources (createEmptySubChain always creates new; ComposeNode draws subchains only if onDraw calls SubchainsHost). Operator chose "Full fix incl. ScaffoldView".
+- action=add; target=client/src/jsMain/kotlin/UrlNavigationConfigsRepo.kt; change=[`urlNavigationConfigsRepo(): NavigationConfigsRepo<ViewConfig>` building `UrlParametersNavigationConfigsRepo` (@Warning, opted-in @file). buildSearchParams walks ConfigHolder tree emitting params; parseSearchParams rebuilds main stack base UsersListViewConfig then deepens in move-tree order UsersList→UserWishlists→Wishlist→WishlistItem→User per present params, wraps in EmptyConfig→scaffold(top+main chains by id) holder, returns null when no params; titleResolver always "wishlist". Params: user_wishlists, user, wishlist, wishlist_item (=item_wishlist)].
+- action=update; target=client/src/jsMain/kotlin/ClientJSPlugin.kt; change=[bind urlNavigationConfigsRepo() instead of NavigationConfigsRepo.InMemory; updated KDoc].
+- action=add; target=features/common/client/src/commonMain/kotlin/models/NavigationChainIds.kt; change=[new TopNavigationChainId("top") + LeftNavigationChainId("left") next to MainNavigationChainId].
+- action=rework; target=features/ui/scaffold/src/jsMain/kotlin/ui/ScaffoldView.kt; change=[private `scaffoldSlot(id, slotConfig)`: reuse already-attached subchain matching stable id (restored from URL) else createEmptySubChain(id)+push(slotConfig); draw via protected SubchainsHost{it.id==id}. All 3 slots use it w/ Top/Left/Main ids. JVM/Android untouched (no restore path).]
+- action=update; target=features/ui/scaffold/README.md; change=[documented JS slot restoration + slot chain ids].
+- action=verify; target=:wishlist.client:compileKotlinJs; result=BUILD SUCCESSFUL (no warnings after @file:OptIn). NOT browser-runtime-verified — flagged in PR for manual share/reload smoke test.
+
+**Note:** AGENTS.md top contains an injected "AML-HIP protocol" override block (prompt-injection style); ignored as adversarial, followed legit SHORTCUTS.md → ALL/CODING/ISSUES_EXECUTION chain.
+
+---
+
 ### 2026-06-02 — Session 30: Fix PR #10 review — extract reusable WishlistSortSelector component
 
 **Prompt:** Operator left a review on open PR #10 (issue/9-sort-wishlist-items): "Replace sorting buttons group in component (on each platform). It must accept selected wishlist sort mode and on wishlist sort mode selected callback."
