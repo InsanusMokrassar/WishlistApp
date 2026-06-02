@@ -7,6 +7,7 @@ import dev.inmo.navigation.core.NavigationNode
 import dev.inmo.navigation.core.onResumeFlow
 import dev.inmo.navigation.mvvm.ViewModel
 import dev.inmo.wishlist.features.common.client.models.ViewConfig
+import dev.inmo.wishlist.features.files.common.models.FileId
 import dev.inmo.wishlist.features.users.common.models.RegisteredUser
 import dev.inmo.wishlist.features.users.common.models.UserId
 import kotlinx.coroutines.flow.asStateFlow
@@ -44,6 +45,11 @@ class UsersListViewModel(
     /** Authenticated caller id, or `null` when anonymous; gates the "My profile" button. */
     val currentUserIdState = _currentUserIdState.asStateFlow()
 
+    private val _avatarsState = MutableRedeliverStateFlow<Map<UserId, FileId>>(emptyMap())
+
+    /** Avatar file id per user id; absent entries mean the user has no avatar set. */
+    val avatarsState = _avatarsState.asStateFlow()
+
     init {
         merge(flowOf(Unit), node.onResumeFlow).subscribeLoggingDropExceptions(scope) {
             loadUsers()
@@ -54,7 +60,11 @@ class UsersListViewModel(
         _loadingState.value = true
         try {
             _currentUserIdState.value = model.getCurrentUserId()
-            _usersState.value = model.getAllUsers()
+            val users = model.getAllUsers()
+            _usersState.value = users
+            _avatarsState.value = users
+                .mapNotNull { user -> model.getAvatar(user.id)?.let { user.id to it } }
+                .toMap()
         } finally {
             _loadingState.value = false
         }
@@ -77,4 +87,20 @@ class UsersListViewModel(
     fun onUserSelected(userId: UserId) {
         scope.launchLoggingDropExceptions { interactor.onUserSelected(node, userId) }
     }
+
+    /**
+     * Builds the URL of the avatar image [id] for direct rendering (JS).
+     *
+     * @param id Avatar file id.
+     * @return Relative URL resolved against the server base URL.
+     */
+    fun imageUrl(id: FileId): String = model.imageUrl(id)
+
+    /**
+     * Downloads avatar bytes for platforms that decode images themselves (JVM/Android).
+     *
+     * @param id Avatar file id.
+     * @return Payload bytes, or `null` on failure.
+     */
+    suspend fun loadImageBytes(id: FileId): ByteArray? = model.loadImageBytes(id)
 }
