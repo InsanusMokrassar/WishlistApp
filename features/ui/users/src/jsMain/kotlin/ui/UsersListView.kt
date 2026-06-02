@@ -10,9 +10,14 @@ import dev.inmo.wishlist.features.common.client.models.ViewConfig
 import dev.inmo.wishlist.features.common.client.ui.components.ListRow
 import dev.inmo.wishlist.features.ui.topBar.ui.TopBarTitleProvider
 import dev.inmo.wishlist.features.ui.users.UsersListStrings
+import org.jetbrains.compose.web.css.height
+import org.jetbrains.compose.web.css.px
+import org.jetbrains.compose.web.css.width
 import org.jetbrains.compose.web.dom.Button
 import org.jetbrains.compose.web.dom.Div
+import org.jetbrains.compose.web.dom.Img
 import org.jetbrains.compose.web.dom.P
+import org.jetbrains.compose.web.dom.Span
 import org.jetbrains.compose.web.dom.Text
 import org.jetbrains.compose.web.dom.Ul
 import org.koin.core.component.inject
@@ -34,6 +39,7 @@ class UsersListView(
     override fun onDraw() {
         super.onDraw()
         val users by viewModel.usersState.collectAsState()
+        val avatars by viewModel.avatarsState.collectAsState()
         val loading by viewModel.loadingState.collectAsState()
         val currentUserId by viewModel.currentUserIdState.collectAsState()
 
@@ -54,9 +60,31 @@ class UsersListView(
                 Ul({ classes("list-group") }) {
                     users.forEach { user ->
                         ListRow(
-                            text = user.username.string,
-                            onSelect = { viewModel.onUserSelected(user.id) }
-                        )
+                            onSelect = { viewModel.onUserSelected(user.id) },
+                            leading = {
+                                val avatarId = avatars[user.id]
+                                if (avatarId != null) {
+                                    Img(src = viewModel.imageUrl(avatarId), alt = "") {
+                                        classes("rounded-circle", "flex-shrink-0")
+                                        style {
+                                            width(48.px)
+                                            height(48.px)
+                                            property("object-fit", "cover")
+                                        }
+                                    }
+                                } else {
+                                    Div({
+                                        classes("rounded-circle", "bg-secondary-subtle", "flex-shrink-0")
+                                        style {
+                                            width(48.px)
+                                            height(48.px)
+                                        }
+                                    })
+                                }
+                            }
+                        ) {
+                            Span { Text(user.username.string) }
+                        }
                     }
                 }
             }
