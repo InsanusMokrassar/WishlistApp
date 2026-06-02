@@ -26,8 +26,6 @@ import dev.inmo.wishlist.features.common.client.models.ViewConfig
 import dev.inmo.wishlist.features.common.client.ui.components.BackButton
 import dev.inmo.wishlist.features.ui.topBar.ui.TopBarTitleProvider
 import dev.inmo.wishlist.features.ui.wishlist.WishlistStrings
-import dev.inmo.wishlist.features.ui.wishlist.labelResource
-import dev.inmo.wishlist.features.wishlist.common.models.Priority
 import org.koin.core.component.inject
 import org.koin.core.parameter.parametersOf
 
@@ -88,12 +86,7 @@ class WishlistItemView(
                 }
 
                 Text(WishlistStrings.priorityLabel.translation(), style = MaterialTheme.typography.subtitle2)
-                val priority = it.priority
-                val priorityLabel = priority.labelResource().translation()
-                Text(
-                    if (priority is Priority.Custom) "$priorityLabel (${priority.weight})" else priorityLabel,
-                    style = MaterialTheme.typography.body1
-                )
+                PriorityBadge(it.priority)
 
                 Text(WishlistStrings.linksLabel.translation(), style = MaterialTheme.typography.subtitle2)
                 if (it.links.isEmpty()) {

@@ -12,7 +12,6 @@ import dev.inmo.wishlist.features.common.client.ui.components.ListRow
 import dev.inmo.wishlist.features.ui.topBar.ui.TopBarTitleProvider
 import dev.inmo.wishlist.features.ui.wishlist.WishlistStrings
 import dev.inmo.wishlist.features.ui.wishlist.labelResource
-import dev.inmo.wishlist.features.ui.wishlist.weightSuffix
 import org.jetbrains.compose.web.css.height
 import org.jetbrains.compose.web.css.px
 import org.jetbrains.compose.web.css.width
@@ -136,20 +135,17 @@ class UserWishlistsView(
         ) {
             Div({ classes("flex-grow-1") }) {
                 Div({ classes("d-flex", "justify-content-between", "align-items-center") }) {
-                    Span {
-                        Text(wishlistTitle?.let { "${item.title} ($it)" } ?: item.title)
+                    Div({ classes("d-flex", "align-items-center", "gap-2") }) {
+                        Span {
+                            Text(wishlistTitle?.let { "${item.title} ($it)" } ?: item.title)
+                        }
+                        PriorityBadge(item.priority)
                     }
                     item.approximatePrice?.let { price ->
                         Span({ classes("text-muted", "small") }) {
                             Text("$price ${item.priceUnits}")
                         }
                     }
-                }
-                Span({ classes("badge", "bg-secondary-subtle", "text-secondary-emphasis", "mt-1") }) {
-                    Text(
-                        "${WishlistStrings.priorityLabel.translation()}: " +
-                            "${item.priority.labelResource().translation()}${item.priority.weightSuffix()}"
-                    )
                 }
                 if (item.description.isNotBlank()) {
                     P({ classes("mb-0", "text-muted", "small", "mt-1") }) {

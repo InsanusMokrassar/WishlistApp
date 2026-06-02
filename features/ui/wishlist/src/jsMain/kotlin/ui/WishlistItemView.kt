@@ -11,8 +11,6 @@ import dev.inmo.wishlist.features.common.client.ui.components.BackButton
 import dev.inmo.wishlist.features.common.client.ui.components.ListRow
 import dev.inmo.wishlist.features.ui.topBar.ui.TopBarTitleProvider
 import dev.inmo.wishlist.features.ui.wishlist.WishlistStrings
-import dev.inmo.wishlist.features.ui.wishlist.labelResource
-import dev.inmo.wishlist.features.wishlist.common.models.Priority
 import org.jetbrains.compose.web.dom.A
 import org.jetbrains.compose.web.dom.Button
 import org.jetbrains.compose.web.dom.Div
@@ -86,13 +84,7 @@ class WishlistItemView(
 
                 Div({ classes("mb-3") }) {
                     H6({ classes("text-muted") }) { Text(WishlistStrings.priorityLabel.translation()) }
-                    val priority = it.priority
-                    val priorityLabel = priority.labelResource().translation()
-                    P {
-                        Text(
-                            if (priority is Priority.Custom) "$priorityLabel (${priority.weight})" else priorityLabel
-                        )
-                    }
+                    P { PriorityBadge(it.priority) }
                 }
 
                 Div({ classes("mb-3") }) {

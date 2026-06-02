@@ -33,7 +33,6 @@ import dev.inmo.wishlist.features.common.client.ui.components.ListRow
 import dev.inmo.wishlist.features.ui.topBar.ui.TopBarTitleProvider
 import dev.inmo.wishlist.features.ui.wishlist.WishlistStrings
 import dev.inmo.wishlist.features.ui.wishlist.labelResource
-import dev.inmo.wishlist.features.ui.wishlist.weightSuffix
 import dev.inmo.wishlist.features.wishlist.common.models.RegisteredWishlistItem
 import org.koin.core.component.inject
 import org.koin.core.parameter.parametersOf
@@ -165,9 +164,16 @@ class UserWishlistsView(
             Column {
                 Row(
                     modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceBetween
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
                 ) {
-                    Text(wishlistTitle?.let { "${item.title} ($it)" } ?: item.title)
+                    Row(
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text(wishlistTitle?.let { "${item.title} ($it)" } ?: item.title)
+                        PriorityBadge(item.priority)
+                    }
                     item.approximatePrice?.let { price ->
                         Text(
                             "$price ${item.priceUnits}",
@@ -175,12 +181,6 @@ class UserWishlistsView(
                         )
                     }
                 }
-                Text(
-                    "${WishlistStrings.priorityLabel.translation()}: " +
-                        "${item.priority.labelResource().translation()}${item.priority.weightSuffix()}",
-                    style = MaterialTheme.typography.caption,
-                    color = MaterialTheme.colors.primary
-                )
                 if (item.description.isNotBlank()) {
                     Text(item.description, style = MaterialTheme.typography.caption)
                 }
