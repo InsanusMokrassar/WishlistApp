@@ -13,16 +13,17 @@ import org.koin.core.module.Module
 /**
  * JS-platform shell.
  *
- * Provides an in-memory navigation configs repository (no deep-linking) and
- * bootstraps the root chain with the main scaffold layout. The browser controls
- * the server origin, so no server URL editor is registered.
+ * Provides a URL-parameter-backed navigation configs repository (so deep links to
+ * content screens are shareable and survive a reload) and bootstraps the root chain
+ * with the main scaffold layout. The browser controls the server origin, so no server
+ * URL editor is registered.
  */
 object ClientJSPlugin : StartPlugin {
     override fun Module.setupDI(config: JsonObject) {
         with(ClientPlugin) { setupDI(config) }
 
         single<NavigationConfigsRepo<ViewConfig>> {
-            NavigationConfigsRepo.InMemory<ViewConfig>()
+            urlNavigationConfigsRepo()
         }
     }
 

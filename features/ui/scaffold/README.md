@@ -11,7 +11,8 @@ Pure layout container view with three optional navigation slots:
 - **left** — fixed-width column below the top slot, spanning remaining height
 - **main** — flexible area filling all remaining width and height
 
-Each non-null slot config bootstraps its own independent `InjectNavigationChain` / `InjectNavigationNode`.
+Each non-null slot is rendered as its own navigation sub-chain with a stable id
+(`TopNavigationChainId` / `LeftNavigationChainId` / `MainNavigationChainId`).
 No ViewModel logic, no Model, no Interactor — scaffold is presentation-only.
 
 ## Routes
@@ -33,5 +34,13 @@ None — client-only UI feature, no server routes.
   whatever feature config is passed as `topConfig` / `leftConfig` / `mainConfig`.
 - JS platform defines `ScaffoldViewStylesheet : StyleSheet` for the flex-based CSS layout;
   JVM and Android use `Column`/`Row`/`Box` with `Modifier.weight`.
+- **JS slot restoration:** the JS `ScaffoldView` renders each slot via a private `scaffoldSlot(id, slotConfig)`
+  helper instead of a bare `InjectNavigationChain`. The helper reuses an already-attached sub-chain with
+  the matching stable id when present (e.g. a hierarchy restored from the URL by
+  `UrlParametersNavigationConfigsRepo`), and only creates+seeds a fresh chain otherwise. It draws the slot
+  with the protected `SubchainsHost { it.id == id }`. This is what lets shared/reloaded deep links
+  re-populate the scaffold's main chain instead of being discarded. JVM/Android keep the plain
+  `InjectNavigationChain` form since they use the in-memory repo (no restore path).
+- The three slot chain ids live in `features/common/client` (`models/NavigationChainIds.kt`).
 - Register `JSPlugin` / `JVMPlugin` / `AndroidPlugin` in each platform's plugin list
   alongside other UI feature plugins.
