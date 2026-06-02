@@ -13,7 +13,6 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.material3.Button
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
@@ -30,7 +29,6 @@ import dev.inmo.wishlist.features.common.client.ui.components.BackButton
 import dev.inmo.wishlist.features.common.client.ui.components.ListRow
 import dev.inmo.wishlist.features.ui.topBar.ui.TopBarTitleProvider
 import dev.inmo.wishlist.features.ui.wishlist.WishlistStrings
-import dev.inmo.wishlist.features.ui.wishlist.labelResource
 import dev.inmo.wishlist.features.ui.wishlist.ui.WishlistViewConfig
 import dev.inmo.wishlist.features.ui.wishlist.ui.WishlistViewModel
 import org.koin.core.component.inject
@@ -82,25 +80,11 @@ class WishlistView(
             } else if (items.isEmpty()) {
                 Text(WishlistStrings.emptyItems.translation(resources))
             } else {
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(4.dp),
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Text(WishlistStrings.sortLabel.translation(resources), style = MaterialTheme.typography.bodySmall)
-                    WishlistSortMode.entries.forEach { mode ->
-                        val label = if (mode == WishlistSortMode.None) {
-                            WishlistStrings.sortDefault.translation(resources)
-                        } else {
-                            mode.labelResource().translation(resources)
-                        }
-                        if (mode == sortMode) {
-                            Button(onClick = { viewModel.onSortModeSelected(mode) }) { Text(label) }
-                        } else {
-                            OutlinedButton(onClick = { viewModel.onSortModeSelected(mode) }) { Text(label) }
-                        }
-                    }
-                }
+                WishlistSortSelector(
+                    selected = sortMode,
+                    onSortModeSelected = viewModel::onSortModeSelected,
+                    noneLabel = WishlistStrings.sortDefault
+                )
                 Spacer(modifier = Modifier.height(8.dp))
                 LazyColumn(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(4.dp)) {
                     items(sortedItems) { item ->

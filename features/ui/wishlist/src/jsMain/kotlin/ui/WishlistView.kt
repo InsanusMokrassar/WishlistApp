@@ -11,7 +11,6 @@ import dev.inmo.wishlist.features.common.client.ui.components.BackButton
 import dev.inmo.wishlist.features.common.client.ui.components.ListRow
 import dev.inmo.wishlist.features.ui.topBar.ui.TopBarTitleProvider
 import dev.inmo.wishlist.features.ui.wishlist.WishlistStrings
-import dev.inmo.wishlist.features.ui.wishlist.labelResource
 import org.jetbrains.compose.web.dom.Button
 import org.jetbrains.compose.web.dom.Div
 import org.jetbrains.compose.web.dom.P
@@ -66,25 +65,11 @@ class WishlistView(
                     Text(WishlistStrings.emptyItems.translation())
                 }
             } else {
-                Div({ classes("d-flex", "align-items-center", "mb-3", "gap-2", "flex-wrap") }) {
-                    Span({ classes("text-muted", "small") }) { Text(WishlistStrings.sortLabel.translation()) }
-                    Div({ classes("btn-group", "btn-group-sm") }) {
-                        WishlistSortMode.entries.forEach { mode ->
-                            val active = mode == sortMode
-                            val label = if (mode == WishlistSortMode.None) {
-                                WishlistStrings.sortDefault.translation()
-                            } else {
-                                mode.labelResource().translation()
-                            }
-                            Button({
-                                classes("btn", if (active) "btn-primary" else "btn-outline-primary")
-                                onClick { viewModel.onSortModeSelected(mode) }
-                            }) {
-                                Text(label)
-                            }
-                        }
-                    }
-                }
+                WishlistSortSelector(
+                    selected = sortMode,
+                    onSortModeSelected = viewModel::onSortModeSelected,
+                    noneLabel = WishlistStrings.sortDefault
+                )
                 Ul({ classes("list-group", "mb-3") }) {
                     sortedItems.forEach { item ->
                         ListRow(onSelect = { viewModel.onViewItem(item.id) }) {

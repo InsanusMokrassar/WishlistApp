@@ -11,7 +11,6 @@ import dev.inmo.wishlist.features.common.client.ui.components.BackButton
 import dev.inmo.wishlist.features.common.client.ui.components.ListRow
 import dev.inmo.wishlist.features.ui.topBar.ui.TopBarTitleProvider
 import dev.inmo.wishlist.features.ui.wishlist.WishlistStrings
-import dev.inmo.wishlist.features.ui.wishlist.labelResource
 import org.jetbrains.compose.web.css.height
 import org.jetbrains.compose.web.css.px
 import org.jetbrains.compose.web.css.width
@@ -67,20 +66,10 @@ class UserWishlistsView(
             } else if (sections.isEmpty()) {
                 P({ classes("text-muted") }) { Text(WishlistStrings.emptyItems.translation()) }
             } else {
-                Div({ classes("d-flex", "align-items-center", "mb-3", "gap-2", "flex-wrap") }) {
-                    Span({ classes("text-muted", "small") }) { Text(WishlistStrings.sortLabel.translation()) }
-                    Div({ classes("btn-group", "btn-group-sm") }) {
-                        WishlistSortMode.entries.forEach { mode ->
-                            val active = mode == sortMode
-                            Button({
-                                classes("btn", if (active) "btn-primary" else "btn-outline-primary")
-                                onClick { viewModel.onSortModeSelected(mode) }
-                            }) {
-                                Text(mode.labelResource().translation())
-                            }
-                        }
-                    }
-                }
+                WishlistSortSelector(
+                    selected = sortMode,
+                    onSortModeSelected = viewModel::onSortModeSelected
+                )
 
                 if (sortMode == WishlistSortMode.None) {
                     sections.forEach { section ->
