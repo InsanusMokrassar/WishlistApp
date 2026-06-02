@@ -3,6 +3,7 @@ package dev.inmo.wishlist.features.ui.wishlist
 import dev.inmo.micro_utils.language_codes.IetfLang
 import dev.inmo.micro_utils.strings.buildStringResource
 import dev.inmo.wishlist.features.common.client.CommonStrings
+import dev.inmo.wishlist.features.ui.wishlist.ui.WishlistSortMode
 import dev.inmo.wishlist.features.wishlist.common.models.Priority
 
 /** Localized string resources for the wishlist UI feature. */
@@ -38,6 +39,11 @@ object WishlistStrings {
     val allItemsTitle = buildStringResource("All items") { IetfLang.Russian("Все товары") }
     val profileButton = buildStringResource("Profile") { IetfLang.Russian("Профиль") }
     val emptyItems = buildStringResource("No items yet") { IetfLang.Russian("Нет товаров") }
+    val sortLabel = buildStringResource("Sort") { IetfLang.Russian("Сортировка") }
+    val sortNone = buildStringResource("Grouped") { IetfLang.Russian("По спискам") }
+    val sortCost = buildStringResource("Cost") { IetfLang.Russian("Цена") }
+    val sortPriority = buildStringResource("Priority") { IetfLang.Russian("Приоритет") }
+    val sortTitle = buildStringResource("Title") { IetfLang.Russian("Название") }
     val loading = buildStringResource("Loading...") { IetfLang.Russian("Загрузка...") }
     val editWishlistTitle = buildStringResource("Edit Wishlist") { IetfLang.Russian("Редактировать список") }
     val newItemTitle = buildStringResource("New Item") { IetfLang.Russian("Новый товар") }
@@ -78,4 +84,16 @@ fun Priority.labelResource() = when (this) {
     Priority.Medium -> WishlistStrings.priorityMedium
     Priority.High -> WishlistStrings.priorityHigh
     is Priority.Custom -> WishlistStrings.priorityCustom
+}
+
+/**
+ * Maps a [WishlistSortMode] to the matching localized label resource shown in the sort selector.
+ *
+ * @return The localized name of the sort mode.
+ */
+fun WishlistSortMode.labelResource() = when (this) {
+    WishlistSortMode.None -> WishlistStrings.sortNone
+    WishlistSortMode.Cost -> WishlistStrings.sortCost
+    WishlistSortMode.Priority -> WishlistStrings.sortPriority
+    WishlistSortMode.Title -> WishlistStrings.sortTitle
 }

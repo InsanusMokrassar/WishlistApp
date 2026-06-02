@@ -14,6 +14,7 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Button
 import androidx.compose.material3.HorizontalDivider
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -32,6 +33,8 @@ import dev.inmo.wishlist.features.common.client.ui.components.BackButton
 import dev.inmo.wishlist.features.common.client.ui.components.ListRow
 import dev.inmo.wishlist.features.ui.topBar.ui.TopBarTitleProvider
 import dev.inmo.wishlist.features.ui.wishlist.WishlistStrings
+import dev.inmo.wishlist.features.ui.wishlist.labelResource
+import dev.inmo.wishlist.features.wishlist.common.models.RegisteredWishlistItem
 import org.koin.core.component.inject
 import org.koin.core.parameter.parametersOf
 
@@ -58,6 +61,8 @@ class UserWishlistsView(
         super.onDraw()
         val resources = LocalResources.current
         val sections by viewModel.sectionsState.collectAsState()
+        val sortMode by viewModel.sortModeState.collectAsState()
+        val sortedItems by viewModel.sortedItemsState.collectAsState()
         val loading by viewModel.loadingState.collectAsState()
 
         Column(
@@ -80,61 +85,95 @@ class UserWishlistsView(
             } else if (sections.isEmpty()) {
                 Text(WishlistStrings.emptyItems.translation(resources), style = MaterialTheme.typography.bodySmall)
             } else {
-                LazyColumn(verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                    sections.forEach { section ->
-                        item(key = "header-${section.wishlist.id.long}") {
-                            Text(
-                                section.wishlist.title,
-                                modifier = Modifier.fillMaxWidth().padding(top = 8.dp),
-                                style = MaterialTheme.typography.titleSmall,
-                                color = MaterialTheme.colorScheme.primary
-                            )
-                            HorizontalDivider()
-                        }
-                        items(section.items) { item ->
-                            ListRow(
-                                onSelect = { viewModel.onItemSelected(item) },
-                                leading = {
-                                    val avatarModifier = Modifier
-                                        .size(48.dp)
-                                        .clip(RoundedCornerShape(8.dp))
-                                    val firstImage = item.imageIds.firstOrNull()
-                                    if (firstImage != null) {
-                                        RemoteImage(
-                                            key = firstImage.string,
-                                            loader = { viewModel.loadImageBytes(firstImage) },
-                                            contentDescription = null,
-                                            modifier = avatarModifier
-                                        )
-                                    } else {
-                                        Box(
-                                            modifier = avatarModifier.background(
-                                                MaterialTheme.colorScheme.surfaceVariant
-                                            )
-                                        )
-                                    }
-                                }
-                            ) {
-                                Column {
-                                    Row(
-                                        modifier = Modifier.fillMaxWidth(),
-                                        horizontalArrangement = Arrangement.SpaceBetween
-                                    ) {
-                                        Text(item.title)
-                                        item.approximatePrice?.let { price ->
-                                            Text(
-                                                "$price ${item.priceUnits}",
-                                                style = MaterialTheme.typography.bodySmall
-                                            )
-                                        }
-                                    }
-                                    if (item.description.isNotBlank()) {
-                                        Text(item.description, style = MaterialTheme.typography.bodySmall)
-                                    }
-                                }
-                            }
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(4.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text(WishlistStrings.sortLabel.translation(resources), style = MaterialTheme.typography.bodySmall)
+                    WishlistSortMode.entries.forEach { mode ->
+                        val label = mode.labelResource().translation(resources)
+                        if (mode == sortMode) {
+                            Button(onClick = { viewModel.onSortModeSelected(mode) }) { Text(label) }
+                        } else {
+                            OutlinedButton(onClick = { viewModel.onSortModeSelected(mode) }) { Text(label) }
                         }
                     }
+                }
+
+                LazyColumn(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                    if (sortMode == WishlistSortMode.None) {
+                        sections.forEach { section ->
+                            item(key = "header-${section.wishlist.id.long}") {
+                                Text(
+                                    section.wishlist.title,
+                                    modifier = Modifier.fillMaxWidth().padding(top = 8.dp),
+                                    style = MaterialTheme.typography.titleSmall,
+                                    color = MaterialTheme.colorScheme.primary
+                                )
+                                HorizontalDivider()
+                            }
+                            items(section.items, key = { it.id.long }) { item ->
+                                ItemRow(item, null)
+                            }
+                        }
+                    } else {
+                        items(sortedItems, key = { it.item.id.long }) { sorted ->
+                            ItemRow(sorted.item, sorted.wishlistTitle)
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    /**
+     * Renders a single item row reusing the shared [ListRow].
+     *
+     * @param item Item to display.
+     * @param wishlistTitle When non-null (custom sorting active), appended after the item title in
+     * brackets so the originating wishlist stays visible without the grouping headers.
+     */
+    @Composable
+    private fun ItemRow(item: RegisteredWishlistItem, wishlistTitle: String?) {
+        ListRow(
+            onSelect = { viewModel.onItemSelected(item) },
+            leading = {
+                val avatarModifier = Modifier
+                    .size(48.dp)
+                    .clip(RoundedCornerShape(8.dp))
+                val firstImage = item.imageIds.firstOrNull()
+                if (firstImage != null) {
+                    RemoteImage(
+                        key = firstImage.string,
+                        loader = { viewModel.loadImageBytes(firstImage) },
+                        contentDescription = null,
+                        modifier = avatarModifier
+                    )
+                } else {
+                    Box(
+                        modifier = avatarModifier.background(
+                            MaterialTheme.colorScheme.surfaceVariant
+                        )
+                    )
+                }
+            }
+        ) {
+            Column {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween
+                ) {
+                    Text(wishlistTitle?.let { "${item.title} ($it)" } ?: item.title)
+                    item.approximatePrice?.let { price ->
+                        Text(
+                            "$price ${item.priceUnits}",
+                            style = MaterialTheme.typography.bodySmall
+                        )
+                    }
+                }
+                if (item.description.isNotBlank()) {
+                    Text(item.description, style = MaterialTheme.typography.bodySmall)
                 }
             }
         }
