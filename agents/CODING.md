@@ -269,47 +269,51 @@ object Plugin : StartPlugin {
 - The feature's `Plugin.kt` does **not** register an implementation. The interface is published from the feature and bound somewhere the feature itself cannot see (it would create a cyclic dependency).
 - **Implementations live in the top-level `client/` module by default**, registered as `single<MyViewInteractor> { ... }` inside `ClientPlugin` (`client/src/commonMain/kotlin/ClientPlugin.kt`). Prefer `commonMain` so all three platforms share one implementation. Drop into a platform-specific source set (`client/src/jsMain`, `client/src/jvmMain`, `client/src/androidMain`) only when the interactor's body genuinely requires it (e.g. it needs `Context`, `window`, or a JVM-only API).
 
-#### Intra-feature navigation interactors (wishlist pattern)
+#### Intra-feature navigation interactors (multi-screen feature)
 
-When all navigation is within a single feature's own chain (push a sibling screen, pop back), the interactor implementation needs no injected dependencies — only the `node` parameter passed at call time. Register a stateless anonymous object in `ClientPlugin`:
+When all navigation is within a single feature's own chain (push a sibling screen, pop back), the interactor implementation needs no injected dependencies — only the `node` parameter passed at call time. Register a stateless anonymous object in `ClientPlugin`.
+
+The example below is a generic two-screen feature: a list screen (`ItemsListView`) that opens a detail (`ItemView`) or pushes a create/edit form (`ItemEditView`), and the edit screen that pops back. Replace `Item`/`ItemId` and the `Xxx*ViewConfig` names with your feature's own types.
 
 ```kotlin
 // client/src/commonMain/kotlin/ClientPlugin.kt — setupDI:
-single<WishlistsListViewInteractor> {
-    object : WishlistsListViewInteractor {
-        override suspend fun onWishlistSelected(
-            node: NavigationNode<WishlistsListViewConfig, ViewConfig>,
-            wishlistId: WishlistId
+single<ItemsListViewInteractor> {
+    object : ItemsListViewInteractor {
+        override suspend fun onItemSelected(
+            node: NavigationNode<ItemsListViewConfig, ViewConfig>,
+            itemId: ItemId
         ) {
-            node.chain.push(WishlistViewConfig(wishlistId))
+            node.chain.push(ItemViewConfig(itemId))
         }
-        override suspend fun onCreateWishlist(
-            node: NavigationNode<WishlistsListViewConfig, ViewConfig>
+        override suspend fun onCreateItem(
+            node: NavigationNode<ItemsListViewConfig, ViewConfig>
         ) {
-            node.chain.push(WishlistEditViewConfig(null))
+            node.chain.push(ItemEditViewConfig(null))
         }
     }
 }
 
-single<WishlistEditViewInteractor> {
-    object : WishlistEditViewInteractor {
-        override suspend fun onNavigateBack(node: NavigationNode<WishlistEditViewConfig, ViewConfig>) {
+single<ItemEditViewInteractor> {
+    object : ItemEditViewInteractor {
+        override suspend fun onNavigateBack(node: NavigationNode<ItemEditViewConfig, ViewConfig>) {
             node.chain.pop()
         }
-        override suspend fun onSaved(node: NavigationNode<WishlistEditViewConfig, ViewConfig>) {
+        override suspend fun onSaved(node: NavigationNode<ItemEditViewConfig, ViewConfig>) {
             node.chain.pop()
         }
     }
 }
 ```
 
-Key rules derived from the wishlist feature:
+> **Reference implementation:** `features/ui/wishlist` (list + edit screens) follows this exact shape.
+
+Key rules:
 
 - Each screen in a multi-screen feature gets its own `XxxViewInteractor` interface — one interactor per ViewModel, not one per feature.
-- Method names describe the **user intent** (`onWishlistSelected`, `onCreateWishlist`, `onNavigateBack`, `onSaved`), not the widget action.
+- Method names describe the **user intent** (`onItemSelected`, `onCreateItem`, `onNavigateBack`, `onSaved`), not the widget action.
 - The `node` parameter is always the **current screen's node** (`NavigationNode<ThisViewConfig, ViewConfig>`). Push new screens onto `node.chain`; pop via `node.chain.pop()`.
 - For simple push/pop navigation, no Koin `get()` calls are needed inside the `single { }` block — the anonymous object body is stateless.
-- Reserve reactive / stateful interactors (injecting `NavigationChain`, `CoroutineScope`, `MutableRedeliverStateFlow`) for cross-cutting concerns like auth overlay management — see `AuthViewInteractor` in `ClientPlugin` for that pattern.
+- Reserve reactive / stateful interactors (injecting `NavigationChain`, `CoroutineScope`, `MutableRedeliverStateFlow`) for cross-cutting concerns like auth overlay management — see the Auth UI Pattern section below for that pattern.
 
 ### ViewModel
 
@@ -667,9 +671,11 @@ override fun HttpClientConfig<*>.configure() {
 
 ---
 
-## CRUD Repository Pattern (example: `features/users`)
+## CRUD Repository Pattern
 
-This section documents the canonical pattern for adding a persistent, cache-backed CRUD repository to a feature, using `features/users` as the reference implementation.
+This section documents the canonical pattern for adding a persistent, cache-backed CRUD repository to a feature. Names use a generic `Item` entity — replace `Item`/`ItemId`/`ItemName` and `FEATURE_NAME` with your feature's own types.
+
+> **Reference implementation:** `features/users` (`User`/`UserId`/`Username`) follows this exact pattern end to end.
 
 ### Model layer (`features/FEATURE_NAME/common/commonMain`)
 
@@ -677,23 +683,23 @@ Define three model types:
 
 - **`Id`** — inline value class wrapping a primitive (used as the primary key):
   ```kotlin
-  @Serializable @JvmInline value class UserId(val long: Long)
+  @Serializable @JvmInline value class ItemId(val long: Long)
   ```
 - **`NewObject`** — data sent on create (no id yet):
   ```kotlin
-  @Serializable data class NewUser(override val username: Username) : User
+  @Serializable data class NewItem(override val name: ItemName) : Item
   ```
 - **`RegisteredObject`** — stored entity returned after create/read (carries the id):
   ```kotlin
-  @Serializable data class RegisteredUser(val id: UserId, override val username: Username) : User
+  @Serializable data class RegisteredItem(val id: ItemId, override val name: ItemName) : Item
   ```
 
-A sealed `User` interface must be used as the shared base for `NewUser` and `RegisteredUser`; fields common to both variants are declared there.
+A sealed `Item` interface must be used as the shared base for `NewItem` and `RegisteredItem`; fields common to both variants are declared there.
 
-Auxiliary value types (e.g. `Username`) should also be inline value classes so they carry type-safety with zero runtime overhead:
+Auxiliary value types (e.g. `ItemName`) should also be inline value classes so they carry type-safety with zero runtime overhead:
 
 ```kotlin
-@Serializable @JvmInline value class Username(val string: String)
+@Serializable @JvmInline value class ItemName(val string: String)
 ```
 
 ### Repository interfaces (`features/FEATURE_NAME/common/commonMain`)
@@ -701,36 +707,36 @@ Auxiliary value types (e.g. `Username`) should also be inline value classes so t
 Split the repository into three interfaces:
 
 ```kotlin
-// ReadUsersRepo.kt
-interface ReadUsersRepo : ReadCRUDRepo<RegisteredUser, UserId>
+// ReadItemsRepo.kt
+interface ReadItemsRepo : ReadCRUDRepo<RegisteredItem, ItemId>
 
-// WriteUsersRepo.kt
-interface WriteUsersRepo : WriteCRUDRepo<RegisteredUser, UserId, NewUser>
+// WriteItemsRepo.kt
+interface WriteItemsRepo : WriteCRUDRepo<RegisteredItem, ItemId, NewItem>
 
-// UsersRepo.kt
-interface UsersRepo : ReadUsersRepo, WriteUsersRepo, CRUDRepo<RegisteredUser, UserId, NewUser>
+// ItemsRepo.kt
+interface ItemsRepo : ReadItemsRepo, WriteItemsRepo, CRUDRepo<RegisteredItem, ItemId, NewItem>
 ```
 
 - `ReadCRUDRepo`, `WriteCRUDRepo`, and `CRUDRepo` are from `dev.inmo.micro_utils.repos`.
-- Splitting read and write allows consumers that only need read access to depend only on `ReadUsersRepo`.
+- Splitting read and write allows consumers that only need read access to depend only on `ReadItemsRepo`.
 
 ### Cache repository (`features/FEATURE_NAME/common/commonMain`)
 
 Wrap the real repo with `FullCRUDCacheRepo` from `dev.inmo.micro_utils.repos.cache.full`:
 
 ```kotlin
-class CacheUsersRepo(
-    parentRepo: UsersRepo,
+class CacheItemsRepo(
+    parentRepo: ItemsRepo,
     scope: CoroutineScope,
-    kvCache: KeyValueRepo<UserId, RegisteredUser> = MapKeyValueRepo(),
+    kvCache: KeyValueRepo<ItemId, RegisteredItem> = MapKeyValueRepo(),
     locker: SmartRWLocker = SmartRWLocker()
-) : UsersRepo, FullCRUDCacheRepo<RegisteredUser, UserId, NewUser>(
+) : ItemsRepo, FullCRUDCacheRepo<RegisteredItem, ItemId, NewItem>(
     crudRepo = parentRepo,
     kvCache = kvCache,
     scope = scope,
     skipStartInvalidate = false,
     locker = locker,
-    idGetter = RegisteredUser::id
+    idGetter = RegisteredItem::id
 )
 ```
 
@@ -743,34 +749,34 @@ class CacheUsersRepo(
 Extend `AbstractExposedCRUDRepo` from `dev.inmo.micro_utils.repos.exposed`:
 
 ```kotlin
-class ExposedUsersRepo(
+class ExposedItemsRepo(
     override val database: Database
-) : UsersRepo, AbstractExposedCRUDRepo<RegisteredUser, UserId, NewUser>(tableName = "users") {
+) : ItemsRepo, AbstractExposedCRUDRepo<RegisteredItem, ItemId, NewItem>(tableName = "items") {
 
     private val idColumn = long("id").autoIncrement()
-    private val usernameColumn = text("username").uniqueIndex()
+    private val nameColumn = text("name").uniqueIndex()
 
     override val primaryKey = PrimaryKey(idColumn)
 
-    override val ResultRow.asObject: RegisteredUser
-        get() = RegisteredUser(
-            id = UserId(get(idColumn)),
-            username = Username(get(usernameColumn))
+    override val ResultRow.asObject: RegisteredItem
+        get() = RegisteredItem(
+            id = ItemId(get(idColumn)),
+            name = ItemName(get(nameColumn))
         )
 
-    override val ResultRow.asId: UserId
-        get() = UserId(get(idColumn))
+    override val ResultRow.asId: ItemId
+        get() = ItemId(get(idColumn))
 
-    override val selectById: (UserId) -> Op<Boolean> = { idColumn.eq(it.long) }
+    override val selectById: (ItemId) -> Op<Boolean> = { idColumn.eq(it.long) }
 
-    override fun update(id: UserId?, value: NewUser, it: UpdateBuilder<Int>) {
-        it[usernameColumn] = value.username.string
+    override fun update(id: ItemId?, value: NewItem, it: UpdateBuilder<Int>) {
+        it[nameColumn] = value.name.string
     }
 
-    override fun InsertStatement<Number>.asObject(value: NewUser): RegisteredUser =
-        RegisteredUser(
-            id = UserId(this[idColumn]),
-            username = value.username
+    override fun InsertStatement<Number>.asObject(value: NewItem): RegisteredItem =
+        RegisteredItem(
+            id = ItemId(this[idColumn]),
+            name = value.name
         )
 
     init { initTable() }
@@ -783,16 +789,16 @@ class ExposedUsersRepo(
 
 ### DI wiring (`features/FEATURE_NAME/common/jvmMain — JVMPlugin`)
 
-Register `ExposedUsersRepo` as a plain `single`, then wrap it in `CacheUsersRepo` and bind both `ReadUsersRepo` and `WriteUsersRepo` via `singleWithBinds`:
+Register `ExposedItemsRepo` as a plain `single`, then wrap it in `CacheItemsRepo` and bind both `ReadItemsRepo` and `WriteItemsRepo` via `singleWithBinds`:
 
 ```kotlin
 object JVMPlugin : StartPlugin {
     override fun Module.setupDI(config: JsonObject) {
         with(Plugin) { setupDI(config) }
 
-        single { ExposedUsersRepo(get()) }           // raw DB repo; only needed for cache wiring
-        singleWithBinds<UsersRepo> {
-            CacheUsersRepo(parentRepo = get<ExposedUsersRepo>(), scope = get())
+        single { ExposedItemsRepo(get()) }           // raw DB repo; only needed for cache wiring
+        singleWithBinds<ItemsRepo> {
+            CacheItemsRepo(parentRepo = get<ExposedItemsRepo>(), scope = get())
         }
     }
 
@@ -803,8 +809,8 @@ object JVMPlugin : StartPlugin {
 }
 ```
 
-- `singleWithBinds` registers the `CacheUsersRepo` as `UsersRepo`, `ReadUsersRepo`, and `WriteUsersRepo` simultaneously — any consumer that injects any of those three interfaces gets the cache-backed instance.
-- `ExposedUsersRepo` is registered separately so it can be retrieved by type when constructing `CacheUsersRepo`; consumers should never inject it directly.
+- `singleWithBinds` registers the `CacheItemsRepo` as `ItemsRepo`, `ReadItemsRepo`, and `WriteItemsRepo` simultaneously — any consumer that injects any of those three interfaces gets the cache-backed instance.
+- `ExposedItemsRepo` is registered separately so it can be retrieved by type when constructing `CacheItemsRepo`; consumers should never inject it directly.
 
 ### Server plugin wiring (`features/FEATURE_NAME/server/jvmMain — JVMPlugin`)
 
@@ -813,19 +819,19 @@ The server plugin delegates to the common JVM plugin so the repo is available in
 ```kotlin
 object JVMPlugin : StartPlugin {
     override fun Module.setupDI(config: JsonObject) {
-        with(features.users.common.JVMPlugin) { setupDI(config) }
+        with(features.FEATURE_NAME.common.JVMPlugin) { setupDI(config) }
         with(Plugin) { setupDI(config) }
     }
 
     override suspend fun startPlugin(koin: Koin) {
         super.startPlugin(koin)
-        features.users.common.JVMPlugin.startPlugin(koin)
+        features.FEATURE_NAME.common.JVMPlugin.startPlugin(koin)
         Plugin.startPlugin(koin)
     }
 }
 ```
 
-The `Database` singleton required by `ExposedUsersRepo` is provided by `features.common.server.JVMPlugin` (which connects to some database), so `features/users/server` must be loaded after (or alongside) `features/common/server` in the plugin list.
+The `Database` singleton required by `ExposedItemsRepo` is provided by `features.common.server.JVMPlugin` (which connects to some database), so `features/FEATURE_NAME/server` must be loaded after (or alongside) `features/common/server` in the plugin list.
 
 ---
 
