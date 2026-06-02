@@ -84,7 +84,11 @@ class UserWishlistsView(
 
                 if (sortMode == WishlistSortMode.None) {
                     sections.forEach { section ->
-                        H6({ classes("mt-3", "mb-1", "text-muted", "border-bottom", "pb-1") }) {
+                        H6({
+                            classes("mt-3", "mb-1", "text-primary", "border-bottom", "pb-1")
+                            style { property("cursor", "pointer") }
+                            onClick { viewModel.onWishlistSelected(section.wishlist) }
+                        }) {
                             Text(section.wishlist.title)
                         }
                         Ul({ classes("list-group") }) {

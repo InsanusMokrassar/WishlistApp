@@ -1,6 +1,7 @@
 package dev.inmo.wishlist.features.ui.wishlist.ui
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -109,7 +110,9 @@ class UserWishlistsView(
                             item(key = "header-${section.wishlist.id.long}") {
                                 Text(
                                     section.wishlist.title,
-                                    modifier = Modifier.fillMaxWidth().padding(top = 8.dp),
+                                    modifier = Modifier.fillMaxWidth()
+                                        .clickable { viewModel.onWishlistSelected(section.wishlist) }
+                                        .padding(top = 8.dp),
                                     style = MaterialTheme.typography.subtitle2,
                                     color = MaterialTheme.colors.primary
                                 )

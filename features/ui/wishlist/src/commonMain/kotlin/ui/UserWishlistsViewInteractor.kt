@@ -27,6 +27,17 @@ interface UserWishlistsViewInteractor {
     )
 
     /**
+     * Called when the user selects a wishlist (e.g. taps a wishlist group header).
+     *
+     * @param node Current navigation node.
+     * @param wishlistId Identifier of the selected wishlist; its detail screen should be opened.
+     */
+    suspend fun onWishlistSelected(
+        node: NavigationNode<UserWishlistsViewConfig, ViewConfig>,
+        wishlistId: WishlistId
+    )
+
+    /**
      * Called when the user taps the back button.
      *
      * @param node Current navigation node.
