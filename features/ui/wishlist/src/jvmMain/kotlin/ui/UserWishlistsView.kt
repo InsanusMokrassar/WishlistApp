@@ -1,7 +1,6 @@
 package dev.inmo.wishlist.features.ui.wishlist.ui
 
 import androidx.compose.foundation.background
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -108,14 +107,21 @@ class UserWishlistsView(
                     if (sortMode == WishlistSortMode.None) {
                         sections.forEach { section ->
                             item(key = "header-${section.wishlist.id.long}") {
-                                Text(
-                                    section.wishlist.title,
-                                    modifier = Modifier.fillMaxWidth()
-                                        .clickable { viewModel.onWishlistSelected(section.wishlist) }
-                                        .padding(top = 8.dp),
-                                    style = MaterialTheme.typography.subtitle2,
-                                    color = MaterialTheme.colors.primary
-                                )
+                                Row(
+                                    modifier = Modifier.fillMaxWidth().padding(top = 8.dp),
+                                    horizontalArrangement = Arrangement.SpaceBetween,
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    Text(
+                                        section.wishlist.title,
+                                        modifier = Modifier.weight(1f),
+                                        style = MaterialTheme.typography.subtitle2,
+                                        color = MaterialTheme.colors.primary
+                                    )
+                                    Button(onClick = { viewModel.onWishlistSelected(section.wishlist) }) {
+                                        Text(WishlistStrings.openWishlistButton.translation())
+                                    }
+                                }
                                 Divider()
                             }
                             items(section.items, key = { it.id.long }) { item ->
