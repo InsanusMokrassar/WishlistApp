@@ -29,6 +29,8 @@ import dev.inmo.wishlist.features.common.client.ui.components.BackButton
 import dev.inmo.wishlist.features.common.client.ui.components.ListRow
 import dev.inmo.wishlist.features.ui.topBar.ui.TopBarTitleProvider
 import dev.inmo.wishlist.features.ui.wishlist.WishlistStrings
+import dev.inmo.wishlist.features.ui.wishlist.labelResource
+import dev.inmo.wishlist.features.ui.wishlist.weightSuffix
 import dev.inmo.wishlist.features.ui.wishlist.ui.WishlistViewConfig
 import dev.inmo.wishlist.features.ui.wishlist.ui.WishlistViewModel
 import org.koin.core.component.inject
@@ -91,6 +93,12 @@ class WishlistView(
                                         Text("${price} ${item.priceUnits}", style = MaterialTheme.typography.bodySmall)
                                     }
                                 }
+                                Text(
+                                    "${WishlistStrings.priorityLabel.translation(resources)}: " +
+                                        "${item.priority.labelResource().translation(resources)}${item.priority.weightSuffix()}",
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = MaterialTheme.colorScheme.primary
+                                )
                                 if (item.description.isNotBlank()) {
                                     Spacer(Modifier.height(4.dp))
                                     Text(item.description, style = MaterialTheme.typography.bodySmall)

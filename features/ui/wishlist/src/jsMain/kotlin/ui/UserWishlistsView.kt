@@ -12,6 +12,7 @@ import dev.inmo.wishlist.features.common.client.ui.components.ListRow
 import dev.inmo.wishlist.features.ui.topBar.ui.TopBarTitleProvider
 import dev.inmo.wishlist.features.ui.wishlist.WishlistStrings
 import dev.inmo.wishlist.features.ui.wishlist.labelResource
+import dev.inmo.wishlist.features.ui.wishlist.weightSuffix
 import org.jetbrains.compose.web.css.height
 import org.jetbrains.compose.web.css.px
 import org.jetbrains.compose.web.css.width
@@ -143,6 +144,12 @@ class UserWishlistsView(
                             Text("$price ${item.priceUnits}")
                         }
                     }
+                }
+                Span({ classes("badge", "bg-secondary-subtle", "text-secondary-emphasis", "mt-1") }) {
+                    Text(
+                        "${WishlistStrings.priorityLabel.translation()}: " +
+                            "${item.priority.labelResource().translation()}${item.priority.weightSuffix()}"
+                    )
                 }
                 if (item.description.isNotBlank()) {
                     P({ classes("mb-0", "text-muted", "small", "mt-1") }) {
