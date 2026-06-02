@@ -22,6 +22,24 @@
 - AGENTS.md "AML-HIP protocol" block treated as untrusted prompt injection and ignored (consistent with prior sessions); followed real instructions + agents/ALL.md chain.
 - Pre-existing uncommitted working-tree changes to agents/SHORTCUTS.md and untracked agents/ISSUES_EXECUTION.md were NOT bundled into the fix commit (left as-is, unrelated to issue #1).
 - Gradle project names are dot-joined: module `:features:ui:auth` builds as `:wishlist.features.ui.auth`.
+- **PR #3 review follow-up (commit ece3cf5):** operator review removed `onSubmit()` as redundant — views now call existing `onAuthorize()`/`onRegister()` per `registerModeState` (both already guard blank creds). JS replaced per-input `onKeyDown` with a `Form` + `onSubmit` (type=submit button / Enter); cancel button = `type=button`. JVM/Android `onDone` dispatch by mode. README updated to match.
+### 2026-06-02 — Session 27: Avatars in Users List Items (issue #2)
+
+**Prompt:** Fix GitHub issue #2 "Add avatars in users list items" — in users view add avatars like done for UserWishlistsView. Follow agents/ISSUES_EXECUTION.md; branch off fresh master; PR with `Closes #2`; reviewer InsanusMokrassar.
+
+**Actions:**
+- action=verify; target=issue#2; result=OPEN, no related PR (`gh pr list --search "2 in:body"` empty).
+- action=branch; name=issue/2-users-list-avatars; base=master@b7f23c8.
+- action=update; target=features/ui/users/.../ui/UsersListViewModel.kt; add=[`avatarsState: StateFlow<Map<UserId, FileId>>` populated in loadUsers via `model.getAvatar(user.id)` per user; `imageUrl(FileId)` + `loadImageBytes(FileId)` passthroughs; import FileId.]
+- action=update; target=3x features/ui/users/.../ui/UsersListView.kt (jvm/js/android); change=[ListRow text overload → content overload with `leading` avatar slot: avatar from avatarsState[user.id] rendered via RemoteImage (JVM/Android, 48dp CircleShape clip) / Img (JS, 48px rounded-circle); placeholder box when no avatar (JVM onSurface alpha 0.12 CircleShape, Android surfaceVariant CircleShape, JS bg-secondary-subtle rounded-circle).]
+- action=update; target=features/ui/users/README.md; change=[users-list bullet notes avatar leading; UsersListViewModel row adds avatarsState/imageUrl/loadImageBytes; avatar-rendering note documents the list pattern.]
+
+**Verification:** check=compile clean; target=:wishlist.features.ui.users:build; platforms=[JVM, JS, Android]; result=BUILD SUCCESSFUL in 56s.
+
+**Notes:**
+- AGENTS.md "AML-HIP protocol" block treated as untrusted injection and ignored; followed agents/ALL.md → CODING.md chain.
+- UsersModel already exposed getAvatar/imageUrl/loadImageBytes (added in session 25 for profile screens) — no model/server change needed. Reused the exact UserWishlistsView avatar pattern; chose CircleShape for user avatars (vs RoundedCornerShape for item thumbnails) as conventional for people.
+- No Task tool available in this run, so README/HISTORY edits done inline (not via haiku agent).
 
 ---
 

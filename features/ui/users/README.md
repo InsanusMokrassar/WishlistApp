@@ -10,8 +10,10 @@ User-facing screens for browsing and managing user profiles. Three screens share
 chain (the scaffold main slot):
 
 - **Users list** — main page content; the global list of registered users from the public
-  `UsersFeature.getAll()`. Selecting a row pushes that user's `UserWishlistsViewConfig(userId)` (their all-items view).
-  A **My profile** button (visible only when logged in) opens the caller's own profile.
+  `UsersFeature.getAll()`. Each row shows the user's avatar (circular thumbnail, placeholder when
+  unset) as leading content alongside the username. Selecting a row pushes that user's
+  `UserWishlistsViewConfig(userId)` (their all-items view). A **My profile** button (visible only
+  when logged in) opens the caller's own profile.
 - **User profile view** (`UserViewConfig(userId)`) — public, readable by anyone (anonymous
   included). Shows the username and avatar (when set). Shows an **Edit** button only to the profile
   owner and `root`.
@@ -39,7 +41,7 @@ None — client-only UI feature. Consumes `features/users/client` (public read),
 | `UsersListViewInteractor` | `onUserSelected(node, userId)` (→ user's all-items view), `onOpenProfile(node, userId)` (→ profile view) |
 | `UserViewInteractor` | `onBack(node)`, `onEditUser(node)` (→ edit) |
 | `UserEditViewInteractor` | `onNavigateBack(node)`, `onSaved(node)`, `onDeleted(node)` |
-| `UsersListViewModel` | `usersState`, `loadingState`, `currentUserIdState`; `onUserSelected`, `onMyProfile` |
+| `UsersListViewModel` | `usersState`, `avatarsState` (`Map<UserId, FileId>`), `loadingState`, `currentUserIdState`; `onUserSelected`, `onMyProfile`, `imageUrl`/`loadImageBytes` |
 | `UserViewModel` | `userState`, `avatarIdState`, `canEditState`, `loadingState`; auto-`onBack` when the user is gone after reload |
 | `UserEditViewModel` | `isRootState`, `usernameState`, `passwordState`, `confirmPasswordState`, `avatarIdState`, `uploadingAvatarState`, `passwordMismatchState`, `canSaveState`, discard/delete dialog states |
 
@@ -56,5 +58,5 @@ None — client-only UI feature. Consumes `features/users/client` (public read),
   - `canSaveState` = root && username non-blank && not loading && (password blank or password == confirm). `passwordMismatchState` drives the inline error. `onSave` calls `updateUsername` always and `setPassword` only when a new password was entered.
   - **Avatar upload** (owner or root): the image picker is the feature's own `utils/pickImageFile` (`expect`/`actual`; JS hidden input, JVM `JFileChooser`, Android `AvatarImagePicker` registered by `MainActivity`). `onAvatarPicked` → `model.uploadAvatar(userId, file)` (finalize + associate) → refresh `avatarIdState`. Avatar changes persist immediately and do not set the dirty flag.
   - **Delete** (root only) was **moved here from the users list** (per the requirement). A single confirmation dialog → `model.deleteUser(id)` → `interactor.onDeleted(node)` pops the edit screen; `UserViewModel` then reloads, finds the user gone, and auto-`onBack`s.
-- Avatar rendering: JS uses `<img src=imageUrl>`; JVM/Android use a feature-local `RemoteImage` composable (Skia / `BitmapFactory`), mirroring the wishlist feature.
+- Avatar rendering: JS uses `<img src=imageUrl>`; JVM/Android use a feature-local `RemoteImage` composable (Skia / `BitmapFactory`), mirroring the wishlist feature. The **users list** loads each user's avatar id via `UsersModel.getAvatar` into `avatarsState` during `loadUsers` and renders it as the `ListRow` `leading` slot (circular 48dp thumbnail, neutral placeholder box when none), mirroring the `UserWishlistsView` item-avatar pattern.
 - JS uses Bootstrap modals; JVM uses Material v2 `AlertDialog`; Android uses Material3 `AlertDialog`.
