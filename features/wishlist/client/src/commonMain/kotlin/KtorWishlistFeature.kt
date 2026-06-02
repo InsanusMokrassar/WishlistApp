@@ -12,8 +12,6 @@ import io.ktor.client.request.get
 import io.ktor.client.request.post
 import io.ktor.client.request.put
 import io.ktor.client.request.setBody
-import io.ktor.http.ContentType
-import io.ktor.http.contentType
 import io.ktor.http.isSuccess
 
 /**
@@ -61,7 +59,6 @@ class KtorWishlistFeature(
      */
     override suspend fun create(newWishlist: NewWishlistInFeature): RegisteredWishlist? {
         val response = client.post("${Constants.wishlistPrefixPathPart}/${Constants.wishlistCreatePathPart}") {
-            contentType(ContentType.Application.Json)
             setBody(newWishlist)
         }
         return if (response.status.isSuccess()) response.body() else null
@@ -78,7 +75,6 @@ class KtorWishlistFeature(
      */
     override suspend fun update(id: WishlistId, newWishlist: NewWishlistInFeature): Boolean {
         val response = client.put("${Constants.wishlistPrefixPathPart}/${Constants.wishlistUpdatePathPart}/${id.long}") {
-            contentType(ContentType.Application.Json)
             setBody(newWishlist)
         }
         return response.status.isSuccess()

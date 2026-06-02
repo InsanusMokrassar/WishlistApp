@@ -13,8 +13,6 @@ import io.ktor.client.request.get
 import io.ktor.client.request.post
 import io.ktor.client.request.put
 import io.ktor.client.request.setBody
-import io.ktor.http.ContentType
-import io.ktor.http.contentType
 import io.ktor.http.isSuccess
 
 class KtorUsersManagementFeature(
@@ -32,7 +30,6 @@ class KtorUsersManagementFeature(
 
     override suspend fun create(newUser: NewUserWithPassword): RegisteredUser? {
         val response = client.post("$basePath/${Constants.usersCreatePathPart}") {
-            contentType(ContentType.Application.Json)
             setBody(newUser)
         }
         return if (response.status.isSuccess()) response.body() else null
@@ -40,7 +37,6 @@ class KtorUsersManagementFeature(
 
     override suspend fun update(id: UserId, newUser: NewUser): Boolean {
         val response = client.put("$basePath/${Constants.usersUpdatePathPart}/${id.long}") {
-            contentType(ContentType.Application.Json)
             setBody(newUser)
         }
         return response.status.isSuccess()
@@ -48,7 +44,6 @@ class KtorUsersManagementFeature(
 
     override suspend fun setPassword(id: UserId, password: Password): Boolean {
         val response = client.put("$basePath/${Constants.usersSetPasswordPathPart}/${id.long}") {
-            contentType(ContentType.Application.Json)
             setBody(password)
         }
         return response.status.isSuccess()

@@ -2,6 +2,7 @@ package dev.inmo.wishlist.features.ui.adminPanel
 
 import dev.inmo.micro_utils.language_codes.IetfLang
 import dev.inmo.micro_utils.strings.buildStringResource
+import dev.inmo.wishlist.features.common.client.CommonStrings
 
 /** Localized strings for all admin panel screens. */
 object AdminPanelStrings {
@@ -10,11 +11,11 @@ object AdminPanelStrings {
     val wishlistsSection = buildStringResource("Wishlists") { IetfLang.Russian("Списки желаний") }
     val loading = buildStringResource("Loading...") { IetfLang.Russian("Загрузка...") }
     val backButton = buildStringResource("Back") { IetfLang.Russian("Назад") }
-    val saveButton = buildStringResource("Save") { IetfLang.Russian("Сохранить") }
+    val saveButton = CommonStrings.save
     val addButton = buildStringResource("Add") { IetfLang.Russian("Добавить") }
     val editButton = buildStringResource("Edit") { IetfLang.Russian("Изменить") }
     val deleteButton = buildStringResource("Delete") { IetfLang.Russian("Удалить") }
-    val cancelButton = buildStringResource("Cancel") { IetfLang.Russian("Отмена") }
+    val cancelButton = CommonStrings.cancel
     val confirmButton = buildStringResource("Confirm") { IetfLang.Russian("Подтвердить") }
 
     // Users
