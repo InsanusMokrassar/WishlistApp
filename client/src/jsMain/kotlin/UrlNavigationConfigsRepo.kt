@@ -148,7 +148,7 @@ private fun parseSearchParams(data: LocationData): ConfigHolder.Chain<ViewConfig
  * Builds the JS [NavigationConfigsRepo] that stores the navigation hierarchy in the page URL, so
  * deep links to the four content screens are shareable and survive a reload.
  */
-fun urlNavigationConfigsRepo(): NavigationConfigsRepo<ViewConfig> =
+fun WishlistsAppUrlNavigationConfigsRepo(): NavigationConfigsRepo<ViewConfig> =
     UrlParametersNavigationConfigsRepo(
         buildSearchParams = { holder -> buildSearchParams(holder) },
         parseSearchParams = ::parseSearchParams,

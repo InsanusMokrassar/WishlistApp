@@ -2,7 +2,6 @@ package dev.inmo.wishlist.client
 
 import androidx.compose.runtime.collectAsState
 import dev.inmo.micro_utils.startup.plugin.StartPlugin
-import dev.inmo.navigation.core.NavigationChain
 import dev.inmo.navigation.core.repo.NavigationConfigsRepo
 import dev.inmo.wishlist.features.common.client.models.ViewConfig
 import kotlinx.serialization.json.JsonObject
@@ -23,7 +22,7 @@ object ClientJSPlugin : StartPlugin {
         with(ClientPlugin) { setupDI(config) }
 
         single<NavigationConfigsRepo<ViewConfig>> {
-            urlNavigationConfigsRepo()
+            WishlistsAppUrlNavigationConfigsRepo()
         }
     }
 
