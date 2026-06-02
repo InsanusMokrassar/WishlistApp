@@ -10,9 +10,12 @@ import dev.inmo.wishlist.features.common.client.models.ViewConfig
 import dev.inmo.wishlist.features.files.common.models.FileId
 import dev.inmo.wishlist.features.wishlist.common.models.RegisteredWishlist
 import dev.inmo.wishlist.features.wishlist.common.models.RegisteredWishlistItem
+import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.flow.merge
+import kotlinx.coroutines.flow.stateIn
 
 /**
  * One section of the all-items screen: a wishlist together with the items it owns.
@@ -25,6 +28,38 @@ import kotlinx.coroutines.flow.merge
 data class UserWishlistsSection(
     val wishlist: RegisteredWishlist,
     val items: List<RegisteredWishlistItem>
+)
+
+/**
+ * Ordering applied to the flattened all-items list.
+ *
+ * [None] keeps the default grouping-by-wishlist presentation; every other mode flattens the items
+ * across all wishlists into a single sorted list (see [UserWishlistsViewModel.sortedItemsState]).
+ */
+enum class WishlistSortMode {
+    /** No custom sorting; items stay grouped under their wishlist headers. */
+    None,
+
+    /** Sort by [RegisteredWishlistItem.approximatePrice] ascending; items without a price go last. */
+    Cost,
+
+    /** Sort by [dev.inmo.wishlist.features.wishlist.common.models.Priority.weight] descending (most important first). */
+    Priority,
+
+    /** Sort by [RegisteredWishlistItem.title] case-insensitively, ascending. */
+    Title
+}
+
+/**
+ * One item of the flattened, custom-sorted all-items list together with the title of the wishlist it
+ * belongs to, so the view can append the wishlist title after the item title in brackets.
+ *
+ * @param item Item to display.
+ * @param wishlistTitle Title of the wishlist [item] belongs to.
+ */
+data class SortedWishlistItem(
+    val item: RegisteredWishlistItem,
+    val wishlistTitle: String
 )
 
 /**
@@ -64,6 +99,38 @@ class UserWishlistsViewModel(
     /** `true` while a network request is in flight. */
     val loadingState = _loadingState.asStateFlow()
 
+    private val _sortModeState = MutableRedeliverStateFlow(WishlistSortMode.None)
+
+    /**
+     * Currently selected ordering. [WishlistSortMode.None] keeps the grouped presentation; any other
+     * value switches the view to the flat [sortedItemsState] list.
+     */
+    val sortModeState = _sortModeState.asStateFlow()
+
+    /**
+     * Flattened, custom-sorted view of every item across the loaded sections, valid only when
+     * [sortModeState] is not [WishlistSortMode.None]. Empty for [WishlistSortMode.None] (the view
+     * renders [sectionsState] instead). Each entry keeps its wishlist title so the view can show it
+     * after the item title in brackets.
+     */
+    val sortedItemsState = combine(_sectionsState, _sortModeState) { sections, mode ->
+        if (mode == WishlistSortMode.None) {
+            emptyList()
+        } else {
+            val flat = sections.flatMap { section ->
+                section.items.map { SortedWishlistItem(it, section.wishlist.title) }
+            }
+            when (mode) {
+                WishlistSortMode.Cost -> flat.sortedWith(
+                    compareBy(nullsLast()) { it.item.approximatePrice }
+                )
+                WishlistSortMode.Priority -> flat.sortedByDescending { it.item.priority.weight }
+                WishlistSortMode.Title -> flat.sortedBy { it.item.title.lowercase() }
+                WishlistSortMode.None -> flat
+            }
+        }
+    }.stateIn(scope, SharingStarted.Eagerly, emptyList())
+
     init {
         merge(flowOf(Unit), node.onResumeFlow).subscribeLoggingDropExceptions(scope) {
             _loadingState.value = true
@@ -85,6 +152,15 @@ class UserWishlistsViewModel(
      */
     fun onItemSelected(item: RegisteredWishlistItem) {
         scope.launchLoggingDropExceptions { interactor.onItemSelected(node, item.id, item.wishlistId) }
+    }
+
+    /**
+     * Changes the active ordering of the items.
+     *
+     * @param mode New sort mode; [WishlistSortMode.None] restores the grouped presentation.
+     */
+    fun onSortModeSelected(mode: WishlistSortMode) {
+        _sortModeState.value = mode
     }
 
     /** Delegates to [UserWishlistsViewInteractor.onBack]. */

@@ -11,6 +11,7 @@ import dev.inmo.wishlist.features.common.client.ui.components.BackButton
 import dev.inmo.wishlist.features.common.client.ui.components.ListRow
 import dev.inmo.wishlist.features.ui.topBar.ui.TopBarTitleProvider
 import dev.inmo.wishlist.features.ui.wishlist.WishlistStrings
+import dev.inmo.wishlist.features.ui.wishlist.labelResource
 import org.jetbrains.compose.web.css.height
 import org.jetbrains.compose.web.css.px
 import org.jetbrains.compose.web.css.width
@@ -46,6 +47,8 @@ class UserWishlistsView(
     override fun onDraw() {
         super.onDraw()
         val sections by viewModel.sectionsState.collectAsState()
+        val sortMode by viewModel.sortModeState.collectAsState()
+        val sortedItems by viewModel.sortedItemsState.collectAsState()
         val loading by viewModel.loadingState.collectAsState()
 
         Div({ classes("container", "py-3") }) {
@@ -64,53 +67,86 @@ class UserWishlistsView(
             } else if (sections.isEmpty()) {
                 P({ classes("text-muted") }) { Text(WishlistStrings.emptyItems.translation()) }
             } else {
-                sections.forEach { section ->
-                    H6({ classes("mt-3", "mb-1", "text-muted", "border-bottom", "pb-1") }) {
-                        Text(section.wishlist.title)
-                    }
-                    Ul({ classes("list-group") }) {
-                        section.items.forEach { item ->
-                            ListRow(
-                                onSelect = { viewModel.onItemSelected(item) },
-                                leading = {
-                                    val firstImage = item.imageIds.firstOrNull()
-                                    if (firstImage != null) {
-                                        Img(src = viewModel.imageUrl(firstImage), alt = "") {
-                                            classes("rounded", "flex-shrink-0")
-                                            style {
-                                                width(48.px)
-                                                height(48.px)
-                                                property("object-fit", "cover")
-                                            }
-                                        }
-                                    } else {
-                                        Div({
-                                            classes("rounded", "bg-secondary-subtle", "flex-shrink-0")
-                                            style {
-                                                width(48.px)
-                                                height(48.px)
-                                            }
-                                        })
-                                    }
-                                }
-                            ) {
-                                Div({ classes("flex-grow-1") }) {
-                                    Div({ classes("d-flex", "justify-content-between", "align-items-center") }) {
-                                        Span { Text(item.title) }
-                                        item.approximatePrice?.let { price ->
-                                            Span({ classes("text-muted", "small") }) {
-                                                Text("$price ${item.priceUnits}")
-                                            }
-                                        }
-                                    }
-                                    if (item.description.isNotBlank()) {
-                                        P({ classes("mb-0", "text-muted", "small", "mt-1") }) {
-                                            Text(item.description)
-                                        }
-                                    }
-                                }
+                Div({ classes("d-flex", "align-items-center", "mb-3", "gap-2", "flex-wrap") }) {
+                    Span({ classes("text-muted", "small") }) { Text(WishlistStrings.sortLabel.translation()) }
+                    Div({ classes("btn-group", "btn-group-sm") }) {
+                        WishlistSortMode.entries.forEach { mode ->
+                            val active = mode == sortMode
+                            Button({
+                                classes("btn", if (active) "btn-primary" else "btn-outline-primary")
+                                onClick { viewModel.onSortModeSelected(mode) }
+                            }) {
+                                Text(mode.labelResource().translation())
                             }
                         }
+                    }
+                }
+
+                if (sortMode == WishlistSortMode.None) {
+                    sections.forEach { section ->
+                        H6({ classes("mt-3", "mb-1", "text-muted", "border-bottom", "pb-1") }) {
+                            Text(section.wishlist.title)
+                        }
+                        Ul({ classes("list-group") }) {
+                            section.items.forEach { item -> ItemRow(item, null) }
+                        }
+                    }
+                } else {
+                    Ul({ classes("list-group") }) {
+                        sortedItems.forEach { sorted -> ItemRow(sorted.item, sorted.wishlistTitle) }
+                    }
+                }
+            }
+        }
+    }
+
+    /**
+     * Renders a single item row reusing the shared Bootstrap [ListRow].
+     *
+     * @param item Item to display.
+     * @param wishlistTitle When non-null (custom sorting active), appended after the item title in
+     * brackets so the originating wishlist stays visible without the grouping headers.
+     */
+    @Composable
+    private fun ItemRow(item: dev.inmo.wishlist.features.wishlist.common.models.RegisteredWishlistItem, wishlistTitle: String?) {
+        ListRow(
+            onSelect = { viewModel.onItemSelected(item) },
+            leading = {
+                val firstImage = item.imageIds.firstOrNull()
+                if (firstImage != null) {
+                    Img(src = viewModel.imageUrl(firstImage), alt = "") {
+                        classes("rounded", "flex-shrink-0")
+                        style {
+                            width(48.px)
+                            height(48.px)
+                            property("object-fit", "cover")
+                        }
+                    }
+                } else {
+                    Div({
+                        classes("rounded", "bg-secondary-subtle", "flex-shrink-0")
+                        style {
+                            width(48.px)
+                            height(48.px)
+                        }
+                    })
+                }
+            }
+        ) {
+            Div({ classes("flex-grow-1") }) {
+                Div({ classes("d-flex", "justify-content-between", "align-items-center") }) {
+                    Span {
+                        Text(wishlistTitle?.let { "${item.title} ($it)" } ?: item.title)
+                    }
+                    item.approximatePrice?.let { price ->
+                        Span({ classes("text-muted", "small") }) {
+                            Text("$price ${item.priceUnits}")
+                        }
+                    }
+                }
+                if (item.description.isNotBlank()) {
+                    P({ classes("mb-0", "text-muted", "small", "mt-1") }) {
+                        Text(item.description)
                     }
                 }
             }

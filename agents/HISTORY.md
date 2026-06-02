@@ -4,6 +4,18 @@
 
 ---
 
+### 2026-06-02 — Session 29: Fix issue #5 — item sorting in UserWishlistsView (all-items screen)
+
+**Prompt:** Fix GitHub issue #5 "Add opportunity for sorting of items in UserWishlistsView" — add sorting of items by Cost / Priority (weight) / Title; when custom sort enabled, hide wishlist titles, show items as a plain list, with each item's wishlist title written after the item title in brackets `()`.
+
+**Actions:**
+- action=add; target=features/ui/wishlist/src/commonMain/kotlin/ui/UserWishlistsViewModel.kt; change=[new `WishlistSortMode` enum (None/Cost/Priority/Title), `SortedWishlistItem(item, wishlistTitle)` data class, `sortModeState: StateFlow<WishlistSortMode>`, derived `sortedItemsState: StateFlow<List<SortedWishlistItem>>` via `combine(sectionsState, sortModeState)` then `.stateIn(scope, Eagerly, emptyList())` (empty when mode is None; Cost = ascending by approximatePrice nulls-last; Priority = descending by priority.weight; Title = case-insensitive ascending), `onSortModeSelected(mode)`.
+- action=add; target=features/ui/wishlist/src/commonMain/kotlin/WishlistStrings.kt; change=[new strings sortLabel/sortNone/sortCost/sortPriority/sortTitle (EN+RU) + `WishlistSortMode.labelResource()` helper].
+- action=update; target=3x features/ui/wishlist/src/commonMain/kotlin/ui/UserWishlistsView.kt (jsMain/jvmMain/androidMain); change=[added sort selector (button per mode, active highlighted); when mode != None render flat list; extracted shared private `ItemRow(item, wishlistTitle?)` composable; flat rows render `title (wishlistTitle)`.
+- action=verify; target=:wishlist.features.ui.wishlist compileKotlinJvm + compileKotlinJs + compileDebugKotlinAndroid; result=all BUILD SUCCESSFUL.
+
+---
+
 ### 2026-06-02 — Session 28: Commonize agent doc samples (agents/CODING.md)
 
 **Prompt:** Rework all `agents/*.md`. Commonize the samples — they are too specific (e.g. `WishlistsListViewInteractor` koin propagation). If a sample is already generic enough, keep it but report.
