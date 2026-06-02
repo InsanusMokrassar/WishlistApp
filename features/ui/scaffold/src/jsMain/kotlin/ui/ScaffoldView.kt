@@ -1,6 +1,7 @@
 package dev.inmo.wishlist.features.ui.scaffold.ui
 
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.remember
 import dev.inmo.navigation.compose.InjectNavigationChain
 import dev.inmo.navigation.compose.InjectNavigationNode
@@ -49,15 +50,17 @@ class ScaffoldView(
      * slot is rendered with a plain `InjectNavigationChain(id) { InjectNavigationNode(slotConfig) }`,
      * the framework's standard path that seeds the chain with [slotConfig] and drives its lifecycle.
      *
-     * The restored-vs-fresh decision is captured once via [remember] so the slot never flips
-     * rendering strategy across recompositions.
+     * The restored-vs-fresh decision is re-evaluated whenever this node's [subchainsFlow] changes:
+     * if a sub-chain with [id] appears (e.g. one attached while restoring the hierarchy), the slot
+     * switches to drawing that restored chain; otherwise it keeps the freshly injected one.
      *
      * @param id Stable identifier distinguishing this slot's chain from the other slots.
      * @param slotConfig Config used as the slot's first node when no restored chain exists.
      */
     @Composable
     private fun ScaffoldSlot(id: NavigationChainId, slotConfig: ViewConfig) {
-        val restoredChain = remember(id) { subchainsFlow.value.firstOrNull { it.id == id } }
+        val subchainsFlow = subchainsFlow.collectAsState()
+        val restoredChain = remember(id, subchainsFlow.value) { subchainsFlow.value.firstOrNull { it.id == id } }
         if (restoredChain != null) {
             SubchainsHost { it === restoredChain }
         } else {
