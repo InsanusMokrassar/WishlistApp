@@ -41,10 +41,12 @@ JS views use Bootstrap CSS classes via Compose HTML. JVM uses Material v2, Andro
 - `WishlistItemEditViewModel` loads item by calling `getWishlistItems(wishlistId).find { it.id == itemId }` — requires wishlistId in config.
 - Price stored as double string in `priceState`; parsed to `Amount(double)` on save; blank = `null` price.
 - **Priority display and editing:**
-  - `WishlistItemView` reads `RegisteredWishlistItem.priority` and displays the priority label (e.g., "Low", "Medium", "High", or "Custom (weight)" for custom priorities).
+  - Priority is rendered through a shared per-platform `PriorityBadge(priority)` composable (`features/ui/wishlist/src/{jsMain,jvmMain,androidMain}/kotlin/ui/PriorityBadge.kt`): JS = Bootstrap `badge rounded-pill`; JVM/Android = Material3 `Badge` (secondary-container colours). It shows the localized `labelResource()` label plus `weightSuffix()` (the `" (<weight>)"` for `Priority.Custom`).
+  - Item rows in `WishlistView` and `UserWishlistsView` (all platforms) show the `PriorityBadge` inline in the same row as the item title; the description stays below as supporting text.
+  - `WishlistItemView` (detail) shows the same `PriorityBadge` under its "Priority" section header.
   - `WishlistItemEditViewModel` exposes `priorityState: StateFlow<Priority>`, `onPrioritySelected(Priority)`, `onCustomWeightChanged(String)`. Edit view renders a 4-option selector (Low/Medium/High/Custom) plus a custom weight text field shown only when Custom is selected.
   - `WishlistStrings` includes: `priorityLabel`, `prioritySmall`, `priorityMedium`, `priorityHigh`, `priorityCustom`, `priorityCustomWeightLabel`.
-  - `Priority.labelResource()` helper returns the localized string key for display.
+  - `Priority.labelResource()` helper returns the localized string key for display; `Priority.weightSuffix()` returns `" (<weight>)"` for `Priority.Custom` and an empty string for presets. Both are consumed by `PriorityBadge`.
 - **Image support:**
   - `WishlistItemEditViewModel` exposes `imageIdsState: StateFlow<List<FileId>>`, `uploadingImageState: StateFlow<Boolean>`, `onAddImage(file: MPPFile)`, `onRemoveImage(index)`, `imageUrl(id: FileId): String`, `loadImageBytes(id: FileId): ByteArray?`. On `onSave()`, `NewWishlistItem` is built with current `imageIds`.
   - `WishlistItemViewModel` exposes `imageUrl(id)` and `loadImageBytes(id)` for read-only view to display item images.

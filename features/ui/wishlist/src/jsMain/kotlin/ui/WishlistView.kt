@@ -68,7 +68,10 @@ class WishlistView(
                         ListRow(onSelect = { viewModel.onViewItem(item.id) }) {
                             Div({ classes("flex-grow-1") }) {
                                 Div({ classes("d-flex", "justify-content-between", "align-items-center") }) {
-                                    Span { Text(item.title) }
+                                    Div({ classes("d-flex", "align-items-center", "gap-2") }) {
+                                        Span { Text(item.title) }
+                                        PriorityBadge(item.priority)
+                                    }
                                     item.approximatePrice?.let { price ->
                                         Span({ classes("text-muted", "small") }) {
                                             Text("${price} ${item.priceUnits}")

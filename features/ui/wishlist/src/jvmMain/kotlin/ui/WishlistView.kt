@@ -82,9 +82,16 @@ class WishlistView(
                             Column(modifier = Modifier.fillMaxWidth()) {
                                 Row(
                                     modifier = Modifier.fillMaxWidth(),
-                                    horizontalArrangement = Arrangement.SpaceBetween
+                                    horizontalArrangement = Arrangement.SpaceBetween,
+                                    verticalAlignment = Alignment.CenterVertically
                                 ) {
-                                    Text(item.title, style = MaterialTheme.typography.subtitle1)
+                                    Row(
+                                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                                        verticalAlignment = Alignment.CenterVertically
+                                    ) {
+                                        Text(item.title, style = MaterialTheme.typography.subtitle1)
+                                        PriorityBadge(item.priority)
+                                    }
                                     item.approximatePrice?.let { price ->
                                         Text("${price} ${item.priceUnits}", style = MaterialTheme.typography.caption)
                                     }

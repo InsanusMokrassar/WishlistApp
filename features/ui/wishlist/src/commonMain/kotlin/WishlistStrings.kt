@@ -87,6 +87,15 @@ fun Priority.labelResource() = when (this) {
 }
 
 /**
+ * Weight suffix shown after the [Priority.labelResource] label, e.g. `" (42)"` for a
+ * [Priority.Custom] with an arbitrary weight; empty for the named presets whose label already
+ * conveys their importance.
+ *
+ * @return `" (<weight>)"` for [Priority.Custom], otherwise an empty string.
+ */
+fun Priority.weightSuffix(): String = if (this is Priority.Custom) " ($weight)" else ""
+
+/**
  * Maps a [WishlistSortMode] to the matching localized label resource shown in the sort selector.
  *
  * @return The localized name of the sort mode.

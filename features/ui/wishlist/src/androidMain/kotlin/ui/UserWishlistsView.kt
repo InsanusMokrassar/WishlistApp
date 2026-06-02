@@ -162,9 +162,16 @@ class UserWishlistsView(
             Column {
                 Row(
                     modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceBetween
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
                 ) {
-                    Text(wishlistTitle?.let { "${item.title} ($it)" } ?: item.title)
+                    Row(
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text(wishlistTitle?.let { "${item.title} ($it)" } ?: item.title)
+                        PriorityBadge(item.priority)
+                    }
                     item.approximatePrice?.let { price ->
                         Text(
                             "$price ${item.priceUnits}",
