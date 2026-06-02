@@ -8,11 +8,15 @@ import dev.inmo.navigation.core.NavigationChain
 import dev.inmo.navigation.mvvm.compose.ComposeView
 import dev.inmo.wishlist.features.common.client.models.ViewConfig
 import dev.inmo.wishlist.features.ui.auth.AuthStrings
+import org.jetbrains.compose.web.attributes.ButtonType
 import org.jetbrains.compose.web.attributes.InputType
 import org.jetbrains.compose.web.attributes.disabled
+import org.jetbrains.compose.web.attributes.onSubmit
 import org.jetbrains.compose.web.attributes.placeholder
+import org.jetbrains.compose.web.attributes.type
 import org.jetbrains.compose.web.dom.Button
 import org.jetbrains.compose.web.dom.Div
+import org.jetbrains.compose.web.dom.Form
 import org.jetbrains.compose.web.dom.Input
 import org.jetbrains.compose.web.dom.Span
 import org.jetbrains.compose.web.dom.Text
@@ -96,52 +100,55 @@ class AuthView(
                             if (loading) disabled()
                         }) {}
                     }
-                    Div({ classes("modal-body", "d-flex", "flex-column", "gap-2") }) {
-                        Input(type = InputType.Text) {
-                            classes("form-control")
-                            value(username)
-                            placeholder(AuthStrings.usernamePlaceholder.translation())
-                            onInput { viewModel.onUsernameChanged(it.value) }
-                            onKeyDown { if (it.key == "Enter") viewModel.onSubmit() }
-                            if (loading) disabled()
+                    Form(attrs = {
+                        onSubmit {
+                            it.preventDefault()
+                            if (registerMode) viewModel.onRegister() else viewModel.onAuthorize()
                         }
-                        Input(type = InputType.Password) {
-                            classes("form-control")
-                            value(password)
-                            placeholder(AuthStrings.passwordPlaceholder.translation())
-                            onInput { viewModel.onPasswordChanged(it.value) }
-                            onKeyDown { if (it.key == "Enter") viewModel.onSubmit() }
-                            if (loading) disabled()
-                        }
-                        if (error) {
-                            Span({ classes("text-danger", "small") }) {
-                                val msg = if (registerMode) {
-                                    AuthStrings.errorRegisterFailed.translation()
-                                } else {
-                                    AuthStrings.errorLoginFailed.translation()
+                    }) {
+                        Div({ classes("modal-body", "d-flex", "flex-column", "gap-2") }) {
+                            Input(type = InputType.Text) {
+                                classes("form-control")
+                                value(username)
+                                placeholder(AuthStrings.usernamePlaceholder.translation())
+                                onInput { viewModel.onUsernameChanged(it.value) }
+                                if (loading) disabled()
+                            }
+                            Input(type = InputType.Password) {
+                                classes("form-control")
+                                value(password)
+                                placeholder(AuthStrings.passwordPlaceholder.translation())
+                                onInput { viewModel.onPasswordChanged(it.value) }
+                                if (loading) disabled()
+                            }
+                            if (error) {
+                                Span({ classes("text-danger", "small") }) {
+                                    val msg = if (registerMode) {
+                                        AuthStrings.errorRegisterFailed.translation()
+                                    } else {
+                                        AuthStrings.errorLoginFailed.translation()
+                                    }
+                                    Text(msg)
                                 }
-                                Text(msg)
                             }
                         }
-                    }
-                    Div({ classes("modal-footer") }) {
-                        Button(attrs = {
-                            classes("btn", "btn-outline-secondary")
-                            onClick { viewModel.onCancelForm() }
-                            if (loading) disabled()
-                        }) { Text(AuthStrings.cancelButton.translation()) }
-                        if (registerMode) {
+                        Div({ classes("modal-footer") }) {
                             Button(attrs = {
-                                classes("btn", "btn-primary")
-                                onClick { viewModel.onRegister() }
-                                if (!loginEnabled) disabled()
-                            }) { Text(AuthStrings.submitRegisterButton.translation()) }
-                        } else {
+                                type(ButtonType.Button)
+                                classes("btn", "btn-outline-secondary")
+                                onClick { viewModel.onCancelForm() }
+                                if (loading) disabled()
+                            }) { Text(AuthStrings.cancelButton.translation()) }
+                            val submitLabel = if (registerMode) {
+                                AuthStrings.submitRegisterButton.translation()
+                            } else {
+                                AuthStrings.submitButton.translation()
+                            }
                             Button(attrs = {
+                                type(ButtonType.Submit)
                                 classes("btn", "btn-primary")
-                                onClick { viewModel.onAuthorize() }
                                 if (!loginEnabled) disabled()
-                            }) { Text(AuthStrings.submitButton.translation()) }
+                            }) { Text(submitLabel) }
                         }
                     }
                 }

@@ -116,22 +116,6 @@ class AuthViewModel(
         _errorState.value = false
     }
 
-    /**
-     * Handles the "Enter" key (classic-form submit) while the credentials form is open.
-     *
-     * Dispatches to [onRegister] when the form is in registration mode, otherwise to
-     * [onAuthorize]. No-op unless the submit button would be enabled
-     * ([loginEnabledState] is `true`), so it mirrors clicking the active submit button.
-     */
-    fun onSubmit() {
-        if (!loginEnabledState.value) return
-        if (_registerModeState.value) {
-            onRegister()
-        } else {
-            onAuthorize()
-        }
-    }
-
     /** Submits the entered credentials as a login request. */
     fun onAuthorize() {
         scope.launchLoggingDropExceptions {

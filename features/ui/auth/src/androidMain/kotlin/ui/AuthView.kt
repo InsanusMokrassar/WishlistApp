@@ -99,7 +99,9 @@ class AuthView(
                         singleLine = true,
                         enabled = !loading,
                         keyboardOptions = KeyboardOptions(imeAction = ImeAction.Done),
-                        keyboardActions = KeyboardActions(onDone = { viewModel.onSubmit() }),
+                        keyboardActions = KeyboardActions(onDone = {
+                            if (registerMode) viewModel.onRegister() else viewModel.onAuthorize()
+                        }),
                         modifier = Modifier.fillMaxWidth()
                     )
                     OutlinedTextField(
@@ -113,7 +115,9 @@ class AuthView(
                             keyboardType = KeyboardType.Password,
                             imeAction = ImeAction.Done
                         ),
-                        keyboardActions = KeyboardActions(onDone = { viewModel.onSubmit() }),
+                        keyboardActions = KeyboardActions(onDone = {
+                            if (registerMode) viewModel.onRegister() else viewModel.onAuthorize()
+                        }),
                         modifier = Modifier.fillMaxWidth()
                     )
                     if (error) {
