@@ -19,7 +19,7 @@ None. Client-only feature; no server component.
 | `AuthViewConfig` | Empty `@Serializable class` — embedded in top navigation bar via `InjectNavigationChain` |
 | `AuthModel` | Interface: `isAlreadyLoggedIn()`, `login(username, password): Boolean`, `logout()`, `userAuthorisedState: StateFlow<Boolean>`, `isRegistrationEnabled(): Boolean`, `register(username, password): Boolean` |
 | `AuthViewInteractor` | Interface: `onUserLoggedIn(node)`, `onUserLoggedOut()` — implemented in `client/ClientPlugin` |
-| `AuthViewModel` | Holds `usernameState`, `passwordState`, `loadingState`, `errorState`, `formExpandedState`, `registerModeState`, `registrationEnabledState`, `loggedInState`, `loginEnabledState`; methods: `onToggleForm()`, `onToggleRegisterForm()`, `onCancelForm()`, `onAuthorize()`, `onRegister()`, `onLogout()` |
+| `AuthViewModel` | Holds `usernameState`, `passwordState`, `loadingState`, `errorState`, `formExpandedState`, `registerModeState`, `registrationEnabledState`, `loggedInState`, `loginEnabledState`; methods: `onToggleForm()`, `onToggleRegisterForm()`, `onCancelForm()`, `onSubmit()`, `onAuthorize()`, `onRegister()`, `onLogout()` |
 
 ## Architecture Notes
 
@@ -30,6 +30,7 @@ None. Client-only feature; no server component.
 - `loginEnabledState` is a derived `StateFlow<Boolean>` from `combine(usernameState, passwordState, loadingState)` — all inputs non-blank and no request in flight. Shared for both login and register submit buttons.
 - `registrationEnabledState` is loaded async in VM `init` from `model.isRegistrationEnabled()` (defaults to `false` until resolved).
 - `registerModeState` distinguishes expanded-login from expanded-register; `onToggleRegisterForm()` sets it to `true`; `onToggleForm()` sets it to `false`; `onCancelForm()` collapses and resets both.
+- **Enter-to-submit (classic form behavior):** `onSubmit()` is the keyboard-submit entry point — it no-ops unless `loginEnabledState` is `true`, then dispatches to `onRegister()` in register mode or `onAuthorize()` otherwise. Each platform view wires it to the "Enter"/IME-done action on both credential inputs: JS via `Input.onKeyDown` (`key == "Enter"`); JVM/Android via `KeyboardOptions(imeAction = ImeAction.Done)` + `KeyboardActions(onDone = { viewModel.onSubmit() })` on both fields.
 - `AuthViewInteractor` implementation lives in `client/ClientPlugin` (not in this feature's `Plugin.kt`) — it needs access to the root `NavigationChain<ViewConfig>`.
 - `errorState` resets to `false` on any input change so stale error banners clear as the user types.
 - **Registration config:** `AuthModel.isRegistrationEnabled()` calls `AuthFeature.isRegistrationAvailable()` via `runCatchingLogging` (defaults to `false` on network error).

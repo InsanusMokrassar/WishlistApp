@@ -102,6 +102,7 @@ class AuthView(
                             value(username)
                             placeholder(AuthStrings.usernamePlaceholder.translation())
                             onInput { viewModel.onUsernameChanged(it.value) }
+                            onKeyDown { if (it.key == "Enter") viewModel.onSubmit() }
                             if (loading) disabled()
                         }
                         Input(type = InputType.Password) {
@@ -109,6 +110,7 @@ class AuthView(
                             value(password)
                             placeholder(AuthStrings.passwordPlaceholder.translation())
                             onInput { viewModel.onPasswordChanged(it.value) }
+                            onKeyDown { if (it.key == "Enter") viewModel.onSubmit() }
                             if (loading) disabled()
                         }
                         if (error) {
