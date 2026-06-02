@@ -11,6 +11,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.Button
+import androidx.compose.material.ButtonDefaults
 import androidx.compose.material.CircularProgressIndicator
 import androidx.compose.material.MaterialTheme
 import androidx.compose.material.Text
@@ -28,6 +29,7 @@ import dev.inmo.wishlist.features.common.client.ui.components.BackButton
 import dev.inmo.wishlist.features.common.client.ui.components.ListRow
 import dev.inmo.wishlist.features.ui.topBar.ui.TopBarTitleProvider
 import dev.inmo.wishlist.features.ui.wishlist.WishlistStrings
+import dev.inmo.wishlist.features.ui.wishlist.labelResource
 import dev.inmo.wishlist.features.ui.wishlist.ui.WishlistViewConfig
 import dev.inmo.wishlist.features.ui.wishlist.ui.WishlistViewModel
 import org.koin.core.component.inject
@@ -52,6 +54,8 @@ class WishlistView(
     override fun onDraw() {
         super.onDraw()
         val items by viewModel.itemsState.collectAsState()
+        val sortMode by viewModel.sortModeState.collectAsState()
+        val sortedItems by viewModel.sortedItemsState.collectAsState()
         val isOwner by viewModel.isOwnerState.collectAsState()
         val loading by viewModel.loadingState.collectAsState()
 
@@ -76,8 +80,34 @@ class WishlistView(
             } else if (items.isEmpty()) {
                 Text(WishlistStrings.emptyItems.translation())
             } else {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(4.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text(WishlistStrings.sortLabel.translation(), style = MaterialTheme.typography.caption)
+                    WishlistSortMode.entries.forEach { mode ->
+                        val active = mode == sortMode
+                        val label = if (mode == WishlistSortMode.None) {
+                            WishlistStrings.sortDefault.translation()
+                        } else {
+                            mode.labelResource().translation()
+                        }
+                        Button(
+                            onClick = { viewModel.onSortModeSelected(mode) },
+                            colors = if (active) {
+                                ButtonDefaults.buttonColors()
+                            } else {
+                                ButtonDefaults.outlinedButtonColors()
+                            }
+                        ) {
+                            Text(label)
+                        }
+                    }
+                }
+                Spacer(modifier = Modifier.height(8.dp))
                 LazyColumn(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                    items(items) { item ->
+                    items(sortedItems) { item ->
                         ListRow(onSelect = { viewModel.onViewItem(item.id) }) {
                             Column(modifier = Modifier.fillMaxWidth()) {
                                 Row(

@@ -11,6 +11,7 @@ import dev.inmo.wishlist.features.common.client.ui.components.BackButton
 import dev.inmo.wishlist.features.common.client.ui.components.ListRow
 import dev.inmo.wishlist.features.ui.topBar.ui.TopBarTitleProvider
 import dev.inmo.wishlist.features.ui.wishlist.WishlistStrings
+import dev.inmo.wishlist.features.ui.wishlist.labelResource
 import org.jetbrains.compose.web.dom.Button
 import org.jetbrains.compose.web.dom.Div
 import org.jetbrains.compose.web.dom.P
@@ -39,6 +40,8 @@ class WishlistView(
     override fun onDraw() {
         super.onDraw()
         val items by viewModel.itemsState.collectAsState()
+        val sortMode by viewModel.sortModeState.collectAsState()
+        val sortedItems by viewModel.sortedItemsState.collectAsState()
         val isOwner by viewModel.isOwnerState.collectAsState()
         val loading by viewModel.loadingState.collectAsState()
 
@@ -63,8 +66,27 @@ class WishlistView(
                     Text(WishlistStrings.emptyItems.translation())
                 }
             } else {
+                Div({ classes("d-flex", "align-items-center", "mb-3", "gap-2", "flex-wrap") }) {
+                    Span({ classes("text-muted", "small") }) { Text(WishlistStrings.sortLabel.translation()) }
+                    Div({ classes("btn-group", "btn-group-sm") }) {
+                        WishlistSortMode.entries.forEach { mode ->
+                            val active = mode == sortMode
+                            val label = if (mode == WishlistSortMode.None) {
+                                WishlistStrings.sortDefault.translation()
+                            } else {
+                                mode.labelResource().translation()
+                            }
+                            Button({
+                                classes("btn", if (active) "btn-primary" else "btn-outline-primary")
+                                onClick { viewModel.onSortModeSelected(mode) }
+                            }) {
+                                Text(label)
+                            }
+                        }
+                    }
+                }
                 Ul({ classes("list-group", "mb-3") }) {
-                    items.forEach { item ->
+                    sortedItems.forEach { item ->
                         ListRow(onSelect = { viewModel.onViewItem(item.id) }) {
                             Div({ classes("flex-grow-1") }) {
                                 Div({ classes("d-flex", "justify-content-between", "align-items-center") }) {
