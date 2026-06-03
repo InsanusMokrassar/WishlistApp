@@ -24,21 +24,19 @@ class CurrencyRoutingsConfigurator(
     private val feature: CurrencyFeature
 ) : ApplicationRoutingConfigurator.Element {
     override fun Route.invoke() {
-        authenticate {
-            route(CurrencyConstants.prefixPathPart) {
-                get(CurrencyConstants.enabledPathPart) {
-                    call.respond(feature.isFeatureEnabled())
-                }
-                get(CurrencyConstants.currenciesPathPart) {
-                    call.respond(feature.getCurrencies())
-                }
-                get(CurrencyConstants.ratesPathPart) {
-                    val rates = feature.getRates()
-                    if (rates == null) {
-                        call.respond(HttpStatusCode.NoContent)
-                    } else {
-                        call.respond(rates)
-                    }
+        route(CurrencyConstants.prefixPathPart) {
+            get(CurrencyConstants.enabledPathPart) {
+                call.respond(feature.isFeatureEnabled())
+            }
+            get(CurrencyConstants.currenciesPathPart) {
+                call.respond(feature.getCurrencies())
+            }
+            get(CurrencyConstants.ratesPathPart) {
+                val rates = feature.getRates()
+                if (rates == null) {
+                    call.respond(HttpStatusCode.NoContent)
+                } else {
+                    call.respond(rates)
                 }
             }
         }

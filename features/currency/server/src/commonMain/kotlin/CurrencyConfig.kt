@@ -1,5 +1,7 @@
 package dev.inmo.wishlist.features.currency.server
 
+import korlibs.time.hours
+import korlibs.time.millisecondsLong
 import kotlinx.serialization.Serializable
 
 /**
@@ -12,5 +14,6 @@ import kotlinx.serialization.Serializable
  */
 @Serializable
 data class CurrencyConfig(
-    val openExchangeRatesAppId: String? = null
+    val openExchangeRatesAppId: String? = null,
+    val openExchangeRatesRefreshTTLMillis: Long = 1.hours.millisecondsLong
 )

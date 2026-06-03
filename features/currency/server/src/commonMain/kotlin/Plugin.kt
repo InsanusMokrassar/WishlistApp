@@ -43,9 +43,11 @@ object Plugin : StartPlugin {
         }
 
         single {
+            val currencyConfig = get<CurrencyConfig>()
             OpenExchangeRatesService(
-                appId = get<CurrencyConfig>().openExchangeRatesAppId,
-                httpClient = get(qualifier = currencyHttpClientQualifier)
+                appId = currencyConfig.openExchangeRatesAppId,
+                httpClient = get(qualifier = currencyHttpClientQualifier),
+                ttlMillis = currencyConfig.openExchangeRatesRefreshTTLMillis
             )
         }
         single<CurrencyFeature> { get<OpenExchangeRatesService>() }

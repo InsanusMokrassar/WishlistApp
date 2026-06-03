@@ -9,7 +9,7 @@
 Optional full-stack feature that lets the client convert displayed wishlist item prices into a
 user-selected target currency. The server fetches the latest exchange rates from the
 [Open Exchange Rates](https://docs.openexchangerates.org/reference/api-introduction) (OXR) API,
-caches them in-memory with a one-hour TTL, and exposes read-only endpoints. The client wraps those
+caches them in-memory with a configurable TTL (default one hour), and exposes read-only endpoints. The client wraps those
 endpoints (HTTP only) and adds the shared currency-selection state and conversion logic.
 
 The feature is **optional and disabled by default**: when no OXR App ID is configured server-side,
@@ -18,14 +18,13 @@ rendered in their original units with no conversion.
 
 ## Routes
 
-All routes are mounted under the `currency` prefix and require authentication (consistent with the
-rest of the app).
+All routes are mounted under the `currency` prefix and are public (no authentication required).
 
 | Method | Path                   | Auth | Body / Response          | Description |
 |--------|------------------------|------|--------------------------|-------------|
-| GET    | `currency/enabled`     | Yes  | `Boolean` (JSON)         | Whether the feature is enabled (an OXR App ID is configured). |
-| GET    | `currency/currencies`  | Yes  | `List<CurrencyInfo>`     | Available currencies (code + name); empty when disabled. |
-| GET    | `currency/rates`       | Yes  | `CurrencyRates` or `204` | Latest rates snapshot; `204 No Content` when disabled/unavailable. |
+| GET    | `currency/enabled`     | None | `Boolean` (JSON)         | Whether the feature is enabled (an OXR App ID is configured). |
+| GET    | `currency/currencies`  | None | `List<CurrencyInfo>`     | Available currencies (code + name); empty when disabled. |
+| GET    | `currency/rates`       | None | `CurrencyRates` or `204` | Latest rates snapshot; `204 No Content` when disabled/unavailable. |
 
 ## Models
 
@@ -49,19 +48,19 @@ Utilities (`features/currency/common/utils`):
 
 ## Architecture Notes
 
-- **Config:** `CurrencyConfig(openExchangeRatesAppId: String? = null)` is decoded from the same root
+- **Config:** `CurrencyConfig(openExchangeRatesAppId: String? = null, openExchangeRatesRefreshTTLMillis: Long = 1.hours)` is decoded from the same root
   server config JSON used by the rest of the server (same approach as `features/files` `FilesConfig`).
-  The App ID is shown in `server/sample.config.json` as `"openExchangeRatesAppId": ""`; a `null`
-  (key absent) or blank value ⇒ feature disabled by default. It is **never** hardcoded.
+  The App ID is shown in `server/sample.config.json` as `"openExchangeRatesAppId": null`; a `null`
+  (key absent) or blank value ⇒ feature disabled by default. The TTL field (`openExchangeRatesRefreshTTLMillis`, default `3_600_000` ms / one hour) controls cache invalidation. It is **never** hardcoded.
 - **Server caching / TTL:** `OpenExchangeRatesService` (server `commonMain`) implements
   `CurrencyFeature`. It caches the rates snapshot and the currency dictionary in-memory; each cache
-  entry is invalidated once one hour (`ttlMillis`, default `3_600_000`) has elapsed since its own last
+  entry is invalidated once the TTL (`openExchangeRatesRefreshTTLMillis`, default `3_600_000` ms / one hour) has elapsed since its own last
   successful retrieval (`fetchedAtMillis` for rates; a private timestamp for currencies), so the next
   access triggers a fresh fetch. Fetches are guarded by a `Mutex` and timestamped via
   `korlibs.time.DateTime.now().unixMillisLong`. Upstream failures are logged and fall back to the last
   good cache (or empty/`null`), so an OXR outage never crashes the server.
 - **OXR endpoints used:** `GET /api/latest.json?app_id=<id>` (base `USD` on the free plan) and
-  `GET /api/currencies.json`.
+  `GET /api/currencies.json?app_id=<id>`.
 - **Server HTTP client:** registered in the server `Plugin` as a dedicated OkHttp `HttpClient` (named
   Koin qualifier `currencyHttpClient`) with JSON content negotiation. The module targets JVM only, so
   the OkHttp engine reference is safe in `commonMain`.

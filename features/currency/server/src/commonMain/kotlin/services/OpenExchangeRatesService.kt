@@ -9,10 +9,13 @@ import io.ktor.client.HttpClient
 import io.ktor.client.call.body
 import io.ktor.client.request.get
 import io.ktor.client.request.parameter
+import io.ktor.http.URLBuilder
+import io.ktor.http.Url
 import korlibs.time.DateTime
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import kotlinx.serialization.Serializable
+import kotlin.collections.plus
 
 /**
  * Server-side [CurrencyFeature] implementation backed by the Open Exchange Rates (OXR) REST API.
@@ -51,6 +54,13 @@ class OpenExchangeRatesService(
 
     private val baseUrl = "https://openexchangerates.org/api"
 
+    private fun buildUrl(block: URLBuilder.() -> Unit): Url? {
+        val builder = URLBuilder(baseUrl)
+        builder.parameters.set("app_id", appId ?: return null)
+        builder.block()
+        return builder.build()
+    }
+
     /** @return `true` only when a non-blank [appId] is configured. */
     override suspend fun isFeatureEnabled(): Boolean = !appId.isNullOrBlank()
 
@@ -63,12 +73,15 @@ class OpenExchangeRatesService(
         if (!isFeatureEnabled()) return emptyList()
         return currenciesMutex.withLock {
             val cached = cachedCurrencies
-            val fresh = cached != null && (DateTime.now().unixMillisLong - currenciesFetchedAtMillis) < ttlMillis
-            if (fresh) {
-                cached!!
+            if (cached != null && (DateTime.now().unixMillisLong - currenciesFetchedAtMillis) < ttlMillis) {
+                cached
             } else {
                 val fetched = runCatchingLogging {
-                    val map: Map<String, String> = httpClient.get("$baseUrl/currencies.json").body()
+                    val map: Map<String, String> = httpClient.get(
+                        buildUrl {
+                            pathSegments += "currencies.json"
+                        } ?: return emptyList()
+                    ).body()
                     map.entries
                         .map { CurrencyInfo(CurrencyCode.of(it.key), it.value) }
                         .sortedBy { it.code.code }
@@ -93,12 +106,15 @@ class OpenExchangeRatesService(
         if (!isFeatureEnabled()) return null
         return ratesMutex.withLock {
             val cached = cachedRates
-            val fresh = cached != null && (DateTime.now().unixMillisLong - cached.fetchedAtMillis) < ttlMillis
-            if (fresh) {
+            if (cached != null && (DateTime.now().unixMillisLong - cached.fetchedAtMillis) < ttlMillis) {
                 cached
             } else {
                 val fetched = runCatchingLogging {
-                    val latest: OxrLatest = httpClient.get("$baseUrl/latest.json") {
+                    val latest: OxrLatest = httpClient.get(
+                        buildUrl {
+                            pathSegments += "latest.json"
+                        } ?: return null
+                    ) {
                         parameter("app_id", appId)
                     }.body()
                     CurrencyRates(
