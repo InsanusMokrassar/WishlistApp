@@ -8,7 +8,6 @@ import dev.inmo.wishlist.features.currency.common.models.CurrencyRates
 import io.ktor.client.HttpClient
 import io.ktor.client.call.body
 import io.ktor.client.request.get
-import io.ktor.client.request.parameter
 import io.ktor.http.URLBuilder
 import io.ktor.http.Url
 import korlibs.time.DateTime
@@ -114,9 +113,7 @@ class OpenExchangeRatesService(
                         buildUrl {
                             pathSegments += "latest.json"
                         } ?: return null
-                    ) {
-                        parameter("app_id", appId)
-                    }.body()
+                    ).body()
                     CurrencyRates(
                         base = CurrencyCode.of(latest.base),
                         rates = latest.rates,

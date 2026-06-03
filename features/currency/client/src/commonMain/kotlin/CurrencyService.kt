@@ -41,9 +41,13 @@ class CurrencyService(
      */
     override suspend fun isFeatureEnabled(): Boolean {
         locker.withReadAcquire { cachedEnabled }?.let { return it }
-        val value = runCatchingLogging { feature.isFeatureEnabled() }.getOrDefault(false)
-        locker.withWriteLock { cachedEnabled = value }
-        return value
+        // Cache only a successful answer (enabled or genuinely disabled); a transient error must not
+        // poison the cache and leave the feature stuck disabled for the rest of the session.
+        runCatchingLogging { feature.isFeatureEnabled() }.getOrNull()?.let { value ->
+            locker.withWriteLock { cachedEnabled = value }
+            return value
+        }
+        return false
     }
 
     /**
@@ -62,7 +66,8 @@ class CurrencyService(
 
     /**
      * Returns the latest rates snapshot, memoizing the first successful answer. The server already
-     * enforces a one-hour TTL, so a single client fetch per session is sufficient for display.
+     * enforces a configurable TTL (default one hour), so a single client fetch per session is
+     * sufficient for display.
      *
      * @return Latest [CurrencyRates], or `null` when disabled/unavailable.
      */
