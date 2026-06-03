@@ -52,9 +52,9 @@ fun formatItemPrice(
 
     val raw = "$price $priceUnits".trim()
     if (target == null || rates == null) return raw
+    if (target == PriceUnitsResolver.resolve(priceUnits)) return raw
 
     val targetUnits = PriceUnitsResolver.resolve(target) ?: target.code
-    if (targetUnits == priceUnits) return raw
 
     val source = PriceUnitsResolver.resolve(priceUnits) ?: return raw
     val converted = convert(price, source, target, rates) ?: return raw
