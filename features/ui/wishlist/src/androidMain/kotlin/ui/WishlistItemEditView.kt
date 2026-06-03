@@ -152,12 +152,11 @@ class WishlistItemEditView(
                     enabled = !loading,
                     modifier = Modifier.weight(1f)
                 )
-                OutlinedTextField(
+                PriceUnitsSelector(
+                    label = WishlistStrings.priceUnitsLabel.translation(resources),
                     value = priceUnits,
-                    onValueChange = { viewModel.onPriceUnitsChanged(it) },
-                    label = { Text(WishlistStrings.priceUnitsLabel.translation(resources)) },
-                    singleLine = true,
                     enabled = !loading,
+                    onValueChange = { viewModel.onPriceUnitsChanged(it) },
                     modifier = Modifier.weight(1f)
                 )
             }

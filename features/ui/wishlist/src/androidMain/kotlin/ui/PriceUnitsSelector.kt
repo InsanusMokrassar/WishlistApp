@@ -1,0 +1,70 @@
+package dev.inmo.wishlist.features.ui.wishlist.ui
+
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Row
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
+import androidx.compose.material3.OutlinedButton
+import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.Text
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.unit.dp
+import dev.inmo.wishlist.features.currency.common.utils.PriceUnitsResolver
+
+/**
+ * Android Material3 currency/units input: a free-text field (custom currency) paired with a dropdown of
+ * preset currency symbols taken from [PriceUnitsResolver]. Picking a preset overwrites the text; the
+ * user may also type any custom value.
+ *
+ * @param label Localized caption for the input.
+ * @param value Current units string.
+ * @param enabled Disables both controls while a request is in flight.
+ * @param onValueChange Invoked with the new units string (preset pick or manual edit).
+ * @param modifier Layout modifier applied to the row.
+ */
+@Composable
+fun PriceUnitsSelector(
+    label: String,
+    value: String,
+    enabled: Boolean,
+    onValueChange: (String) -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    val presets = remember { PriceUnitsResolver.symbolToCode.keys.toList() }
+    var expanded by remember { mutableStateOf(false) }
+    Row(
+        modifier = modifier,
+        horizontalArrangement = Arrangement.spacedBy(4.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        OutlinedTextField(
+            value = value,
+            onValueChange = onValueChange,
+            label = { Text(label) },
+            singleLine = true,
+            enabled = enabled,
+            modifier = Modifier.weight(1f)
+        )
+        Box {
+            OutlinedButton(onClick = { expanded = true }, enabled = enabled) { Text("▾") }
+            DropdownMenu(expanded = expanded, onDismissRequest = { expanded = false }) {
+                presets.forEach { preset ->
+                    DropdownMenuItem(
+                        text = { Text(preset) },
+                        onClick = {
+                            expanded = false
+                            onValueChange(preset)
+                        }
+                    )
+                }
+            }
+        }
+    }
+}

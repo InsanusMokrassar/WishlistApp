@@ -190,7 +190,10 @@ class AdminRoutingsConfigurator(
                             call.respond(HttpStatusCode.NotFound)
                             return@put
                         }
-                        val updated = wishlistRepo.update(id, NewWishlist(existing.userId, newWishlist.title))
+                        val updated = wishlistRepo.update(
+                            id,
+                            NewWishlist(existing.userId, newWishlist.title, existing.defaultPriceUnits)
+                        )
                         if (updated != null) {
                             call.respond(updated)
                         } else {

@@ -55,18 +55,20 @@ interface WishlistsModel {
      * Creates a new wishlist with [title] for the authenticated caller.
      *
      * @param title Display name of the new wishlist.
+     * @param defaultPriceUnits Default currency/units label pre-filled into new items; empty for none.
      * @return Created wishlist, or `null` on failure.
      */
-    suspend fun createWishlist(title: String): RegisteredWishlist?
+    suspend fun createWishlist(title: String, defaultPriceUnits: String): RegisteredWishlist?
 
     /**
-     * Replaces [id] wishlist title with [title].
+     * Replaces [id] wishlist title with [title] and its default price units with [defaultPriceUnits].
      *
      * @param id Wishlist to update.
      * @param title New display name.
+     * @param defaultPriceUnits New default currency/units label for new items; empty for none.
      * @return `true` on success, `false` when not found or not owner.
      */
-    suspend fun updateWishlist(id: WishlistId, title: String): Boolean
+    suspend fun updateWishlist(id: WishlistId, title: String, defaultPriceUnits: String): Boolean
 
     /**
      * Deletes wishlist [id].

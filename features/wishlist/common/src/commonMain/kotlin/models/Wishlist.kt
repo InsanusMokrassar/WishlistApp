@@ -21,6 +21,12 @@ sealed interface Wishlist {
 
     /** Human-readable name of this wishlist. */
     val title: String
+
+    /**
+     * Default currency/units label pre-filled into the price-units field when a new item is created
+     * in this wishlist (e.g. `"$"`, `"USD"`). Empty when the wishlist has no default.
+     */
+    val defaultPriceUnits: String
 }
 
 /**
@@ -28,11 +34,13 @@ sealed interface Wishlist {
  *
  * @property userId Owner of the new wishlist.
  * @property title Display name for the wishlist.
+ * @property defaultPriceUnits Default currency/units label for new items; empty when none.
  */
 @Serializable
 data class NewWishlist(
     override val userId: UserId,
-    override val title: String
+    override val title: String,
+    override val defaultPriceUnits: String = ""
 ) : Wishlist
 
 /**
@@ -41,10 +49,12 @@ data class NewWishlist(
  * @property id Unique persistent identifier assigned by the server.
  * @property userId Owner of the wishlist.
  * @property title Display name for the wishlist.
+ * @property defaultPriceUnits Default currency/units label for new items; empty when none.
  */
 @Serializable
 data class RegisteredWishlist(
     val id: WishlistId,
     override val userId: UserId,
-    override val title: String
+    override val title: String,
+    override val defaultPriceUnits: String = ""
 ) : Wishlist

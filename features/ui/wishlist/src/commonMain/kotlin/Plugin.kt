@@ -107,11 +107,11 @@ object Plugin : StartPlugin {
                 override suspend fun getWishlistItems(wishlistId: WishlistId): List<RegisteredWishlistItem> =
                     itemsFeature.getByWishlistId(wishlistId)
 
-                override suspend fun createWishlist(title: String): RegisteredWishlist? =
-                    wishlistsFeature.create(NewWishlistInFeature(title))
+                override suspend fun createWishlist(title: String, defaultPriceUnits: String): RegisteredWishlist? =
+                    wishlistsFeature.create(NewWishlistInFeature(title, defaultPriceUnits))
 
-                override suspend fun updateWishlist(id: WishlistId, title: String): Boolean =
-                    wishlistsFeature.update(id, NewWishlistInFeature(title))
+                override suspend fun updateWishlist(id: WishlistId, title: String, defaultPriceUnits: String): Boolean =
+                    wishlistsFeature.update(id, NewWishlistInFeature(title, defaultPriceUnits))
 
                 override suspend fun deleteWishlist(id: WishlistId): Boolean =
                     wishlistsFeature.delete(id)

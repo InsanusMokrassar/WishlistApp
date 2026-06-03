@@ -46,6 +46,7 @@ class WishlistEditView(
     override fun onDraw() {
         super.onDraw()
         val title by viewModel.titleState.collectAsState()
+        val defaultPriceUnits by viewModel.defaultPriceUnitsState.collectAsState()
         val loading by viewModel.loadingState.collectAsState()
         val showDialog by viewModel.showConfirmDialogState.collectAsState()
         val showDeleteDialog by viewModel.showDeleteDialogState.collectAsState()
@@ -106,6 +107,13 @@ class WishlistEditView(
                 label = { Text(WishlistStrings.titleLabel.translation()) },
                 singleLine = true,
                 enabled = !loading,
+                modifier = Modifier.fillMaxWidth()
+            )
+            PriceUnitsSelector(
+                label = WishlistStrings.defaultCurrencyLabel.translation(),
+                value = defaultPriceUnits,
+                enabled = !loading,
+                onValueChange = { viewModel.onDefaultPriceUnitsChanged(it) },
                 modifier = Modifier.fillMaxWidth()
             )
             Button(
