@@ -25,5 +25,4 @@ Repo: `InsanusMokrassar/WishlistApp`.
 ## Rules
 
 - One subagent per issue. Subagents run SEQUENTIALLY, never in parallel (avoid branch/index conflicts).
-- Update `agents/HISTORY.md` at end of work (haiku agent).
 - If issue ambiguous or blocked → stop, ask operator.

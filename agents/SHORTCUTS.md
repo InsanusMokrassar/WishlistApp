@@ -11,4 +11,3 @@ Before any work, read in this order:
     * architecture → `agents/ARCHITECTURE.md` + (`agents/local.ARCHITECTURE.md` (if exists)) (priorities of agents: `opus` / `sonnet`)
 3. The feature's own `README.md` (especially `## Operator Notes`) before touching its code
 4. All fillings of documentations and other *.md files must be done with `haiku` agent
-5. `agents/HISTORY.md` — long-term memory; update it at session end (using `haiku` agent)
