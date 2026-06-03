@@ -21,6 +21,13 @@ object PriceUnitsResolver {
         "₴" to CurrencyCode("UAH"),
         "₹" to CurrencyCode("INR")
     )
+    /** ISO code mapped back to its display symbol (inverse of [symbolToCode]). */
+    val codeToSymbol: Map<CurrencyCode, String> = symbolToCode.entries.associate { (symbol, code) -> code to symbol }
+
+    /** Inverse lookup: returns the display symbol for [currencyCode], or `null` when no symbol is known. */
+    fun resolve(currencyCode: CurrencyCode): String? {
+        return codeToSymbol[currencyCode]
+    }
 
     /**
      * Resolves [priceUnits] to a [CurrencyCode] on a best-effort basis.
