@@ -153,6 +153,14 @@ class UserWishlistsViewModel(
     /** Shared selected conversion target; `null` means original prices. */
     val selectedCurrencyState: StateFlow<CurrencyCode?> = model.selectedCurrency
 
+    private val _viewModeState = MutableRedeliverStateFlow(WishlistViewMode.List)
+
+    /**
+     * Currently selected presentation of the items: [WishlistViewMode.List] (rows) or
+     * [WishlistViewMode.Grid] (cards). Defaults to [WishlistViewMode.List].
+     */
+    val viewModeState = _viewModeState.asStateFlow()
+
     init {
         merge(flowOf(Unit), node.onResumeFlow).subscribeLoggingDropExceptions(scope) {
             _loadingState.value = true
@@ -208,6 +216,15 @@ class UserWishlistsViewModel(
      */
     fun onSortModeSelected(mode: WishlistSortMode) {
         _sortModeState.value = mode
+    }
+
+    /**
+     * Changes the presentation of the items between rows and a card grid.
+     *
+     * @param mode New view mode.
+     */
+    fun onViewModeSelected(mode: WishlistViewMode) {
+        _viewModeState.value = mode
     }
 
     /** Delegates to [UserWishlistsViewInteractor.onBack]. */

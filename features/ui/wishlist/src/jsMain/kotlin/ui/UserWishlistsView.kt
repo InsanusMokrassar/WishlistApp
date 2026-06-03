@@ -51,6 +51,7 @@ class UserWishlistsView(
         val sections by viewModel.sectionsState.collectAsState()
         val sortMode by viewModel.sortModeState.collectAsState()
         val sortedItems by viewModel.sortedItemsState.collectAsState()
+        val viewMode by viewModel.viewModeState.collectAsState()
         val loading by viewModel.loadingState.collectAsState()
         val currencyEnabled by viewModel.currencyEnabledState.collectAsState()
         val currencies by viewModel.currenciesState.collectAsState()
@@ -84,6 +85,10 @@ class UserWishlistsView(
                         onCurrencySelected = viewModel::onCurrencySelected
                     )
                 }
+                ViewModeSelector(
+                    selected = viewMode,
+                    onViewModeSelected = viewModel::onViewModeSelected
+                )
 
                 if (sortMode == WishlistSortMode.None) {
                     sections.forEach { section ->
@@ -98,13 +103,21 @@ class UserWishlistsView(
                                 Text(WishlistStrings.openWishlistButton.translation())
                             }
                         }
-                        Ul({ classes("list-group") }) {
-                            section.items.forEach { item -> ItemRow(item, null, selectedCurrency, rates) }
+                        if (viewMode == WishlistViewMode.Grid) {
+                            ItemsGrid(section.items.map { it to section.wishlist.title })
+                        } else {
+                            Ul({ classes("list-group") }) {
+                                section.items.forEach { item -> ItemRow(item, null, selectedCurrency, rates) }
+                            }
                         }
                     }
                 } else {
-                    Ul({ classes("list-group") }) {
-                        sortedItems.forEach { sorted -> ItemRow(sorted.item, sorted.wishlistTitle, selectedCurrency, rates) }
+                    if (viewMode == WishlistViewMode.Grid) {
+                        ItemsGrid(sortedItems.map { it.item to it.wishlistTitle })
+                    } else {
+                        Ul({ classes("list-group") }) {
+                            sortedItems.forEach { sorted -> ItemRow(sorted.item, sorted.wishlistTitle, selectedCurrency, rates) }
+                        }
                     }
                 }
             }
@@ -176,6 +189,30 @@ class UserWishlistsView(
                     P({ classes("mb-0", "text-muted", "small", "mt-1") }) {
                         Text(item.description)
                     }
+                }
+            }
+        }
+    }
+
+    /**
+     * Renders a responsive Bootstrap card grid of items.
+     *
+     * @param entries Items paired with the title of the wishlist each one belongs to (used as the
+     * card subtitle).
+     */
+    @Composable
+    private fun ItemsGrid(
+        entries: List<Pair<dev.inmo.wishlist.features.wishlist.common.models.RegisteredWishlistItem, String?>>
+    ) {
+        Div({ classes("row", "row-cols-1", "row-cols-sm-2", "row-cols-md-3", "g-3", "mt-1") }) {
+            entries.forEach { (item, wishlistTitle) ->
+                Div({ classes("col") }) {
+                    WishlistItemCard(
+                        item = item,
+                        wishlistTitle = wishlistTitle,
+                        imageUrl = viewModel::imageUrl,
+                        onSelect = { viewModel.onItemSelected(item) }
+                    )
                 }
             }
         }

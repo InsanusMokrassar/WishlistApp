@@ -10,6 +10,7 @@ import dev.inmo.wishlist.features.common.client.models.ViewConfig
 import dev.inmo.wishlist.features.currency.common.models.CurrencyCode
 import dev.inmo.wishlist.features.currency.common.models.CurrencyInfo
 import dev.inmo.wishlist.features.currency.common.models.CurrencyRates
+import dev.inmo.wishlist.features.files.common.models.FileId
 import dev.inmo.wishlist.features.users.common.models.UserId
 import dev.inmo.wishlist.features.wishlist.common.models.RegisteredWishlist
 import dev.inmo.wishlist.features.wishlist.common.models.RegisteredWishlistItem
@@ -104,6 +105,14 @@ class WishlistViewModel(
     /** Shared selected conversion target; `null` means original prices. */
     val selectedCurrencyState: StateFlow<CurrencyCode?> = model.selectedCurrency
 
+    private val _viewModeState = MutableRedeliverStateFlow(WishlistViewMode.List)
+
+    /**
+     * Currently selected presentation of the items: [WishlistViewMode.List] (rows) or
+     * [WishlistViewMode.Grid] (cards). Defaults to [WishlistViewMode.List].
+     */
+    val viewModeState = _viewModeState.asStateFlow()
+
     init {
         merge(flowOf(Unit), node.onResumeFlow).subscribeLoggingDropExceptions(scope) {
             loadWishlist()
@@ -173,6 +182,31 @@ class WishlistViewModel(
     fun onSortModeSelected(mode: WishlistSortMode) {
         _sortModeState.value = mode
     }
+
+    /**
+     * Changes the presentation of the items between rows and a card grid.
+     *
+     * @param mode New view mode.
+     */
+    fun onViewModeSelected(mode: WishlistViewMode) {
+        _viewModeState.value = mode
+    }
+
+    /**
+     * Download URL of image [id], for platforms that render images directly from a URL (JS).
+     *
+     * @param id Image file identifier.
+     * @return Absolute URL the image can be fetched from.
+     */
+    fun imageUrl(id: FileId): String = model.imageUrl(id)
+
+    /**
+     * Raw bytes of image [id], for platforms that decode images locally (JVM/Android).
+     *
+     * @param id Image file identifier.
+     * @return Encoded image bytes, or `null` when the download fails.
+     */
+    suspend fun loadImageBytes(id: FileId): ByteArray? = model.loadImageBytes(id)
 
     /** Delegates to [WishlistViewInteractor.onAddItem]. */
     fun onAddItem() {

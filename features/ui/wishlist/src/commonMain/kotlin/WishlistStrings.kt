@@ -4,6 +4,7 @@ import dev.inmo.micro_utils.language_codes.IetfLang
 import dev.inmo.micro_utils.strings.buildStringResource
 import dev.inmo.wishlist.features.common.client.CommonStrings
 import dev.inmo.wishlist.features.ui.wishlist.ui.WishlistSortMode
+import dev.inmo.wishlist.features.ui.wishlist.ui.WishlistViewMode
 import dev.inmo.wishlist.features.wishlist.common.models.Priority
 
 /** Localized string resources for the wishlist UI feature. */
@@ -48,6 +49,9 @@ object WishlistStrings {
     val sortTitle = buildStringResource("Title") { IetfLang.Russian("Название") }
     val currencyLabel = buildStringResource("Currency") { IetfLang.Russian("Валюта") }
     val currencyOriginal = buildStringResource("Original") { IetfLang.Russian("Исходная") }
+    val viewModeLabel = buildStringResource("View") { IetfLang.Russian("Вид") }
+    val viewModeList = buildStringResource("List") { IetfLang.Russian("Список") }
+    val viewModeGrid = buildStringResource("Grid") { IetfLang.Russian("Плитка") }
     val loading = buildStringResource("Loading...") { IetfLang.Russian("Загрузка...") }
     val editWishlistTitle = buildStringResource("Edit Wishlist") { IetfLang.Russian("Редактировать список") }
     val newItemTitle = buildStringResource("New Item") { IetfLang.Russian("Новый товар") }
@@ -109,4 +113,14 @@ fun WishlistSortMode.labelResource() = when (this) {
     WishlistSortMode.Cost -> WishlistStrings.sortCost
     WishlistSortMode.Priority -> WishlistStrings.sortPriority
     WishlistSortMode.Title -> WishlistStrings.sortTitle
+}
+
+/**
+ * Maps a [WishlistViewMode] to the matching localized label resource shown in the view-mode selector.
+ *
+ * @return The localized name of the view mode.
+ */
+fun WishlistViewMode.labelResource() = when (this) {
+    WishlistViewMode.List -> WishlistStrings.viewModeList
+    WishlistViewMode.Grid -> WishlistStrings.viewModeGrid
 }

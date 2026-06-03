@@ -39,9 +39,11 @@ class WishlistView(
     @Composable
     override fun onDraw() {
         super.onDraw()
+        val wishlist by viewModel.wishlistState.collectAsState()
         val items by viewModel.itemsState.collectAsState()
         val sortMode by viewModel.sortModeState.collectAsState()
         val sortedItems by viewModel.sortedItemsState.collectAsState()
+        val viewMode by viewModel.viewModeState.collectAsState()
         val isOwner by viewModel.isOwnerState.collectAsState()
         val loading by viewModel.loadingState.collectAsState()
         val currencyEnabled by viewModel.currencyEnabledState.collectAsState()
@@ -82,31 +84,50 @@ class WishlistView(
                         onCurrencySelected = viewModel::onCurrencySelected
                     )
                 }
-                Ul({ classes("list-group", "mb-3") }) {
-                    sortedItems.forEach { item ->
-                        ListRow(onSelect = { viewModel.onViewItem(item.id) }) {
-                            Div({ classes("flex-grow-1") }) {
-                                Div({ classes("d-flex", "justify-content-between", "align-items-center") }) {
-                                    Div({ classes("d-flex", "align-items-center", "gap-2") }) {
-                                        Span { Text(item.title) }
-                                        PriorityBadge(item.priority)
-                                    }
-                                    if (item.approximatePrice != null) {
-                                        Span({ classes("text-muted", "small") }) {
-                                            Text(
-                                                formatItemPrice(
-                                                    item.approximatePrice,
-                                                    item.priceUnits,
-                                                    selectedCurrency,
-                                                    rates
+                ViewModeSelector(
+                    selected = viewMode,
+                    onViewModeSelected = viewModel::onViewModeSelected
+                )
+                if (viewMode == WishlistViewMode.Grid) {
+                    Div({ classes("row", "row-cols-1", "row-cols-sm-2", "row-cols-md-3", "g-3", "mb-3") }) {
+                        sortedItems.forEach { item ->
+                            Div({ classes("col") }) {
+                                WishlistItemCard(
+                                    item = item,
+                                    wishlistTitle = wishlist?.title,
+                                    imageUrl = viewModel::imageUrl,
+                                    onSelect = { viewModel.onViewItem(item.id) }
+                                )
+                            }
+                        }
+                    }
+                } else {
+                    Ul({ classes("list-group", "mb-3") }) {
+                        sortedItems.forEach { item ->
+                            ListRow(onSelect = { viewModel.onViewItem(item.id) }) {
+                                Div({ classes("flex-grow-1") }) {
+                                    Div({ classes("d-flex", "justify-content-between", "align-items-center") }) {
+                                        Div({ classes("d-flex", "align-items-center", "gap-2") }) {
+                                            Span { Text(item.title) }
+                                            PriorityBadge(item.priority)
+                                        }
+                                        if (item.approximatePrice != null) {
+                                            Span({ classes("text-muted", "small") }) {
+                                                Text(
+                                                    formatItemPrice(
+                                                        item.approximatePrice,
+                                                        item.priceUnits,
+                                                        selectedCurrency,
+                                                        rates
+                                                    )
                                                 )
-                                            )
+                                            }
                                         }
                                     }
-                                }
-                                if (item.description.isNotBlank()) {
-                                    P({ classes("mb-0", "text-muted", "small", "mt-1") }) {
-                                        Text(item.description)
+                                    if (item.description.isNotBlank()) {
+                                        P({ classes("mb-0", "text-muted", "small", "mt-1") }) {
+                                            Text(item.description)
+                                        }
                                     }
                                 }
                             }
