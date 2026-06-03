@@ -18,17 +18,20 @@ import org.jetbrains.compose.web.dom.Text
  * @param onSortModeSelected Invoked with the mode the user picked.
  * @param noneLabel Label resource used for [WishlistSortMode.None]; defaults to [WishlistStrings.sortNone]
  * ("Grouped"). The detail screen passes [WishlistStrings.sortDefault] instead.
+ * @param availableModes Modes to offer; defaults to all. Callers drop [WishlistSortMode.Cost] when
+ * price sorting is not meaningful (currency feature disabled and items use mixed currencies).
  */
 @Composable
 fun WishlistSortSelector(
     selected: WishlistSortMode,
     onSortModeSelected: (WishlistSortMode) -> Unit,
     noneLabel: StringResource = WishlistStrings.sortNone,
+    availableModes: List<WishlistSortMode> = WishlistSortMode.entries,
 ) {
     Div({ classes("d-flex", "align-items-center", "mb-3", "gap-2", "flex-wrap") }) {
         Span({ classes("text-muted", "small") }) { Text(WishlistStrings.sortLabel.translation()) }
         Div({ classes("btn-group", "btn-group-sm") }) {
-            WishlistSortMode.entries.forEach { mode ->
+            availableModes.forEach { mode ->
                 val active = mode == selected
                 val label = if (mode == WishlistSortMode.None) {
                     noneLabel.translation()

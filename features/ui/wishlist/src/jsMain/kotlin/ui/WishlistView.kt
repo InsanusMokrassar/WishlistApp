@@ -9,6 +9,7 @@ import dev.inmo.navigation.mvvm.compose.ComposeView
 import dev.inmo.wishlist.features.common.client.models.ViewConfig
 import dev.inmo.wishlist.features.common.client.ui.components.BackButton
 import dev.inmo.wishlist.features.common.client.ui.components.ListRow
+import dev.inmo.wishlist.features.currency.common.utils.formatItemPrice
 import dev.inmo.wishlist.features.ui.topBar.ui.TopBarTitleProvider
 import dev.inmo.wishlist.features.ui.wishlist.WishlistStrings
 import org.jetbrains.compose.web.dom.Button
@@ -45,6 +46,11 @@ class WishlistView(
         val viewMode by viewModel.viewModeState.collectAsState()
         val isOwner by viewModel.isOwnerState.collectAsState()
         val loading by viewModel.loadingState.collectAsState()
+        val currencyEnabled by viewModel.currencyEnabledState.collectAsState()
+        val currencies by viewModel.currenciesState.collectAsState()
+        val selectedCurrency by viewModel.selectedCurrencyState.collectAsState()
+        val rates by viewModel.ratesState.collectAsState()
+        val costSortAvailable by viewModel.costSortAvailableState.collectAsState()
 
         Div({ classes("container", "py-3") }) {
             Div({ classes("d-flex", "align-items-center", "mb-3", "gap-2") }) {
@@ -70,8 +76,16 @@ class WishlistView(
                 WishlistSortSelector(
                     selected = sortMode,
                     onSortModeSelected = viewModel::onSortModeSelected,
-                    noneLabel = WishlistStrings.sortDefault
+                    noneLabel = WishlistStrings.sortDefault,
+                    availableModes = sortModesFor(costSortAvailable)
                 )
+                if (currencyEnabled && currencies.isNotEmpty()) {
+                    CurrencySelector(
+                        currencies = currencies,
+                        selected = selectedCurrency,
+                        onCurrencySelected = viewModel::onCurrencySelected
+                    )
+                }
                 ViewModeSelector(
                     selected = viewMode,
                     onViewModeSelected = viewModel::onViewModeSelected
@@ -99,9 +113,16 @@ class WishlistView(
                                             Span { Text(item.title) }
                                             PriorityBadge(item.priority)
                                         }
-                                        item.approximatePrice?.let { price ->
+                                        if (item.approximatePrice != null) {
                                             Span({ classes("text-muted", "small") }) {
-                                                Text("${price} ${item.priceUnits}")
+                                                Text(
+                                                    formatItemPrice(
+                                                        item.approximatePrice,
+                                                        item.priceUnits,
+                                                        selectedCurrency,
+                                                        rates
+                                                    )
+                                                )
                                             }
                                         }
                                     }

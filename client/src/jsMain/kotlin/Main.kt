@@ -22,6 +22,7 @@ fun main() {
                         dev.inmo.wishlist.features.wishlist.client.JSPlugin,
                         dev.inmo.wishlist.features.files.client.JSPlugin,
                         dev.inmo.wishlist.features.admin.client.JSPlugin,
+                        dev.inmo.wishlist.features.currency.client.JSPlugin,
 
                         dev.inmo.wishlist.features.ui.sample.JSPlugin,
                         dev.inmo.wishlist.features.ui.auth.JSPlugin,

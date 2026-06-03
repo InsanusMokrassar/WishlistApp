@@ -161,15 +161,13 @@ class WishlistItemEditView(
                     }
                 }
                 Div({ classes("col") }) {
-                    Label("item-units") { Text(WishlistStrings.priceUnitsLabel.translation()) }
-                    Input(InputType.Text) {
-                        id("item-units")
-                        classes("form-control")
-                        value(priceUnits)
-                        placeholder("$, €, USD...")
-                        onInput { viewModel.onPriceUnitsChanged(it.value) }
-                        if (loading) disabled()
-                    }
+                    PriceUnitsSelector(
+                        label = WishlistStrings.priceUnitsLabel.translation(),
+                        value = priceUnits,
+                        enabled = !loading,
+                        onValueChange = { viewModel.onPriceUnitsChanged(it) },
+                        id = "item-units"
+                    )
                 }
             }
 

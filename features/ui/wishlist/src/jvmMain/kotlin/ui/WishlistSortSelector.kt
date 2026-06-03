@@ -24,12 +24,15 @@ import dev.inmo.wishlist.features.ui.wishlist.labelResource
  * @param onSortModeSelected Invoked with the mode the user picked.
  * @param noneLabel Label resource used for [WishlistSortMode.None]; defaults to [WishlistStrings.sortNone]
  * ("Grouped"). The detail screen passes [WishlistStrings.sortDefault] instead.
+ * @param availableModes Modes to offer; defaults to all. Callers drop [WishlistSortMode.Cost] when
+ * price sorting is not meaningful (currency feature disabled and items use mixed currencies).
  */
 @Composable
 fun WishlistSortSelector(
     selected: WishlistSortMode,
     onSortModeSelected: (WishlistSortMode) -> Unit,
     noneLabel: StringResource = WishlistStrings.sortNone,
+    availableModes: List<WishlistSortMode> = WishlistSortMode.entries,
 ) {
     Row(
         modifier = Modifier.fillMaxWidth(),
@@ -37,7 +40,7 @@ fun WishlistSortSelector(
         verticalAlignment = Alignment.CenterVertically
     ) {
         Text(WishlistStrings.sortLabel.translation(), style = MaterialTheme.typography.caption)
-        WishlistSortMode.entries.forEach { mode ->
+        availableModes.forEach { mode ->
             val active = mode == selected
             val label = if (mode == WishlistSortMode.None) {
                 noneLabel.translation()

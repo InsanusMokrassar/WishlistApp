@@ -24,6 +24,7 @@ import dev.inmo.navigation.core.NavigationChain
 import dev.inmo.navigation.mvvm.compose.ComposeView
 import dev.inmo.wishlist.features.common.client.models.ViewConfig
 import dev.inmo.wishlist.features.common.client.ui.components.BackButton
+import dev.inmo.wishlist.features.currency.common.utils.formatItemPrice
 import dev.inmo.wishlist.features.ui.topBar.ui.TopBarTitleProvider
 import dev.inmo.wishlist.features.ui.wishlist.WishlistStrings
 import org.koin.core.component.inject
@@ -50,6 +51,10 @@ class WishlistItemView(
         val item by viewModel.itemState.collectAsState()
         val loading by viewModel.loadingState.collectAsState()
         val isOwner by viewModel.isOwnerState.collectAsState()
+        val currencyEnabled by viewModel.currencyEnabledState.collectAsState()
+        val currencies by viewModel.currenciesState.collectAsState()
+        val selectedCurrency by viewModel.selectedCurrencyState.collectAsState()
+        val rates by viewModel.ratesState.collectAsState()
 
         Column(
             modifier = Modifier.fillMaxSize().padding(16.dp).verticalScroll(rememberScrollState()),
@@ -78,9 +83,20 @@ class WishlistItemView(
                     Text(it.description, style = MaterialTheme.typography.body1)
                 }
 
+                if (currencyEnabled && currencies.isNotEmpty()) {
+                    CurrencySelector(
+                        currencies = currencies,
+                        selected = selectedCurrency,
+                        onCurrencySelected = viewModel::onCurrencySelected
+                    )
+                }
+
                 Text(WishlistStrings.priceLabel.translation(), style = MaterialTheme.typography.subtitle2)
                 if (it.approximatePrice != null) {
-                    Text("${it.approximatePrice} ${it.priceUnits}", style = MaterialTheme.typography.body1)
+                    Text(
+                        formatItemPrice(it.approximatePrice, it.priceUnits, selectedCurrency, rates),
+                        style = MaterialTheme.typography.body1
+                    )
                 } else {
                     Text(WishlistStrings.noPrice.translation(), style = MaterialTheme.typography.caption)
                 }

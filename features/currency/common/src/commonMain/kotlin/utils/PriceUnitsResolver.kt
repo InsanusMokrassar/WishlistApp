@@ -1,0 +1,336 @@
+package dev.inmo.wishlist.features.currency.common.utils
+
+import dev.inmo.wishlist.features.currency.common.models.CurrencyCode
+
+/**
+ * Best-effort resolver mapping a free-form `priceUnits` label (as stored on wishlist items) to an
+ * ISO [CurrencyCode] suitable for conversion.
+ *
+ * Wishlist items store `priceUnits` as arbitrary text (e.g. `"$"`, `"€"`, `"USD"`), so conversion is
+ * only possible when the label can be recognized. Anything unrecognized resolves to `null`, in which
+ * case callers must display the price unchanged.
+ */
+object PriceUnitsResolver {
+    /**
+     * Primary table mapping each ISO [CurrencyCode] to its display symbol, covering the full ISO-4217
+     * set. Source of truth from which [symbolToCode] is derived. Several codes share a glyph (e.g. many
+     * dollar currencies use `$`); duplicates are intentional and last-write-wins per [mapOf].
+     */
+    val codeToSymbol: Map<CurrencyCode, String> = mapOf(
+        CurrencyCode("AFN") to "؋",
+        CurrencyCode("ALL") to "Lek",
+        CurrencyCode("DZD") to "د.ج",
+        CurrencyCode("USD") to "$",
+        CurrencyCode("EUR") to "€",
+        CurrencyCode("AOA") to "is",
+        CurrencyCode("XCD") to "$",
+        CurrencyCode("XCD") to "$",
+        CurrencyCode("ARS") to "$",
+        CurrencyCode("AMD") to "Դ",
+        CurrencyCode("AWG") to "ƒ",
+        CurrencyCode("AUD") to "$",
+        CurrencyCode("EUR") to "€",
+        CurrencyCode("AZN") to "₼",
+        CurrencyCode("BSD") to "$",
+        CurrencyCode("BHD") to "ب.د",
+        CurrencyCode("BDT") to "৳",
+        CurrencyCode("BBD") to "$",
+        CurrencyCode("BYN") to "p.",
+        CurrencyCode("EUR") to "€",
+        CurrencyCode("BZD") to "$",
+        CurrencyCode("XOF") to "Franc",
+        CurrencyCode("BMD") to "$",
+        CurrencyCode("BTN") to "Nu",
+        CurrencyCode("BOB") to "Bs.",
+        CurrencyCode("BOV") to "Mvdol",
+        CurrencyCode("BES") to "$",
+        CurrencyCode("BAM") to "КМ",
+        CurrencyCode("BWP") to "P",
+        CurrencyCode("NOK") to "kr",
+        CurrencyCode("BRL") to "R$",
+        CurrencyCode("USD") to "$",
+        CurrencyCode("BND") to "$",
+        CurrencyCode("BGN") to "лв",
+        CurrencyCode("XOF") to "Franc",
+        CurrencyCode("BIF") to "₣",
+        CurrencyCode("CVE") to "$",
+        CurrencyCode("KHR") to "៛",
+        CurrencyCode("XAF") to "CFA Franc BEAC",
+        CurrencyCode("CAD") to "$",
+        CurrencyCode("KYD") to "$",
+        CurrencyCode("XAF") to "₣",
+        CurrencyCode("XAF") to "CFA Franc BEAC",
+        CurrencyCode("CLP") to "$",
+        CurrencyCode("CNY") to "¥",
+        CurrencyCode("AUD") to "$",
+        CurrencyCode("AUD") to "$",
+        CurrencyCode("COP") to "$",
+        CurrencyCode("KMF") to "FC",
+        CurrencyCode("CDF") to "₣",
+        CurrencyCode("NZD") to "$",
+        CurrencyCode("CRC") to "₡",
+        CurrencyCode("HRK") to "Kn",
+        CurrencyCode("CUP") to "₱",
+        CurrencyCode("ANG") to "ƒ",
+        CurrencyCode("EUR") to "€",
+        CurrencyCode("CZK") to "Kč",
+        CurrencyCode("XOF") to "Franc",
+        CurrencyCode("DKK") to "kr.",
+        CurrencyCode("DJF") to "₣",
+        CurrencyCode("XCD") to "$",
+        CurrencyCode("DOP") to "$",
+        CurrencyCode("USD") to "$",
+        CurrencyCode("EGP") to "£",
+        CurrencyCode("USD") to "$",
+        CurrencyCode("XAF") to "FCFA",
+        CurrencyCode("ERN") to "Nfk",
+        CurrencyCode("EUR") to "€",
+        CurrencyCode("ETB") to "Br",
+        CurrencyCode("FKP") to "£",
+        CurrencyCode("DKK") to "kr.",
+        CurrencyCode("FJD") to "$",
+        CurrencyCode("EUR") to "€",
+        CurrencyCode("EUR") to "€",
+        CurrencyCode("EUR") to "€",
+        CurrencyCode("XPF") to "₣",
+        CurrencyCode("EUR") to "€",
+        CurrencyCode("XAF") to "FCFA",
+        CurrencyCode("GMD") to "D",
+        CurrencyCode("GEL") to "ლ",
+        CurrencyCode("EUR") to "€",
+        CurrencyCode("GHS") to "₵",
+        CurrencyCode("GIP") to "£",
+        CurrencyCode("EUR") to "€",
+        CurrencyCode("DKK") to "kr.",
+        CurrencyCode("XCD") to "$",
+        CurrencyCode("EUR") to "€",
+        CurrencyCode("USD") to "$",
+        CurrencyCode("GTQ") to "Q",
+        CurrencyCode("GBP") to "£",
+        CurrencyCode("GNF") to "₣",
+        CurrencyCode("XOF") to "Franc",
+        CurrencyCode("GYD") to "$",
+        CurrencyCode("HTG") to "G",
+        CurrencyCode("USD") to "$",
+        CurrencyCode("AUD") to "$",
+        CurrencyCode("EUR") to "€",
+        CurrencyCode("HNL") to "L",
+        CurrencyCode("HKD") to "$",
+        CurrencyCode("HUF") to "Ft",
+        CurrencyCode("ISK") to "Kr",
+        CurrencyCode("INR") to "₨",
+        CurrencyCode("IDR") to "Rp",
+        CurrencyCode("IRR") to "﷼",
+        CurrencyCode("IQD") to "ع.د",
+        CurrencyCode("EUR") to "€",
+        CurrencyCode("GBP") to "£",
+        CurrencyCode("ILS") to "₪",
+        CurrencyCode("EUR") to "€",
+        CurrencyCode("JMD") to "$",
+        CurrencyCode("JPY") to "¥",
+        CurrencyCode("GBP") to "£",
+        CurrencyCode("JOD") to "د.ا",
+        CurrencyCode("KZT") to "〒",
+        CurrencyCode("KES") to "Sh",
+        CurrencyCode("AUD") to "$",
+        CurrencyCode("KPW") to "₩",
+        CurrencyCode("KRW") to "₩",
+        CurrencyCode("KWD") to "د.ك",
+        CurrencyCode("KGS") to "лв",
+        CurrencyCode("LAK") to "₭",
+        CurrencyCode("EUR") to "€",
+        CurrencyCode("LBP") to "ل.ل",
+        CurrencyCode("LSL") to "L",
+        CurrencyCode("ZAR") to "R",
+        CurrencyCode("LRD") to "$",
+        CurrencyCode("LYD") to "ل.د",
+        CurrencyCode("CHF") to "CHF",
+        CurrencyCode("EUR") to "€",
+        CurrencyCode("EUR") to "€",
+        CurrencyCode("MOP") to "P",
+        CurrencyCode("MGA") to "MK",
+        CurrencyCode("MWK") to "MK",
+        CurrencyCode("MYR") to "RM",
+        CurrencyCode("MVR") to "ރ",
+        CurrencyCode("XOF") to "Franc",
+        CurrencyCode("EUR") to "€",
+        CurrencyCode("USD") to "$",
+        CurrencyCode("EUR") to "€",
+        CurrencyCode("MRU") to "UM",
+        CurrencyCode("MUR") to "₨",
+        CurrencyCode("EUR") to "€",
+        CurrencyCode("MXN") to "$",
+        CurrencyCode("MXV") to "-",
+        CurrencyCode("USD") to "$",
+        CurrencyCode("MDL") to "L",
+        CurrencyCode("EUR") to "€",
+        CurrencyCode("MNT") to "₮",
+        CurrencyCode("EUR") to "€",
+        CurrencyCode("XCD") to "$",
+        CurrencyCode("MAD") to "د.م.",
+        CurrencyCode("MZN") to "MTn",
+        CurrencyCode("MMK") to "Myanmar is K",
+        CurrencyCode("NAD") to "$",
+        CurrencyCode("ZAR") to "R",
+        CurrencyCode("AUD") to "$",
+        CurrencyCode("NPR") to "₨",
+        CurrencyCode("EUR") to "€",
+        CurrencyCode("XPF") to "₣",
+        CurrencyCode("NZD") to "$",
+        CurrencyCode("NIO") to "C$",
+        CurrencyCode("XOF") to "Franc",
+        CurrencyCode("NGN") to "₦",
+        CurrencyCode("NZD") to "$",
+        CurrencyCode("AUD") to "$",
+        CurrencyCode("USD") to "$",
+        CurrencyCode("NOK") to "kr",
+        CurrencyCode("OMR") to "﷼",
+        CurrencyCode("PKR") to "₨",
+        CurrencyCode("USD") to "$",
+        CurrencyCode("PAB") to "B/.",
+        CurrencyCode("USD") to "$",
+        CurrencyCode("PGK") to "K",
+        CurrencyCode("PYG") to "₲",
+        CurrencyCode("PEN") to "S/.",
+        CurrencyCode("PHP") to "₱",
+        CurrencyCode("NZD") to "$",
+        CurrencyCode("PLN") to "zł",
+        CurrencyCode("EUR") to "€",
+        CurrencyCode("USD") to "$",
+        CurrencyCode("QAR") to "ر.ق",
+        CurrencyCode("MKD") to "ден",
+        CurrencyCode("RON") to "L",
+        CurrencyCode("RUB") to "₽",
+        CurrencyCode("RWF") to "₣",
+        CurrencyCode("EUR") to "€",
+        CurrencyCode("EUR") to "€",
+        CurrencyCode("SHP") to "£",
+        CurrencyCode("XCD") to "$",
+        CurrencyCode("XCD") to "$",
+        CurrencyCode("EUR") to "€",
+        CurrencyCode("EUR") to "€",
+        CurrencyCode("XCD") to "$",
+        CurrencyCode("WST") to "$",
+        CurrencyCode("EUR") to "€",
+        CurrencyCode("STN") to "Db",
+        CurrencyCode("SAR") to "ر.س",
+        CurrencyCode("XOF") to "Franc",
+        CurrencyCode("RSD") to "din",
+        CurrencyCode("SCR") to "Rs",
+        CurrencyCode("SLL") to "Le",
+        CurrencyCode("SGD") to "$",
+        CurrencyCode("ANG") to "ƒ",
+        CurrencyCode("EUR") to "€",
+        CurrencyCode("EUR") to "€",
+        CurrencyCode("SBD") to "$",
+        CurrencyCode("SOS") to "Sh",
+        CurrencyCode("ZAR") to "R",
+        CurrencyCode("SSP") to "SS£",
+        CurrencyCode("EUR") to "€",
+        CurrencyCode("LKR") to "Rs",
+        CurrencyCode("SDG") to "£",
+        CurrencyCode("SRD") to "$",
+        CurrencyCode("NOK") to "kr",
+        CurrencyCode("SZL") to "L",
+        CurrencyCode("SEK") to "kr",
+        CurrencyCode("CHF") to "₣",
+        CurrencyCode("SYP") to "£",
+        CurrencyCode("TWD") to "NT$",
+        CurrencyCode("TJS") to "ЅМ",
+        CurrencyCode("TZS") to "Sh",
+        CurrencyCode("THB") to "฿",
+        CurrencyCode("USD") to "$",
+        CurrencyCode("XOF") to "Franc",
+        CurrencyCode("NZD") to "$",
+        CurrencyCode("TOP") to "T$",
+        CurrencyCode("TTD") to "$",
+        CurrencyCode("TND") to "د.ت",
+        CurrencyCode("TRY") to "TL",
+        CurrencyCode("TMT") to "m",
+        CurrencyCode("USD") to "$",
+        CurrencyCode("AUD") to "$",
+        CurrencyCode("UGX") to "Sh",
+        CurrencyCode("UAH") to "₴",
+        CurrencyCode("AED") to "د.م.",
+        CurrencyCode("GBP") to "£",
+        CurrencyCode("USD") to "$",
+        CurrencyCode("USD") to "$",
+        CurrencyCode("UYU") to "$",
+        CurrencyCode("UZS") to "лв",
+        CurrencyCode("VUV") to "Vt",
+        CurrencyCode("VEF") to "Bs.",
+        CurrencyCode("VND") to "₫",
+        CurrencyCode("USD") to "$",
+        CurrencyCode("USD") to "$",
+        CurrencyCode("XPF") to "Franc",
+        CurrencyCode("MAD") to "د.م.",
+        CurrencyCode("YER") to "﷼",
+        CurrencyCode("ZMW") to "ZK",
+        CurrencyCode("ZWL") to "$",
+        CurrencyCode("EUR") to "€",
+    )
+
+    /**
+     * Display symbol mapped to its ISO [CurrencyCode], derived by inverting [codeToSymbol]. Because a
+     * glyph can map to many codes, the trailing override map pins ambiguous symbols to their most
+     * widely-recognized code so [resolve] is deterministic.
+     */
+    val symbolToCode: Map<String, CurrencyCode> = codeToSymbol.entries.associate {
+        (symbol, code) -> code to symbol
+    } + mapOf( // Force these currencies to be resolved into the most known codes
+        "$" to CurrencyCode("USD"),
+        "€" to CurrencyCode("EUR"),
+        "£" to CurrencyCode("GBP"),
+        "¥" to CurrencyCode("JPY"),
+        "₽" to CurrencyCode("RUB"),
+        "₴" to CurrencyCode("UAH"),
+        "₹" to CurrencyCode("INR")
+    )
+
+    /** Inverse lookup: returns the display symbol for [currencyCode], or `null` when no symbol is known. */
+    fun resolve(currencyCode: CurrencyCode): String? {
+        return codeToSymbol[currencyCode]
+    }
+
+    /** All known (code, symbol) pairs sorted by ISO code — the catalogue backing currency pickers. */
+    val entries: List<Pair<CurrencyCode, String>> =
+        codeToSymbol.entries.map { it.key to it.value }.sortedBy { it.first.code }
+
+    /**
+     * Filters [entries] by [query], matching the ISO code or the symbol case-insensitively, so a picker
+     * can find a currency symbol by typing its code (e.g. `"USD"` → `$`) or by the symbol itself. A
+     * blank query returns all [entries].
+     *
+     * @param query Free-form search text (code fragment or symbol).
+     * @return Matching (code, symbol) pairs sorted by code; all entries when [query] is blank.
+     */
+    fun search(query: String): List<Pair<CurrencyCode, String>> {
+        val trimmed = query.trim()
+        if (trimmed.isEmpty()) return entries
+        val upper = trimmed.uppercase()
+        return entries.filter { (code, symbol) ->
+            code.code.contains(upper) || symbol.contains(trimmed, ignoreCase = true)
+        }
+    }
+
+    /**
+     * Resolves [priceUnits] to a [CurrencyCode] on a best-effort basis.
+     *
+     * Resolution order: exact symbol match, then an already-ISO three-letter alphabetic code.
+     * Returns `null` for blank input or anything that cannot be confidently recognized; the returned
+     * code is not validated against any rates table — callers should treat a missing rate as
+     * "not convertible".
+     *
+     * @param priceUnits Free-form units label stored on the item.
+     * @return Resolved [CurrencyCode] or `null` when unrecognized.
+     */
+    fun resolve(priceUnits: String): CurrencyCode? {
+        val trimmed = priceUnits.trim()
+        if (trimmed.isEmpty()) return null
+        symbolToCode[trimmed]?.let { return it }
+        if (trimmed.length == 3 && trimmed.all { it.isLetter() }) {
+            return CurrencyCode.of(trimmed)
+        }
+        return null
+    }
+}

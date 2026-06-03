@@ -46,10 +46,10 @@ Note: item `create` maps both "parent not found" and "caller not owner" to `null
 | Type | Package | Description |
 |------|---------|-------------|
 | `WishlistId` | common | `@JvmInline value class(val long: Long)` — primary key |
-| `Wishlist` | common | Sealed interface; base for `NewWishlist` and `RegisteredWishlist` (`userId`, `title`) |
-| `NewWishlist` | common | Internal create payload: `userId: UserId`, `title: String`; never sent over the wire |
-| `NewWishlistInFeature` | common | Client-facing create/update payload: `title: String` only; owner resolved server-side |
-| `RegisteredWishlist` | common | Persisted entity: `id: WishlistId`, `userId: UserId`, `title: String` |
+| `Wishlist` | common | Sealed interface; base for `NewWishlist` and `RegisteredWishlist` (`userId`, `title`, `defaultPriceUnits: String`) |
+| `NewWishlist` | common | Internal create payload: `userId: UserId`, `title: String`, `defaultPriceUnits: String = ""`; never sent over the wire |
+| `NewWishlistInFeature` | common | Client-facing create/update payload: `title: String`, `defaultPriceUnits: String = ""`; owner resolved server-side |
+| `RegisteredWishlist` | common | Persisted entity: `id: WishlistId`, `userId: UserId`, `title: String`, `defaultPriceUnits: String` |
 | `WishlistsFeature` | client | Client-side interface: `getByUserId`, `getMyWishlists`, `create`, `update`, `delete` |
 
 ### Wishlist Item
@@ -71,7 +71,7 @@ Note: item `create` maps both "parent not found" and "caller not owner" to `null
 - Ownership check for items: `WishlistItemService.create` resolves parent wishlist from `NewWishlistItem.wishlistId`; returns `null` for both not found and not owner. `update`/`delete` fetch the item then the parent wishlist; `null` = item or parent not found, `false` = not owner.
 - `WishlistItemService(get(), get())` — two Koin `get()` calls: first resolves `WishlistItemRepo`, second resolves `WishlistRepo` (registered by `wishlist.common.JVMPlugin`).
 - DB tables:
-  - `wishlists`: `id BIGINT PK AUTO`, `user_id BIGINT`, `title TEXT`
+  - `wishlists`: `id BIGINT PK AUTO`, `user_id BIGINT`, `title TEXT`, `default_price_units TEXT` (default `""`)
   - `wishlist_items`: `id BIGINT PK AUTO`, `wishlist_id BIGINT`, `title TEXT`, `priority_weight BIGINT` (default 50 = Priority.Medium), `approx_price_int BIGINT NULL`, `approx_price_dec BIGINT NULL`, `price_units TEXT`, `description TEXT`
   - `wishlist_item_links`: `item_id BIGINT FK→wishlist_items.id ON DELETE CASCADE`, `link TEXT`, `PK(item_id, link)`
   - `wishlist_item_images`: `item_id BIGINT FK→wishlist_items.id ON DELETE CASCADE`, `file_id TEXT`, `order INT` (display order), `PK(item_id, file_id)` — managed by `ExposedWishlistItemRepo`

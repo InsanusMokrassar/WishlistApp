@@ -21,6 +21,7 @@ import org.jetbrains.exposed.v1.jdbc.transactions.transaction
  * - `id` — BIGINT, autoincrement primary key → [WishlistId]
  * - `user_id` — BIGINT → [UserId]
  * - `title` — TEXT → display name
+ * - `default_price_units` — TEXT (default `""`) → default currency/units label for new items
  *
  * @param database Exposed [Database] instance injected from Koin.
  */
@@ -30,6 +31,7 @@ class ExposedWishlistRepo(
     private val idColumn = long("id").autoIncrement()
     private val userIdColumn = long("user_id")
     private val titleColumn = text("title")
+    private val defaultPriceUnitsColumn = text("default_price_units").default("")
 
     override val primaryKey = PrimaryKey(idColumn)
 
@@ -37,7 +39,8 @@ class ExposedWishlistRepo(
         get() = RegisteredWishlist(
             id = WishlistId(get(idColumn)),
             userId = UserId(get(userIdColumn)),
-            title = get(titleColumn)
+            title = get(titleColumn),
+            defaultPriceUnits = get(defaultPriceUnitsColumn)
         )
 
     override val ResultRow.asId: WishlistId
@@ -52,13 +55,15 @@ class ExposedWishlistRepo(
     override fun update(id: WishlistId?, value: NewWishlist, it: UpdateBuilder<Int>) {
         it[userIdColumn] = value.userId.long
         it[titleColumn] = value.title
+        it[defaultPriceUnitsColumn] = value.defaultPriceUnits
     }
 
     override fun InsertStatement<Number>.asObject(value: NewWishlist): RegisteredWishlist =
         RegisteredWishlist(
             id = WishlistId(this[idColumn]),
             userId = value.userId,
-            title = value.title
+            title = value.title,
+            defaultPriceUnits = value.defaultPriceUnits
         )
 
     /**

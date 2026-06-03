@@ -128,6 +128,17 @@ class WishlistItemEditViewModel(
                 } finally {
                     _loadingState.value = false
                 }
+            } ?: run {
+                // Create mode: pre-fill the currency field with the wishlist's default units.
+                _loadingState.value = true
+                try {
+                    val wishlist = model.getWishlist(node.config.wishlistId)
+                    if (wishlist != null && _priceUnitsState.value.isBlank()) {
+                        _priceUnitsState.value = wishlist.defaultPriceUnits
+                    }
+                } finally {
+                    _loadingState.value = false
+                }
             }
             inited = true
         }

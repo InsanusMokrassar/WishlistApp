@@ -38,6 +38,11 @@ class WishlistEditViewModel(
     /** Current value of the title input field. */
     val titleState = _titleState.asStateFlow()
 
+    private val _defaultPriceUnitsState = MutableRedeliverStateFlow("")
+
+    /** Current default currency/units pre-filled into new items of this wishlist. */
+    val defaultPriceUnitsState = _defaultPriceUnitsState.asStateFlow()
+
     private val _isDirtyState = MutableRedeliverStateFlow(false)
 
     /** `true` when any field has been modified since the screen was opened. */
@@ -70,6 +75,7 @@ class WishlistEditViewModel(
                     val wishlist = model.getWishlist(id)
                     if (wishlist != null) {
                         _titleState.value = wishlist.title
+                        _defaultPriceUnitsState.value = wishlist.defaultPriceUnits
                     }
                 } finally {
                     _loadingState.value = false
@@ -86,6 +92,16 @@ class WishlistEditViewModel(
      */
     fun onTitleChanged(title: String) {
         _titleState.value = title
+        _isDirtyState.value = true
+    }
+
+    /**
+     * Updates the default currency/units field and marks the form as dirty.
+     *
+     * @param units New default currency/units label.
+     */
+    fun onDefaultPriceUnitsChanged(units: String) {
+        _defaultPriceUnitsState.value = units
         _isDirtyState.value = true
     }
 
@@ -152,13 +168,14 @@ class WishlistEditViewModel(
         scope.launchLoggingDropExceptions {
             val title = _titleState.value.trim()
             if (title.isBlank()) return@launchLoggingDropExceptions
+            val defaultPriceUnits = _defaultPriceUnitsState.value.trim()
             _loadingState.value = true
             try {
                 val id = node.config.wishlistId
                 if (id == null) {
-                    model.createWishlist(title)
+                    model.createWishlist(title, defaultPriceUnits)
                 } else {
-                    model.updateWishlist(id, title)
+                    model.updateWishlist(id, title, defaultPriceUnits)
                 }
                 interactor.onSaved(node)
             } finally {

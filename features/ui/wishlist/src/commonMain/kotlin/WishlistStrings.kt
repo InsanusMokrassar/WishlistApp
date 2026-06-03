@@ -19,6 +19,7 @@ object WishlistStrings {
     val descriptionLabel = buildStringResource("Description") { IetfLang.Russian("Описание") }
     val priceLabel = buildStringResource("Approximate price") { IetfLang.Russian("Примерная цена") }
     val priceUnitsLabel = buildStringResource("Currency / Units") { IetfLang.Russian("Валюта / Единицы") }
+    val defaultCurrencyLabel = buildStringResource("Default currency") { IetfLang.Russian("Валюта по умолчанию") }
     val linksLabel = buildStringResource("Links") { IetfLang.Russian("Ссылки") }
     val addLinkButton = buildStringResource("Add link") { IetfLang.Russian("Добавить ссылку") }
     val newLinkPlaceholder = buildStringResource("https://...") { IetfLang.Russian("https://...") }
@@ -47,6 +48,8 @@ object WishlistStrings {
     val sortCost = buildStringResource("Cost") { IetfLang.Russian("Цена") }
     val sortPriority = buildStringResource("Priority") { IetfLang.Russian("Приоритет") }
     val sortTitle = buildStringResource("Title") { IetfLang.Russian("Название") }
+    val currencyLabel = buildStringResource("Currency") { IetfLang.Russian("Валюта") }
+    val currencyOriginal = buildStringResource("Original") { IetfLang.Russian("Исходная") }
     val viewModeLabel = buildStringResource("View") { IetfLang.Russian("Вид") }
     val viewModeList = buildStringResource("List") { IetfLang.Russian("Список") }
     val viewModeGrid = buildStringResource("Grid") { IetfLang.Russian("Плитка") }

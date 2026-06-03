@@ -19,6 +19,7 @@ dependencies {
     api project(":wishlist.features.wishlist.server")
     api project(":wishlist.features.files.server")
     api project(":wishlist.features.admin.server")
+    api project(":wishlist.features.currency.server")
 
     api libs.ktor.websockets
     api libs.ktor.serialization.kotlinx.json

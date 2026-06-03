@@ -60,7 +60,7 @@ class WishlistService(
      * @return Persisted [RegisteredWishlist], or `null` if the repo returned no result.
      */
     suspend fun create(newWishlist: NewWishlistInFeature, userId: UserId): RegisteredWishlist? =
-        wishlistRepo.create(NewWishlist(userId, newWishlist.title)).firstOrNull()
+        wishlistRepo.create(NewWishlist(userId, newWishlist.title, newWishlist.defaultPriceUnits)).firstOrNull()
 
     /**
      * Replaces data of the wishlist identified by [id] if [callerId] owns it.
@@ -73,7 +73,7 @@ class WishlistService(
     suspend fun update(id: WishlistId, newWishlist: NewWishlistInFeature, callerId: UserId): Boolean? {
         val existing = wishlistRepo.getById(id) ?: return null
         if (existing.userId != callerId) return false
-        return wishlistRepo.update(id, NewWishlist(callerId, newWishlist.title)) != null
+        return wishlistRepo.update(id, NewWishlist(callerId, newWishlist.title, newWishlist.defaultPriceUnits)) != null
     }
 
     /**
