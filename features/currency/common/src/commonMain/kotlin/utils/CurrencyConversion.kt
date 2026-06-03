@@ -55,3 +55,61 @@ fun formatItemPrice(
     val converted = convert(price, source, target, rates) ?: return raw
     return "$converted ${target.code}"
 }
+
+/**
+ * The currency most often present among [priceUnitsList] — used as the common currency to compare
+ * prices against when sorting by cost. Only resolvable labels (see [PriceUnitsResolver.resolve])
+ * participate; ties are broken arbitrarily.
+ *
+ * @param priceUnitsList Free-form `priceUnits` labels of the items under consideration.
+ * @return Most frequent resolvable [CurrencyCode], or `null` when none can be resolved.
+ */
+fun dominantCurrency(priceUnitsList: Iterable<String>): CurrencyCode? =
+    priceUnitsList.mapNotNull { PriceUnitsResolver.resolve(it) }
+        .groupingBy { it }
+        .eachCount()
+        .maxByOrNull { it.value }
+        ?.key
+
+/**
+ * Comparable sort key for an item's price expressed in a [common] currency.
+ *
+ * - `null` [price] yields `null` (callers sort these last).
+ * - When [common] or [rates] is `null` (no conversion context — e.g. every item already shares one
+ *   currency), the raw numeric [price] is used directly.
+ * - Otherwise the price is converted from its resolved currency into [common]; an unresolvable label
+ *   or a missing rate yields `null` so the item is sorted last.
+ *
+ * @param price Item price, possibly `null`.
+ * @param priceUnits Free-form units label stored on the item.
+ * @param common Common currency to express all prices in, or `null` to compare raw amounts.
+ * @param rates Latest rates snapshot, or `null` when unavailable.
+ * @return Comparable [Double] key, or `null` when the item cannot be placed.
+ */
+fun costSortKey(
+    price: Amount?,
+    priceUnits: String,
+    common: CurrencyCode?,
+    rates: CurrencyRates?
+): Double? {
+    if (price == null) return null
+    if (common == null || rates == null) return price.toDouble()
+    val source = PriceUnitsResolver.resolve(priceUnits) ?: return null
+    val converted = convert(price, source, common, rates) ?: return null
+    return converted.toDouble()
+}
+
+/**
+ * Whether sort-by-price is meaningful for a set of items: either currency conversion is available
+ * ([currencyEnabled]) or every non-blank currency label is identical, so prices are directly
+ * comparable without conversion.
+ *
+ * @param priceUnitsList Free-form `priceUnits` labels of the items under consideration.
+ * @param currencyEnabled `true` when the currency-conversion feature is enabled server-side.
+ * @return `true` when a price ordering can be produced.
+ */
+fun isCostSortAvailable(priceUnitsList: Iterable<String>, currencyEnabled: Boolean): Boolean {
+    if (currencyEnabled) return true
+    val distinct = priceUnitsList.map { it.trim() }.filter { it.isNotEmpty() }.distinct()
+    return distinct.size <= 1
+}

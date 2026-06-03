@@ -10,6 +10,9 @@ import dev.inmo.wishlist.features.common.client.models.ViewConfig
 import dev.inmo.wishlist.features.currency.common.models.CurrencyCode
 import dev.inmo.wishlist.features.currency.common.models.CurrencyInfo
 import dev.inmo.wishlist.features.currency.common.models.CurrencyRates
+import dev.inmo.wishlist.features.currency.common.utils.costSortKey
+import dev.inmo.wishlist.features.currency.common.utils.dominantCurrency
+import dev.inmo.wishlist.features.currency.common.utils.isCostSortAvailable
 import dev.inmo.wishlist.features.files.common.models.FileId
 import dev.inmo.wishlist.features.wishlist.common.models.RegisteredWishlist
 import dev.inmo.wishlist.features.wishlist.common.models.RegisteredWishlistItem
@@ -53,6 +56,20 @@ enum class WishlistSortMode {
     /** Sort by [RegisteredWishlistItem.title] case-insensitively, ascending. */
     Title
 }
+
+/**
+ * Sort modes to offer in the selector: all modes, minus [WishlistSortMode.Cost] when price sorting
+ * is unavailable (currency feature disabled and items use mixed currencies).
+ *
+ * @param costSortAvailable Whether sorting by price is meaningful for the current item set.
+ * @return Modes to render in the sort selector.
+ */
+fun sortModesFor(costSortAvailable: Boolean): List<WishlistSortMode> =
+    if (costSortAvailable) {
+        WishlistSortMode.entries
+    } else {
+        WishlistSortMode.entries.filter { it != WishlistSortMode.Cost }
+    }
 
 /**
  * One item of the flattened, custom-sorted all-items list together with the title of the wishlist it
@@ -111,30 +128,6 @@ class UserWishlistsViewModel(
      */
     val sortModeState = _sortModeState.asStateFlow()
 
-    /**
-     * Flattened, custom-sorted view of every item across the loaded sections, valid only when
-     * [sortModeState] is not [WishlistSortMode.None]. Empty for [WishlistSortMode.None] (the view
-     * renders [sectionsState] instead). Each entry keeps its wishlist title so the view can show it
-     * after the item title in brackets.
-     */
-    val sortedItemsState = combine(_sectionsState, _sortModeState) { sections, mode ->
-        if (mode == WishlistSortMode.None) {
-            emptyList()
-        } else {
-            val flat = sections.flatMap { section ->
-                section.items.map { SortedWishlistItem(it, section.wishlist.title) }
-            }
-            when (mode) {
-                WishlistSortMode.Cost -> flat.sortedWith(
-                    compareBy(nullsLast()) { it.item.approximatePrice }
-                )
-                WishlistSortMode.Priority -> flat.sortedByDescending { it.item.priority.weight }
-                WishlistSortMode.Title -> flat.sortedBy { it.item.title.lowercase() }
-                WishlistSortMode.None -> flat
-            }
-        }
-    }.stateIn(scope, SharingStarted.Eagerly, emptyList())
-
     private val _currencyEnabledState = MutableRedeliverStateFlow(false)
 
     /** `true` when the currency-conversion feature is enabled and the selector should be shown. */
@@ -149,6 +142,55 @@ class UserWishlistsViewModel(
 
     /** Latest exchange-rate snapshot used to convert displayed prices; `null` when unavailable. */
     val ratesState = _ratesState.asStateFlow()
+
+    /**
+     * `true` when sorting by price is meaningful: the currency feature is enabled (prices can be
+     * converted to a common currency) or every priced item already shares one currency label. The
+     * view hides the Cost sort option when this is `false`.
+     */
+    val costSortAvailableState: StateFlow<Boolean> =
+        combine(_sectionsState, _currencyEnabledState) { sections, enabled ->
+            val pricedUnits = sections.flatMap { it.items }.filter { it.approximatePrice != null }.map { it.priceUnits }
+            isCostSortAvailable(pricedUnits, enabled)
+        }.stateIn(scope, SharingStarted.Eagerly, false)
+
+    /**
+     * Flattened, custom-sorted view of every item across the loaded sections, valid only when
+     * [sortModeState] is not [WishlistSortMode.None]. Empty for [WishlistSortMode.None] (the view
+     * renders [sectionsState] instead). Each entry keeps its wishlist title so the view can show it
+     * after the item title in brackets. [WishlistSortMode.Cost] compares prices in the items' dominant
+     * currency (converted via [ratesState] when the feature is enabled), with unpriced/unconvertible
+     * items last; it falls back to grouped order when cost sorting is unavailable.
+     */
+    val sortedItemsState =
+        combine(_sectionsState, _sortModeState, _ratesState, _currencyEnabledState) { sections, mode, rates, enabled ->
+            val allItems = sections.flatMap { it.items }
+            val pricedUnits = allItems.filter { it.approximatePrice != null }.map { it.priceUnits }
+            val effectiveMode =
+                if (mode == WishlistSortMode.Cost && !isCostSortAvailable(pricedUnits, enabled)) {
+                    WishlistSortMode.None
+                } else {
+                    mode
+                }
+            if (effectiveMode == WishlistSortMode.None) {
+                emptyList()
+            } else {
+                val flat = sections.flatMap { section ->
+                    section.items.map { SortedWishlistItem(it, section.wishlist.title) }
+                }
+                when (effectiveMode) {
+                    WishlistSortMode.Cost -> {
+                        val common = dominantCurrency(allItems.map { it.priceUnits })
+                        flat.sortedWith(
+                            compareBy(nullsLast()) { costSortKey(it.item.approximatePrice, it.item.priceUnits, common, rates) }
+                        )
+                    }
+                    WishlistSortMode.Priority -> flat.sortedByDescending { it.item.priority.weight }
+                    WishlistSortMode.Title -> flat.sortedBy { it.item.title.lowercase() }
+                    WishlistSortMode.None -> flat
+                }
+            }
+        }.stateIn(scope, SharingStarted.Eagerly, emptyList())
 
     /** Shared selected conversion target; `null` means original prices. */
     val selectedCurrencyState: StateFlow<CurrencyCode?> = model.selectedCurrency

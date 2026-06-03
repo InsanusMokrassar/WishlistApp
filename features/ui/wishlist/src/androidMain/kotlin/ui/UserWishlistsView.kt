@@ -72,6 +72,7 @@ class UserWishlistsView(
         val currencies by viewModel.currenciesState.collectAsState()
         val selectedCurrency by viewModel.selectedCurrencyState.collectAsState()
         val rates by viewModel.ratesState.collectAsState()
+        val costSortAvailable by viewModel.costSortAvailableState.collectAsState()
 
         Column(
             modifier = Modifier.fillMaxSize().padding(16.dp),
@@ -95,7 +96,8 @@ class UserWishlistsView(
             } else {
                 WishlistSortSelector(
                     selected = sortMode,
-                    onSortModeSelected = viewModel::onSortModeSelected
+                    onSortModeSelected = viewModel::onSortModeSelected,
+                    availableModes = sortModesFor(costSortAvailable)
                 )
                 if (currencyEnabled && currencies.isNotEmpty()) {
                     CurrencySelector(

@@ -45,6 +45,9 @@ Utilities (`features/currency/common/utils`):
 - `formatItemPrice(price, priceUnits, target, rates): String` — pure display formatter; returns the
   raw `"price priceUnits"` whenever conversion is impossible (no target/rates, unresolved units, or a
   currency missing from the rates), otherwise the converted amount plus the target code.
+- `dominantCurrency(priceUnitsList): CurrencyCode?` — identifies the most frequently resolvable currency among items; used by cost-sorting to establish a common comparison baseline.
+- `costSortKey(price, priceUnits, common, rates): Double?` — computes a comparable numeric key in the common currency for cost sorting; `null` values sort last.
+- `isCostSortAvailable(priceUnitsList, currencyEnabled): Boolean` — determines whether cost sorting is meaningful (true when currency feature is enabled or all priced items already share one currency label).
 
 ## Architecture Notes
 

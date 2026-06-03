@@ -68,6 +68,7 @@ class WishlistView(
         val currencies by viewModel.currenciesState.collectAsState()
         val selectedCurrency by viewModel.selectedCurrencyState.collectAsState()
         val rates by viewModel.ratesState.collectAsState()
+        val costSortAvailable by viewModel.costSortAvailableState.collectAsState()
 
         Column(modifier = Modifier.fillMaxSize().padding(16.dp)) {
             Row(
@@ -93,7 +94,8 @@ class WishlistView(
                 WishlistSortSelector(
                     selected = sortMode,
                     onSortModeSelected = viewModel::onSortModeSelected,
-                    noneLabel = WishlistStrings.sortDefault
+                    noneLabel = WishlistStrings.sortDefault,
+                    availableModes = sortModesFor(costSortAvailable)
                 )
                 if (currencyEnabled && currencies.isNotEmpty()) {
                     Spacer(modifier = Modifier.height(8.dp))

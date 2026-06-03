@@ -57,6 +57,7 @@ class UserWishlistsView(
         val currencies by viewModel.currenciesState.collectAsState()
         val selectedCurrency by viewModel.selectedCurrencyState.collectAsState()
         val rates by viewModel.ratesState.collectAsState()
+        val costSortAvailable by viewModel.costSortAvailableState.collectAsState()
 
         Div({ classes("container", "py-3") }) {
             Div({ classes("d-flex", "align-items-center", "mb-3", "gap-2") }) {
@@ -76,7 +77,8 @@ class UserWishlistsView(
             } else {
                 WishlistSortSelector(
                     selected = sortMode,
-                    onSortModeSelected = viewModel::onSortModeSelected
+                    onSortModeSelected = viewModel::onSortModeSelected,
+                    availableModes = sortModesFor(costSortAvailable)
                 )
                 if (currencyEnabled && currencies.isNotEmpty()) {
                     CurrencySelector(
