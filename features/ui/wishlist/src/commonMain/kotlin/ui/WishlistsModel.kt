@@ -182,4 +182,21 @@ interface WishlistsModel {
      * @param code Target currency, or `null` to show original prices.
      */
     fun selectCurrency(code: CurrencyCode?)
+
+    /**
+     * Reads the last persisted items view mode for the wishlist screens.
+     *
+     * Backed by per-platform local storage (browser `localStorage` on JS), so a returning user keeps
+     * the presentation chosen before the refresh / reopen.
+     *
+     * @return The saved [WishlistViewMode], or [WishlistViewMode.List] when nothing was ever saved.
+     */
+    suspend fun getSavedViewMode(): WishlistViewMode
+
+    /**
+     * Persists [mode] as the latest user-selected items view mode.
+     *
+     * @param mode View mode to store; restored by [getSavedViewMode] on the next screen open.
+     */
+    suspend fun saveViewMode(mode: WishlistViewMode)
 }

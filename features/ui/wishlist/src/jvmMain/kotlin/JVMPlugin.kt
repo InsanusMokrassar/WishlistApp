@@ -16,6 +16,8 @@ import dev.inmo.wishlist.features.ui.wishlist.ui.WishlistsListView
 import dev.inmo.wishlist.features.ui.wishlist.ui.WishlistsListViewConfig
 import dev.inmo.wishlist.features.ui.wishlist.ui.UserWishlistsView
 import dev.inmo.wishlist.features.ui.wishlist.ui.UserWishlistsViewConfig
+import dev.inmo.wishlist.features.ui.wishlist.ui.PreferencesWishlistViewModeStorage
+import dev.inmo.wishlist.features.ui.wishlist.ui.WishlistViewModeStorage
 import kotlinx.serialization.json.JsonObject
 import org.koin.core.Koin
 import org.koin.core.module.Module
@@ -29,6 +31,8 @@ import org.koin.core.module.Module
 object JVMPlugin : StartPlugin {
     override fun Module.setupDI(config: JsonObject) {
         with(Plugin) { setupDI(config) }
+
+        single<WishlistViewModeStorage> { PreferencesWishlistViewModeStorage() }
 
         singleWithRandomQualifier<NavigationNodeFactory<ViewConfig>> {
             NavigationNodeFactory.Typed<WishlistsListViewConfig, ViewConfig> { chain, cfg ->
