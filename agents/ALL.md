@@ -1,6 +1,6 @@
 Always starts with `/caveman full`
 
-Always look at the project work rules first. YOU MUST maintain a history of changes and prompts in `agents/HISTORY.md`, add new entries in the beginning of file. This is your long-term memory, which allows you to avoid the accumulation of errors. Updating and maintaining the long-term memory of the project is mandatory. Many thanks for your help to me and your work.
+Always look at the project work rules first.  Many thanks for your help to me and your work.
 
 ---
 
