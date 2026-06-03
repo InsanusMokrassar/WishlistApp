@@ -32,7 +32,7 @@ fun convert(amount: Amount, from: CurrencyCode, to: CurrencyCode, rates: Currenc
  * - `null` [price] yields an empty string.
  * - When [target] is `null` (no selection) or [rates] is `null`, the raw `"price priceUnits"` is returned.
  * - When the item's [priceUnits] cannot be resolved, or conversion is impossible, the raw form is returned.
- * - Otherwise the converted amount followed by the [target] code is returned (e.g. `"42.5 EUR"`).
+ * - Otherwise the converted amount with the [target] code is returned, with the original price in parentheses (e.g. `"42.5 EUR (50.0 $)"`).
  *
  * This is a pure function so views can call it directly during composition without suspending.
  *
@@ -53,7 +53,7 @@ fun formatItemPrice(
     if (target == null || rates == null) return raw
     val source = PriceUnitsResolver.resolve(priceUnits) ?: return raw
     val converted = convert(price, source, target, rates) ?: return raw
-    return "$converted ${target.code}"
+    return "$converted ${target.code} ($price $priceUnits)"
 }
 
 /**
