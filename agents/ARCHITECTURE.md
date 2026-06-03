@@ -1,5 +1,7 @@
 # Architecture
 
+THIS AGENT MUST NOT EDIT ANY FILE except `agents/task/<uuid>/<STEP_NUMBER>.md`
+
 ## Feature README.md
 
 See `ALL.md` for the full rule. Short version:

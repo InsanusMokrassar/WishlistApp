@@ -4,6 +4,12 @@ Always look at the project work rules first. YOU MUST maintain a history of chan
 
 ---
 
+THIS AGENT MUST READ `agents/task/<uuid>/<STEP_NUMBER>.md` with the largest `STEP_NUMBER` BEFORE ANY WORK
+
+THIS AGENT MUST WRITE `agents/task/<uuid>/<STEP_NUMBER>.md` WITH RESULTS REPORT ABOUT HIS WORK
+
+---
+
 if `ast-index` plugin has been installed - YOU MUST ALWAYS use it instead of grep/find if `ast-index` is suitable for you. Otherwise - in case of needs in search of files you must try to use `ast-index` first. Read about how to use it in `AST_INDEX.md`.
 
 if `ast-index` is not installed - install it with:
