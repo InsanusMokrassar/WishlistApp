@@ -87,11 +87,11 @@ object Plugin : StartPlugin {
             object : WishlistsModel {
                 override val selectedCurrency: StateFlow<CurrencyCode?> = currencyService.selectedCurrency
 
-                override suspend fun isCurrencyEnabled(): Boolean = currencyService.isEnabled()
+                override suspend fun isCurrencyEnabled(): Boolean = currencyService.isFeatureEnabled()
 
-                override suspend fun availableCurrencies(): List<CurrencyInfo> = currencyService.currencies()
+                override suspend fun availableCurrencies(): List<CurrencyInfo> = currencyService.getCurrencies()
 
-                override suspend fun currencyRates(): CurrencyRates? = currencyService.rates()
+                override suspend fun currencyRates(): CurrencyRates? = currencyService.getRates()
 
                 override fun selectCurrency(code: CurrencyCode?) = currencyService.select(code)
 

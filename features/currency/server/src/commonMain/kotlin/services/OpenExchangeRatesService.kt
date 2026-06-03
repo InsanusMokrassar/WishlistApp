@@ -21,17 +21,17 @@ import kotlinx.serialization.Serializable
  * - Fetches the latest rates (`/api/latest.json`) and the currency dictionary (`/api/currencies.json`).
  * - Caches both answers in-memory; each cache entry is invalidated once [ttlMillis] (default one hour)
  *   has elapsed since its own last successful retrieval, so the next access triggers a fresh fetch.
- * - Is a no-op when [appId] is blank: the feature reports itself disabled and returns empty/`null`.
+ * - Is a no-op when [appId] is `null` or blank: the feature reports itself disabled and returns empty/`null`.
  *
  * Upstream failures are swallowed (logged) and fall back to the last good cache, or to
  * empty/`null` when nothing was ever fetched, so the server never crashes on an OXR outage.
  *
- * @param appId Open Exchange Rates App ID; blank disables the feature.
+ * @param appId Open Exchange Rates App ID; `null` or blank disables the feature.
  * @param httpClient HTTP client used to call OXR. Content negotiation (JSON) must be installed on it.
  * @param ttlMillis Cache lifetime in milliseconds; defaults to one hour.
  */
 class OpenExchangeRatesService(
-    private val appId: String,
+    private val appId: String?,
     private val httpClient: HttpClient,
     private val ttlMillis: Long = 60L * 60L * 1000L
 ) : CurrencyFeature {
@@ -52,7 +52,7 @@ class OpenExchangeRatesService(
     private val baseUrl = "https://openexchangerates.org/api"
 
     /** @return `true` only when a non-blank [appId] is configured. */
-    override suspend fun isFeatureEnabled(): Boolean = appId.isNotBlank()
+    override suspend fun isFeatureEnabled(): Boolean = !appId.isNullOrBlank()
 
     /**
      * Returns the cached currency dictionary, refreshing it from OXR when missing or stale.

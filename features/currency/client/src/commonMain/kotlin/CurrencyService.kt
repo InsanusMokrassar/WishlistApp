@@ -23,7 +23,7 @@ import kotlinx.coroutines.flow.StateFlow
  */
 class CurrencyService(
     private val feature: CurrencyFeature
-) {
+) : CurrencyFeature {
     private val _selectedCurrency = MutableRedeliverStateFlow<CurrencyCode?>(null)
 
     /** Currently selected conversion target shared across all views; `null` means no conversion. */
@@ -39,7 +39,7 @@ class CurrencyService(
      *
      * @return `true` when the server reports the feature enabled; `false` on disable or any error.
      */
-    suspend fun isEnabled(): Boolean {
+    override suspend fun isFeatureEnabled(): Boolean {
         locker.withReadAcquire { cachedEnabled }?.let { return it }
         val value = runCatchingLogging { feature.isFeatureEnabled() }.getOrDefault(false)
         locker.withWriteLock { cachedEnabled = value }
@@ -51,7 +51,7 @@ class CurrencyService(
      *
      * @return Available currencies, or an empty list when disabled/unavailable.
      */
-    suspend fun currencies(): List<CurrencyInfo> {
+    override suspend fun getCurrencies(): List<CurrencyInfo> {
         locker.withReadAcquire { cachedCurrencies }?.let { return it }
         val value = runCatchingLogging { feature.getCurrencies() }.getOrDefault(emptyList())
         if (value.isNotEmpty()) {
@@ -66,7 +66,7 @@ class CurrencyService(
      *
      * @return Latest [CurrencyRates], or `null` when disabled/unavailable.
      */
-    suspend fun rates(): CurrencyRates? {
+    override suspend fun getRates(): CurrencyRates? {
         locker.withReadAcquire { cachedRates }?.let { return it }
         val value = runCatchingLogging { feature.getRates() }.getOrNull()
         if (value != null) {

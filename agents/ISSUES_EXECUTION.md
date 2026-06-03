@@ -26,3 +26,4 @@ Repo: `InsanusMokrassar/WishlistApp`.
 
 - One subagent per issue. Subagents run SEQUENTIALLY, never in parallel (avoid branch/index conflicts).
 - If issue ambiguous or blocked → stop, ask operator.
+- If operator left a partial/incomplete review on the issue's PR → treat it as continuation of the same issue: read ALL review comments (`gh api repos/InsanusMokrassar/WishlistApp/pulls/<PR#>/comments`), fix every comment on the SAME branch, push. Do NOT open a new issue or PR. Continue the issue work where it was left off.

@@ -12,7 +12,7 @@ import dev.inmo.wishlist.features.currency.common.models.CurrencyCode
  */
 object PriceUnitsResolver {
     /** Common currency symbols mapped to their ISO code. */
-    private val symbolToCode: Map<String, CurrencyCode> = mapOf(
+    val symbolToCode: Map<String, CurrencyCode> = mapOf(
         "$" to CurrencyCode("USD"),
         "€" to CurrencyCode("EUR"),
         "£" to CurrencyCode("GBP"),

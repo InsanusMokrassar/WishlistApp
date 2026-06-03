@@ -85,6 +85,23 @@ For example, `JVMPlugin` can't call `JSPlugin.setupDI`, but must call `Plugin.se
 
 ---
 
+## Koin Named Qualifiers
+
+When a Koin `named("...")` qualifier is used more than once within a plugin (e.g. registering a dependency under a qualifier and resolving it elsewhere with `get(qualifier = ...)`), extract the qualifier into a single `private val` on the plugin object instead of repeating the inline `named("...")` literal. This keeps the qualifier string defined once and prevents drift between registration and resolution sites.
+
+```kotlin
+object Plugin : StartPlugin {
+    private val myDependencyQualifier = named("myDependency")
+
+    override fun Module.setupDI(config: JsonObject) {
+        single(qualifier = myDependencyQualifier) { /* ... */ }
+        single { Consumer(dep = get(qualifier = myDependencyQualifier)) }
+    }
+}
+```
+
+---
+
 ## Full-Stack Feature Implementation
 
 After scaffolding and registering the modules, write the actual implementation following `features/sample/` as a reference:

@@ -49,10 +49,10 @@ Utilities (`features/currency/common/utils`):
 
 ## Architecture Notes
 
-- **Config:** `CurrencyConfig(openExchangeRatesAppId: String = "")` is decoded from the same root
+- **Config:** `CurrencyConfig(openExchangeRatesAppId: String? = null)` is decoded from the same root
   server config JSON used by the rest of the server (same approach as `features/files` `FilesConfig`).
-  The App ID is added to `server/sample.config.json` as `"openExchangeRatesAppId": ""` (empty ⇒
-  feature disabled by default). It is **never** hardcoded.
+  The App ID is shown in `server/sample.config.json` as `"openExchangeRatesAppId": ""`; a `null`
+  (key absent) or blank value ⇒ feature disabled by default. It is **never** hardcoded.
 - **Server caching / TTL:** `OpenExchangeRatesService` (server `commonMain`) implements
   `CurrencyFeature`. It caches the rates snapshot and the currency dictionary in-memory; each cache
   entry is invalidated once one hour (`ttlMillis`, default `3_600_000`) has elapsed since its own last
@@ -66,7 +66,9 @@ Utilities (`features/currency/common/utils`):
   Koin qualifier `currencyHttpClient`) with JSON content negotiation. The module targets JVM only, so
   the OkHttp engine reference is safe in `commonMain`.
 - **Client Ktor rule:** `KtorCurrencyFeature` (client `commonMain`) only calls the HTTP endpoints — no
-  caching, state, or business logic. `CurrencyService` wraps it and owns the shared
+  caching, state, or business logic, and is an internal transport (not bound as the public
+  `CurrencyFeature`). `CurrencyService` implements `CurrencyFeature`, wraps `KtorCurrencyFeature`, and is
+  the binding consumers resolve when they ask for `CurrencyFeature`. It owns the shared
   `selectedCurrency: StateFlow<CurrencyCode?>` (`null` = no conversion), plus light client-side
   memoization of the enabled flag / currency list / rates. The shared `HttpClient` comes from
   `features/common/client`.

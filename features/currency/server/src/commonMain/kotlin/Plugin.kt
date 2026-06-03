@@ -14,6 +14,7 @@ import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonObject
 import org.koin.core.Koin
 import org.koin.core.module.Module
+import org.koin.core.qualifier.named
 
 /**
  * Server startup plugin for the currency feature.
@@ -27,10 +28,12 @@ import org.koin.core.module.Module
  * The module targets only the JVM, so the OkHttp engine reference is safe in common code here.
  */
 object Plugin : StartPlugin {
+    private val currencyHttpClientQualifier = named("currencyHttpClient")
+
     override fun Module.setupDI(config: JsonObject) {
         single { get<Json>().decodeFromJsonElement(CurrencyConfig.serializer(), config) }
 
-        single(qualifier = org.koin.core.qualifier.named("currencyHttpClient")) {
+        single(qualifier = currencyHttpClientQualifier) {
             val json = get<Json>()
             HttpClient(OkHttp) {
                 install(ContentNegotiation) {
@@ -42,7 +45,7 @@ object Plugin : StartPlugin {
         single {
             OpenExchangeRatesService(
                 appId = get<CurrencyConfig>().openExchangeRatesAppId,
-                httpClient = get(qualifier = org.koin.core.qualifier.named("currencyHttpClient"))
+                httpClient = get(qualifier = currencyHttpClientQualifier)
             )
         }
         single<CurrencyFeature> { get<OpenExchangeRatesService>() }
