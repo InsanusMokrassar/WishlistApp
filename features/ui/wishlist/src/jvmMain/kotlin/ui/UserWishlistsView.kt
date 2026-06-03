@@ -11,7 +11,9 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.Button
 import androidx.compose.material.Divider
 import androidx.compose.material.MaterialTheme
@@ -58,6 +60,7 @@ class UserWishlistsView(
         val sections by viewModel.sectionsState.collectAsState()
         val sortMode by viewModel.sortModeState.collectAsState()
         val sortedItems by viewModel.sortedItemsState.collectAsState()
+        val viewMode by viewModel.viewModeState.collectAsState()
         val loading by viewModel.loadingState.collectAsState()
 
         Column(
@@ -84,11 +87,18 @@ class UserWishlistsView(
                     selected = sortMode,
                     onSortModeSelected = viewModel::onSortModeSelected
                 )
+                ViewModeSelector(
+                    selected = viewMode,
+                    onViewModeSelected = viewModel::onViewModeSelected
+                )
 
-                LazyColumn(verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                    if (sortMode == WishlistSortMode.None) {
-                        sections.forEach { section ->
-                            item(key = "header-${section.wishlist.id.long}") {
+                if (viewMode == WishlistViewMode.Grid) {
+                    Column(
+                        modifier = Modifier.verticalScroll(rememberScrollState()),
+                        verticalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        if (sortMode == WishlistSortMode.None) {
+                            sections.forEach { section ->
                                 Row(
                                     modifier = Modifier.fillMaxWidth().padding(top = 8.dp),
                                     horizontalArrangement = Arrangement.SpaceBetween,
@@ -105,14 +115,42 @@ class UserWishlistsView(
                                     }
                                 }
                                 Divider()
+                                ItemCardsGrid(section.items.map { it to section.wishlist.title })
                             }
-                            items(section.items, key = { it.id.long }) { item ->
-                                ItemRow(item, null)
-                            }
+                        } else {
+                            ItemCardsGrid(sortedItems.map { it.item to it.wishlistTitle })
                         }
-                    } else {
-                        items(sortedItems, key = { it.item.id.long }) { sorted ->
-                            ItemRow(sorted.item, sorted.wishlistTitle)
+                    }
+                } else {
+                    LazyColumn(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                        if (sortMode == WishlistSortMode.None) {
+                            sections.forEach { section ->
+                                item(key = "header-${section.wishlist.id.long}") {
+                                    Row(
+                                        modifier = Modifier.fillMaxWidth().padding(top = 8.dp),
+                                        horizontalArrangement = Arrangement.SpaceBetween,
+                                        verticalAlignment = Alignment.CenterVertically
+                                    ) {
+                                        Text(
+                                            section.wishlist.title,
+                                            modifier = Modifier.weight(1f),
+                                            style = MaterialTheme.typography.subtitle2,
+                                            color = MaterialTheme.colors.primary
+                                        )
+                                        Button(onClick = { viewModel.onWishlistSelected(section.wishlist) }) {
+                                            Text(WishlistStrings.openWishlistButton.translation())
+                                        }
+                                    }
+                                    Divider()
+                                }
+                                items(section.items, key = { it.id.long }) { item ->
+                                    ItemRow(item, null)
+                                }
+                            }
+                        } else {
+                            items(sortedItems, key = { it.item.id.long }) { sorted ->
+                                ItemRow(sorted.item, sorted.wishlistTitle)
+                            }
                         }
                     }
                 }
@@ -174,6 +212,40 @@ class UserWishlistsView(
                 }
                 if (item.description.isNotBlank()) {
                     Text(item.description, style = MaterialTheme.typography.caption)
+                }
+            }
+        }
+    }
+
+    /**
+     * Renders a 2-column card grid of items as chunked rows so it can be embedded inside the
+     * vertically-scrolling section column without nesting same-axis lazy scrollers.
+     *
+     * @param entries Items paired with the title of the wishlist each one belongs to (used as the
+     * card subtitle).
+     */
+    @Composable
+    private fun ItemCardsGrid(entries: List<Pair<RegisteredWishlistItem, String?>>) {
+        val columns = 2
+        Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+            entries.chunked(columns).forEach { rowEntries ->
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    rowEntries.forEach { (item, wishlistTitle) ->
+                        Box(modifier = Modifier.weight(1f)) {
+                            WishlistItemCard(
+                                item = item,
+                                wishlistTitle = wishlistTitle,
+                                loadImageBytes = { viewModel.loadImageBytes(it) },
+                                onSelect = { viewModel.onItemSelected(item) }
+                            )
+                        }
+                    }
+                    repeat(columns - rowEntries.size) {
+                        Box(modifier = Modifier.weight(1f)) {}
+                    }
                 }
             }
         }

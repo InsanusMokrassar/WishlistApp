@@ -4,6 +4,35 @@
 
 ---
 
+### 2026-06-03 — Session 32: Fix GitHub issue #17 — show wishlist items as cards + list/grid view mode
+
+**Prompt:** Fix github issues.
+
+**Issue chosen:** #17 (no linked PR). #18 (client-side currency conversion) deferred — needs openexchangerates API key (operator secret), risk of block.
+
+**Branch:** issue/17-items-as-cards
+
+**Orchestrator task uuid:** a30ca55a-818f-4f91-b4a8-6014a0c88f3e (reports STEP_0/1/2.md)
+
+**Feature:** features/ui/wishlist
+
+**Changes:**
+- action=add; target=features/ui/wishlist/src/commonMain/kotlin/ui/WishlistViewMode.kt; change=[new enum WishlistViewMode{List,Grid}; `labelResource()` extension for localized labels]
+- action=update; target=features/ui/wishlist/src/commonMain/kotlin/ui/WishlistViewModel.kt; change=[added viewModeState (default List), onViewModeSelected; imageUrl/loadImageBytes passthroughs for card media]
+- action=update; target=features/ui/wishlist/src/commonMain/kotlin/ui/UserWishlistsViewModel.kt; change=[added viewModeState (default List), onViewModeSelected]
+- action=update; target=features/ui/wishlist/src/commonMain/kotlin/WishlistStrings.kt; change=[new strings viewModeLabel, viewModeList, viewModeGrid (EN+RU)]
+- action=create; target=features/ui/wishlist/src/{jsMain,jvmMain,androidMain}/kotlin/ui/ViewModeSelector.kt; change=[new reusable per-platform composable mirrors WishlistSortSelector pattern]
+- action=create; target=features/ui/wishlist/src/{jsMain,jvmMain,androidMain}/kotlin/ui/WishlistItemCard.kt; change=[Bootstrap-style card: media=first image when present, title=item title, subtitle=owning wishlist title, content=description, footer=price+units, PriorityBadge overlaid top-right. JS card has WishlistItemCardStylesheet:StyleSheet() per JS Stylesheet Rule]
+- action=update; target=features/ui/wishlist/src/{jsMain,jvmMain,androidMain}/kotlin/ui/WishlistView.kt; change=[render ViewModeSelector; grid mode renders card grid (JS Bootstrap row-cols-1/sm-2/md-3; JVM/Android LazyVerticalGrid/chunked Rows). List mode unchanged.]
+- action=update; target=features/ui/wishlist/src/{jsMain,jvmMain,androidMain}/kotlin/ui/UserWishlistsView.kt; change=[render ViewModeSelector; grid mode renders card grid (JS Bootstrap row-cols-1/sm-2/md-3; JVM/Android LazyVerticalGrid/chunked Rows for the sectioned all-items screen). List mode unchanged.]
+- action=update; target=features/ui/wishlist/README.md; change=[added "Item cards and view mode" under Architecture Notes]
+
+**Design OR-choices:** priority badge = top-right corner overlay; default view mode = List.
+
+**Build:** ./gradlew :wishlist.features.ui.wishlist:build → BUILD SUCCESSFUL (one fix cycle: corrected two JS imports — removed bogus css.property import, added css.Style composable import). ast-index rebuilt.
+
+---
+
 ### 2026-06-03 — Session 31: Add solutions for open GitHub issues (#11, #14)
 
 **Prompt:** Add solutions for opened github issues.
