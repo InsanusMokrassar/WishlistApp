@@ -20,8 +20,9 @@ import dev.inmo.wishlist.features.currency.common.utils.PriceUnitsResolver
 
 /**
  * Android Material3 currency/units input: a free-text field (custom currency) paired with a dropdown of
- * preset currency symbols taken from [PriceUnitsResolver]. Picking a preset overwrites the text; the
- * user may also type any custom value.
+ * preset currencies taken from [PriceUnitsResolver]. Typing a currency code (or symbol) into the field
+ * filters the dropdown via [PriceUnitsResolver.search] — e.g. typing `USD` surfaces `$` — and picking
+ * an entry overwrites the text with its symbol; the user may also type any custom value.
  *
  * @param label Localized caption for the input.
  * @param value Current units string.
@@ -37,7 +38,7 @@ fun PriceUnitsSelector(
     onValueChange: (String) -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    val presets = remember { PriceUnitsResolver.symbolToCode.keys.toList() }
+    val results = remember(value) { PriceUnitsResolver.search(value).ifEmpty { PriceUnitsResolver.entries } }
     var expanded by remember { mutableStateOf(false) }
     Row(
         modifier = modifier,
@@ -55,12 +56,12 @@ fun PriceUnitsSelector(
         Box {
             OutlinedButton(onClick = { expanded = true }, enabled = enabled) { Text("▾") }
             DropdownMenu(expanded = expanded, onDismissRequest = { expanded = false }) {
-                presets.forEach { preset ->
+                results.forEach { (code, symbol) ->
                     DropdownMenuItem(
-                        text = { Text(preset) },
+                        text = { Text("${code.code}  $symbol") },
                         onClick = {
                             expanded = false
-                            onValueChange(preset)
+                            onValueChange(symbol)
                         }
                     )
                 }

@@ -292,6 +292,27 @@ object PriceUnitsResolver {
         return codeToSymbol[currencyCode]
     }
 
+    /** All known (code, symbol) pairs sorted by ISO code — the catalogue backing currency pickers. */
+    val entries: List<Pair<CurrencyCode, String>> =
+        codeToSymbol.entries.map { it.key to it.value }.sortedBy { it.first.code }
+
+    /**
+     * Filters [entries] by [query], matching the ISO code or the symbol case-insensitively, so a picker
+     * can find a currency symbol by typing its code (e.g. `"USD"` → `$`) or by the symbol itself. A
+     * blank query returns all [entries].
+     *
+     * @param query Free-form search text (code fragment or symbol).
+     * @return Matching (code, symbol) pairs sorted by code; all entries when [query] is blank.
+     */
+    fun search(query: String): List<Pair<CurrencyCode, String>> {
+        val trimmed = query.trim()
+        if (trimmed.isEmpty()) return entries
+        val upper = trimmed.uppercase()
+        return entries.filter { (code, symbol) ->
+            code.code.contains(upper) || symbol.contains(trimmed, ignoreCase = true)
+        }
+    }
+
     /**
      * Resolves [priceUnits] to a [CurrencyCode] on a best-effort basis.
      *

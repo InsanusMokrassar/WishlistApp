@@ -14,8 +14,10 @@ import org.jetbrains.compose.web.dom.Text
 
 /**
  * Bootstrap currency/units input: a free-text field (custom currency) next to a `<select>` of preset
- * currency symbols taken from [PriceUnitsResolver]. Picking a preset overwrites the text; the user may
- * also type any custom value.
+ * currencies taken from [PriceUnitsResolver]. Each option is labelled `CODE symbol` and ordered by
+ * code, so the native type-ahead of the `<select>` lets the user find a symbol by typing its code
+ * (e.g. `USD` → `$`); picking an option overwrites the text with its symbol. The user may also type any
+ * custom value into the field.
  *
  * @param label Localized caption for the input.
  * @param value Current units string.
@@ -31,7 +33,7 @@ fun PriceUnitsSelector(
     onValueChange: (String) -> Unit,
     id: String = "price-units",
 ) {
-    val presets = PriceUnitsResolver.symbolToCode.keys.toList()
+    val entries = PriceUnitsResolver.entries
     Label(id) { Text(label) }
     Div({ classes("input-group") }) {
         Input(InputType.Text) {
@@ -51,8 +53,8 @@ fun PriceUnitsSelector(
             if (!enabled) disabled()
         }) {
             Option("") { Text("▾") }
-            presets.forEach { preset ->
-                Option(preset) { Text(preset) }
+            entries.forEach { (code, symbol) ->
+                Option(symbol) { Text("${code.code}  $symbol") }
             }
         }
     }
