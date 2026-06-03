@@ -9,6 +9,7 @@ import dev.inmo.navigation.mvvm.compose.ComposeView
 import dev.inmo.wishlist.features.common.client.models.ViewConfig
 import dev.inmo.wishlist.features.common.client.ui.components.BackButton
 import dev.inmo.wishlist.features.common.client.ui.components.ListRow
+import dev.inmo.wishlist.features.currency.common.utils.formatItemPrice
 import dev.inmo.wishlist.features.ui.topBar.ui.TopBarTitleProvider
 import dev.inmo.wishlist.features.ui.wishlist.WishlistStrings
 import org.jetbrains.compose.web.dom.A
@@ -44,6 +45,10 @@ class WishlistItemView(
         val item by viewModel.itemState.collectAsState()
         val loading by viewModel.loadingState.collectAsState()
         val isOwner by viewModel.isOwnerState.collectAsState()
+        val currencyEnabled by viewModel.currencyEnabledState.collectAsState()
+        val currencies by viewModel.currenciesState.collectAsState()
+        val selectedCurrency by viewModel.selectedCurrencyState.collectAsState()
+        val rates by viewModel.ratesState.collectAsState()
 
         Div({ classes("container", "py-3") }) {
             Div({ classes("d-flex", "align-items-center", "mb-3", "gap-2") }) {
@@ -73,10 +78,18 @@ class WishlistItemView(
                     }
                 }
 
+                if (currencyEnabled && currencies.isNotEmpty()) {
+                    CurrencySelector(
+                        currencies = currencies,
+                        selected = selectedCurrency,
+                        onCurrencySelected = viewModel::onCurrencySelected
+                    )
+                }
+
                 Div({ classes("mb-3") }) {
                     H6({ classes("text-muted") }) { Text(WishlistStrings.priceLabel.translation()) }
                     if (it.approximatePrice != null) {
-                        P { Text("${it.approximatePrice} ${it.priceUnits}") }
+                        P { Text(formatItemPrice(it.approximatePrice, it.priceUnits, selectedCurrency, rates)) }
                     } else {
                         P({ classes("text-muted") }) { Text(WishlistStrings.noPrice.translation()) }
                     }

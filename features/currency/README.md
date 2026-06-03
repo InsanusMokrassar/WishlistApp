@@ -1,0 +1,80 @@
+# Feature: Currency
+
+## Operator Notes
+
+<!-- Human operator writes here. Agents MUST read and respect before making any changes. Agents MUST NOT modify this section. -->
+
+## Overview
+
+Optional full-stack feature that lets the client convert displayed wishlist item prices into a
+user-selected target currency. The server fetches the latest exchange rates from the
+[Open Exchange Rates](https://docs.openexchangerates.org/reference/api-introduction) (OXR) API,
+caches them in-memory with a one-hour TTL, and exposes read-only endpoints. The client wraps those
+endpoints (HTTP only) and adds the shared currency-selection state and conversion logic.
+
+The feature is **optional and disabled by default**: when no OXR App ID is configured server-side,
+`isFeatureEnabled()` returns `false`, the currency dropdown is not shown on any screen, and prices are
+rendered in their original units with no conversion.
+
+## Routes
+
+All routes are mounted under the `currency` prefix and require authentication (consistent with the
+rest of the app).
+
+| Method | Path                   | Auth | Body / Response          | Description |
+|--------|------------------------|------|--------------------------|-------------|
+| GET    | `currency/enabled`     | Yes  | `Boolean` (JSON)         | Whether the feature is enabled (an OXR App ID is configured). |
+| GET    | `currency/currencies`  | Yes  | `List<CurrencyInfo>`     | Available currencies (code + name); empty when disabled. |
+| GET    | `currency/rates`       | Yes  | `CurrencyRates` or `204` | Latest rates snapshot; `204 No Content` when disabled/unavailable. |
+
+## Models
+
+Defined in `features/currency/common`:
+
+- `CurrencyCode` — `@JvmInline value class` wrapping a normalized (trimmed, upper-cased) ISO-4217 code.
+- `CurrencyInfo(code, name)` — one selectable dropdown entry.
+- `CurrencyRates(base, rates, fetchedAtMillis)` — a rates snapshot; `rates` maps ISO code → base→code
+  multiplier; `base` is `USD` on the OXR free plan; `fetchedAtMillis` drives TTL invalidation.
+- `CurrencyFeature` — shared capability interface (`isFeatureEnabled`, `getCurrencies`, `getRates`),
+  implemented identically by the server (real fetch + cache) and the client (HTTP wrapper).
+
+Utilities (`features/currency/common/utils`):
+
+- `PriceUnitsResolver.resolve(priceUnits): CurrencyCode?` — best-effort mapping of a wishlist item's
+  free-form `priceUnits` label (`"$"`, `"€"`, `"USD"`, …) to an ISO code; `null` when unrecognized.
+- `convert(amount, from, to, rates): Amount?` — pivots through the snapshot base currency.
+- `formatItemPrice(price, priceUnits, target, rates): String` — pure display formatter; returns the
+  raw `"price priceUnits"` whenever conversion is impossible (no target/rates, unresolved units, or a
+  currency missing from the rates), otherwise the converted amount plus the target code.
+
+## Architecture Notes
+
+- **Config:** `CurrencyConfig(openExchangeRatesAppId: String = "")` is decoded from the same root
+  server config JSON used by the rest of the server (same approach as `features/files` `FilesConfig`).
+  The App ID is added to `server/sample.config.json` as `"openExchangeRatesAppId": ""` (empty ⇒
+  feature disabled by default). It is **never** hardcoded.
+- **Server caching / TTL:** `OpenExchangeRatesService` (server `commonMain`) implements
+  `CurrencyFeature`. It caches the rates snapshot and the currency dictionary in-memory; each cache
+  entry is invalidated once one hour (`ttlMillis`, default `3_600_000`) has elapsed since its own last
+  successful retrieval (`fetchedAtMillis` for rates; a private timestamp for currencies), so the next
+  access triggers a fresh fetch. Fetches are guarded by a `Mutex` and timestamped via
+  `korlibs.time.DateTime.now().unixMillisLong`. Upstream failures are logged and fall back to the last
+  good cache (or empty/`null`), so an OXR outage never crashes the server.
+- **OXR endpoints used:** `GET /api/latest.json?app_id=<id>` (base `USD` on the free plan) and
+  `GET /api/currencies.json`.
+- **Server HTTP client:** registered in the server `Plugin` as a dedicated OkHttp `HttpClient` (named
+  Koin qualifier `currencyHttpClient`) with JSON content negotiation. The module targets JVM only, so
+  the OkHttp engine reference is safe in `commonMain`.
+- **Client Ktor rule:** `KtorCurrencyFeature` (client `commonMain`) only calls the HTTP endpoints — no
+  caching, state, or business logic. `CurrencyService` wraps it and owns the shared
+  `selectedCurrency: StateFlow<CurrencyCode?>` (`null` = no conversion), plus light client-side
+  memoization of the enabled flag / currency list / rates. The shared `HttpClient` comes from
+  `features/common/client`.
+- **Conversion correctness:** because items store `priceUnits` as free-form text (not guaranteed ISO
+  codes), conversion is best-effort. Items whose units cannot be resolved, or whose source/target
+  currency is missing from the rates, are displayed unchanged. UI integration lives in
+  `features/ui/wishlist` (see that feature's README).
+- **Wiring:** server plugin FQCN
+  `dev.inmo.wishlist.features.currency.server.JVMPlugin` is registered in `server/sample.config.json`;
+  client plugins (`JSPlugin`/`JVMPlugin`/`AndroidPlugin`) are registered in the three client entry
+  points; modules are listed in `settings.gradle`.

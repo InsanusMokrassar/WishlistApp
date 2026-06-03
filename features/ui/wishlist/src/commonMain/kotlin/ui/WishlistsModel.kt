@@ -8,6 +8,10 @@ import dev.inmo.wishlist.features.wishlist.common.models.RegisteredWishlist
 import dev.inmo.wishlist.features.wishlist.common.models.RegisteredWishlistItem
 import dev.inmo.wishlist.features.wishlist.common.models.WishlistId
 import dev.inmo.wishlist.features.wishlist.common.models.WishlistItemId
+import dev.inmo.wishlist.features.currency.common.models.CurrencyCode
+import dev.inmo.wishlist.features.currency.common.models.CurrencyInfo
+import dev.inmo.wishlist.features.currency.common.models.CurrencyRates
+import kotlinx.coroutines.flow.StateFlow
 
 /**
  * Model interface for all wishlist UI screens.
@@ -142,4 +146,38 @@ interface WishlistsModel {
      * @return Payload bytes, or `null` on failure.
      */
     suspend fun loadImageBytes(id: FileId): ByteArray?
+
+    /**
+     * Shared currency-conversion target selected by the user, agreed across all wishlist screens.
+     * A `null` value means prices are shown in their original units with no conversion.
+     */
+    val selectedCurrency: StateFlow<CurrencyCode?>
+
+    /**
+     * Whether the currency-conversion feature is enabled on the server.
+     *
+     * @return `true` when conversion is available (an upstream App ID is configured); `false` otherwise.
+     */
+    suspend fun isCurrencyEnabled(): Boolean
+
+    /**
+     * Lists the currencies offered in the conversion dropdown.
+     *
+     * @return Available currencies, or an empty list when the feature is disabled.
+     */
+    suspend fun availableCurrencies(): List<CurrencyInfo>
+
+    /**
+     * Returns the latest exchange-rate snapshot used by views to convert displayed prices.
+     *
+     * @return Current [CurrencyRates], or `null` when the feature is disabled/unavailable.
+     */
+    suspend fun currencyRates(): CurrencyRates?
+
+    /**
+     * Updates the shared conversion target.
+     *
+     * @param code Target currency, or `null` to show original prices.
+     */
+    fun selectCurrency(code: CurrencyCode?)
 }

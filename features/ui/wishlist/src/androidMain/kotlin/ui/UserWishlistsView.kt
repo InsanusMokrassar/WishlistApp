@@ -30,6 +30,9 @@ import dev.inmo.navigation.mvvm.compose.ComposeView
 import dev.inmo.wishlist.features.common.client.models.ViewConfig
 import dev.inmo.wishlist.features.common.client.ui.components.BackButton
 import dev.inmo.wishlist.features.common.client.ui.components.ListRow
+import dev.inmo.wishlist.features.currency.common.models.CurrencyCode
+import dev.inmo.wishlist.features.currency.common.models.CurrencyRates
+import dev.inmo.wishlist.features.currency.common.utils.formatItemPrice
 import dev.inmo.wishlist.features.ui.topBar.ui.TopBarTitleProvider
 import dev.inmo.wishlist.features.ui.wishlist.WishlistStrings
 import dev.inmo.wishlist.features.wishlist.common.models.RegisteredWishlistItem
@@ -62,6 +65,10 @@ class UserWishlistsView(
         val sortMode by viewModel.sortModeState.collectAsState()
         val sortedItems by viewModel.sortedItemsState.collectAsState()
         val loading by viewModel.loadingState.collectAsState()
+        val currencyEnabled by viewModel.currencyEnabledState.collectAsState()
+        val currencies by viewModel.currenciesState.collectAsState()
+        val selectedCurrency by viewModel.selectedCurrencyState.collectAsState()
+        val rates by viewModel.ratesState.collectAsState()
 
         Column(
             modifier = Modifier.fillMaxSize().padding(16.dp),
@@ -87,6 +94,13 @@ class UserWishlistsView(
                     selected = sortMode,
                     onSortModeSelected = viewModel::onSortModeSelected
                 )
+                if (currencyEnabled && currencies.isNotEmpty()) {
+                    CurrencySelector(
+                        currencies = currencies,
+                        selected = selectedCurrency,
+                        onCurrencySelected = viewModel::onCurrencySelected
+                    )
+                }
 
                 LazyColumn(verticalArrangement = Arrangement.spacedBy(4.dp)) {
                     if (sortMode == WishlistSortMode.None) {
@@ -110,12 +124,12 @@ class UserWishlistsView(
                                 HorizontalDivider()
                             }
                             items(section.items, key = { it.id.long }) { item ->
-                                ItemRow(item, null)
+                                ItemRow(item, null, selectedCurrency, rates)
                             }
                         }
                     } else {
                         items(sortedItems, key = { it.item.id.long }) { sorted ->
-                            ItemRow(sorted.item, sorted.wishlistTitle)
+                            ItemRow(sorted.item, sorted.wishlistTitle, selectedCurrency, rates)
                         }
                     }
                 }
@@ -129,9 +143,16 @@ class UserWishlistsView(
      * @param item Item to display.
      * @param wishlistTitle When non-null (custom sorting active), appended after the item title in
      * brackets so the originating wishlist stays visible without the grouping headers.
+     * @param selectedCurrency Shared conversion target, or `null` for original prices.
+     * @param rates Latest rates snapshot used to convert the price, or `null` when unavailable.
      */
     @Composable
-    private fun ItemRow(item: RegisteredWishlistItem, wishlistTitle: String?) {
+    private fun ItemRow(
+        item: RegisteredWishlistItem,
+        wishlistTitle: String?,
+        selectedCurrency: CurrencyCode?,
+        rates: CurrencyRates?
+    ) {
         ListRow(
             onSelect = { viewModel.onItemSelected(item) },
             leading = {
@@ -168,9 +189,9 @@ class UserWishlistsView(
                         Text(wishlistTitle?.let { "${item.title} ($it)" } ?: item.title)
                         PriorityBadge(item.priority)
                     }
-                    item.approximatePrice?.let { price ->
+                    if (item.approximatePrice != null) {
                         Text(
-                            "$price ${item.priceUnits}",
+                            formatItemPrice(item.approximatePrice, item.priceUnits, selectedCurrency, rates),
                             style = MaterialTheme.typography.bodySmall
                         )
                     }

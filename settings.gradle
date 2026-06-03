@@ -29,6 +29,10 @@ String[] includes = [
     ":features:admin:server",
     ":features:admin:client",
 
+    ":features:currency:common",
+    ":features:currency:server",
+    ":features:currency:client",
+
     ":features:ui:sample",
     ":features:ui:auth",
     ":features:ui:wishlist",

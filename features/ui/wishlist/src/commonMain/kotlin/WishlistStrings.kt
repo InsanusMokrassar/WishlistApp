@@ -46,6 +46,8 @@ object WishlistStrings {
     val sortCost = buildStringResource("Cost") { IetfLang.Russian("Цена") }
     val sortPriority = buildStringResource("Priority") { IetfLang.Russian("Приоритет") }
     val sortTitle = buildStringResource("Title") { IetfLang.Russian("Название") }
+    val currencyLabel = buildStringResource("Currency") { IetfLang.Russian("Валюта") }
+    val currencyOriginal = buildStringResource("Original") { IetfLang.Russian("Исходная") }
     val loading = buildStringResource("Loading...") { IetfLang.Russian("Загрузка...") }
     val editWishlistTitle = buildStringResource("Edit Wishlist") { IetfLang.Russian("Редактировать список") }
     val newItemTitle = buildStringResource("New Item") { IetfLang.Russian("Новый товар") }

@@ -9,6 +9,9 @@ import dev.inmo.navigation.mvvm.compose.ComposeView
 import dev.inmo.wishlist.features.common.client.models.ViewConfig
 import dev.inmo.wishlist.features.common.client.ui.components.BackButton
 import dev.inmo.wishlist.features.common.client.ui.components.ListRow
+import dev.inmo.wishlist.features.currency.common.models.CurrencyCode
+import dev.inmo.wishlist.features.currency.common.models.CurrencyRates
+import dev.inmo.wishlist.features.currency.common.utils.formatItemPrice
 import dev.inmo.wishlist.features.ui.topBar.ui.TopBarTitleProvider
 import dev.inmo.wishlist.features.ui.wishlist.WishlistStrings
 import org.jetbrains.compose.web.css.height
@@ -49,6 +52,10 @@ class UserWishlistsView(
         val sortMode by viewModel.sortModeState.collectAsState()
         val sortedItems by viewModel.sortedItemsState.collectAsState()
         val loading by viewModel.loadingState.collectAsState()
+        val currencyEnabled by viewModel.currencyEnabledState.collectAsState()
+        val currencies by viewModel.currenciesState.collectAsState()
+        val selectedCurrency by viewModel.selectedCurrencyState.collectAsState()
+        val rates by viewModel.ratesState.collectAsState()
 
         Div({ classes("container", "py-3") }) {
             Div({ classes("d-flex", "align-items-center", "mb-3", "gap-2") }) {
@@ -70,6 +77,13 @@ class UserWishlistsView(
                     selected = sortMode,
                     onSortModeSelected = viewModel::onSortModeSelected
                 )
+                if (currencyEnabled && currencies.isNotEmpty()) {
+                    CurrencySelector(
+                        currencies = currencies,
+                        selected = selectedCurrency,
+                        onCurrencySelected = viewModel::onCurrencySelected
+                    )
+                }
 
                 if (sortMode == WishlistSortMode.None) {
                     sections.forEach { section ->
@@ -85,12 +99,12 @@ class UserWishlistsView(
                             }
                         }
                         Ul({ classes("list-group") }) {
-                            section.items.forEach { item -> ItemRow(item, null) }
+                            section.items.forEach { item -> ItemRow(item, null, selectedCurrency, rates) }
                         }
                     }
                 } else {
                     Ul({ classes("list-group") }) {
-                        sortedItems.forEach { sorted -> ItemRow(sorted.item, sorted.wishlistTitle) }
+                        sortedItems.forEach { sorted -> ItemRow(sorted.item, sorted.wishlistTitle, selectedCurrency, rates) }
                     }
                 }
             }
@@ -103,9 +117,16 @@ class UserWishlistsView(
      * @param item Item to display.
      * @param wishlistTitle When non-null (custom sorting active), appended after the item title in
      * brackets so the originating wishlist stays visible without the grouping headers.
+     * @param selectedCurrency Shared conversion target, or `null` for original prices.
+     * @param rates Latest rates snapshot used to convert the price, or `null` when unavailable.
      */
     @Composable
-    private fun ItemRow(item: dev.inmo.wishlist.features.wishlist.common.models.RegisteredWishlistItem, wishlistTitle: String?) {
+    private fun ItemRow(
+        item: dev.inmo.wishlist.features.wishlist.common.models.RegisteredWishlistItem,
+        wishlistTitle: String?,
+        selectedCurrency: CurrencyCode?,
+        rates: CurrencyRates?
+    ) {
         ListRow(
             onSelect = { viewModel.onItemSelected(item) },
             leading = {
@@ -138,9 +159,16 @@ class UserWishlistsView(
                         }
                         PriorityBadge(item.priority)
                     }
-                    item.approximatePrice?.let { price ->
+                    if (item.approximatePrice != null) {
                         Span({ classes("text-muted", "small") }) {
-                            Text("$price ${item.priceUnits}")
+                            Text(
+                                formatItemPrice(
+                                    item.approximatePrice,
+                                    item.priceUnits,
+                                    selectedCurrency,
+                                    rates
+                                )
+                            )
                         }
                     }
                 }

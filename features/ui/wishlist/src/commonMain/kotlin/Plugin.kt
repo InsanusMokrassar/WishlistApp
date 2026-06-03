@@ -5,6 +5,10 @@ import dev.inmo.micro_utils.startup.plugin.StartPlugin
 import dev.inmo.micro_utils.common.MPPFile
 import dev.inmo.wishlist.features.auth.client.ClientAuthFeature
 import dev.inmo.wishlist.features.common.client.models.ViewConfig
+import dev.inmo.wishlist.features.currency.client.CurrencyService
+import dev.inmo.wishlist.features.currency.common.models.CurrencyCode
+import dev.inmo.wishlist.features.currency.common.models.CurrencyInfo
+import dev.inmo.wishlist.features.currency.common.models.CurrencyRates
 import dev.inmo.wishlist.features.files.client.FilesClientService
 import dev.inmo.wishlist.features.files.common.models.FileId
 import dev.inmo.wishlist.features.users.client.UsersFeature
@@ -30,6 +34,7 @@ import dev.inmo.wishlist.features.ui.wishlist.ui.WishlistsListViewModel
 import dev.inmo.wishlist.features.ui.wishlist.ui.WishlistsModel
 import dev.inmo.wishlist.features.ui.wishlist.ui.UserWishlistsViewConfig
 import dev.inmo.wishlist.features.ui.wishlist.ui.UserWishlistsViewModel
+import kotlinx.coroutines.flow.StateFlow
 import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.modules.SerializersModule
 import org.koin.core.Koin
@@ -78,7 +83,18 @@ object Plugin : StartPlugin {
             val authFeature = get<ClientAuthFeature>()
             val filesService = get<FilesClientService>()
             val usersFeature = get<UsersFeature>()
+            val currencyService = get<CurrencyService>()
             object : WishlistsModel {
+                override val selectedCurrency: StateFlow<CurrencyCode?> = currencyService.selectedCurrency
+
+                override suspend fun isCurrencyEnabled(): Boolean = currencyService.isEnabled()
+
+                override suspend fun availableCurrencies(): List<CurrencyInfo> = currencyService.currencies()
+
+                override suspend fun currencyRates(): CurrencyRates? = currencyService.rates()
+
+                override fun selectCurrency(code: CurrencyCode?) = currencyService.select(code)
+
                 override suspend fun getMyWishlists(): List<RegisteredWishlist> =
                     wishlistsFeature.getMyWishlists()
 

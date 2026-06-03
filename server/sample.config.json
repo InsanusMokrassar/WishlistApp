@@ -17,11 +17,13 @@
     "dev.inmo.wishlist.features.auth.server.JVMPlugin",
     "dev.inmo.wishlist.features.wishlist.server.JVMPlugin",
     "dev.inmo.wishlist.features.files.server.JVMPlugin",
-    "dev.inmo.wishlist.features.admin.server.JVMPlugin"
+    "dev.inmo.wishlist.features.admin.server.JVMPlugin",
+    "dev.inmo.wishlist.features.currency.server.JVMPlugin"
   ],
   "filesFolder": "./local.uploaded_files",
   "useCache": true,
   "tokenTtl": "PT15M",
   "refreshTokenTtl": "P7D",
-  "enableRegistration": true
+  "enableRegistration": true,
+  "openExchangeRatesAppId": ""
 }

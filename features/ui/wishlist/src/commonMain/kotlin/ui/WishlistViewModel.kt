@@ -7,6 +7,9 @@ import dev.inmo.navigation.core.NavigationNode
 import dev.inmo.navigation.core.onResumeFlow
 import dev.inmo.navigation.mvvm.ViewModel
 import dev.inmo.wishlist.features.common.client.models.ViewConfig
+import dev.inmo.wishlist.features.currency.common.models.CurrencyCode
+import dev.inmo.wishlist.features.currency.common.models.CurrencyInfo
+import dev.inmo.wishlist.features.currency.common.models.CurrencyRates
 import dev.inmo.wishlist.features.users.common.models.UserId
 import dev.inmo.wishlist.features.wishlist.common.models.RegisteredWishlist
 import dev.inmo.wishlist.features.wishlist.common.models.RegisteredWishlistItem
@@ -83,10 +86,44 @@ class WishlistViewModel(
             }
         }.stateIn(scope, SharingStarted.Eagerly, emptyList())
 
+    private val _currencyEnabledState = MutableRedeliverStateFlow(false)
+
+    /** `true` when the currency-conversion feature is enabled and the selector should be shown. */
+    val currencyEnabledState = _currencyEnabledState.asStateFlow()
+
+    private val _currenciesState = MutableRedeliverStateFlow<List<CurrencyInfo>>(emptyList())
+
+    /** Currencies available in the conversion dropdown; empty when the feature is disabled. */
+    val currenciesState = _currenciesState.asStateFlow()
+
+    private val _ratesState = MutableRedeliverStateFlow<CurrencyRates?>(null)
+
+    /** Latest exchange-rate snapshot used to convert displayed prices; `null` when unavailable. */
+    val ratesState = _ratesState.asStateFlow()
+
+    /** Shared selected conversion target; `null` means original prices. */
+    val selectedCurrencyState: StateFlow<CurrencyCode?> = model.selectedCurrency
+
     init {
         merge(flowOf(Unit), node.onResumeFlow).subscribeLoggingDropExceptions(scope) {
             loadWishlist()
         }
+        scope.launchLoggingDropExceptions {
+            if (model.isCurrencyEnabled()) {
+                _currencyEnabledState.value = true
+                _currenciesState.value = model.availableCurrencies()
+                _ratesState.value = model.currencyRates()
+            }
+        }
+    }
+
+    /**
+     * Updates the shared currency-conversion target for all wishlist screens.
+     *
+     * @param code Target currency, or `null` to display original prices.
+     */
+    fun onCurrencySelected(code: CurrencyCode?) {
+        model.selectCurrency(code)
     }
 
     private suspend fun loadWishlist() {
