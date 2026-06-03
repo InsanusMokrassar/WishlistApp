@@ -9,6 +9,9 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.grid.GridCells
+import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
+import androidx.compose.foundation.lazy.grid.items as gridItems
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material3.Button
 import androidx.compose.material3.CircularProgressIndicator
@@ -53,9 +56,11 @@ class WishlistView(
     override fun onDraw() {
         super.onDraw()
         val resources = LocalResources.current
+        val wishlist by viewModel.wishlistState.collectAsState()
         val items by viewModel.itemsState.collectAsState()
         val sortMode by viewModel.sortModeState.collectAsState()
         val sortedItems by viewModel.sortedItemsState.collectAsState()
+        val viewMode by viewModel.viewModeState.collectAsState()
         val isOwner by viewModel.isOwnerState.collectAsState()
         val loading by viewModel.loadingState.collectAsState()
 
@@ -85,30 +90,52 @@ class WishlistView(
                     onSortModeSelected = viewModel::onSortModeSelected,
                     noneLabel = WishlistStrings.sortDefault
                 )
+                ViewModeSelector(
+                    selected = viewMode,
+                    onViewModeSelected = viewModel::onViewModeSelected
+                )
                 Spacer(modifier = Modifier.height(8.dp))
-                LazyColumn(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                    items(sortedItems) { item ->
-                        ListRow(onSelect = { viewModel.onViewItem(item.id) }) {
-                            Column(modifier = Modifier.fillMaxWidth()) {
-                                Row(
-                                    modifier = Modifier.fillMaxWidth(),
-                                    horizontalArrangement = Arrangement.SpaceBetween,
-                                    verticalAlignment = Alignment.CenterVertically
-                                ) {
+                if (viewMode == WishlistViewMode.Grid) {
+                    LazyVerticalGrid(
+                        columns = GridCells.Adaptive(minSize = 160.dp),
+                        modifier = Modifier.weight(1f),
+                        verticalArrangement = Arrangement.spacedBy(8.dp),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        gridItems(sortedItems, key = { it.id.long }) { item ->
+                            WishlistItemCard(
+                                item = item,
+                                wishlistTitle = wishlist?.title,
+                                loadImageBytes = { viewModel.loadImageBytes(it) },
+                                onSelect = { viewModel.onViewItem(item.id) }
+                            )
+                        }
+                    }
+                } else {
+                    LazyColumn(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                        items(sortedItems) { item ->
+                            ListRow(onSelect = { viewModel.onViewItem(item.id) }) {
+                                Column(modifier = Modifier.fillMaxWidth()) {
                                     Row(
-                                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                                        modifier = Modifier.fillMaxWidth(),
+                                        horizontalArrangement = Arrangement.SpaceBetween,
                                         verticalAlignment = Alignment.CenterVertically
                                     ) {
-                                        Text(item.title, style = MaterialTheme.typography.bodyLarge)
-                                        PriorityBadge(item.priority)
+                                        Row(
+                                            horizontalArrangement = Arrangement.spacedBy(8.dp),
+                                            verticalAlignment = Alignment.CenterVertically
+                                        ) {
+                                            Text(item.title, style = MaterialTheme.typography.bodyLarge)
+                                            PriorityBadge(item.priority)
+                                        }
+                                        item.approximatePrice?.let { price ->
+                                            Text("${price} ${item.priceUnits}", style = MaterialTheme.typography.bodySmall)
+                                        }
                                     }
-                                    item.approximatePrice?.let { price ->
-                                        Text("${price} ${item.priceUnits}", style = MaterialTheme.typography.bodySmall)
+                                    if (item.description.isNotBlank()) {
+                                        Spacer(Modifier.height(4.dp))
+                                        Text(item.description, style = MaterialTheme.typography.bodySmall)
                                     }
-                                }
-                                if (item.description.isNotBlank()) {
-                                    Spacer(Modifier.height(4.dp))
-                                    Text(item.description, style = MaterialTheme.typography.bodySmall)
                                 }
                             }
                         }
