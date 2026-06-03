@@ -1,4 +1,4 @@
-THIS AGENT MUST NODE EDIT ANY FILE except `agents/task/<uuid>/<STEP_NUMBER>.md`
+THIS AGENT MUST NOT EDIT ANY FILE except `agents/task/<uuid>/<STEP_NUMBER>.md`
 
 Plan stage contains several important substages:
 

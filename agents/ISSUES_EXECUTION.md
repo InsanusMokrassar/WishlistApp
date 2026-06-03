@@ -14,7 +14,7 @@ Repo: `InsanusMokrassar/WishlistApp`.
    `gh pr list --repo InsanusMokrassar/WishlistApp --search "<N> in:body" --state all`.
    Skip issues that already have a PR.
 5. Create branch for fix: `git checkout -b issue/<N>-<slug>`.
-6. Resolve the issue: start subagent with `root` role to solve the issue.
+6. Resolve the issue: you MUST start subagent with `root` role to solve the issue. Wait for it. YOU MUST CONTROL THAT ALL SUBAGENTS FOLLOWING THEIR INSTRUCTIONS FROM `agents` FOLDER IF OTHER IS NOT SAID IN USER PROMPT
 7. Commit, push branch.
 8. Open PR linked to the issue (body must contain `Closes #<N>`):
    `gh pr create --repo InsanusMokrassar/WishlistApp --base master --head fix/issue-<N>-<slug> --title "..." --body "Closes #<N> ..."`.

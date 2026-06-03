@@ -1,6 +1,5 @@
 All `local.*` files can be missed, but you MUST check their availability if you need them.
 
-
 Before any work, read in this order:
 
 1. `agents/ALL.md` + (`agents/local.ALL.md` (if exists))

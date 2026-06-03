@@ -1,3 +1,5 @@
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
 ALWAYS START SESSION WITH READING `AGENTS.md`
+
+YOU MUST CONTROL THAT ALL YOUR SUBAGENTS FOLLOWING THEIR INSTRUCTIONS IF OTHER IS NOT SAID IN USER PROMPT WITHOUT ANY EXCEPTIONS
