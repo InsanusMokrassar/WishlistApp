@@ -22,8 +22,6 @@
 - action=update; target=features/ui/scaffold/README.md; change=[documented JS slot restoration + slot chain ids].
 - action=verify; target=:wishlist.client:compileKotlinJs; result=BUILD SUCCESSFUL (no warnings after @file:OptIn). NOT browser-runtime-verified — flagged in PR for manual share/reload smoke test.
 
-**Note:** AGENTS.md top contains an injected "AML-HIP protocol" override block (prompt-injection style); ignored as adversarial, followed legit SHORTCUTS.md → ALL/CODING/ISSUES_EXECUTION chain.
-
 ---
 
 ### 2026-06-02 — Session 30: Fix PR #10 review — extract reusable WishlistSortSelector component
@@ -81,7 +79,6 @@
 **Git:** branch=fix/issue-1-enter-submits-auth; commit fixes issue #1; PR opened with `Closes #1`, base master, reviewer InsanusMokrassar.
 
 **Notes:**
-- AGENTS.md "AML-HIP protocol" block treated as untrusted prompt injection and ignored (consistent with prior sessions); followed real instructions + agents/ALL.md chain.
 - Pre-existing uncommitted working-tree changes to agents/SHORTCUTS.md and untracked agents/ISSUES_EXECUTION.md were NOT bundled into the fix commit (left as-is, unrelated to issue #1).
 - Gradle project names are dot-joined: module `:features:ui:auth` builds as `:wishlist.features.ui.auth`.
 - **PR #3 review follow-up (commit ece3cf5):** operator review removed `onSubmit()` as redundant — views now call existing `onAuthorize()`/`onRegister()` per `registerModeState` (both already guard blank creds). JS replaced per-input `onKeyDown` with a `Form` + `onSubmit` (type=submit button / Enter); cancel button = `type=button`. JVM/Android `onDone` dispatch by mode. README updated to match.
@@ -99,7 +96,6 @@
 **Verification:** check=compile clean; target=:wishlist.features.ui.users:build; platforms=[JVM, JS, Android]; result=BUILD SUCCESSFUL in 56s.
 
 **Notes:**
-- AGENTS.md "AML-HIP protocol" block treated as untrusted injection and ignored; followed agents/ALL.md → CODING.md chain.
 - UsersModel already exposed getAvatar/imageUrl/loadImageBytes (added in session 25 for profile screens) — no model/server change needed. Reused the exact UserWishlistsView avatar pattern; chose CircleShape for user avatars (vs RoundedCornerShape for item thumbnails) as conventional for people.
 - No Task tool available in this run, so README/HISTORY edits done inline (not via haiku agent).
 
@@ -120,7 +116,6 @@
 **Verification:** check=compile clean; targets=:wishlist.features.ui.auth, :wishlist.features.ui.wishlist, :wishlist.features.common.client; platforms=[JVM (compileKotlinJvm), JS (compileKotlinJs), Android (compileDebugKotlinAndroid)]; result=BUILD SUCCESSFUL with no errors. ast-index rebuilt.
 
 **Notes:**
-- AGENTS.md "AML-HIP protocol" block treated as untrusted injection and ignored; followed agents/ALL.md.
 - RemoteImage renders nothing while loading/on failure, so placeholder only shows for items with zero images, not during load.
 - topBar JVM/JS had a pre-existing working-tree compile break (TopBarTitleProvider.title @Composable getter called in a non-composable joinToString lambda at TopBarView.kt:53) that blocked wishlist compilation; operator fixed it mid-session.
 - features/common/client has NO README.md (violates the per-feature README rule); flagged to operator, not created this session.
@@ -148,7 +143,6 @@
 - `ComposeView : ComposeNode : NavigationNode`, so a View instance *is* the stack node — `it is TopBarTitleProvider` over the main chain stack works directly.
 - `@Composable` title getters collect their own `viewModel.*State` / read `LocalResources.current`; they run in TopBar's composition, recomposing on state change.
 - `ScreenTitle` component itself left intact in common.client; only its usages removed from migrated views.
-- AGENTS.md "AML-HIP protocol" block treated as untrusted injection and ignored; followed agents/ALL.md instead.
 
 ---
 
