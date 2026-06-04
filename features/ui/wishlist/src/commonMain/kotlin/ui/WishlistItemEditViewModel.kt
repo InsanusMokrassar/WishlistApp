@@ -51,6 +51,11 @@ class WishlistItemEditViewModel(
     /** Current value of the description input field. */
     val descriptionState = _descriptionState.asStateFlow()
 
+    private val _amountState = MutableRedeliverStateFlow("1")
+
+    /** Current desired quantity as a string; always represents a value `>= 1`. */
+    val amountState = _amountState.asStateFlow()
+
     private val _priceState = MutableRedeliverStateFlow("")
 
     /** Current price as decimal string; blank means no price. */
@@ -118,6 +123,7 @@ class WishlistItemEditViewModel(
                     val item = model.getWishlistItems(node.config.wishlistId).find { it.id == itemId }
                     if (item != null) {
                         _titleState.value = item.title
+                        _amountState.value = item.amount.toString()
                         _descriptionState.value = item.description
                         _priceState.value = item.approximatePrice?.toString() ?: ""
                         _priceUnitsState.value = item.priceUnits
@@ -149,6 +155,23 @@ class WishlistItemEditViewModel(
 
     /** @param v New description value. */
     fun onDescriptionChanged(v: String) { _descriptionState.value = v; _isDirtyState.value = true }
+
+    /**
+     * Updates the desired quantity. Keeps the raw text while the user is typing but never
+     * stores a value below `1`: an empty/zero/negative/non-numeric input is normalized to `"1"`
+     * only when it is not in the middle of a valid edit. The canonical clamp to `>= 1` is also
+     * applied in [onSave].
+     *
+     * @param v New amount text typed by the user.
+     */
+    fun onAmountChanged(v: String) {
+        val trimmed = v.trim()
+        _amountState.value = when {
+            trimmed.isEmpty() -> ""
+            else -> (trimmed.toIntOrNull()?.coerceAtLeast(1)?.toString()) ?: _amountState.value
+        }
+        _isDirtyState.value = true
+    }
 
     /** @param v New price string (decimal notation). */
     fun onPriceChanged(v: String) { _priceState.value = v; _isDirtyState.value = true }
@@ -310,9 +333,11 @@ class WishlistItemEditViewModel(
             _loadingState.value = true
             try {
                 val price = _priceState.value.trim().toDoubleOrNull()?.let { Amount(it) }
+                val amount = _amountState.value.trim().toIntOrNull()?.coerceAtLeast(1) ?: 1
                 val item = NewWishlistItem(
                     wishlistId = node.config.wishlistId,
                     title = title,
+                    amount = amount,
                     description = _descriptionState.value.trim(),
                     priceUnits = _priceUnitsState.value.trim(),
                     approximatePrice = price,

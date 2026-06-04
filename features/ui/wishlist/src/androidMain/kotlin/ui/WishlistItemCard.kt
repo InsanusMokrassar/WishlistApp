@@ -23,7 +23,8 @@ import dev.inmo.wishlist.features.wishlist.common.models.RegisteredWishlistItem
  * Mapping: media = first attached image (only when present); title = item title; subtitle = the
  * wishlist the item belongs to ([wishlistTitle], when non-null); content = description (when not
  * blank); footer = price + currency/units (when a price is set). The item priority is rendered as a
- * [PriorityBadge] overlaid in the top-right corner of the card.
+ * [PriorityBadge] overlaid in the top-right corner of the card. When the item's `amount` differs from
+ * `1`, an `×<amount>` quantity line is shown under the title; for `amount == 1` nothing is shown.
  *
  * @param item Item to display.
  * @param wishlistTitle Title of the wishlist [item] belongs to, shown as the card subtitle; `null`
@@ -52,6 +53,13 @@ fun WishlistItemCard(
                 }
                 Column(modifier = Modifier.fillMaxWidth().padding(12.dp)) {
                     Text(item.title, style = MaterialTheme.typography.titleMedium)
+                    if (item.amount != 1) {
+                        Text(
+                            "×${item.amount}",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
                     if (wishlistTitle != null) {
                         Text(
                             wishlistTitle,

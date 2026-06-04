@@ -52,6 +52,7 @@ class WishlistItemEditView(
         super.onDraw()
         val title by viewModel.titleState.collectAsState()
         val description by viewModel.descriptionState.collectAsState()
+        val amount by viewModel.amountState.collectAsState()
         val price by viewModel.priceState.collectAsState()
         val priceUnits by viewModel.priceUnitsState.collectAsState()
         val priority by viewModel.priorityState.collectAsState()
@@ -144,6 +145,20 @@ class WishlistItemEditView(
                     classes("form-control")
                     value(description)
                     onInput { viewModel.onDescriptionChanged(it.value) }
+                    if (loading) disabled()
+                }
+            }
+
+            Div({ classes("mb-3") }) {
+                Label("item-amount") { Text(WishlistStrings.amountLabel.translation()) }
+                Input(InputType.Text) {
+                    id("item-amount")
+                    classes("form-control")
+                    value(amount)
+                    attr("inputmode", "numeric")
+                    attr("min", "1")
+                    placeholder("1")
+                    onInput { viewModel.onAmountChanged(it.value) }
                     if (loading) disabled()
                 }
             }
