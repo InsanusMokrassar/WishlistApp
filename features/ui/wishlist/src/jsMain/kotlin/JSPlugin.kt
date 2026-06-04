@@ -32,7 +32,8 @@ object JSPlugin : StartPlugin {
     override fun Module.setupDI(config: JsonObject) {
         with(Plugin) { setupDI(config) }
 
-        single<WishlistViewModeStorage> { LocalStorageWishlistViewModeStorage() }
+        single { LocalStorageWishlistViewModeStorage() }
+        single<WishlistViewModeStorage> { get<LocalStorageWishlistViewModeStorage>() }
 
         singleWithRandomQualifier<NavigationNodeFactory<ViewConfig>> {
             NavigationNodeFactory.Typed<WishlistsListViewConfig, ViewConfig> { chain, cfg -> WishlistsListView(chain, cfg) }
