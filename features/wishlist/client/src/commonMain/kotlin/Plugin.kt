@@ -11,6 +11,7 @@ import org.koin.core.module.Module
  * Registers in Koin:
  * - [KtorWishlistFeature] (concrete + [WishlistsFeature] binding)
  * - [KtorWishlistItemFeature] (concrete + [WishlistsItemsFeature] binding)
+ * - [KtorWishlistCopyFeature] (concrete + [WishlistCopyFeature] binding)
  *
  * Platform-specific plugins (JSPlugin, JVMPlugin, AndroidPlugin) delegate to this object.
  */
@@ -21,6 +22,9 @@ object Plugin : StartPlugin {
 
         single { KtorWishlistItemFeature(get()) }
         single<WishlistsItemsFeature> { get<KtorWishlistItemFeature>() }
+
+        single { KtorWishlistCopyFeature(get()) }
+        single<WishlistCopyFeature> { get<KtorWishlistCopyFeature>() }
     }
 
     override suspend fun startPlugin(koin: Koin) {

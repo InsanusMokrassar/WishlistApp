@@ -1,5 +1,6 @@
 package dev.inmo.wishlist.features.wishlist.client
 
+import dev.inmo.wishlist.features.wishlist.common.models.CopyItemRequest
 import dev.inmo.wishlist.features.wishlist.common.models.NewWishlistItem
 import dev.inmo.wishlist.features.wishlist.common.models.RegisteredWishlistItem
 import dev.inmo.wishlist.features.wishlist.common.models.WishlistId
@@ -34,6 +35,18 @@ interface WishlistsItemsFeature {
      * @return The persisted [RegisteredWishlistItem], or `null` on failure or authorization error.
      */
     suspend fun create(newWishlistItem: NewWishlistItem): RegisteredWishlistItem?
+
+    /**
+     * Deep-copies a source item into one of the caller's own wishlists.
+     *
+     * The caller must own [CopyItemRequest.targetWishlistId]; the server enforces this. The source
+     * item may belong to any user. The copy is idempotent server-side (an already-present identical
+     * item is returned instead of duplicated).
+     *
+     * @param request Source item + caller-owned target wishlist.
+     * @return The created (or pre-existing identical) item, or `null` on failure / authorization error.
+     */
+    suspend fun copy(request: CopyItemRequest): RegisteredWishlistItem?
 
     /**
      * Replaces data of an existing item identified by [id].

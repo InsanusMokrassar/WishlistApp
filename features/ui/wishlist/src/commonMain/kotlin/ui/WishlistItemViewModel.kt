@@ -54,6 +54,14 @@ class WishlistItemViewModel(
         wishlist != null && userId != null && wishlist.userId == userId
     }.stateIn(scope, SharingStarted.Eagerly, false)
 
+    /**
+     * `true` when an authenticated caller is viewing an item they do NOT own — the only case in which
+     * copying into one of their own wishlists is offered. Controls visibility of the Copy button.
+     */
+    val canCopyState: StateFlow<Boolean> = combine(_wishlistState, _currentUserIdState) { wishlist, userId ->
+        wishlist != null && userId != null && wishlist.userId != userId
+    }.stateIn(scope, SharingStarted.Eagerly, false)
+
     private val _loadingState = MutableRedeliverStateFlow(false)
 
     /** `true` while a network request is in flight. */
@@ -137,5 +145,10 @@ class WishlistItemViewModel(
     /** Delegates to [WishlistItemViewInteractor.onEditItem]. Only meaningful when [isOwnerState] is `true`. */
     fun onEditItem() {
         scope.launchLoggingDropExceptions { interactor.onEditItem(node) }
+    }
+
+    /** Delegates to [WishlistItemViewInteractor.onCopyItem]. Only meaningful when [canCopyState] is `true`. */
+    fun onCopyItem() {
+        scope.launchLoggingDropExceptions { interactor.onCopyItem(node) }
     }
 }

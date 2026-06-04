@@ -45,6 +45,9 @@ class WishlistView(
         val sortedItems by viewModel.sortedItemsState.collectAsState()
         val viewMode by viewModel.viewModeState.collectAsState()
         val isOwner by viewModel.isOwnerState.collectAsState()
+        val canCopy by viewModel.canCopyState.collectAsState()
+        val copyRequested by viewModel.copyRequestedState.collectAsState()
+        val copyFailed by viewModel.copyFailedState.collectAsState()
         val loading by viewModel.loadingState.collectAsState()
         val currencyEnabled by viewModel.currencyEnabledState.collectAsState()
         val currencies by viewModel.currenciesState.collectAsState()
@@ -56,6 +59,15 @@ class WishlistView(
             Div({ classes("d-flex", "align-items-center", "mb-3", "gap-2") }) {
                 BackButton(WishlistStrings.backButton.translation()) { viewModel.onBack() }
                 Div({ classes("flex-grow-1") }) {}
+                if (canCopy) {
+                    Button({
+                        classes("btn", "btn-outline-success")
+                        if (copyRequested) attr("disabled", "true")
+                        onClick { viewModel.onCopyWishlist() }
+                    }) {
+                        Text(WishlistStrings.copyWishlistButton.translation())
+                    }
+                }
                 if (isOwner) {
                     Button({
                         classes("btn", "btn-outline-primary")
@@ -63,6 +75,17 @@ class WishlistView(
                     }) {
                         Text(WishlistStrings.editButton.translation())
                     }
+                }
+            }
+
+            if (copyRequested) {
+                Div({ classes("alert", "alert-success", "py-2") }) {
+                    Text(WishlistStrings.copyQueued.translation())
+                }
+            }
+            if (copyFailed) {
+                Div({ classes("alert", "alert-danger", "py-2") }) {
+                    Text(WishlistStrings.copyFailed.translation())
                 }
             }
 

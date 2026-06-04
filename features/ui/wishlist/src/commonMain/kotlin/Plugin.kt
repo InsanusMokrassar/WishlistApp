@@ -13,8 +13,11 @@ import dev.inmo.wishlist.features.files.client.FilesClientService
 import dev.inmo.wishlist.features.files.common.models.FileId
 import dev.inmo.wishlist.features.users.client.UsersFeature
 import dev.inmo.wishlist.features.users.common.models.UserId
+import dev.inmo.wishlist.features.wishlist.client.WishlistCopyFeature
 import dev.inmo.wishlist.features.wishlist.client.WishlistsFeature
 import dev.inmo.wishlist.features.wishlist.client.WishlistsItemsFeature
+import dev.inmo.wishlist.features.wishlist.common.models.CopyItemRequest
+import dev.inmo.wishlist.features.wishlist.common.models.CopyWishlistRequest
 import dev.inmo.wishlist.features.wishlist.common.models.NewWishlistInFeature
 import dev.inmo.wishlist.features.wishlist.common.models.NewWishlistItem
 import dev.inmo.wishlist.features.wishlist.common.models.RegisteredWishlist
@@ -25,6 +28,8 @@ import dev.inmo.wishlist.features.ui.wishlist.ui.WishlistEditViewConfig
 import dev.inmo.wishlist.features.ui.wishlist.ui.WishlistEditViewModel
 import dev.inmo.wishlist.features.ui.wishlist.ui.WishlistItemEditViewConfig
 import dev.inmo.wishlist.features.ui.wishlist.ui.WishlistItemEditViewModel
+import dev.inmo.wishlist.features.ui.wishlist.ui.WishlistItemCopyViewConfig
+import dev.inmo.wishlist.features.ui.wishlist.ui.WishlistItemCopyViewModel
 import dev.inmo.wishlist.features.ui.wishlist.ui.WishlistItemViewConfig
 import dev.inmo.wishlist.features.ui.wishlist.ui.WishlistItemViewModel
 import dev.inmo.wishlist.features.ui.wishlist.ui.WishlistViewConfig
@@ -69,6 +74,8 @@ object Plugin : StartPlugin {
                 polymorphic(ViewConfig::class, WishlistItemViewConfig::class, WishlistItemViewConfig.serializer())
                 polymorphic(Any::class, UserWishlistsViewConfig::class, UserWishlistsViewConfig.serializer())
                 polymorphic(ViewConfig::class, UserWishlistsViewConfig::class, UserWishlistsViewConfig.serializer())
+                polymorphic(Any::class, WishlistItemCopyViewConfig::class, WishlistItemCopyViewConfig.serializer())
+                polymorphic(ViewConfig::class, WishlistItemCopyViewConfig::class, WishlistItemCopyViewConfig.serializer())
             }
         }
 
@@ -78,10 +85,12 @@ object Plugin : StartPlugin {
         factory { WishlistItemEditViewModel(it.get(), get(), get()) }
         factory { WishlistItemViewModel(it.get(), get(), get()) }
         factory { UserWishlistsViewModel(it.get(), get(), get()) }
+        factory { WishlistItemCopyViewModel(it.get(), get(), get()) }
 
         single<WishlistsModel> {
             val wishlistsFeature = get<WishlistsFeature>()
             val itemsFeature = get<WishlistsItemsFeature>()
+            val copyFeature = get<WishlistCopyFeature>()
             val authFeature = get<ClientAuthFeature>()
             val filesService = get<FilesClientService>()
             val usersFeature = get<UsersFeature>()
@@ -133,6 +142,16 @@ object Plugin : StartPlugin {
 
                 override suspend fun deleteWishlistItem(id: WishlistItemId): Boolean =
                     itemsFeature.delete(id)
+
+                override suspend fun copyItemToWishlist(
+                    sourceItemId: WishlistItemId,
+                    sourceWishlistId: WishlistId,
+                    targetWishlistId: WishlistId
+                ): RegisteredWishlistItem? =
+                    itemsFeature.copy(CopyItemRequest(sourceItemId, sourceWishlistId, targetWishlistId))
+
+                override suspend fun enqueueWishlistCopy(sourceWishlistId: WishlistId): Boolean =
+                    copyFeature.enqueueCopy(CopyWishlistRequest(sourceWishlistId))
 
                 override suspend fun getCurrentUserId(): UserId? =
                     authFeature.getMe()?.id

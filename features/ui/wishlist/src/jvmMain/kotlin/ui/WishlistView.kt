@@ -61,6 +61,9 @@ class WishlistView(
         val sortedItems by viewModel.sortedItemsState.collectAsState()
         val viewMode by viewModel.viewModeState.collectAsState()
         val isOwner by viewModel.isOwnerState.collectAsState()
+        val canCopy by viewModel.canCopyState.collectAsState()
+        val copyRequested by viewModel.copyRequestedState.collectAsState()
+        val copyFailed by viewModel.copyFailedState.collectAsState()
         val loading by viewModel.loadingState.collectAsState()
         val currencyEnabled by viewModel.currencyEnabledState.collectAsState()
         val currencies by viewModel.currenciesState.collectAsState()
@@ -76,11 +79,24 @@ class WishlistView(
             ) {
                 BackButton(WishlistStrings.backButton.translation()) { viewModel.onBack() }
                 Spacer(modifier = Modifier.weight(1f))
-                if (isOwner) {
-                    Button(onClick = { viewModel.onEditWishlist() }) {
-                        Text(WishlistStrings.editButton.translation())
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    if (canCopy) {
+                        Button(onClick = { viewModel.onCopyWishlist() }, enabled = !copyRequested) {
+                            Text(WishlistStrings.copyWishlistButton.translation())
+                        }
+                    }
+                    if (isOwner) {
+                        Button(onClick = { viewModel.onEditWishlist() }) {
+                            Text(WishlistStrings.editButton.translation())
+                        }
                     }
                 }
+            }
+            if (copyRequested) {
+                Text(WishlistStrings.copyQueued.translation(), style = MaterialTheme.typography.caption)
+            }
+            if (copyFailed) {
+                Text(WishlistStrings.copyFailed.translation(), style = MaterialTheme.typography.caption)
             }
             Spacer(modifier = Modifier.height(8.dp))
 

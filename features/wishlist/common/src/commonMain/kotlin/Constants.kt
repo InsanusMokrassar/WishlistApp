@@ -37,4 +37,16 @@ object Constants {
 
     /** Path segment for the item delete route: `.../delete/{id}`. */
     const val wishlistItemDeletePathPart = "delete"
+
+    /**
+     * Path segment for the item copy route: `/wishlistItem/copy`.
+     * Authenticated; deep-copies a single item into one of the caller's own wishlists.
+     */
+    const val wishlistItemCopyPathPart = "copy"
+
+    /**
+     * Path segment for the wishlist copy enqueue route: `/wishlist/copy`.
+     * Authenticated; enqueues a server-side job that deep-copies a whole wishlist into the caller's profile.
+     */
+    const val wishlistCopyPathPart = "copy"
 }

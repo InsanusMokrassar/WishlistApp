@@ -1,6 +1,7 @@
 package dev.inmo.wishlist.features.wishlist.client
 
 import dev.inmo.wishlist.features.wishlist.common.Constants
+import dev.inmo.wishlist.features.wishlist.common.models.CopyItemRequest
 import dev.inmo.wishlist.features.wishlist.common.models.NewWishlistItem
 import dev.inmo.wishlist.features.wishlist.common.models.RegisteredWishlistItem
 import dev.inmo.wishlist.features.wishlist.common.models.WishlistId
@@ -44,6 +45,21 @@ class KtorWishlistItemFeature(
     override suspend fun create(newWishlistItem: NewWishlistItem): RegisteredWishlistItem? {
         val response = client.post("${Constants.wishlistItemPrefixPathPart}/${Constants.wishlistItemCreatePathPart}") {
             setBody(newWishlistItem)
+        }
+        return if (response.status.isSuccess()) response.body() else null
+    }
+
+    /**
+     * Posts [request] as JSON to the copy endpoint and deserialises the created item on success.
+     *
+     * Returns `null` on non-2xx response (target not owned, target/source missing, or repo error).
+     *
+     * @param request Source item + caller-owned target wishlist.
+     * @return Created (or pre-existing identical) item, or `null` on non-2xx response.
+     */
+    override suspend fun copy(request: CopyItemRequest): RegisteredWishlistItem? {
+        val response = client.post("${Constants.wishlistItemPrefixPathPart}/${Constants.wishlistItemCopyPathPart}") {
+            setBody(request)
         }
         return if (response.status.isSuccess()) response.body() else null
     }

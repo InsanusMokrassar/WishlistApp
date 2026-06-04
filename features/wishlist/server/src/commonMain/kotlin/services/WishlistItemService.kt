@@ -3,10 +3,13 @@ package dev.inmo.wishlist.features.wishlist.server.services
 import dev.inmo.micro_utils.repos.create
 import dev.inmo.micro_utils.repos.deleteById
 import dev.inmo.wishlist.features.users.common.models.UserId
+import dev.inmo.wishlist.features.wishlist.common.models.CopyItemRequest
 import dev.inmo.wishlist.features.wishlist.common.models.NewWishlistItem
 import dev.inmo.wishlist.features.wishlist.common.models.RegisteredWishlistItem
 import dev.inmo.wishlist.features.wishlist.common.models.WishlistId
 import dev.inmo.wishlist.features.wishlist.common.models.WishlistItemId
+import dev.inmo.wishlist.features.wishlist.common.models.hasSameContentAs
+import dev.inmo.wishlist.features.wishlist.common.models.toNewItem
 import dev.inmo.wishlist.features.wishlist.common.repo.WishlistItemRepo
 import dev.inmo.wishlist.features.wishlist.common.repo.WishlistRepo
 
@@ -82,5 +85,29 @@ class WishlistItemService(
         if (wishlist.userId != callerId) return false
         wishlistItemRepo.deleteById(id)
         return true
+    }
+
+    /**
+     * Deep-copies a single source item into a caller-owned target wishlist.
+     *
+     * Authorization is enforced server-side: the target wishlist named by
+     * [CopyItemRequest.targetWishlistId] must be owned by [callerId]. The source item may belong to
+     * any user (read access is public). The copy is idempotent — if the target wishlist already
+     * contains an item with identical content ([hasSameContentAs]) the existing item is returned
+     * instead of creating a duplicate.
+     *
+     * @param request Identifies the source item and the caller-owned target wishlist.
+     * @param callerId Authenticated caller identity resolved from the request context.
+     * @return The created (or pre-existing identical) [RegisteredWishlistItem], or `null` when the
+     *   target/source is missing, the caller does not own the target, or the repo returns no result.
+     */
+    suspend fun copyItem(request: CopyItemRequest, callerId: UserId): RegisteredWishlistItem? {
+        val target = wishlistRepo.getById(request.targetWishlistId) ?: return null
+        if (target.userId != callerId) return null
+        val source = wishlistItemRepo.getById(request.sourceItemId) ?: return null
+        val newItem = source.toNewItem(target.id)
+        val existing = wishlistItemRepo.getByWishlistId(target.id).firstOrNull { it.hasSameContentAs(newItem) }
+        if (existing != null) return existing
+        return wishlistItemRepo.create(newItem).firstOrNull()
     }
 }

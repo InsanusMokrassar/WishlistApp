@@ -3,6 +3,7 @@ package dev.inmo.wishlist.features.wishlist.server.configurators
 import dev.inmo.micro_utils.ktor.server.configurators.ApplicationRoutingConfigurator
 import dev.inmo.wishlist.features.auth.server.utils.getCallerUserIdOrAnswerUnauthorized
 import dev.inmo.wishlist.features.wishlist.common.Constants
+import dev.inmo.wishlist.features.wishlist.common.models.CopyItemRequest
 import dev.inmo.wishlist.features.wishlist.common.models.NewWishlistItem
 import dev.inmo.wishlist.features.wishlist.common.models.WishlistId
 import dev.inmo.wishlist.features.wishlist.common.models.WishlistItemId
@@ -26,6 +27,7 @@ import io.ktor.server.routing.route
  *
  * **Auth-required routes** (valid bearer token mandatory):
  * - `POST   /wishlistItem/create` — creates a new item if caller owns the parent wishlist; body: [NewWishlistItem]
+ * - `POST   /wishlistItem/copy` — deep-copies a source item into a caller-owned target wishlist; body: [CopyItemRequest]
  * - `PUT    /wishlistItem/update/{id}` — replaces item data if caller owns the parent wishlist; body: [NewWishlistItem]
  * - `DELETE /wishlistItem/delete/{id}` — removes an item if caller owns the parent wishlist
  *
@@ -56,6 +58,16 @@ class WishlistItemRoutingsConfigurator(
                     val callerId = getCallerUserIdOrAnswerUnauthorized() ?: return@post
                     val newItem = call.receive<NewWishlistItem>()
                     val result = wishlistItemService.create(newItem, callerId)
+                    if (result == null) {
+                        call.respond(HttpStatusCode.InternalServerError)
+                    } else {
+                        call.respond(result)
+                    }
+                }
+                post(Constants.wishlistItemCopyPathPart) {
+                    val callerId = getCallerUserIdOrAnswerUnauthorized() ?: return@post
+                    val request = call.receive<CopyItemRequest>()
+                    val result = wishlistItemService.copyItem(request, callerId)
                     if (result == null) {
                         call.respond(HttpStatusCode.InternalServerError)
                     } else {

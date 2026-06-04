@@ -2,10 +2,13 @@ package dev.inmo.wishlist.features.wishlist.common
 
 import dev.inmo.micro_utils.koin.singleWithBinds
 import dev.inmo.micro_utils.startup.plugin.StartPlugin
+import dev.inmo.wishlist.features.wishlist.common.repo.CacheWishlistCopyJobRepo
 import dev.inmo.wishlist.features.wishlist.common.repo.CacheWishlistItemRepo
 import dev.inmo.wishlist.features.wishlist.common.repo.CacheWishlistRepo
+import dev.inmo.wishlist.features.wishlist.common.repo.ExposedWishlistCopyJobRepo
 import dev.inmo.wishlist.features.wishlist.common.repo.ExposedWishlistItemRepo
 import dev.inmo.wishlist.features.wishlist.common.repo.ExposedWishlistRepo
+import dev.inmo.wishlist.features.wishlist.common.repo.WishlistCopyJobRepo
 import dev.inmo.wishlist.features.wishlist.common.repo.WishlistItemRepo
 import dev.inmo.wishlist.features.wishlist.common.repo.WishlistRepo
 import kotlinx.serialization.json.JsonObject
@@ -18,6 +21,8 @@ import org.koin.core.module.Module
  * Registers Exposed JDBC repos wrapped in in-memory cache repos:
  * - [ExposedWishlistRepo] → [CacheWishlistRepo] bound as [WishlistRepo]
  * - [ExposedWishlistItemRepo] → [CacheWishlistItemRepo] bound as [WishlistItemRepo]
+ * - [ExposedWishlistCopyJobRepo] → [CacheWishlistCopyJobRepo] bound as [WishlistCopyJobRepo]
+ *   (persistent queue for whole-wishlist copy jobs)
  *
  * Also delegates to [Plugin] for platform-agnostic DI bindings.
  */
@@ -33,6 +38,11 @@ object JVMPlugin : StartPlugin {
         single { ExposedWishlistItemRepo(get()) }
         singleWithBinds<WishlistItemRepo> {
             CacheWishlistItemRepo(originalRepo = get<ExposedWishlistItemRepo>(), scope = get())
+        }
+
+        single { ExposedWishlistCopyJobRepo(get()) }
+        singleWithBinds<WishlistCopyJobRepo> {
+            CacheWishlistCopyJobRepo(originalRepo = get<ExposedWishlistCopyJobRepo>(), scope = get())
         }
     }
 

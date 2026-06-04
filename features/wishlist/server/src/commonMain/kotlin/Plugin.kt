@@ -5,6 +5,7 @@ import dev.inmo.micro_utils.ktor.server.configurators.ApplicationRoutingConfigur
 import dev.inmo.micro_utils.startup.plugin.StartPlugin
 import dev.inmo.wishlist.features.wishlist.server.configurators.WishlistItemRoutingsConfigurator
 import dev.inmo.wishlist.features.wishlist.server.configurators.WishlistRoutingsConfigurator
+import dev.inmo.wishlist.features.wishlist.server.services.WishlistCopyService
 import dev.inmo.wishlist.features.wishlist.server.services.WishlistItemService
 import dev.inmo.wishlist.features.wishlist.server.services.WishlistService
 import kotlinx.serialization.json.JsonObject
@@ -17,8 +18,12 @@ import org.koin.core.module.Module
  * Registers in Koin:
  * - [WishlistService] — enforces caller ownership on mutable wishlist operations
  * - [WishlistItemService] — enforces parent-wishlist ownership on mutable item operations
+ * - [WishlistCopyService] — persistent background queue worker for whole-wishlist deep copies
  * - [WishlistRoutingsConfigurator] as [ApplicationRoutingConfigurator.Element]
  * - [WishlistItemRoutingsConfigurator] as [ApplicationRoutingConfigurator.Element]
+ *
+ * [WishlistCopyService] depends on JVM-only repo bindings; its worker is started from
+ * [JVMPlugin.startPlugin] (after the common JVM repo plugin has registered them).
  *
  * Neither [WishlistService] nor [WishlistItemService] is bound to a client-facing feature
  * interface because their mutation methods carry an explicit caller
@@ -33,8 +38,10 @@ object Plugin : StartPlugin {
 
         single { WishlistItemService(get(), get()) }
 
+        single { WishlistCopyService(get(), get(), get(), get()) }
+
         singleWithRandomQualifier<ApplicationRoutingConfigurator.Element> {
-            WishlistRoutingsConfigurator(get())
+            WishlistRoutingsConfigurator(get(), get())
         }
         singleWithRandomQualifier<ApplicationRoutingConfigurator.Element> {
             WishlistItemRoutingsConfigurator(get())

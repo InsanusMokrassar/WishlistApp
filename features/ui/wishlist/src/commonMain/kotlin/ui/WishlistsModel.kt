@@ -104,6 +104,32 @@ interface WishlistsModel {
     suspend fun deleteWishlistItem(id: WishlistItemId): Boolean
 
     /**
+     * Deep-copies a single item from another user's wishlist into one of the caller's own wishlists.
+     *
+     * The server enforces that [targetWishlistId] is owned by the caller and performs the copy
+     * idempotently.
+     *
+     * @param sourceItemId Item to copy.
+     * @param sourceWishlistId Wishlist the source item belongs to.
+     * @param targetWishlistId Caller-owned wishlist that receives the new item.
+     * @return The created (or pre-existing identical) item, or `null` on failure / authorization error.
+     */
+    suspend fun copyItemToWishlist(
+        sourceItemId: WishlistItemId,
+        sourceWishlistId: WishlistId,
+        targetWishlistId: WishlistId
+    ): RegisteredWishlistItem?
+
+    /**
+     * Enqueues a background server-side deep copy of another user's whole wishlist into the caller's
+     * profile.
+     *
+     * @param sourceWishlistId Wishlist to copy.
+     * @return `true` when the copy job was queued, `false` on failure.
+     */
+    suspend fun enqueueWishlistCopy(sourceWishlistId: WishlistId): Boolean
+
+    /**
      * Returns the [UserId] of the authenticated caller, or `null` when not available.
      *
      * Used to determine ownership of wishlists in [WishlistViewModel].
