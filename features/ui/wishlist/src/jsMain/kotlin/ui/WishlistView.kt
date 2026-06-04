@@ -73,30 +73,18 @@ class WishlistView(
                     Text(WishlistStrings.emptyItems.translation())
                 }
             } else {
-                Div({
-                    classes(
-                        "d-flex", "flex-column", "flex-md-row", "flex-wrap",
-                        "gap-md-3", "align-items-md-start", "mb-3"
-                    )
-                }) {
-                    WishlistSortSelector(
-                        selected = sortMode,
-                        onSortModeSelected = viewModel::onSortModeSelected,
-                        noneLabel = WishlistStrings.sortDefault,
-                        availableModes = sortModesFor(costSortAvailable)
-                    )
-                    if (currencyEnabled && currencies.isNotEmpty()) {
-                        CurrencySelector(
-                            currencies = currencies,
-                            selected = selectedCurrency,
-                            onCurrencySelected = viewModel::onCurrencySelected
-                        )
-                    }
-                    ViewModeSelector(
-                        selected = viewMode,
-                        onViewModeSelected = viewModel::onViewModeSelected
-                    )
-                }
+                WishlistSelectorsRow(
+                    sortMode = sortMode,
+                    onSortModeSelected = viewModel::onSortModeSelected,
+                    costSortAvailable = costSortAvailable,
+                    noneLabel = WishlistStrings.sortDefault,
+                    currencyEnabled = currencyEnabled,
+                    currencies = currencies,
+                    selectedCurrency = selectedCurrency,
+                    onCurrencySelected = viewModel::onCurrencySelected,
+                    viewMode = viewMode,
+                    onViewModeSelected = viewModel::onViewModeSelected
+                )
                 if (viewMode == WishlistViewMode.Grid) {
                     Div({ classes("row", "row-cols-1", "row-cols-sm-2", "row-cols-md-3", "g-3", "mb-3") }) {
                         sortedItems.forEach { item ->

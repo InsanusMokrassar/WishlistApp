@@ -75,29 +75,17 @@ class UserWishlistsView(
             } else if (sections.isEmpty()) {
                 P({ classes("text-muted") }) { Text(WishlistStrings.emptyItems.translation()) }
             } else {
-                Div({
-                    classes(
-                        "d-flex", "flex-column", "flex-md-row", "flex-wrap",
-                        "gap-md-3", "align-items-md-start", "mb-3"
-                    )
-                }) {
-                    WishlistSortSelector(
-                        selected = sortMode,
-                        onSortModeSelected = viewModel::onSortModeSelected,
-                        availableModes = sortModesFor(costSortAvailable)
-                    )
-                    if (currencyEnabled && currencies.isNotEmpty()) {
-                        CurrencySelector(
-                            currencies = currencies,
-                            selected = selectedCurrency,
-                            onCurrencySelected = viewModel::onCurrencySelected
-                        )
-                    }
-                    ViewModeSelector(
-                        selected = viewMode,
-                        onViewModeSelected = viewModel::onViewModeSelected
-                    )
-                }
+                WishlistSelectorsRow(
+                    sortMode = sortMode,
+                    onSortModeSelected = viewModel::onSortModeSelected,
+                    costSortAvailable = costSortAvailable,
+                    currencyEnabled = currencyEnabled,
+                    currencies = currencies,
+                    selectedCurrency = selectedCurrency,
+                    onCurrencySelected = viewModel::onCurrencySelected,
+                    viewMode = viewMode,
+                    onViewModeSelected = viewModel::onViewModeSelected
+                )
 
                 if (sortMode == WishlistSortMode.None) {
                     sections.forEach { section ->
