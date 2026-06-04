@@ -10,7 +10,8 @@ import kotlinx.serialization.Serializable
  *
  * This is the config returned by the booking
  * [dev.inmo.wishlist.features.ui.wishlist.ui.WishlistAdditionalConfigsProvider] from the wishlist
- * item screen: tapping the booking button pushes this config to open the gift-booking view.
+ * item screen: the item screen draws the compact gift-booking view INLINE for this config via its
+ * own `InjectNavigationChain` / `InjectNavigationNode` (no separate screen is pushed).
  *
  * @property itemId Item to (un)book for gifting.
  * @property wishlistId Parent wishlist of [itemId]; kept for symmetry with other item-scoped configs.

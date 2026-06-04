@@ -1,6 +1,5 @@
 package dev.inmo.wishlist.features.booking.common
 
-import dev.inmo.micro_utils.koin.singleWithBinds
 import dev.inmo.micro_utils.startup.plugin.StartPlugin
 import dev.inmo.wishlist.features.booking.common.repo.BookingRepo
 import dev.inmo.wishlist.features.booking.common.repo.CacheBookingRepo
@@ -23,9 +22,8 @@ object JVMPlugin : StartPlugin {
         with (Plugin) { setupDI(config) }
 
         single { ExposedBookingRepo(get()) }
-        singleWithBinds<BookingRepo> {
-            CacheBookingRepo(originalRepo = get<ExposedBookingRepo>(), scope = get())
-        }
+        single { CacheBookingRepo(originalRepo = get<ExposedBookingRepo>(), scope = get()) }
+        single<BookingRepo> { get<CacheBookingRepo>() }
     }
 
     override suspend fun startPlugin(koin: Koin) {

@@ -42,7 +42,7 @@ class KtorBookingFeature(
      * @param itemId Item to reserve.
      * @return `true` on a 2xx response; `false` on `403`/`404`/`409`/`401`.
      */
-    override suspend fun book(itemId: WishlistItemId): Boolean {
+    override suspend fun tryBook(itemId: WishlistItemId): Boolean {
         val response = client.post(
             "${Constants.bookingPrefixPathPart}/${Constants.bookingBookPathPart}/${itemId.long}"
         )
@@ -55,7 +55,7 @@ class KtorBookingFeature(
      * @param itemId Item whose reservation to cancel.
      * @return `true` on a 2xx response; `false` on `403`/`404`/`401`.
      */
-    override suspend fun cancel(itemId: WishlistItemId): Boolean {
+    override suspend fun cancelBooking(itemId: WishlistItemId): Boolean {
         val response = client.post(
             "${Constants.bookingPrefixPathPart}/${Constants.bookingCancelPathPart}/${itemId.long}"
         )

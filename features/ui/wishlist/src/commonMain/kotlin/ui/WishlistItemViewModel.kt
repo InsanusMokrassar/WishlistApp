@@ -28,15 +28,16 @@ import kotlinx.coroutines.flow.stateIn
  * Loads the item identified by [WishlistItemViewConfig.wishlistItemId] and the parent wishlist.
  * Exposes [isOwnerState] so the view can conditionally render an "Edit" button.
  *
- * Booking and any other item-scoped extra screens are no longer hard-coded here: each registered
- * [WishlistAdditionalConfigsProvider] contributes one button (see [additionalConfigsProviders] /
- * [onAdditionalConfig]). Navigation side-effects are delegated to [interactor].
+ * Booking and any other item-scoped extra views are no longer hard-coded here: each registered
+ * [WishlistAdditionalConfigsProvider] contributes one compact view drawn INLINE by the item view
+ * (via `InjectNavigationChain` / `InjectNavigationNode`); see [additionalConfigsProviders].
+ * Navigation side-effects are delegated to [interactor].
  *
  * @param node Navigation node this ViewModel is bound to.
  * @param model Wishlist data source.
  * @param interactor Navigation delegate for this screen.
- * @param additionalConfigsProviders All registered providers of item-scoped extra screens, injected
- *   via Koin `getAllDistinct`; rendered as one button each in the item view.
+ * @param additionalConfigsProviders All registered providers of item-scoped extra views, injected
+ *   via Koin `getAllDistinct`; each drawn inline in the item view.
  */
 class WishlistItemViewModel(
     private val node: NavigationNode<WishlistItemViewConfig, ViewConfig>,
@@ -134,21 +135,6 @@ class WishlistItemViewModel(
      * @return Payload bytes, or `null` on failure.
      */
     suspend fun loadImageBytes(id: FileId): ByteArray? = model.loadImageBytes(id)
-
-    /**
-     * Opens the screen contributed by [provider] for the currently loaded item.
-     *
-     * No-op when the item is not loaded. Pushes [WishlistAdditionalConfigsProvider.createConfig]
-     * onto the navigation chain via [interactor].
-     *
-     * @param provider Provider whose button the user tapped.
-     */
-    fun onAdditionalConfig(provider: WishlistAdditionalConfigsProvider) {
-        scope.launchLoggingDropExceptions {
-            val item = _itemState.value ?: return@launchLoggingDropExceptions
-            interactor.onAdditionalConfig(node, provider.createConfig(item))
-        }
-    }
 
     /** Delegates to [WishlistItemViewInteractor.onBack]. */
     fun onBack() {

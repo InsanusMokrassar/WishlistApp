@@ -3,10 +3,10 @@ package dev.inmo.wishlist.features.booking.server.configurators
 import dev.inmo.micro_utils.ktor.server.configurators.ApplicationRoutingConfigurator
 import dev.inmo.wishlist.features.auth.server.utils.getCallerUserIdOrAnswerUnauthorized
 import dev.inmo.wishlist.features.booking.common.Constants
-import dev.inmo.wishlist.features.booking.server.services.BookResult
-import dev.inmo.wishlist.features.booking.server.services.BookingResult
+import dev.inmo.wishlist.features.booking.common.models.BookResult
+import dev.inmo.wishlist.features.booking.common.models.BookingResult
+import dev.inmo.wishlist.features.booking.common.models.CancelResult
 import dev.inmo.wishlist.features.booking.server.services.BookingService
-import dev.inmo.wishlist.features.booking.server.services.CancelResult
 import dev.inmo.wishlist.features.wishlist.common.models.WishlistItemId
 import io.ktor.http.HttpStatusCode
 import io.ktor.server.auth.authenticate
@@ -64,7 +64,7 @@ class BookingRoutingsConfigurator(
                         call.respond(HttpStatusCode.BadRequest)
                         return@post
                     }
-                    when (bookingService.book(itemId, callerId)) {
+                    when (bookingService.tryBook(itemId, callerId)) {
                         BookResult.ItemNotFound -> call.respond(HttpStatusCode.NotFound)
                         BookResult.OwnerForbidden -> call.respond(HttpStatusCode.Forbidden)
                         BookResult.AlreadyBooked -> call.respond(HttpStatusCode.Conflict)

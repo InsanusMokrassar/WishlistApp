@@ -32,7 +32,7 @@ interface BookingFeature {
      * @return `true` on success; `false` when the caller owns the item, the item is already
      *   booked by someone else, the item is missing, or the caller is not authorized.
      */
-    suspend fun book(itemId: WishlistItemId): Boolean
+    suspend fun tryBook(itemId: WishlistItemId): Boolean
 
     /**
      * Cancels the authenticated caller's own reservation of [itemId].
@@ -41,7 +41,7 @@ interface BookingFeature {
      * @return `true` on success; `false` when the caller owns the item, the booking belongs to
      *   another user, the item is missing, or the caller is not authorized.
      */
-    suspend fun cancel(itemId: WishlistItemId): Boolean
+    suspend fun cancelBooking(itemId: WishlistItemId): Boolean
 
     /**
      * Lists every wishlist item the authenticated caller has booked (the presents the caller

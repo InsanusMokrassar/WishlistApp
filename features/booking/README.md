@@ -27,16 +27,17 @@ All routes live under `/wishlistItemBooking` and the whole tree is wrapped in `a
 
 - `BookingId` — `@JvmInline value class(Long)` primary key.
 - `Booking` (sealed) → `NewBooking(itemId, userId)`, `RegisteredBooking(id, itemId, userId)`.
-- `BookingState(booked, bookedByMe)` — wire DTO; carries **no booker identity** (rule 2).
+- `BookingState` — `@Serializable` **sealed interface** with exactly three booker-anonymous cases: `Free`, `Booked` (booked by another user, identity omitted — rule 2), `BookedByMe`.
+- `BookingResult` / `BookResult` / `CancelResult` — sealed result interfaces in `common/models/BookingResults.kt` (extracted from the server service); shared by `BookingService` and `BookingRoutingsConfigurator`.
 - `BookingRepo` / `ReadBookingRepo` / `WriteBookingRepo` — CRUD; `ReadBookingRepo` adds `getByItemId(itemId)` and `getByUserId(userId)`.
-- `BookingFeature` (client) / `KtorBookingFeature` — `getState` / `book` / `cancel` / `myPresents`.
-- `BookingService` (server) — owns all rules; results `BookingResult`, `BookResult`, `CancelResult`.
+- `BookingFeature` (client) / `KtorBookingFeature` — `getState` / `tryBook` / `cancelBooking` / `myPresents`.
+- `BookingService` (server) — owns all rules; methods `getState` / `tryBook` / `cancel` / `myPresents`; returns `BookingResult` / `BookResult` / `CancelResult`.
 
 ## Architecture Notes
 
 - **Rule 1 (authorized-only):** `BookingRoutingsConfigurator` wraps the route tree in `authenticate { }`; the service is never invoked for anonymous callers.
-- **Rule 2 (booker-anonymous):** `BookingState` exposes only booleans. `myPresents` returns the caller's OWN booked items (caller is the booker), leaking no other booker's identity.
-- **Rule 3 (owner-hidden):** `BookingService.getState/book/cancel` resolve `ownerOf(item)` and return `OwnerForbidden` → `403` when caller owns the parent wishlist.
-- **Rule 4 (single-booking):** `ExposedBookingRepo` puts a UNIQUE index on `item_id`; `BookingService.book` pre-checks and catches the constraint violation → `AlreadyBooked` → `409`.
+- **Rule 2 (booker-anonymous):** `BookingState` is a sealed `Free` / `Booked` / `BookedByMe` — `Booked` carries no booker identity. `myPresents` returns the caller's OWN booked items (caller is the booker), leaking no other booker's identity.
+- **Rule 3 (owner-hidden):** `BookingService.getState/tryBook/cancel` resolve `ownerOf(item)` and return `OwnerForbidden` → `403` when caller owns the parent wishlist.
+- **Rule 4 (single-booking):** `ExposedBookingRepo` puts a UNIQUE index on `item_id`; **and** `BookingService` holds a `SmartRWLocker` — `getState`/`myPresents` run under `withReadAcquire`, `tryBook`/`cancel` under `withWriteLock`, so the check-then-create of `tryBook` is atomic in-process; `tryBook` also pre-checks and catches the DB constraint violation → `AlreadyBooked` → `409` for any racing duplicate (e.g. multi-instance).
 - Exposed table name `wishlist_item_bookings` is unchanged from the pre-extraction implementation, preserving existing data.
-- `CacheBookingRepo` (FullCRUDCacheRepo) caches by `BookingId`; `getByItemId` / `getByUserId` delegate to the persistent repo because the flat cache is not indexed by those columns.
+- `CacheBookingRepo` (FullCRUDCacheRepo) caches by `BookingId`; `getByItemId` / `getByUserId` delegate to the persistent repo because the flat cache is not indexed by those columns. In `common/jvmMain/JVMPlugin`, `CacheBookingRepo` is registered as its own `single { CacheBookingRepo(...) }`, then `BookingRepo` is bound to it via `single<BookingRepo> { get<CacheBookingRepo>() }`.

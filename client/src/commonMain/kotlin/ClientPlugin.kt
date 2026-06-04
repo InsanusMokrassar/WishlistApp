@@ -37,8 +37,6 @@ import dev.inmo.wishlist.features.ui.adminPanel.ui.AdminWishlistsListViewConfig
 import dev.inmo.wishlist.features.ui.adminPanel.ui.AdminWishlistsListViewInteractor
 import dev.inmo.wishlist.features.ui.auth.ui.AuthViewConfig
 import dev.inmo.wishlist.features.ui.auth.ui.AuthViewInteractor
-import dev.inmo.wishlist.features.ui.booking.ui.BookingViewConfig
-import dev.inmo.wishlist.features.ui.booking.ui.BookingViewInteractor
 import dev.inmo.wishlist.features.ui.booking.ui.MyPresentsViewConfig
 import dev.inmo.wishlist.features.ui.booking.ui.MyPresentsViewInteractor
 import dev.inmo.wishlist.features.ui.scaffold.ui.ScaffoldViewConfig
@@ -306,20 +304,6 @@ object ClientPlugin : StartPlugin {
                     node: NavigationNode<WishlistItemViewConfig, ViewConfig>
                 ) {
                     node.chain.push(WishlistItemEditViewConfig(node.config.wishlistItemId, node.config.wishlistId))
-                }
-                override suspend fun onAdditionalConfig(
-                    node: NavigationNode<WishlistItemViewConfig, ViewConfig>,
-                    config: ViewConfig
-                ) {
-                    node.chain.push(config)
-                }
-            }
-        }
-
-        single<BookingViewInteractor> {
-            object : BookingViewInteractor {
-                override suspend fun onBack(node: NavigationNode<BookingViewConfig, ViewConfig>) {
-                    node.chain.pop()
                 }
             }
         }

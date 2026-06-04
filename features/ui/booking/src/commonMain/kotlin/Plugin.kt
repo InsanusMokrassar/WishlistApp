@@ -38,7 +38,7 @@ object Plugin : StartPlugin {
             }
         }
 
-        factory { BookingViewModel(it.get(), get(), get()) }
+        factory { BookingViewModel(it.get(), get()) }
         factory { MyPresentsViewModel(it.get(), get(), get()) }
 
         single<BookingModel> {
@@ -48,10 +48,10 @@ object Plugin : StartPlugin {
                     bookingFeature.getState(itemId)
 
                 override suspend fun bookItem(itemId: WishlistItemId): Boolean =
-                    bookingFeature.book(itemId)
+                    bookingFeature.tryBook(itemId)
 
                 override suspend fun cancelBooking(itemId: WishlistItemId): Boolean =
-                    bookingFeature.cancel(itemId)
+                    bookingFeature.cancelBooking(itemId)
 
                 override suspend fun myPresents(): List<RegisteredWishlistItem> =
                     bookingFeature.myPresents()

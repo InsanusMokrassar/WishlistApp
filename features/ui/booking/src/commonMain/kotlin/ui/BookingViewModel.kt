@@ -19,14 +19,15 @@ import kotlinx.coroutines.flow.merge
  * book / cancel actions. When [bookingState] is `null` (caller is owner or anonymous — server
  * enforced) the view renders nothing, so the view itself self-gates booking availability.
  *
+ * The view is embedded inline inside the wishlist item screen (drawn via the item view's
+ * `InjectNavigationChain` / `InjectNavigationNode`), so it owns no back navigation of its own.
+ *
  * @param node Navigation node this ViewModel is bound to.
  * @param model Booking data source.
- * @param interactor Navigation delegate for this screen.
  */
 class BookingViewModel(
     private val node: NavigationNode<BookingViewConfig, ViewConfig>,
-    private val model: BookingModel,
-    private val interactor: BookingViewInteractor
+    private val model: BookingModel
 ) : ViewModel<ViewConfig>(node) {
     private val _bookingState = MutableRedeliverStateFlow<BookingState?>(null)
 
@@ -94,10 +95,5 @@ class BookingViewModel(
             }
             reloadBookingState()
         }
-    }
-
-    /** Delegates to [BookingViewInteractor.onBack]. */
-    fun onBack() {
-        scope.launchLoggingDropExceptions { interactor.onBack(node) }
     }
 }
