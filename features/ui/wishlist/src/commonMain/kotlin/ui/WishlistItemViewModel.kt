@@ -12,6 +12,7 @@ import dev.inmo.wishlist.features.currency.common.models.CurrencyInfo
 import dev.inmo.wishlist.features.currency.common.models.CurrencyRates
 import dev.inmo.wishlist.features.files.common.models.FileId
 import dev.inmo.wishlist.features.users.common.models.UserId
+import dev.inmo.wishlist.features.wishlist.common.models.BookingState
 import dev.inmo.wishlist.features.wishlist.common.models.RegisteredWishlist
 import dev.inmo.wishlist.features.wishlist.common.models.RegisteredWishlistItem
 import kotlinx.coroutines.flow.SharingStarted
@@ -77,6 +78,16 @@ class WishlistItemViewModel(
     /** Shared selected conversion target; `null` means original price. */
     val selectedCurrencyState: StateFlow<CurrencyCode?> = model.selectedCurrency
 
+    private val _bookingState = MutableRedeliverStateFlow<BookingState?>(null)
+
+    /**
+     * Booking (gift-reservation) state visible to the current caller, or `null` when booking is
+     * hidden from the caller — i.e. the caller is the item owner or is not authorized. The view
+     * renders the booking section only when this is non-null, so owners and anonymous users never
+     * see booking controls (the server is the authoritative gate; this is defense-in-depth).
+     */
+    val bookingState = _bookingState.asStateFlow()
+
     init {
         merge(flowOf(Unit), node.onResumeFlow).subscribeLoggingDropExceptions(scope) {
             _loadingState.value = true
@@ -93,6 +104,10 @@ class WishlistItemViewModel(
             // automatically when it no longer exists, matching a plain back navigation.
             if (item == null) {
                 interactor.onBack(node)
+            } else {
+                // Booking state is server-gated: returns null for the owner and for anonymous
+                // callers, so the booking section stays hidden from them.
+                _bookingState.value = model.getBookingState(item.id)
             }
         }
         scope.launchLoggingDropExceptions {
@@ -128,6 +143,55 @@ class WishlistItemViewModel(
      * @return Payload bytes, or `null` on failure.
      */
     suspend fun loadImageBytes(id: FileId): ByteArray? = model.loadImageBytes(id)
+
+    /**
+     * Reloads [bookingState] for the currently loaded item.
+     *
+     * No-op when the item is not loaded; reflects the latest server-side state (including the
+     * `null`/hidden result for owners and anonymous callers).
+     */
+    private suspend fun reloadBookingState() {
+        val item = _itemState.value ?: return
+        _bookingState.value = model.getBookingState(item.id)
+    }
+
+    /**
+     * Reserves the current item for gifting on behalf of the caller, then refreshes [bookingState].
+     *
+     * Guarded by [loadingState]. Meaningful only when [bookingState] is non-null and not already
+     * booked; the server rejects any disallowed attempt.
+     */
+    fun onBook() {
+        scope.launchLoggingDropExceptions {
+            val item = _itemState.value ?: return@launchLoggingDropExceptions
+            _loadingState.value = true
+            try {
+                model.bookItem(item.id)
+                reloadBookingState()
+            } finally {
+                _loadingState.value = false
+            }
+        }
+    }
+
+    /**
+     * Cancels the caller's own reservation of the current item, then refreshes [bookingState].
+     *
+     * Guarded by [loadingState]. Meaningful only when [bookingState] indicates the caller booked
+     * the item; the server rejects any disallowed attempt.
+     */
+    fun onCancelBooking() {
+        scope.launchLoggingDropExceptions {
+            val item = _itemState.value ?: return@launchLoggingDropExceptions
+            _loadingState.value = true
+            try {
+                model.cancelBooking(item.id)
+                reloadBookingState()
+            } finally {
+                _loadingState.value = false
+            }
+        }
+    }
 
     /** Delegates to [WishlistItemViewInteractor.onBack]. */
     fun onBack() {

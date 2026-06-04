@@ -30,6 +30,24 @@ Full-stack wishlist management. Users create wishlists and add items to them. Al
 | PUT | `/wishlistItem/update/{id}` | Bearer | `NewWishlistItem → 200 \| 400 \| 403 \| 404` | Replace item data if caller owns parent wishlist |
 | DELETE | `/wishlistItem/delete/{id}` | Bearer | `→ 200 \| 400 \| 403 \| 404` | Remove item if caller owns parent wishlist |
 
+### Item Bookings (`/wishlistItemBooking/...`)
+
+Gift-reservation ("booking") of another user's wishlist item. **Every route requires a valid bearer token** (the whole route tree is wrapped in `authenticate { }`): anonymous callers get `401` and never see booking state. The item **owner** is fully cut off — every booking route returns `403` when the caller owns the parent wishlist, so an owner cannot learn whether their item is booked. Responses never reveal WHO booked an item; only `booked` / `bookedByMe` booleans are returned.
+
+| Method | Path | Auth | Body / Response | Description |
+|--------|------|------|-----------------|-------------|
+| GET | `/wishlistItemBooking/state/{itemId}` | Bearer | `→ BookingState \| 400 \| 401 \| 403 \| 404` | Booking status visible to a non-owner authorized caller |
+| POST | `/wishlistItemBooking/book/{itemId}` | Bearer | `→ 200 \| 400 \| 401 \| 403 \| 404 \| 409` | Reserve the item for the caller |
+| POST | `/wishlistItemBooking/cancel/{itemId}` | Bearer | `→ 200 \| 400 \| 401 \| 403 \| 404` | Cancel the caller's own reservation |
+
+Booking HTTP status semantics:
+- `200` — success
+- `400` — `{itemId}` not a valid Long
+- `401` — no/invalid bearer token (anonymous)
+- `403` — caller owns the item (state hidden from owner) OR, for `cancel`, the booking belongs to another user
+- `404` — item or parent wishlist not found
+- `409` — `book` on an already-booked item (single active booking enforced)
+
 HTTP status semantics:
 - `200` — success
 - `400` — path parameter not a valid Long
@@ -64,6 +82,17 @@ Note: item `create` maps both "parent not found" and "caller not owner" to `null
 | `FileId` | common | Imported from `features/files` — string type wrapping a file identifier |
 | `WishlistsItemsFeature` | client | Client-side interface: `getByWishlistId`, `create`, `update`, `delete` |
 
+### Booking
+
+| Type | Package | Description |
+|------|---------|-------------|
+| `BookingId` | common | `@JvmInline value class(val long: Long)` — primary key |
+| `Booking` | common | Sealed interface (`itemId: WishlistItemId`, `userId: UserId`); base for `NewBooking` and `RegisteredBooking` |
+| `NewBooking` | common | Create payload: `itemId`, `userId` (the booker) |
+| `RegisteredBooking` | common | Persisted entity: adds `id: BookingId` |
+| `BookingState` | common | Wire DTO returned to non-owner authorized callers: `booked: Boolean`, `bookedByMe: Boolean`. **Carries no booker identity** — others learn only that the item is reserved, never by whom. Owners never receive this DTO (server answers `403`). |
+| `BookingFeature` | client | Client-side interface: `getState(itemId): BookingState?` (null when owner/unauthorized/missing), `book(itemId): Boolean`, `cancel(itemId): Boolean` |
+
 ## Architecture Notes
 
 - `WishlistService` and `WishlistItemService` are **not** bound to `WishlistsFeature` / `WishlistsItemsFeature` in Koin because their mutation methods carry an explicit `callerId: UserId` parameter absent from the client interfaces. Routing configurators inject the services directly.
@@ -81,3 +110,14 @@ Note: item `create` maps both "parent not found" and "caller not owner" to `null
 - `links` are stored in a separate `wishlist_item_links` table, managed exclusively by `ExposedWishlistItemRepo` (private `linksTable`). On item delete, cascade FK removes link rows automatically. On read, a sub-query per item row fetches links within the same transaction (N+1 trade-off).
 - `imageIds` are stored in a separate `wishlist_item_images` table, managed exclusively by `ExposedWishlistItemRepo` (private `imagesTable`). Columns: `item_id` (BIGINT FK → wishlist_items.id ON DELETE CASCADE), `file_id` (TEXT), `order` (INT for display order); PK = (item_id, file_id). On item delete, cascade FK removes image rows automatically. On read, images are fetched ordered by `order` column within the same transaction. On update, image rows are deleted and reinserted (same pattern as links).
 - Client-side interfaces (`WishlistsFeature`, `WishlistsItemsFeature`) are declared in `features/wishlist/client` and implemented by `KtorWishlistFeature` / `KtorWishlistItemFeature`.
+- **Booking (gift reservation, issue #29):** hosted inside this feature beside wishlist items (same layering as items live beside wishlists), no separate gradle module.
+  - DB table `wishlist_item_bookings`: `id BIGINT PK AUTO`, `item_id BIGINT UNIQUE INDEX`, `user_id BIGINT`. The **unique index on `item_id`** enforces the single-active-booking invariant: a concurrent second insert for an already-booked item fails on the constraint, which `BookingService.book` catches and maps to `409 Conflict`.
+  - Repo: `BookingRepo` (`Read`/`Write` split) with `getByItemId(itemId): RegisteredBooking?`; `ExposedBookingRepo` (`AbstractExposedCRUDRepo`, mirrors `ExposedWishlistItemRepo`) wrapped by `CacheBookingRepo` (`FullCRUDCacheRepo`) and bound as `BookingRepo` in `wishlist.common.JVMPlugin`.
+  - `BookingService(bookingRepo, wishlistItemRepo, wishlistRepo)` enforces all four issue-#29 rules **server-side**:
+    1. *Authorized-only* — routing wraps every booking route in Ktor `authenticate { }`; anonymous → `401`, service never invoked.
+    2. *Others see booked-or-not, not WHO* — `BookingState` DTO carries only `booked` + `bookedByMe`; booker `UserId` is never serialized.
+    3. *Owner hidden* — service resolves item → parent wishlist → owner id and compares to caller; owner → `OwnerForbidden` on `getState`/`book`/`cancel` → HTTP `403`, owner receives no booking data at all.
+    4. *Single booking* — `book` pre-checks `getByItemId`; the DB unique index guards concurrency; conflict → `409`.
+  - `cancel` is owner-anonymous-safe and idempotent: only the booker may cancel; a missing booking returns `Ok` (no leak).
+  - `BookingService` is **not** bound to `BookingFeature` in Koin (its methods take an explicit `callerId`); `BookingRoutingsConfigurator` injects the service directly, mirroring `WishlistItemService`.
+  - Client: `BookingFeature` declared in `features/wishlist/client`, implemented by `KtorBookingFeature` (HTTP only). `getState` returns `null` on any non-2xx (owner `403`, unauthorized, missing) so callers without visibility show no booking UI.

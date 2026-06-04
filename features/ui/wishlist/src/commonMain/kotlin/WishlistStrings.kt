@@ -82,6 +82,14 @@ object WishlistStrings {
     val confirmDeleteWishlistMessage = buildStringResource("This wishlist and all its items will be permanently removed. Continue?") {
         IetfLang.Russian("Этот список и все его товары будут удалены безвозвратно. Продолжить?")
     }
+    val bookingLabel = buildStringResource("Gift booking") { IetfLang.Russian("Бронь подарка") }
+    val bookButton = buildStringResource("Book for gifting") { IetfLang.Russian("Забронировать") }
+    val cancelBookingButton = buildStringResource("Cancel booking") { IetfLang.Russian("Отменить бронь") }
+    val bookedByYou = buildStringResource("You booked this item") { IetfLang.Russian("Вы забронировали этот товар") }
+    val bookedByOther = buildStringResource("Someone is going to gift this") {
+        IetfLang.Russian("Кто-то собирается подарить это")
+    }
+    val notBooked = buildStringResource("Nobody booked this yet") { IetfLang.Russian("Этот товар ещё не забронирован") }
 }
 
 /**

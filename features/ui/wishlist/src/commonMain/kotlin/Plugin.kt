@@ -13,8 +13,10 @@ import dev.inmo.wishlist.features.files.client.FilesClientService
 import dev.inmo.wishlist.features.files.common.models.FileId
 import dev.inmo.wishlist.features.users.client.UsersFeature
 import dev.inmo.wishlist.features.users.common.models.UserId
+import dev.inmo.wishlist.features.wishlist.client.BookingFeature
 import dev.inmo.wishlist.features.wishlist.client.WishlistsFeature
 import dev.inmo.wishlist.features.wishlist.client.WishlistsItemsFeature
+import dev.inmo.wishlist.features.wishlist.common.models.BookingState
 import dev.inmo.wishlist.features.wishlist.common.models.NewWishlistInFeature
 import dev.inmo.wishlist.features.wishlist.common.models.NewWishlistItem
 import dev.inmo.wishlist.features.wishlist.common.models.RegisteredWishlist
@@ -82,6 +84,7 @@ object Plugin : StartPlugin {
         single<WishlistsModel> {
             val wishlistsFeature = get<WishlistsFeature>()
             val itemsFeature = get<WishlistsItemsFeature>()
+            val bookingFeature = get<BookingFeature>()
             val authFeature = get<ClientAuthFeature>()
             val filesService = get<FilesClientService>()
             val usersFeature = get<UsersFeature>()
@@ -133,6 +136,15 @@ object Plugin : StartPlugin {
 
                 override suspend fun deleteWishlistItem(id: WishlistItemId): Boolean =
                     itemsFeature.delete(id)
+
+                override suspend fun getBookingState(itemId: WishlistItemId): BookingState? =
+                    bookingFeature.getState(itemId)
+
+                override suspend fun bookItem(itemId: WishlistItemId): Boolean =
+                    bookingFeature.book(itemId)
+
+                override suspend fun cancelBooking(itemId: WishlistItemId): Boolean =
+                    bookingFeature.cancel(itemId)
 
                 override suspend fun getCurrentUserId(): UserId? =
                     authFeature.getMe()?.id
