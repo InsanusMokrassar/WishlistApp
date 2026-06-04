@@ -75,22 +75,29 @@ class UserWishlistsView(
             } else if (sections.isEmpty()) {
                 P({ classes("text-muted") }) { Text(WishlistStrings.emptyItems.translation()) }
             } else {
-                WishlistSortSelector(
-                    selected = sortMode,
-                    onSortModeSelected = viewModel::onSortModeSelected,
-                    availableModes = sortModesFor(costSortAvailable)
-                )
-                if (currencyEnabled && currencies.isNotEmpty()) {
-                    CurrencySelector(
-                        currencies = currencies,
-                        selected = selectedCurrency,
-                        onCurrencySelected = viewModel::onCurrencySelected
+                Div({
+                    classes(
+                        "d-flex", "flex-column", "flex-md-row", "flex-wrap",
+                        "gap-md-3", "align-items-md-start", "mb-3"
+                    )
+                }) {
+                    WishlistSortSelector(
+                        selected = sortMode,
+                        onSortModeSelected = viewModel::onSortModeSelected,
+                        availableModes = sortModesFor(costSortAvailable)
+                    )
+                    if (currencyEnabled && currencies.isNotEmpty()) {
+                        CurrencySelector(
+                            currencies = currencies,
+                            selected = selectedCurrency,
+                            onCurrencySelected = viewModel::onCurrencySelected
+                        )
+                    }
+                    ViewModeSelector(
+                        selected = viewMode,
+                        onViewModeSelected = viewModel::onViewModeSelected
                     )
                 }
-                ViewModeSelector(
-                    selected = viewMode,
-                    onViewModeSelected = viewModel::onViewModeSelected
-                )
 
                 if (sortMode == WishlistSortMode.None) {
                     sections.forEach { section ->
