@@ -32,6 +32,8 @@ import dev.inmo.wishlist.features.ui.wishlist.ui.WishlistViewModel
 import dev.inmo.wishlist.features.ui.wishlist.ui.WishlistsListViewConfig
 import dev.inmo.wishlist.features.ui.wishlist.ui.WishlistsListViewModel
 import dev.inmo.wishlist.features.ui.wishlist.ui.WishlistsModel
+import dev.inmo.wishlist.features.ui.wishlist.ui.WishlistViewMode
+import dev.inmo.wishlist.features.ui.wishlist.ui.WishlistViewModeStorage
 import dev.inmo.wishlist.features.ui.wishlist.ui.UserWishlistsViewConfig
 import dev.inmo.wishlist.features.ui.wishlist.ui.UserWishlistsViewModel
 import kotlinx.coroutines.flow.StateFlow
@@ -84,7 +86,14 @@ object Plugin : StartPlugin {
             val filesService = get<FilesClientService>()
             val usersFeature = get<UsersFeature>()
             val currencyService = get<CurrencyService>()
+            val viewModeStorage = get<WishlistViewModeStorage>()
             object : WishlistsModel {
+                override suspend fun getSavedViewMode(): WishlistViewMode =
+                    viewModeStorage.getViewMode() ?: WishlistViewMode.List
+
+                override suspend fun saveViewMode(mode: WishlistViewMode) =
+                    viewModeStorage.saveViewMode(mode)
+
                 override val selectedCurrency: StateFlow<CurrencyCode?> = currencyService.selectedCurrency
 
                 override suspend fun isCurrencyEnabled(): Boolean = currencyService.isFeatureEnabled()

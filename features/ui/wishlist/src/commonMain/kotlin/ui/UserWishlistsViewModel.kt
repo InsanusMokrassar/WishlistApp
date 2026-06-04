@@ -222,6 +222,9 @@ class UserWishlistsViewModel(
                 _ratesState.value = model.currencyRates()
             }
         }
+        scope.launchLoggingDropExceptions {
+            _viewModeState.value = model.getSavedViewMode()
+        }
     }
 
     /**
@@ -261,12 +264,14 @@ class UserWishlistsViewModel(
     }
 
     /**
-     * Changes the presentation of the items between rows and a card grid.
+     * Changes the presentation of the items between rows and a card grid and persists the choice so it
+     * is restored on the next screen open (page refresh / app reopen).
      *
      * @param mode New view mode.
      */
     fun onViewModeSelected(mode: WishlistViewMode) {
         _viewModeState.value = mode
+        scope.launchLoggingDropExceptions { model.saveViewMode(mode) }
     }
 
     /** Delegates to [UserWishlistsViewInteractor.onBack]. */

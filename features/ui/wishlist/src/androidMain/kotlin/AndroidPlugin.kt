@@ -16,6 +16,8 @@ import dev.inmo.wishlist.features.ui.wishlist.ui.WishlistItemEditView
 import dev.inmo.wishlist.features.ui.wishlist.ui.WishlistItemView
 import dev.inmo.wishlist.features.ui.wishlist.ui.WishlistView
 import dev.inmo.wishlist.features.ui.wishlist.ui.WishlistsListView
+import dev.inmo.wishlist.features.ui.wishlist.ui.SharedPreferencesWishlistViewModeStorage
+import dev.inmo.wishlist.features.ui.wishlist.ui.WishlistViewModeStorage
 import kotlinx.serialization.json.JsonObject
 import org.koin.core.Koin
 import org.koin.core.module.Module
@@ -29,6 +31,9 @@ import org.koin.core.module.Module
 object AndroidPlugin : StartPlugin {
     override fun Module.setupDI(config: JsonObject) {
         with(Plugin) { setupDI(config) }
+
+        single { SharedPreferencesWishlistViewModeStorage(get()) }
+        single<WishlistViewModeStorage> { get<SharedPreferencesWishlistViewModeStorage>() }
 
         singleWithRandomQualifier<NavigationNodeFactory<ViewConfig>> {
             NavigationNodeFactory.Typed<WishlistsListViewConfig, ViewConfig> { chain, cfg -> WishlistsListView(chain, cfg) }
