@@ -13,14 +13,14 @@ import org.jetbrains.compose.web.dom.Div
  *
  * The three selectors sit in a row on wider screens (`flex-md-row` + `flex-wrap`) and gracefully fall
  * back to a vertical column on narrow ones (`flex-column`). The currency selector is only rendered when
- * [currencyEnabled] is `true` and [currencies] is not empty. Shared by [WishlistView] and
+ * [isCurrenciesFeatureEnabled] is `true` and [currencies] is not empty. Shared by [WishlistView] and
  * [UserWishlistsView].
  *
  * @param sortMode Currently selected sort mode.
  * @param onSortModeSelected Invoked with the sort mode the user picked.
  * @param costSortAvailable Whether cost-based sort modes are offered (forwarded to [sortModesFor]).
  * @param noneLabel Label for the "no sort" option; defaults to [WishlistStrings.sortNone].
- * @param currencyEnabled Whether the currency feature is enabled for the current user.
+ * @param isCurrenciesFeatureEnabled Whether the currency feature is enabled for the current user.
  * @param currencies Currencies available for selection.
  * @param selectedCurrency Currently selected currency, or `null` for original prices.
  * @param onCurrencySelected Invoked with the currency the user picked (`null` resets to original).
@@ -32,7 +32,7 @@ fun WishlistSelectorsRow(
     sortMode: WishlistSortMode,
     onSortModeSelected: (WishlistSortMode) -> Unit,
     costSortAvailable: Boolean,
-    currencyEnabled: Boolean,
+    isCurrenciesFeatureEnabled: Boolean,
     currencies: List<CurrencyInfo>,
     selectedCurrency: CurrencyCode?,
     onCurrencySelected: (CurrencyCode?) -> Unit,
@@ -52,7 +52,7 @@ fun WishlistSelectorsRow(
             noneLabel = noneLabel,
             availableModes = sortModesFor(costSortAvailable)
         )
-        if (currencyEnabled && currencies.isNotEmpty()) {
+        if (isCurrenciesFeatureEnabled && currencies.isNotEmpty()) {
             CurrencySelector(
                 currencies = currencies,
                 selected = selectedCurrency,

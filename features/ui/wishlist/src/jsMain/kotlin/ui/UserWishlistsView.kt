@@ -79,7 +79,7 @@ class UserWishlistsView(
                     sortMode = sortMode,
                     onSortModeSelected = viewModel::onSortModeSelected,
                     costSortAvailable = costSortAvailable,
-                    currencyEnabled = currencyEnabled,
+                    isCurrenciesFeatureEnabled = currencyEnabled,
                     currencies = currencies,
                     selectedCurrency = selectedCurrency,
                     onCurrencySelected = viewModel::onCurrencySelected,

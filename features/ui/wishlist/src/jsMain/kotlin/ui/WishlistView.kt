@@ -78,7 +78,7 @@ class WishlistView(
                     onSortModeSelected = viewModel::onSortModeSelected,
                     costSortAvailable = costSortAvailable,
                     noneLabel = WishlistStrings.sortDefault,
-                    currencyEnabled = currencyEnabled,
+                    isCurrenciesFeatureEnabled = currencyEnabled,
                     currencies = currencies,
                     selectedCurrency = selectedCurrency,
                     onCurrencySelected = viewModel::onCurrencySelected,
