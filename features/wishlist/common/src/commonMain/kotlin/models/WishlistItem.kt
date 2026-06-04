@@ -23,6 +23,9 @@ sealed interface WishlistItem {
     /** Short display name of the item. */
     val title: String
 
+    /** Desired quantity of the item; always `>= 1` and defaults to `1`. */
+    val amount: UInt
+
     /** Optional approximate price; `null` means no price specified. */
     val approximatePrice: Amount?
 
@@ -47,6 +50,7 @@ sealed interface WishlistItem {
  *
  * @property wishlistId Parent wishlist.
  * @property title Display name of the item.
+ * @property amount Desired quantity of the item; defaults to `1`.
  * @property approximatePrice Optional estimated cost.
  * @property priceUnits Currency or unit label for [approximatePrice].
  * @property links External URLs related to the item.
@@ -58,6 +62,7 @@ sealed interface WishlistItem {
 data class NewWishlistItem(
     override val wishlistId: WishlistId,
     override val title: String,
+    override val amount: UInt = 1u,
     override val approximatePrice: Amount? = null,
     override val priceUnits: String = "",
     override val links: List<String> = emptyList(),
@@ -72,6 +77,7 @@ data class NewWishlistItem(
  * @property id Unique persistent identifier assigned by the server.
  * @property wishlistId Parent wishlist.
  * @property title Display name of the item.
+ * @property amount Desired quantity of the item; defaults to `1`.
  * @property approximatePrice Optional estimated cost.
  * @property priceUnits Currency or unit label for [approximatePrice].
  * @property links External URLs related to the item.
@@ -84,6 +90,7 @@ data class RegisteredWishlistItem(
     val id: WishlistItemId,
     override val wishlistId: WishlistId,
     override val title: String,
+    override val amount: UInt = 1u,
     override val approximatePrice: Amount? = null,
     override val priceUnits: String = "",
     override val links: List<String> = emptyList(),

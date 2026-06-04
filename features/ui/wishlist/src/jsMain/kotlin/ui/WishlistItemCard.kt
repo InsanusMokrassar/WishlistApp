@@ -15,6 +15,7 @@ import org.jetbrains.compose.web.dom.H5
 import org.jetbrains.compose.web.dom.H6
 import org.jetbrains.compose.web.dom.Img
 import org.jetbrains.compose.web.dom.P
+import org.jetbrains.compose.web.dom.Span
 import org.jetbrains.compose.web.dom.Text
 
 /**
@@ -41,7 +42,8 @@ object WishlistItemCardStylesheet : StyleSheet() {
  * Mapping: media = first attached image (only when present); title = item title; subtitle = the
  * wishlist the item belongs to ([wishlistTitle], when non-null); content = description (when not
  * blank); footer = price + currency/units (when a price is set). The item [priority] is rendered as a
- * [PriorityBadge] overlaid in the top-right corner of the card.
+ * [PriorityBadge] overlaid in the top-right corner of the card. When the item's `amount` differs from
+ * `1`, an `×<amount>` quantity badge is shown next to the title; for `amount == 1` no badge appears.
  *
  * @param item Item to display.
  * @param wishlistTitle Title of the wishlist [item] belongs to, shown as the card subtitle; `null`
@@ -73,7 +75,12 @@ fun WishlistItemCard(
         }
 
         Div({ classes("card-body") }) {
-            H5({ classes("card-title") }) { Text(item.title) }
+            H5({ classes("card-title") }) {
+                Text(item.title)
+                if (item.amount != 1u) {
+                    Span({ classes("badge", "bg-secondary", "ms-2") }) { Text("×${item.amount}") }
+                }
+            }
             if (wishlistTitle != null) {
                 H6({ classes("card-subtitle", "mb-2", "text-muted") }) { Text(wishlistTitle) }
             }

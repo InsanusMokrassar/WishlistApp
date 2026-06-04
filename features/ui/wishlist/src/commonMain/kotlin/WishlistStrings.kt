@@ -17,6 +17,7 @@ object WishlistStrings {
     val createWishlistButton = buildStringResource("New Wishlist") { IetfLang.Russian("Новый список") }
     val titleLabel = buildStringResource("Title") { IetfLang.Russian("Название") }
     val descriptionLabel = buildStringResource("Description") { IetfLang.Russian("Описание") }
+    val amountLabel = buildStringResource("Amount") { IetfLang.Russian("Количество") }
     val priceLabel = buildStringResource("Approximate price") { IetfLang.Russian("Примерная цена") }
     val priceUnitsLabel = buildStringResource("Currency / Units") { IetfLang.Russian("Валюта / Единицы") }
     val defaultCurrencyLabel = buildStringResource("Default currency") { IetfLang.Russian("Валюта по умолчанию") }

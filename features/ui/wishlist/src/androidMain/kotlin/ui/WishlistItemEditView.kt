@@ -64,6 +64,7 @@ class WishlistItemEditView(
         val resources = LocalResources.current
         val title by viewModel.titleState.collectAsState()
         val description by viewModel.descriptionState.collectAsState()
+        val amount by viewModel.amountState.collectAsState()
         val price by viewModel.priceState.collectAsState()
         val priceUnits by viewModel.priceUnitsState.collectAsState()
         val priority by viewModel.priorityState.collectAsState()
@@ -140,6 +141,14 @@ class WishlistItemEditView(
                 label = { Text(WishlistStrings.descriptionLabel.translation(resources)) },
                 minLines = 3,
                 maxLines = 5,
+                enabled = !loading,
+                modifier = Modifier.fillMaxWidth()
+            )
+            OutlinedTextField(
+                value = amount,
+                onValueChange = { viewModel.onAmountChanged(it) },
+                label = { Text(WishlistStrings.amountLabel.translation(resources)) },
+                singleLine = true,
                 enabled = !loading,
                 modifier = Modifier.fillMaxWidth()
             )

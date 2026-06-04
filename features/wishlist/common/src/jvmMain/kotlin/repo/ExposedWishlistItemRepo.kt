@@ -31,6 +31,7 @@ import org.jetbrains.exposed.v1.jdbc.transactions.transaction
  * - `id` — BIGINT, autoincrement primary key → [WishlistItemId]
  * - `wishlist_id` — BIGINT → parent [WishlistId]
  * - `title` — TEXT
+ * - `amount` — INT, defaults to `1` → desired quantity of the item
  * - `approx_price_int` — BIGINT NULL → [Amount.integerPart]
  * - `approx_price_dec` — BIGINT NULL → [Amount.decimalPart] stored as signed Long bits
  * - `price_units` — TEXT
@@ -52,6 +53,7 @@ class ExposedWishlistItemRepo(
     private val idColumn = long("id").autoIncrement()
     private val wishlistIdColumn = long("wishlist_id")
     private val titleColumn = text("title")
+    private val amountColumn = integer("amount").default(1)
     private val approxPriceIntColumn = long("approx_price_int").nullable()
     private val approxPriceDecColumn = long("approx_price_dec").nullable()
     private val priceUnitsColumn = text("price_units")
@@ -137,6 +139,7 @@ class ExposedWishlistItemRepo(
                 id = WishlistItemId(id),
                 wishlistId = WishlistId(get(wishlistIdColumn)),
                 title = get(titleColumn),
+                amount = get(amountColumn).toUInt(),
                 approximatePrice = amountOrNull(),
                 priceUnits = get(priceUnitsColumn),
                 links = linksFor(id),
@@ -166,6 +169,7 @@ class ExposedWishlistItemRepo(
     override fun update(id: WishlistItemId?, value: NewWishlistItem, it: UpdateBuilder<Int>) {
         it[wishlistIdColumn] = value.wishlistId.long
         it[titleColumn] = value.title
+        it[amountColumn] = value.amount.toInt()
         it[approxPriceIntColumn] = value.approximatePrice?.integerPart
         it[approxPriceDecColumn] = value.approximatePrice?.decimalPart?.toLong()
         it[priceUnitsColumn] = value.priceUnits
@@ -216,6 +220,7 @@ class ExposedWishlistItemRepo(
             id = WishlistItemId(id),
             wishlistId = value.wishlistId,
             title = value.title,
+            amount = value.amount,
             approximatePrice = value.approximatePrice,
             priceUnits = value.priceUnits,
             links = value.links,

@@ -88,6 +88,11 @@ class WishlistItemView(
                     Text(it.description, style = MaterialTheme.typography.bodyMedium)
                 }
 
+                if (it.amount != 1u) {
+                    Text(WishlistStrings.amountLabel.translation(resources), style = MaterialTheme.typography.titleSmall)
+                    Text("×${it.amount}", style = MaterialTheme.typography.bodyMedium)
+                }
+
                 if (currencyEnabled && currencies.isNotEmpty()) {
                     CurrencySelector(
                         currencies = currencies,
