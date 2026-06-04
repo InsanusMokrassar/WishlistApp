@@ -24,7 +24,7 @@ sealed interface WishlistItem {
     val title: String
 
     /** Desired quantity of the item; always `>= 1` and defaults to `1`. */
-    val amount: Int
+    val amount: UInt
 
     /** Optional approximate price; `null` means no price specified. */
     val approximatePrice: Amount?
@@ -62,7 +62,7 @@ sealed interface WishlistItem {
 data class NewWishlistItem(
     override val wishlistId: WishlistId,
     override val title: String,
-    override val amount: Int = 1,
+    override val amount: UInt = 1u,
     override val approximatePrice: Amount? = null,
     override val priceUnits: String = "",
     override val links: List<String> = emptyList(),
@@ -90,7 +90,7 @@ data class RegisteredWishlistItem(
     val id: WishlistItemId,
     override val wishlistId: WishlistId,
     override val title: String,
-    override val amount: Int = 1,
+    override val amount: UInt = 1u,
     override val approximatePrice: Amount? = null,
     override val priceUnits: String = "",
     override val links: List<String> = emptyList(),

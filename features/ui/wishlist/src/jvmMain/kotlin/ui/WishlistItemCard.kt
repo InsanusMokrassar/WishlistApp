@@ -53,7 +53,7 @@ fun WishlistItemCard(
                 }
                 Column(modifier = Modifier.fillMaxWidth().padding(12.dp)) {
                     Text(item.title, style = MaterialTheme.typography.subtitle1)
-                    if (item.amount != 1) {
+                    if (item.amount != 1u) {
                         Text(
                             "×${item.amount}",
                             style = MaterialTheme.typography.caption,

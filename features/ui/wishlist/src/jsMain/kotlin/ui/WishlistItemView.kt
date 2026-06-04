@@ -78,7 +78,7 @@ class WishlistItemView(
                     }
                 }
 
-                if (it.amount != 1) {
+                if (it.amount != 1u) {
                     Div({ classes("mb-3") }) {
                         H6({ classes("text-muted") }) { Text(WishlistStrings.amountLabel.translation()) }
                         P { Text("×${it.amount}") }

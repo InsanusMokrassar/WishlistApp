@@ -168,7 +168,7 @@ class WishlistItemEditViewModel(
         val trimmed = v.trim()
         _amountState.value = when {
             trimmed.isEmpty() -> ""
-            else -> (trimmed.toIntOrNull()?.coerceAtLeast(1)?.toString()) ?: _amountState.value
+            else -> (trimmed.toUIntOrNull()?.coerceAtLeast(1u)?.toString()) ?: _amountState.value
         }
         _isDirtyState.value = true
     }
@@ -333,7 +333,7 @@ class WishlistItemEditViewModel(
             _loadingState.value = true
             try {
                 val price = _priceState.value.trim().toDoubleOrNull()?.let { Amount(it) }
-                val amount = _amountState.value.trim().toIntOrNull()?.coerceAtLeast(1) ?: 1
+                val amount = _amountState.value.trim().toUIntOrNull()?.coerceAtLeast(1u) ?: 1u
                 val item = NewWishlistItem(
                     wishlistId = node.config.wishlistId,
                     title = title,

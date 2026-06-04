@@ -88,7 +88,7 @@ class WishlistItemView(
                     Text(it.description, style = MaterialTheme.typography.bodyMedium)
                 }
 
-                if (it.amount != 1) {
+                if (it.amount != 1u) {
                     Text(WishlistStrings.amountLabel.translation(resources), style = MaterialTheme.typography.titleSmall)
                     Text("×${it.amount}", style = MaterialTheme.typography.bodyMedium)
                 }

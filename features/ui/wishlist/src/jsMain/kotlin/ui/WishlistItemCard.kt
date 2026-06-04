@@ -77,7 +77,7 @@ fun WishlistItemCard(
         Div({ classes("card-body") }) {
             H5({ classes("card-title") }) {
                 Text(item.title)
-                if (item.amount != 1) {
+                if (item.amount != 1u) {
                     Span({ classes("badge", "bg-secondary", "ms-2") }) { Text("×${item.amount}") }
                 }
             }

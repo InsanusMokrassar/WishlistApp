@@ -139,7 +139,7 @@ class ExposedWishlistItemRepo(
                 id = WishlistItemId(id),
                 wishlistId = WishlistId(get(wishlistIdColumn)),
                 title = get(titleColumn),
-                amount = get(amountColumn),
+                amount = get(amountColumn).toUInt(),
                 approximatePrice = amountOrNull(),
                 priceUnits = get(priceUnitsColumn),
                 links = linksFor(id),
@@ -169,7 +169,7 @@ class ExposedWishlistItemRepo(
     override fun update(id: WishlistItemId?, value: NewWishlistItem, it: UpdateBuilder<Int>) {
         it[wishlistIdColumn] = value.wishlistId.long
         it[titleColumn] = value.title
-        it[amountColumn] = value.amount
+        it[amountColumn] = value.amount.toInt()
         it[approxPriceIntColumn] = value.approximatePrice?.integerPart
         it[approxPriceDecColumn] = value.approximatePrice?.decimalPart?.toLong()
         it[priceUnitsColumn] = value.priceUnits
