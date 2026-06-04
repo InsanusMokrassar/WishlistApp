@@ -73,21 +73,16 @@ class WishlistView(
                     Text(WishlistStrings.emptyItems.translation())
                 }
             } else {
-                WishlistSortSelector(
-                    selected = sortMode,
+                WishlistSelectorsRow(
+                    sortMode = sortMode,
                     onSortModeSelected = viewModel::onSortModeSelected,
+                    costSortAvailable = costSortAvailable,
                     noneLabel = WishlistStrings.sortDefault,
-                    availableModes = sortModesFor(costSortAvailable)
-                )
-                if (currencyEnabled && currencies.isNotEmpty()) {
-                    CurrencySelector(
-                        currencies = currencies,
-                        selected = selectedCurrency,
-                        onCurrencySelected = viewModel::onCurrencySelected
-                    )
-                }
-                ViewModeSelector(
-                    selected = viewMode,
+                    isCurrenciesFeatureEnabled = currencyEnabled,
+                    currencies = currencies,
+                    selectedCurrency = selectedCurrency,
+                    onCurrencySelected = viewModel::onCurrencySelected,
+                    viewMode = viewMode,
                     onViewModeSelected = viewModel::onViewModeSelected
                 )
                 if (viewMode == WishlistViewMode.Grid) {
