@@ -19,6 +19,7 @@ suspend fun main() {
                 dev.inmo.wishlist.features.files.client.JVMPlugin,
                 dev.inmo.wishlist.features.admin.client.JVMPlugin,
                 dev.inmo.wishlist.features.currency.client.JVMPlugin,
+                dev.inmo.wishlist.features.booking.client.JVMPlugin,
 
                 dev.inmo.wishlist.features.ui.sample.JVMPlugin,
                 dev.inmo.wishlist.features.ui.auth.JVMPlugin,
@@ -28,6 +29,7 @@ suspend fun main() {
                 dev.inmo.wishlist.features.ui.users.JVMPlugin,
                 dev.inmo.wishlist.features.ui.topBar.JVMPlugin,
                 dev.inmo.wishlist.features.ui.serverUrl.JVMPlugin,
+                dev.inmo.wishlist.features.ui.booking.JVMPlugin,
             )
         )
     )

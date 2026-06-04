@@ -1,5 +1,6 @@
 package dev.inmo.wishlist.features.ui.wishlist
 
+import dev.inmo.micro_utils.koin.getAllDistinct
 import dev.inmo.micro_utils.koin.singleWithRandomQualifier
 import dev.inmo.micro_utils.startup.plugin.StartPlugin
 import dev.inmo.micro_utils.common.MPPFile
@@ -13,10 +14,8 @@ import dev.inmo.wishlist.features.files.client.FilesClientService
 import dev.inmo.wishlist.features.files.common.models.FileId
 import dev.inmo.wishlist.features.users.client.UsersFeature
 import dev.inmo.wishlist.features.users.common.models.UserId
-import dev.inmo.wishlist.features.wishlist.client.BookingFeature
 import dev.inmo.wishlist.features.wishlist.client.WishlistsFeature
 import dev.inmo.wishlist.features.wishlist.client.WishlistsItemsFeature
-import dev.inmo.wishlist.features.wishlist.common.models.BookingState
 import dev.inmo.wishlist.features.wishlist.common.models.NewWishlistInFeature
 import dev.inmo.wishlist.features.wishlist.common.models.NewWishlistItem
 import dev.inmo.wishlist.features.wishlist.common.models.RegisteredWishlist
@@ -38,6 +37,8 @@ import dev.inmo.wishlist.features.ui.wishlist.ui.WishlistViewMode
 import dev.inmo.wishlist.features.ui.wishlist.ui.WishlistViewModeStorage
 import dev.inmo.wishlist.features.ui.wishlist.ui.UserWishlistsViewConfig
 import dev.inmo.wishlist.features.ui.wishlist.ui.UserWishlistsViewModel
+import dev.inmo.wishlist.features.ui.wishlist.ui.BookingConfigsProvider
+import dev.inmo.wishlist.features.ui.wishlist.ui.WishlistAdditionalConfigsProvider
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.modules.SerializersModule
@@ -78,13 +79,14 @@ object Plugin : StartPlugin {
         factory { WishlistViewModel(it.get(), get(), get()) }
         factory { WishlistEditViewModel(it.get(), get(), get()) }
         factory { WishlistItemEditViewModel(it.get(), get(), get()) }
-        factory { WishlistItemViewModel(it.get(), get(), get()) }
+        factory { WishlistItemViewModel(it.get(), get(), get(), getAllDistinct()) }
         factory { UserWishlistsViewModel(it.get(), get(), get()) }
+
+        singleWithRandomQualifier<WishlistAdditionalConfigsProvider> { BookingConfigsProvider() }
 
         single<WishlistsModel> {
             val wishlistsFeature = get<WishlistsFeature>()
             val itemsFeature = get<WishlistsItemsFeature>()
-            val bookingFeature = get<BookingFeature>()
             val authFeature = get<ClientAuthFeature>()
             val filesService = get<FilesClientService>()
             val usersFeature = get<UsersFeature>()
@@ -136,15 +138,6 @@ object Plugin : StartPlugin {
 
                 override suspend fun deleteWishlistItem(id: WishlistItemId): Boolean =
                     itemsFeature.delete(id)
-
-                override suspend fun getBookingState(itemId: WishlistItemId): BookingState? =
-                    bookingFeature.getState(itemId)
-
-                override suspend fun bookItem(itemId: WishlistItemId): Boolean =
-                    bookingFeature.book(itemId)
-
-                override suspend fun cancelBooking(itemId: WishlistItemId): Boolean =
-                    bookingFeature.cancel(itemId)
 
                 override suspend fun getCurrentUserId(): UserId? =
                     authFeature.getMe()?.id

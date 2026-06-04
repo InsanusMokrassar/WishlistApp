@@ -37,16 +37,4 @@ object Constants {
 
     /** Path segment for the item delete route: `.../delete/{id}`. */
     const val wishlistItemDeletePathPart = "delete"
-
-    /** Root path segment for all wishlist item booking routes: `/wishlistItemBooking/...`. All booking routes require authentication. */
-    const val bookingPrefixPathPart = "wishlistItemBooking"
-
-    /** Path segment for the booking state route: `.../state/{itemId}`. */
-    const val bookingStatePathPart = "state"
-
-    /** Path segment for the book route: `.../book/{itemId}`. */
-    const val bookingBookPathPart = "book"
-
-    /** Path segment for the cancel-booking route: `.../cancel/{itemId}`. */
-    const val bookingCancelPathPart = "cancel"
 }

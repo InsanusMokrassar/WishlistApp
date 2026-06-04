@@ -23,4 +23,12 @@ interface WishlistItemViewInteractor {
      * @param node Current navigation node.
      */
     suspend fun onEditItem(node: NavigationNode<WishlistItemViewConfig, ViewConfig>)
+
+    /**
+     * Called when the user taps an additional-config provider's button on the item screen.
+     *
+     * @param node Current navigation node.
+     * @param config Config produced by the provider; pushed onto the navigation chain.
+     */
+    suspend fun onAdditionalConfig(node: NavigationNode<WishlistItemViewConfig, ViewConfig>, config: ViewConfig)
 }

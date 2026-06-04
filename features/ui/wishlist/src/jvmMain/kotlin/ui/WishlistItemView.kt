@@ -51,7 +51,6 @@ class WishlistItemView(
         val item by viewModel.itemState.collectAsState()
         val loading by viewModel.loadingState.collectAsState()
         val isOwner by viewModel.isOwnerState.collectAsState()
-        val booking by viewModel.bookingState.collectAsState()
         val currencyEnabled by viewModel.currencyEnabledState.collectAsState()
         val currencies by viewModel.currenciesState.collectAsState()
         val selectedCurrency by viewModel.selectedCurrencyState.collectAsState()
@@ -110,26 +109,12 @@ class WishlistItemView(
                 Text(WishlistStrings.priorityLabel.translation(), style = MaterialTheme.typography.subtitle2)
                 PriorityBadge(it.priority)
 
-                // Booking section visible only to authorized non-owner users (server-enforced;
-                // `booking` stays null for the owner and anonymous callers).
-                booking?.let { state ->
-                    Text(WishlistStrings.bookingLabel.translation(), style = MaterialTheme.typography.subtitle2)
-                    when {
-                        state.bookedByMe -> {
-                            Text(WishlistStrings.bookedByYou.translation(), style = MaterialTheme.typography.body2)
-                            Button(onClick = { viewModel.onCancelBooking() }, enabled = !loading) {
-                                Text(WishlistStrings.cancelBookingButton.translation())
-                            }
-                        }
-                        state.booked -> {
-                            Text(WishlistStrings.bookedByOther.translation(), style = MaterialTheme.typography.body2)
-                        }
-                        else -> {
-                            Text(WishlistStrings.notBooked.translation(), style = MaterialTheme.typography.body2)
-                            Button(onClick = { viewModel.onBook() }, enabled = !loading) {
-                                Text(WishlistStrings.bookButton.translation())
-                            }
-                        }
+                // One button per registered WishlistAdditionalConfigsProvider (e.g. booking),
+                // rendered where the hard-coded booking button used to be. Tapping a button opens
+                // the provider's own screen for this item.
+                viewModel.additionalConfigsProviders.forEach { provider ->
+                    Button(onClick = { viewModel.onAdditionalConfig(provider) }, enabled = !loading) {
+                        Text(provider.buttonLabel.translation())
                     }
                 }
 

@@ -11,7 +11,8 @@ import org.koin.core.module.Module
  * Registers in Koin:
  * - [KtorWishlistFeature] (concrete + [WishlistsFeature] binding)
  * - [KtorWishlistItemFeature] (concrete + [WishlistsItemsFeature] binding)
- * - [KtorBookingFeature] (concrete + [BookingFeature] binding)
+ *
+ * Booking client code was extracted into `features/booking/client`.
  *
  * Platform-specific plugins (JSPlugin, JVMPlugin, AndroidPlugin) delegate to this object.
  */
@@ -22,9 +23,6 @@ object Plugin : StartPlugin {
 
         single { KtorWishlistItemFeature(get()) }
         single<WishlistsItemsFeature> { get<KtorWishlistItemFeature>() }
-
-        single { KtorBookingFeature(get()) }
-        single<BookingFeature> { get<KtorBookingFeature>() }
     }
 
     override suspend fun startPlugin(koin: Koin) {

@@ -46,7 +46,6 @@ class WishlistItemView(
         val item by viewModel.itemState.collectAsState()
         val loading by viewModel.loadingState.collectAsState()
         val isOwner by viewModel.isOwnerState.collectAsState()
-        val booking by viewModel.bookingState.collectAsState()
         val currencyEnabled by viewModel.currencyEnabledState.collectAsState()
         val currencies by viewModel.currenciesState.collectAsState()
         val selectedCurrency by viewModel.selectedCurrencyState.collectAsState()
@@ -109,34 +108,18 @@ class WishlistItemView(
                     P { PriorityBadge(it.priority) }
                 }
 
-                // Booking section is shown only to authorized non-owner users: the ViewModel keeps
-                // `booking` null for the owner and for anonymous callers (server-enforced).
-                booking?.let { state ->
-                    Div({ classes("mb-3") }) {
-                        H6({ classes("text-muted") }) { Text(WishlistStrings.bookingLabel.translation()) }
-                        when {
-                            state.bookedByMe -> {
-                                P({ classes("text-success") }) { Text(WishlistStrings.bookedByYou.translation()) }
-                                Button({
-                                    classes("btn", "btn-outline-danger")
-                                    if (loading) disabled()
-                                    onClick { viewModel.onCancelBooking() }
-                                }) {
-                                    Text(WishlistStrings.cancelBookingButton.translation())
-                                }
-                            }
-                            state.booked -> {
-                                P({ classes("text-warning") }) { Text(WishlistStrings.bookedByOther.translation()) }
-                            }
-                            else -> {
-                                P({ classes("text-muted") }) { Text(WishlistStrings.notBooked.translation()) }
-                                Button({
-                                    classes("btn", "btn-primary")
-                                    if (loading) disabled()
-                                    onClick { viewModel.onBook() }
-                                }) {
-                                    Text(WishlistStrings.bookButton.translation())
-                                }
+                // One button per registered WishlistAdditionalConfigsProvider (e.g. booking),
+                // rendered in the row that formerly held the hard-coded booking button. Tapping a
+                // button opens the provider's own screen for this item.
+                if (viewModel.additionalConfigsProviders.isNotEmpty()) {
+                    Div({ classes("d-flex", "flex-wrap", "gap-2", "mb-3") }) {
+                        viewModel.additionalConfigsProviders.forEach { provider ->
+                            Button({
+                                classes("btn", "btn-outline-primary")
+                                if (loading) disabled()
+                                onClick { viewModel.onAdditionalConfig(provider) }
+                            }) {
+                                Text(provider.buttonLabel.translation())
                             }
                         }
                     }

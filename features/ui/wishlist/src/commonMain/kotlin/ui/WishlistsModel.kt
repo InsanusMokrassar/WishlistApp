@@ -3,7 +3,6 @@ package dev.inmo.wishlist.features.ui.wishlist.ui
 import dev.inmo.micro_utils.common.MPPFile
 import dev.inmo.wishlist.features.files.common.models.FileId
 import dev.inmo.wishlist.features.users.common.models.UserId
-import dev.inmo.wishlist.features.wishlist.common.models.BookingState
 import dev.inmo.wishlist.features.wishlist.common.models.NewWishlistItem
 import dev.inmo.wishlist.features.wishlist.common.models.RegisteredWishlist
 import dev.inmo.wishlist.features.wishlist.common.models.RegisteredWishlistItem
@@ -200,32 +199,4 @@ interface WishlistsModel {
      * @param mode View mode to store; restored by [getSavedViewMode] on the next screen open.
      */
     suspend fun saveViewMode(mode: WishlistViewMode)
-
-    /**
-     * Reads the booking (gift-reservation) state of item [itemId] visible to the current caller.
-     *
-     * The server hides booking state from the item owner and from anonymous callers, so the
-     * result is `null` whenever the caller owns the item, is not authorized, or the item is gone.
-     * The returned [BookingState] never identifies WHO booked the item.
-     *
-     * @param itemId Item whose booking state to read.
-     * @return Booker-anonymous [BookingState], or `null` when booking state is not visible.
-     */
-    suspend fun getBookingState(itemId: WishlistItemId): BookingState?
-
-    /**
-     * Reserves item [itemId] for gifting by the authenticated caller.
-     *
-     * @param itemId Item to reserve.
-     * @return `true` on success; `false` when not allowed (owner, already booked, unauthorized, missing).
-     */
-    suspend fun bookItem(itemId: WishlistItemId): Boolean
-
-    /**
-     * Cancels the authenticated caller's own reservation of item [itemId].
-     *
-     * @param itemId Item whose reservation to cancel.
-     * @return `true` on success; `false` when not allowed (owner, not the booker, unauthorized, missing).
-     */
-    suspend fun cancelBooking(itemId: WishlistItemId): Boolean
 }
