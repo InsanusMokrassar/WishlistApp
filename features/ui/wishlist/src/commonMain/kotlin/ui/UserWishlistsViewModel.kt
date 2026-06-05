@@ -102,8 +102,9 @@ class UserWishlistsViewModel(
     private val _sectionsState = MutableRedeliverStateFlow<List<UserWishlistsSection>>(emptyList())
 
     /**
-     * Items of the target user grouped by their wishlist. Wishlists with no items are omitted so
-     * the view never renders an empty separator.
+     * Items of the target user grouped by their wishlist. Wishlists with no items are included with
+     * an empty [UserWishlistsSection.items] list so the view can render their header with an
+     * "empty" placeholder instead of hiding them.
      */
     val sectionsState = _sectionsState.asStateFlow()
 
@@ -195,6 +196,15 @@ class UserWishlistsViewModel(
     /** Shared selected conversion target; `null` means original prices. */
     val selectedCurrencyState: StateFlow<CurrencyCode?> = model.selectedCurrency
 
+    private val _isOwnerState = MutableRedeliverStateFlow(false)
+
+    /**
+     * `true` when the authenticated caller is the user whose items are displayed. The view shows the
+     * "New Wishlist" button only when this is `true`, mirroring the ownership gating of the
+     * wishlists list screen.
+     */
+    val isOwnerState = _isOwnerState.asStateFlow()
+
     private val _viewModeState = MutableRedeliverStateFlow(WishlistViewMode.List)
 
     /**
@@ -207,10 +217,10 @@ class UserWishlistsViewModel(
         merge(flowOf(Unit), node.onResumeFlow).subscribeLoggingDropExceptions(scope) {
             _loadingState.value = true
             try {
+                _isOwnerState.value = model.getCurrentUserId() == node.config.userId
                 _userNameState.value = model.getUserName(node.config.userId)
                 _sectionsState.value = model.getUserWishlists(node.config.userId)
                     .map { wishlist -> UserWishlistsSection(wishlist, model.getWishlistItems(wishlist.id)) }
-                    .filter { it.items.isNotEmpty() }
             } finally {
                 _loadingState.value = false
             }
@@ -282,6 +292,20 @@ class UserWishlistsViewModel(
     /** Opens the target user's public profile via [UserWishlistsViewInteractor.onOpenProfile]. */
     fun onOpenProfile() {
         scope.launchLoggingDropExceptions { interactor.onOpenProfile(node, node.config.userId) }
+    }
+
+    /** Opens the wishlist create form via [UserWishlistsViewInteractor.onCreateWishlist]. */
+    fun onCreateWishlist() {
+        scope.launchLoggingDropExceptions { interactor.onCreateWishlist(node) }
+    }
+
+    /**
+     * Opens the item create form for [wishlist] via [UserWishlistsViewInteractor.onCreateItem].
+     *
+     * @param wishlist Wishlist the new item should be created in.
+     */
+    fun onCreateItem(wishlist: RegisteredWishlist) {
+        scope.launchLoggingDropExceptions { interactor.onCreateItem(node, wishlist.id) }
     }
 
     /** Download URL of image [id], for platforms that render directly from a URL (JS). */

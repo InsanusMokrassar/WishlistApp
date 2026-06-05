@@ -58,15 +58,26 @@ class UserWishlistsView(
         val selectedCurrency by viewModel.selectedCurrencyState.collectAsState()
         val rates by viewModel.ratesState.collectAsState()
         val costSortAvailable by viewModel.costSortAvailableState.collectAsState()
+        val isOwner by viewModel.isOwnerState.collectAsState()
 
         Div({ classes("container", "py-3") }) {
             Div({ classes("d-flex", "align-items-center", "mb-3", "gap-2") }) {
                 BackButton(WishlistStrings.backButton.translation()) { viewModel.onBack() }
-                Button({
-                    classes("btn", "btn-outline-primary", "ms-auto")
-                    onClick { viewModel.onOpenProfile() }
-                }) {
-                    Text(WishlistStrings.profileButton.translation())
+                Div({ classes("d-flex", "align-items-center", "gap-2", "ms-auto") }) {
+                    if (isOwner) {
+                        Button({
+                            classes("btn", "btn-primary")
+                            onClick { viewModel.onCreateWishlist() }
+                        }) {
+                            Text(WishlistStrings.createWishlistButton.translation())
+                        }
+                    }
+                    Button({
+                        classes("btn", "btn-outline-primary")
+                        onClick { viewModel.onOpenProfile() }
+                    }) {
+                        Text(WishlistStrings.profileButton.translation())
+                    }
                 }
             }
 
@@ -93,14 +104,26 @@ class UserWishlistsView(
                             classes("d-flex", "align-items-center", "justify-content-between", "mt-3", "mb-1", "border-bottom", "pb-1")
                         }) {
                             H6({ classes("mb-0", "text-muted") }) { Text(section.wishlist.title) }
-                            Button({
-                                classes("btn", "btn-sm", "btn-outline-primary")
-                                onClick { viewModel.onWishlistSelected(section.wishlist) }
-                            }) {
-                                Text(WishlistStrings.openWishlistButton.translation())
+                            Div({ classes("d-flex", "align-items-center", "gap-2") }) {
+                                if (isOwner) {
+                                    Button({
+                                        classes("btn", "btn-sm", "btn-primary")
+                                        onClick { viewModel.onCreateItem(section.wishlist) }
+                                    }) {
+                                        Text(WishlistStrings.addItemButton.translation())
+                                    }
+                                }
+                                Button({
+                                    classes("btn", "btn-sm", "btn-outline-primary")
+                                    onClick { viewModel.onWishlistSelected(section.wishlist) }
+                                }) {
+                                    Text(WishlistStrings.openWishlistButton.translation())
+                                }
                             }
                         }
-                        if (viewMode == WishlistViewMode.Grid) {
+                        if (section.items.isEmpty()) {
+                            P({ classes("text-muted") }) { Text(WishlistStrings.emptyItems.translation()) }
+                        } else if (viewMode == WishlistViewMode.Grid) {
                             ItemsGrid(section.items.map { it to section.wishlist.title })
                         } else {
                             Ul({ classes("list-group") }) {

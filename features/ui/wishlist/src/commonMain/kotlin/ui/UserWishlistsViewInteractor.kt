@@ -54,4 +54,23 @@ interface UserWishlistsViewInteractor {
         node: NavigationNode<UserWishlistsViewConfig, ViewConfig>,
         userId: UserId
     )
+
+    /**
+     * Called when the user wants to create a new wishlist; the create form should be opened.
+     *
+     * @param node Current navigation node.
+     */
+    suspend fun onCreateWishlist(node: NavigationNode<UserWishlistsViewConfig, ViewConfig>)
+
+    /**
+     * Called when the user wants to add a new item to one of the displayed wishlists; the item
+     * create form should be opened for that wishlist.
+     *
+     * @param node Current navigation node.
+     * @param wishlistId Wishlist the new item should be created in.
+     */
+    suspend fun onCreateItem(
+        node: NavigationNode<UserWishlistsViewConfig, ViewConfig>,
+        wishlistId: WishlistId
+    )
 }

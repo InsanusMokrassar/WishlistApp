@@ -70,6 +70,7 @@ class UserWishlistsView(
         val selectedCurrency by viewModel.selectedCurrencyState.collectAsState()
         val rates by viewModel.ratesState.collectAsState()
         val costSortAvailable by viewModel.costSortAvailableState.collectAsState()
+        val isOwner by viewModel.isOwnerState.collectAsState()
 
         Column(
             modifier = Modifier.fillMaxSize().padding(16.dp),
@@ -81,8 +82,18 @@ class UserWishlistsView(
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 BackButton(WishlistStrings.backButton.translation()) { viewModel.onBack() }
-                Button(onClick = { viewModel.onOpenProfile() }) {
-                    Text(WishlistStrings.profileButton.translation())
+                Row(
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    if (isOwner) {
+                        Button(onClick = { viewModel.onCreateWishlist() }) {
+                            Text(WishlistStrings.createWishlistButton.translation())
+                        }
+                    }
+                    Button(onClick = { viewModel.onOpenProfile() }) {
+                        Text(WishlistStrings.profileButton.translation())
+                    }
                 }
             }
 
@@ -115,23 +126,12 @@ class UserWishlistsView(
                     ) {
                         if (sortMode == WishlistSortMode.None) {
                             sections.forEach { section ->
-                                Row(
-                                    modifier = Modifier.fillMaxWidth().padding(top = 8.dp),
-                                    horizontalArrangement = Arrangement.SpaceBetween,
-                                    verticalAlignment = Alignment.CenterVertically
-                                ) {
-                                    Text(
-                                        section.wishlist.title,
-                                        modifier = Modifier.weight(1f),
-                                        style = MaterialTheme.typography.subtitle2,
-                                        color = MaterialTheme.colors.primary
-                                    )
-                                    Button(onClick = { viewModel.onWishlistSelected(section.wishlist) }) {
-                                        Text(WishlistStrings.openWishlistButton.translation())
-                                    }
+                                SectionHeader(section, isOwner)
+                                if (section.items.isEmpty()) {
+                                    Text(WishlistStrings.emptyItems.translation(), style = MaterialTheme.typography.caption)
+                                } else {
+                                    ItemCardsGrid(section.items.map { it to section.wishlist.title })
                                 }
-                                Divider()
-                                ItemCardsGrid(section.items.map { it to section.wishlist.title })
                             }
                         } else {
                             ItemCardsGrid(sortedItems.map { it.item to it.wishlistTitle })
@@ -142,25 +142,16 @@ class UserWishlistsView(
                         if (sortMode == WishlistSortMode.None) {
                             sections.forEach { section ->
                                 item(key = "header-${section.wishlist.id.long}") {
-                                    Row(
-                                        modifier = Modifier.fillMaxWidth().padding(top = 8.dp),
-                                        horizontalArrangement = Arrangement.SpaceBetween,
-                                        verticalAlignment = Alignment.CenterVertically
-                                    ) {
-                                        Text(
-                                            section.wishlist.title,
-                                            modifier = Modifier.weight(1f),
-                                            style = MaterialTheme.typography.subtitle2,
-                                            color = MaterialTheme.colors.primary
-                                        )
-                                        Button(onClick = { viewModel.onWishlistSelected(section.wishlist) }) {
-                                            Text(WishlistStrings.openWishlistButton.translation())
-                                        }
-                                    }
-                                    Divider()
+                                    SectionHeader(section, isOwner)
                                 }
-                                items(section.items, key = { it.id.long }) { item ->
-                                    ItemRow(item, null, selectedCurrency, rates)
+                                if (section.items.isEmpty()) {
+                                    item(key = "empty-${section.wishlist.id.long}") {
+                                        Text(WishlistStrings.emptyItems.translation(), style = MaterialTheme.typography.caption)
+                                    }
+                                } else {
+                                    items(section.items, key = { it.id.long }) { item ->
+                                        ItemRow(item, null, selectedCurrency, rates)
+                                    }
                                 }
                             }
                         } else {
@@ -172,6 +163,43 @@ class UserWishlistsView(
                 }
             }
         }
+    }
+
+    /**
+     * Header row of one wishlist section: the wishlist title, an owner-only "Add Item" button and
+     * the "Open" button, followed by a divider.
+     *
+     * @param section Section whose wishlist this header represents.
+     * @param isOwner Whether the caller owns the displayed wishlists; gates the "Add Item" button.
+     */
+    @Composable
+    private fun SectionHeader(section: UserWishlistsSection, isOwner: Boolean) {
+        Row(
+            modifier = Modifier.fillMaxWidth().padding(top = 8.dp),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Text(
+                section.wishlist.title,
+                modifier = Modifier.weight(1f),
+                style = MaterialTheme.typography.subtitle2,
+                color = MaterialTheme.colors.primary
+            )
+            Row(
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                if (isOwner) {
+                    Button(onClick = { viewModel.onCreateItem(section.wishlist) }) {
+                        Text(WishlistStrings.addItemButton.translation())
+                    }
+                }
+                Button(onClick = { viewModel.onWishlistSelected(section.wishlist) }) {
+                    Text(WishlistStrings.openWishlistButton.translation())
+                }
+            }
+        }
+        Divider()
     }
 
     /**

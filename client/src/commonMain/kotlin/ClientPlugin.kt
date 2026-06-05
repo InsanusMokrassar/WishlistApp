@@ -234,6 +234,17 @@ object ClientPlugin : StartPlugin {
                 ) {
                     node.chain.push(UserViewConfig(userId))
                 }
+                override suspend fun onCreateWishlist(
+                    node: NavigationNode<UserWishlistsViewConfig, ViewConfig>
+                ) {
+                    node.chain.push(WishlistEditViewConfig(null))
+                }
+                override suspend fun onCreateItem(
+                    node: NavigationNode<UserWishlistsViewConfig, ViewConfig>,
+                    wishlistId: WishlistId
+                ) {
+                    node.chain.push(WishlistItemEditViewConfig(null, wishlistId))
+                }
             }
         }
 
