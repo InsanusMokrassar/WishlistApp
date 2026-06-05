@@ -10,7 +10,7 @@ THIS AGENT MUST WRITE `agents/task/<uuid>/<STEP_NUMBER>.md` WITH RESULTS REPORT 
 
 ---
 
-if `ast-index` plugin has been installed - YOU MUST ALWAYS use it instead of grep/find if `ast-index` is suitable for you. Otherwise - in case of needs in search of files you must try to use `ast-index` first. Read about how to use it in `AST_INDEX.md`.
+ALWAYS USE `ast-index` for any code search/navigation (symbols, files, usages, hierarchy). NEVER use grep/find when `ast-index` can do the job. Read about how to use it in `AST_INDEX.md`. This rule applies to ALL roles without exceptions.
 
 if `ast-index` is not installed - install it with:
 
