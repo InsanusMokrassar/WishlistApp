@@ -21,6 +21,7 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.flowOf
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.merge
 import kotlinx.coroutines.flow.stateIn
 
@@ -124,10 +125,26 @@ class UserWishlistsViewModel(
     private val _sortModeState = MutableRedeliverStateFlow(WishlistSortMode.None)
 
     /**
-     * Currently selected ordering. [WishlistSortMode.None] keeps the grouped presentation; any other
-     * value switches the view to the flat [sortedItemsState] list.
+     * Effective ordering applied by the views. Mirrors the user selection from [onSortModeSelected]
+     * but is clamped to [WishlistSortMode.None] while fewer than two items exist across all loaded
+     * sections — sorting fewer than two items is meaningless and a non-[WishlistSortMode.None] mode
+     * would blank the grouped presentation (PR #31 T1). The raw selection is kept privately, so it
+     * re-applies when the item count grows back to two or more.
      */
-    val sortModeState = _sortModeState.asStateFlow()
+    val sortModeState: StateFlow<WishlistSortMode> =
+        combine(_sortModeState, _sectionsState) { mode, sections ->
+            if (sections.sumOf { it.items.size } < 2) WishlistSortMode.None else mode
+        }.stateIn(scope, SharingStarted.Eagerly, WishlistSortMode.None)
+
+    /**
+     * `true` when the sort selector should be rendered: two or more items exist across all loaded
+     * sections. Hidden otherwise — with fewer than two items every mode is equivalent to
+     * [WishlistSortMode.None], so the selector (including a meaningless Cost option for an empty
+     * item set) would only mislead (PR #31 T1).
+     */
+    val sortSelectorVisibleState: StateFlow<Boolean> =
+        _sectionsState.map { sections -> sections.sumOf { it.items.size } >= 2 }
+            .stateIn(scope, SharingStarted.Eagerly, false)
 
     private val _currencyEnabledState = MutableRedeliverStateFlow(false)
 
@@ -161,18 +178,18 @@ class UserWishlistsViewModel(
      * renders [sectionsState] instead). Each entry keeps its wishlist title so the view can show it
      * after the item title in brackets. [WishlistSortMode.Cost] compares prices in the items' dominant
      * currency (converted via [ratesState] when the feature is enabled), with unpriced/unconvertible
-     * items last; it falls back to grouped order when cost sorting is unavailable.
+     * items last; it falls back to grouped order when cost sorting is unavailable. Also clamped to
+     * [WishlistSortMode.None] while fewer than two items are loaded (PR #31 T1).
      */
     val sortedItemsState =
         combine(_sectionsState, _sortModeState, _ratesState, _currencyEnabledState) { sections, mode, rates, enabled ->
             val allItems = sections.flatMap { it.items }
             val pricedUnits = allItems.filter { it.approximatePrice != null }.map { it.priceUnits }
-            val effectiveMode =
-                if (mode == WishlistSortMode.Cost && !isCostSortAvailable(pricedUnits, enabled)) {
-                    WishlistSortMode.None
-                } else {
-                    mode
-                }
+            val effectiveMode = when {
+                allItems.size < 2 -> WishlistSortMode.None
+                mode == WishlistSortMode.Cost && !isCostSortAvailable(pricedUnits, enabled) -> WishlistSortMode.None
+                else -> mode
+            }
             if (effectiveMode == WishlistSortMode.None) {
                 emptyList()
             } else {
@@ -201,7 +218,7 @@ class UserWishlistsViewModel(
     /**
      * `true` when the authenticated caller is the user whose items are displayed. The view shows the
      * "New Wishlist" button only when this is `true`, mirroring the ownership gating of the
-     * wishlists list screen.
+     * wishlists list screen. Derivation routes through [WishlistsModel.isOwner].
      */
     val isOwnerState = _isOwnerState.asStateFlow()
 
@@ -217,7 +234,7 @@ class UserWishlistsViewModel(
         merge(flowOf(Unit), node.onResumeFlow).subscribeLoggingDropExceptions(scope) {
             _loadingState.value = true
             try {
-                _isOwnerState.value = model.getCurrentUserId() == node.config.userId
+                _isOwnerState.value = model.isOwner(node.config.userId)
                 _userNameState.value = model.getUserName(node.config.userId)
                 _sectionsState.value = model.getUserWishlists(node.config.userId)
                     .map { wishlist -> UserWishlistsSection(wishlist, model.getWishlistItems(wishlist.id)) }

@@ -69,6 +69,7 @@ class WishlistsListViewModel(
      * `true` when the authenticated caller owns the displayed list and may create wishlists in it:
      * either browsing their own list ([targetUserId] is `null`) or browsing themselves by id.
      * `false` for anonymous callers and when browsing another user — hides the "New Wishlist" button.
+     * Ownership determined via [WishlistsModel.isOwner].
      */
     val isOwnerState = _isOwnerState.asStateFlow()
 
@@ -92,7 +93,7 @@ class WishlistsListViewModel(
             val profileUserId = targetUserId ?: currentUserId
             _profileUserIdState.value = profileUserId
             _userNameState.value = profileUserId?.let { model.getUserName(it) }
-            _isOwnerState.value = currentUserId != null && (targetUserId == null || targetUserId == currentUserId)
+            _isOwnerState.value = model.isOwner(targetUserId)
         } finally {
             _loadingState.value = false
         }

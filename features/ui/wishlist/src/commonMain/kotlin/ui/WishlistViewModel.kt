@@ -14,7 +14,6 @@ import dev.inmo.wishlist.features.currency.common.utils.costSortKey
 import dev.inmo.wishlist.features.currency.common.utils.dominantCurrency
 import dev.inmo.wishlist.features.currency.common.utils.isCostSortAvailable
 import dev.inmo.wishlist.features.files.common.models.FileId
-import dev.inmo.wishlist.features.users.common.models.UserId
 import dev.inmo.wishlist.features.wishlist.common.models.RegisteredWishlist
 import dev.inmo.wishlist.features.wishlist.common.models.RegisteredWishlistItem
 import dev.inmo.wishlist.features.wishlist.common.models.WishlistItemId
@@ -23,6 +22,7 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.flowOf
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.merge
 import kotlinx.coroutines.flow.stateIn
 
@@ -52,15 +52,13 @@ class WishlistViewModel(
     /** Items belonging to the loaded wishlist. */
     val itemsState = _itemsState.asStateFlow()
 
-    private val _currentUserIdState = MutableRedeliverStateFlow<UserId?>(null)
+    private val _isOwnerState = MutableRedeliverStateFlow(false)
 
     /**
-     * `true` when the authenticated caller is the wishlist owner.
-     * Derived from [_wishlistState] and [_currentUserIdState].
+     * `true` when the authenticated caller is the wishlist owner. Assigned on every (re)load via
+     * [WishlistsModel.isOwner]; a missing (`null`) wishlist counts as not-owned.
      */
-    val isOwnerState: StateFlow<Boolean> = combine(_wishlistState, _currentUserIdState) { wishlist, userId ->
-        wishlist != null && userId != null && wishlist.userId == userId
-    }.stateIn(scope, SharingStarted.Eagerly, false)
+    val isOwnerState = _isOwnerState.asStateFlow()
 
     private val _loadingState = MutableRedeliverStateFlow(false)
 
@@ -70,10 +68,24 @@ class WishlistViewModel(
     private val _sortModeState = MutableRedeliverStateFlow(WishlistSortMode.None)
 
     /**
-     * Currently selected ordering of the items. [WishlistSortMode.None] keeps the stored order;
-     * any other value reorders [sortedItemsState] accordingly.
+     * Effective ordering applied by the views. Mirrors the user selection from [onSortModeSelected]
+     * but is clamped to [WishlistSortMode.None] while the wishlist holds fewer than two items —
+     * sorting fewer than two items is meaningless (PR #31 T1). The raw selection is kept privately,
+     * so it re-applies when the item count grows back to two or more.
      */
-    val sortModeState = _sortModeState.asStateFlow()
+    val sortModeState: StateFlow<WishlistSortMode> =
+        combine(_sortModeState, _itemsState) { mode, items ->
+            if (items.size < 2) WishlistSortMode.None else mode
+        }.stateIn(scope, SharingStarted.Eagerly, WishlistSortMode.None)
+
+    /**
+     * `true` when the sort selector should be rendered: the wishlist holds two or more items.
+     * Hidden otherwise — with fewer than two items every mode is equivalent to
+     * [WishlistSortMode.None] (PR #31 T1).
+     */
+    val sortSelectorVisibleState: StateFlow<Boolean> =
+        _itemsState.map { items -> items.size >= 2 }
+            .stateIn(scope, SharingStarted.Eagerly, false)
 
     private val _currencyEnabledState = MutableRedeliverStateFlow(false)
 
@@ -105,17 +117,17 @@ class WishlistViewModel(
      * [WishlistSortMode.None] the stored order from [itemsState] is preserved. [WishlistSortMode.Cost]
      * compares prices in the items' dominant currency (converted via [ratesState] when the feature is
      * enabled), with unpriced/unconvertible items last; it falls back to the stored order when cost
-     * sorting is unavailable. Mirrors the sort orders used by the all-items screen.
+     * sorting is unavailable. Mirrors the sort orders used by the all-items screen. Also clamped to
+     * [WishlistSortMode.None] while fewer than two items are loaded (PR #31 T1).
      */
     val sortedItemsState: StateFlow<List<RegisteredWishlistItem>> =
         combine(_itemsState, _sortModeState, _ratesState, _currencyEnabledState) { items, mode, rates, enabled ->
             val pricedUnits = items.filter { it.approximatePrice != null }.map { it.priceUnits }
-            val effectiveMode =
-                if (mode == WishlistSortMode.Cost && !isCostSortAvailable(pricedUnits, enabled)) {
-                    WishlistSortMode.None
-                } else {
-                    mode
-                }
+            val effectiveMode = when {
+                items.size < 2 -> WishlistSortMode.None
+                mode == WishlistSortMode.Cost && !isCostSortAvailable(pricedUnits, enabled) -> WishlistSortMode.None
+                else -> mode
+            }
             when (effectiveMode) {
                 WishlistSortMode.None -> items
                 WishlistSortMode.Cost -> {
@@ -168,9 +180,9 @@ class WishlistViewModel(
     private suspend fun loadWishlist() {
         _loadingState.value = true
         val wishlist = try {
-            _currentUserIdState.value = model.getCurrentUserId()
             val loaded = model.getWishlist(node.config.wishlistId)
             _wishlistState.value = loaded
+            _isOwnerState.value = loaded != null && model.isOwner(loaded.userId)
             _itemsState.value = model.getWishlistItems(node.config.wishlistId)
             loaded
         } finally {

@@ -13,8 +13,12 @@ import dev.inmo.wishlist.features.wishlist.common.models.RegisteredWishlistItem
  * `features/ui/booking` and `features/booking`; this adapter only routes the item into that scenario.
  */
 class BookingConfigsProvider : WishlistAdditionalConfigsProvider {
-    /** Dedicated chain id so the inline booking view lives in its own isolated navigation chain. */
-    override val chainId: NavigationChainId = NavigationChainId("wishlistItemAdditionalConfig_booking")
+    /**
+     * Stable non-null chain id for the inline booking view. An external host may pre-create a chain
+     * with this id to relocate the compact booking view into a dedicated area; otherwise the item
+     * screen injects it inline in an isolated chain under this id.
+     */
+    override val chainId: NavigationChainId? = NavigationChainId("wishlistItemAdditionalConfig_booking")
 
     /**
      * Builds the booking view config for [item].

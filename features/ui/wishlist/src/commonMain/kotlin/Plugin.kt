@@ -142,6 +142,15 @@ object Plugin : StartPlugin {
                 override suspend fun getCurrentUserId(): UserId? =
                     authFeature.getMe()?.id
 
+                /**
+                 * Single ownership predicate: authenticated caller + (`null` target = own context,
+                 * non-null target must equal the caller's id). See [WishlistsModel.isOwner].
+                 */
+                override suspend fun isOwner(userId: UserId?): Boolean {
+                    val currentUserId = getCurrentUserId()
+                    return currentUserId != null && (userId == null || userId == currentUserId)
+                }
+
                 override suspend fun getUserName(userId: UserId): String? =
                     usersFeature.getAll().find { it.id == userId }?.username?.string
 

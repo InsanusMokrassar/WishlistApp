@@ -4,8 +4,6 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import dev.inmo.micro_utils.strings.translation
-import dev.inmo.navigation.compose.InjectNavigationChain
-import dev.inmo.navigation.compose.InjectNavigationNode
 import dev.inmo.navigation.core.NavigationChain
 import dev.inmo.navigation.mvvm.compose.ComposeView
 import dev.inmo.wishlist.features.common.client.models.ViewConfig
@@ -110,16 +108,14 @@ class WishlistItemView(
                     P { PriorityBadge(it.priority) }
                 }
 
-                // Each registered WishlistAdditionalConfigsProvider (e.g. booking) is drawn INLINE
-                // here, where the hard-coded booking button used to be, by injecting a dedicated
-                // navigation chain + node per provider. The provider's own compact view renders in
-                // place; no button pushes a separate screen.
+                // Each registered WishlistAdditionalConfigsProvider (e.g. booking) is drawn through the
+                // shared WishlistItemAdditionalConfigView: pushed into an existing externally hosted chain
+                // when the provider declares a chainId that is already present in the navigation tree,
+                // otherwise injected inline right here.
                 if (viewModel.additionalConfigsProviders.isNotEmpty()) {
                     Div({ classes("d-flex", "flex-wrap", "gap-2", "mb-3") }) {
                         viewModel.additionalConfigsProviders.forEach { provider ->
-                            InjectNavigationChain<ViewConfig>(id = provider.chainId) {
-                                InjectNavigationNode(provider.createConfig(it))
-                            }
+                            WishlistItemAdditionalConfigView(provider, it, this@WishlistItemView)
                         }
                     }
                 }

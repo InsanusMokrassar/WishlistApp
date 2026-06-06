@@ -74,6 +74,7 @@ class UserWishlistsView(
         val rates by viewModel.ratesState.collectAsState()
         val costSortAvailable by viewModel.costSortAvailableState.collectAsState()
         val isOwner by viewModel.isOwnerState.collectAsState()
+        val sortSelectorVisible by viewModel.sortSelectorVisibleState.collectAsState()
 
         Column(
             modifier = Modifier.fillMaxSize().padding(16.dp),
@@ -89,11 +90,7 @@ class UserWishlistsView(
                     horizontalArrangement = Arrangement.spacedBy(8.dp),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    if (isOwner) {
-                        Button(onClick = { viewModel.onCreateWishlist() }) {
-                            Text(WishlistStrings.createWishlistButton.translation(resources))
-                        }
-                    }
+                    CreateWishlistButton(isOwner) { viewModel.onCreateWishlist() }
                     Button(onClick = { viewModel.onOpenProfile() }) {
                         Text(WishlistStrings.profileButton.translation(resources))
                     }
@@ -105,11 +102,13 @@ class UserWishlistsView(
             } else if (sections.isEmpty()) {
                 Text(WishlistStrings.emptyItems.translation(resources), style = MaterialTheme.typography.bodySmall)
             } else {
-                WishlistSortSelector(
-                    selected = sortMode,
-                    onSortModeSelected = viewModel::onSortModeSelected,
-                    availableModes = sortModesFor(costSortAvailable)
-                )
+                if (sortSelectorVisible) {
+                    WishlistSortSelector(
+                        selected = sortMode,
+                        onSortModeSelected = viewModel::onSortModeSelected,
+                        availableModes = sortModesFor(costSortAvailable)
+                    )
+                }
                 if (currencyEnabled && currencies.isNotEmpty()) {
                     CurrencySelector(
                         currencies = currencies,

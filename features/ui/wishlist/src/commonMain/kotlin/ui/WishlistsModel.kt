@@ -111,6 +111,23 @@ interface WishlistsModel {
     suspend fun getCurrentUserId(): UserId?
 
     /**
+     * Whether the authenticated caller owns the context identified by [userId].
+     *
+     * Single ownership predicate for every wishlist UI screen: returns `true` iff a caller is
+     * authenticated AND ([userId] is `null` OR [userId] equals the caller's id). A `null` [userId]
+     * means "the caller's own context" (e.g. the wishlists list opened without a target user) and
+     * is owned by any authenticated caller.
+     *
+     * Callers holding a nullable wishlist MUST treat a `null` wishlist as not-owned BEFORE calling,
+     * e.g. `wishlist != null && model.isOwner(wishlist.userId)` — this method cannot distinguish
+     * "no wishlist" from "own context".
+     *
+     * @param userId Owner id of the checked context, or `null` for the caller's own context.
+     * @return `true` when the authenticated caller owns the context; `false` for anonymous callers.
+     */
+    suspend fun isOwner(userId: UserId?): Boolean
+
+    /**
      * Resolves the display name of the user identified by [userId].
      *
      * Used to build the personalized screen titles of the wishlists list and all-items screens.
