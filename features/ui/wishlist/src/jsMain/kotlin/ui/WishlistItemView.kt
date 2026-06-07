@@ -109,9 +109,8 @@ class WishlistItemView(
                 }
 
                 // Each registered WishlistAdditionalConfigsProvider (e.g. booking) is drawn through the
-                // shared WishlistItemAdditionalConfigView: pushed into an existing externally hosted chain
-                // when the provider declares a chainId that is already present in the navigation tree,
-                // otherwise injected inline right here.
+                // shared WishlistItemAdditionalConfigView: injected inline right here, in a fresh
+                // anonymous chain.
                 if (viewModel.additionalConfigsProviders.isNotEmpty()) {
                     Div({ classes("d-flex", "flex-wrap", "gap-2", "mb-3") }) {
                         viewModel.additionalConfigsProviders.forEach { provider ->

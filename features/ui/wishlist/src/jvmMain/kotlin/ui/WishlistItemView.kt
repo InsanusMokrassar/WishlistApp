@@ -110,9 +110,8 @@ class WishlistItemView(
                 PriorityBadge(it.priority)
 
                 // Each registered WishlistAdditionalConfigsProvider (e.g. booking) is drawn through the
-                // shared WishlistItemAdditionalConfigView: pushed into an existing externally hosted chain
-                // when the provider declares a chainId that is already present in the navigation tree,
-                // otherwise injected inline right here.
+                // shared WishlistItemAdditionalConfigView: injected inline right here, in a fresh
+                // anonymous chain.
                 viewModel.additionalConfigsProviders.forEach { provider ->
                     WishlistItemAdditionalConfigView(provider, it, this@WishlistItemView)
                 }
