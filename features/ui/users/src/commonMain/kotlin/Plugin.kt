@@ -4,7 +4,7 @@ import dev.inmo.micro_utils.common.MPPFile
 import dev.inmo.micro_utils.koin.singleWithRandomQualifier
 import dev.inmo.micro_utils.startup.plugin.StartPlugin
 import dev.inmo.wishlist.features.admin.client.AdminFeature
-import dev.inmo.wishlist.features.auth.client.ClientAuthFeature
+import dev.inmo.wishlist.features.auth.client.me
 import dev.inmo.wishlist.features.auth.common.models.Password
 import dev.inmo.wishlist.features.common.client.models.ViewConfig
 import dev.inmo.wishlist.features.files.client.FilesClientService
@@ -31,7 +31,8 @@ import org.koin.core.module.Module
  *
  * Registers polymorphic serializers and ViewModel factories for the users list, the public
  * profile view and the profile edit screens, plus the single [UsersModel] singleton wrapping the
- * public [UsersFeature], [ClientAuthFeature], admin [AdminFeature] and [FilesClientService].
+ * public [UsersFeature], the authenticated-user ("me") state flow, admin [AdminFeature] and
+ * [FilesClientService].
  */
 object Plugin : StartPlugin {
     override fun Module.setupDI(config: JsonObject) {
@@ -50,7 +51,7 @@ object Plugin : StartPlugin {
         factory { UserEditViewModel(node = it.get(), model = get(), interactor = get()) }
         single<UsersModel> {
             val feature = get<UsersFeature>()
-            val authFeature = get<ClientAuthFeature>()
+            val meState = me
             val adminFeature = get<AdminFeature>()
             val filesService = get<FilesClientService>()
             object : UsersModel {
@@ -59,10 +60,10 @@ object Plugin : StartPlugin {
                 override suspend fun getUser(id: UserId): RegisteredUser? =
                     feature.getAll().find { it.id == id }
 
-                override suspend fun getCurrentUserId(): UserId? = authFeature.getMe()?.id
+                override suspend fun getCurrentUserId(): UserId? = meState.value?.id
 
                 override suspend fun isCurrentUserRoot(): Boolean =
-                    authFeature.getMe()?.username?.string == "root"
+                    meState.value?.username?.string == "root"
 
                 override suspend fun updateUsername(id: UserId, username: Username): Boolean =
                     adminFeature.usersManagement.update(id, NewUser(username))

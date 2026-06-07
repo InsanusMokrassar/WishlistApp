@@ -27,7 +27,7 @@ import io.ktor.server.routing.route
  * - `GET  /wishlistItemBooking/state/{itemId}` — returns [dev.inmo.wishlist.features.booking.common.models.BookingState]
  * - `POST /wishlistItemBooking/book/{itemId}` — reserves the item for the caller
  * - `POST /wishlistItemBooking/cancel/{itemId}` — cancels the caller's own reservation
- * - `GET  /wishlistItemBooking/myPresents` — lists items the caller has booked
+ * - `GET  /wishlistItemBooking/myPresentsBooks` — lists items the caller has booked
  *
  * HTTP status semantics:
  * - `200 OK` — operation succeeded (booking state / present list body on the GET routes)
@@ -84,9 +84,9 @@ class BookingRoutingsConfigurator(
                         CancelResult.Ok -> call.respond(HttpStatusCode.OK)
                     }
                 }
-                get(Constants.bookingMyPresentsPathPart) {
+                get(Constants.bookingMyPresentsBooksPathPart) {
                     val callerId = getCallerUserIdOrAnswerUnauthorized() ?: return@get
-                    call.respond(bookingService.myPresents(callerId))
+                    call.respond(bookingService.myPresentsBooks(callerId))
                 }
             }
         }

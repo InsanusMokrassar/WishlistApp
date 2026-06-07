@@ -22,10 +22,10 @@ import kotlinx.coroutines.flow.merge
  * @param model Booking data source.
  * @param interactor Navigation delegate for this screen.
  */
-class MyPresentsViewModel(
-    private val node: NavigationNode<MyPresentsViewConfig, ViewConfig>,
+class MyPresentsBooksViewModel(
+    private val node: NavigationNode<MyPresentsBooksViewConfig, ViewConfig>,
     private val model: BookingModel,
-    private val interactor: MyPresentsViewInteractor
+    private val interactor: MyPresentsBooksViewInteractor
 ) : ViewModel<ViewConfig>(node) {
     private val _presentsState = MutableRedeliverStateFlow<List<RegisteredWishlistItem>>(emptyList())
 
@@ -41,14 +41,14 @@ class MyPresentsViewModel(
         merge(flowOf(Unit), node.onResumeFlow).subscribeLoggingDropExceptions(scope) {
             _loadingState.value = true
             try {
-                _presentsState.value = model.myPresents()
+                _presentsState.value = model.myPresentsBooks()
             } finally {
                 _loadingState.value = false
             }
         }
     }
 
-    /** Delegates to [MyPresentsViewInteractor.onBack]. */
+    /** Delegates to [MyPresentsBooksViewInteractor.onBack]. */
     fun onBack() {
         scope.launchLoggingDropExceptions { interactor.onBack(node) }
     }

@@ -60,7 +60,7 @@ interface UserWishlistsViewInteractor {
      *
      * @param node Current navigation node.
      */
-    suspend fun onCreateWishlist(node: NavigationNode<UserWishlistsViewConfig, ViewConfig>)
+    suspend fun onCreateWishlistClick(node: NavigationNode<UserWishlistsViewConfig, ViewConfig>)
 
     /**
      * Called when the user wants to add a new item to one of the displayed wishlists; the item
@@ -69,7 +69,7 @@ interface UserWishlistsViewInteractor {
      * @param node Current navigation node.
      * @param wishlistId Wishlist the new item should be created in.
      */
-    suspend fun onCreateItem(
+    suspend fun onCreateItemClick(
         node: NavigationNode<UserWishlistsViewConfig, ViewConfig>,
         wishlistId: WishlistId
     )

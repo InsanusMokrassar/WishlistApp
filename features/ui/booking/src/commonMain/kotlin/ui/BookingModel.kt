@@ -41,5 +41,5 @@ interface BookingModel {
      *
      * @return Booked items; empty when nothing booked.
      */
-    suspend fun myPresents(): List<RegisteredWishlistItem>
+    suspend fun myPresentsBooks(): List<RegisteredWishlistItem>
 }

@@ -11,4 +11,4 @@ import kotlinx.serialization.Serializable
  * and renderable but unreachable by design.
  */
 @Serializable
-class MyPresentsViewConfig : ViewConfig
+class MyPresentsBooksViewConfig : ViewConfig

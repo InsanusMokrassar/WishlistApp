@@ -6,13 +6,12 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Text
+import androidx.compose.material.MaterialTheme
+import androidx.compose.material.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.platform.LocalResources
 import androidx.compose.ui.unit.dp
 import dev.inmo.micro_utils.strings.translation
 import dev.inmo.navigation.core.NavigationChain
@@ -26,25 +25,24 @@ import org.koin.core.component.inject
 import org.koin.core.parameter.parametersOf
 
 /**
- * Android Compose-Material3 view for the my-presents screen (scenario view B).
+ * JVM (Desktop) Compose-Material view for the my-presents screen (scenario view B).
  *
  * Lists every item the caller has booked. Per issue #29 point #6 nothing navigates here yet.
  */
-class MyPresentsView(
+class MyPresentsBooksView(
     chain: NavigationChain<ViewConfig>,
-    config: MyPresentsViewConfig,
-) : ComposeView<MyPresentsViewConfig, ViewConfig, MyPresentsViewModel>(config, chain), TopBarTitleProvider {
-    override val viewModel: MyPresentsViewModel by inject(mode = LazyThreadSafetyMode.SYNCHRONIZED) {
-        parametersOf(this@MyPresentsView)
+    config: MyPresentsBooksViewConfig,
+) : ComposeView<MyPresentsBooksViewConfig, ViewConfig, MyPresentsBooksViewModel>(config, chain), TopBarTitleProvider {
+    override val viewModel: MyPresentsBooksViewModel by inject(mode = LazyThreadSafetyMode.SYNCHRONIZED) {
+        parametersOf(this@MyPresentsBooksView)
     }
 
     override val title: String
-        @Composable get() = BookingStrings.myPresentsTitle.translation(LocalResources.current)
+        @Composable get() = BookingStrings.myPresentsBooksTitle.translation()
 
     @Composable
     override fun onDraw() {
         super.onDraw()
-        val resources = LocalResources.current
         val presents by viewModel.presentsState.collectAsState()
         val loading by viewModel.loadingState.collectAsState()
 
@@ -52,14 +50,14 @@ class MyPresentsView(
             modifier = Modifier.fillMaxSize().padding(16.dp).verticalScroll(rememberScrollState()),
             verticalArrangement = Arrangement.spacedBy(8.dp)
         ) {
-            BackButton(BookingStrings.backButton.translation(resources)) { viewModel.onBack() }
-            ScreenTitle(BookingStrings.myPresentsTitle.translation(resources))
+            BackButton(BookingStrings.backButton.translation()) { viewModel.onBack() }
+            ScreenTitle(BookingStrings.myPresentsBooksTitle.translation())
 
             when {
-                loading -> Text(BookingStrings.loading.translation(resources), style = MaterialTheme.typography.bodyMedium)
-                presents.isEmpty() -> Text(BookingStrings.emptyPresents.translation(resources), style = MaterialTheme.typography.bodySmall)
+                loading -> Text(BookingStrings.loading.translation(), style = MaterialTheme.typography.body2)
+                presents.isEmpty() -> Text(BookingStrings.emptyPresents.translation(), style = MaterialTheme.typography.caption)
                 else -> presents.forEach { item ->
-                    Text(item.title, style = MaterialTheme.typography.bodyLarge)
+                    Text(item.title, style = MaterialTheme.typography.body1)
                 }
             }
         }

@@ -67,9 +67,9 @@ class KtorBookingFeature(
      *
      * @return Parsed item list, or an empty list on any non-2xx response.
      */
-    override suspend fun myPresents(): List<RegisteredWishlistItem> {
+    override suspend fun myPresentsBooks(): List<RegisteredWishlistItem> {
         val response = client.get(
-            "${Constants.bookingPrefixPathPart}/${Constants.bookingMyPresentsPathPart}"
+            "${Constants.bookingPrefixPathPart}/${Constants.bookingMyPresentsBooksPathPart}"
         )
         return if (response.status.isSuccess()) response.body() else emptyList()
     }

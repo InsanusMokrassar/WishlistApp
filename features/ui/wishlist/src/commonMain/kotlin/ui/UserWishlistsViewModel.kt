@@ -311,18 +311,18 @@ class UserWishlistsViewModel(
         scope.launchLoggingDropExceptions { interactor.onOpenProfile(node, node.config.userId) }
     }
 
-    /** Opens the wishlist create form via [UserWishlistsViewInteractor.onCreateWishlist]. */
+    /** Opens the wishlist create form via [UserWishlistsViewInteractor.onCreateWishlistClick]. */
     fun onCreateWishlist() {
-        scope.launchLoggingDropExceptions { interactor.onCreateWishlist(node) }
+        scope.launchLoggingDropExceptions { interactor.onCreateWishlistClick(node) }
     }
 
     /**
-     * Opens the item create form for [wishlist] via [UserWishlistsViewInteractor.onCreateItem].
+     * Opens the item create form for [wishlist] via [UserWishlistsViewInteractor.onCreateItemClick].
      *
      * @param wishlist Wishlist the new item should be created in.
      */
     fun onCreateItem(wishlist: RegisteredWishlist) {
-        scope.launchLoggingDropExceptions { interactor.onCreateItem(node, wishlist.id) }
+        scope.launchLoggingDropExceptions { interactor.onCreateItemClick(node, wishlist.id) }
     }
 
     /** Download URL of image [id], for platforms that render directly from a URL (JS). */

@@ -6,8 +6,8 @@ import dev.inmo.navigation.core.NavigationNodeFactory
 import dev.inmo.wishlist.features.common.client.models.ViewConfig
 import dev.inmo.wishlist.features.ui.booking.ui.BookingView
 import dev.inmo.wishlist.features.ui.booking.ui.BookingViewConfig
-import dev.inmo.wishlist.features.ui.booking.ui.MyPresentsView
-import dev.inmo.wishlist.features.ui.booking.ui.MyPresentsViewConfig
+import dev.inmo.wishlist.features.ui.booking.ui.MyPresentsBooksView
+import dev.inmo.wishlist.features.ui.booking.ui.MyPresentsBooksViewConfig
 import kotlinx.serialization.json.JsonObject
 import org.koin.core.Koin
 import org.koin.core.module.Module
@@ -26,7 +26,7 @@ object JVMPlugin : StartPlugin {
             NavigationNodeFactory.Typed<BookingViewConfig, ViewConfig> { chain, cfg -> BookingView(chain, cfg) }
         }
         singleWithRandomQualifier<NavigationNodeFactory<ViewConfig>> {
-            NavigationNodeFactory.Typed<MyPresentsViewConfig, ViewConfig> { chain, cfg -> MyPresentsView(chain, cfg) }
+            NavigationNodeFactory.Typed<MyPresentsBooksViewConfig, ViewConfig> { chain, cfg -> MyPresentsBooksView(chain, cfg) }
         }
     }
 

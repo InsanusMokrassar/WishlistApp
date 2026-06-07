@@ -32,7 +32,7 @@ object BookingStrings {
     val loading = buildStringResource("Loading...") { IetfLang.Russian("Загрузка...") }
 
     /** Title of the my-presents (booked items) screen. */
-    val myPresentsTitle = buildStringResource("My presents") { IetfLang.Russian("Мои подарки") }
+    val myPresentsBooksTitle = buildStringResource("My presents") { IetfLang.Russian("Мои подарки") }
 
     /** Placeholder shown when the caller has booked no items. */
     val emptyPresents = buildStringResource("You have not booked anything yet") {

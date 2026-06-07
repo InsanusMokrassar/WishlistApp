@@ -4,7 +4,7 @@ import dev.inmo.micro_utils.koin.getAllDistinct
 import dev.inmo.micro_utils.koin.singleWithRandomQualifier
 import dev.inmo.micro_utils.startup.plugin.StartPlugin
 import dev.inmo.micro_utils.common.MPPFile
-import dev.inmo.wishlist.features.auth.client.ClientAuthFeature
+import dev.inmo.wishlist.features.auth.client.me
 import dev.inmo.wishlist.features.common.client.models.ViewConfig
 import dev.inmo.wishlist.features.currency.client.CurrencyService
 import dev.inmo.wishlist.features.currency.common.models.CurrencyCode
@@ -51,7 +51,8 @@ import org.koin.core.module.Module
  * Registers in Koin:
  * - Polymorphic serializers for all four [ViewConfig] subclasses
  * - Koin factories for all four ViewModels
- * - [WishlistsModel] singleton backed by [WishlistsFeature], [WishlistsItemsFeature], [ClientAuthFeature]
+ * - [WishlistsModel] singleton backed by [WishlistsFeature], [WishlistsItemsFeature] and the
+ *   authenticated-user ("me") state flow
  *
  * Platform-specific plugins (JSPlugin, JVMPlugin, AndroidPlugin) delegate to this object
  * and register [dev.inmo.navigation.core.NavigationNodeFactory] entries for each View.
@@ -87,7 +88,7 @@ object Plugin : StartPlugin {
         single<WishlistsModel> {
             val wishlistsFeature = get<WishlistsFeature>()
             val itemsFeature = get<WishlistsItemsFeature>()
-            val authFeature = get<ClientAuthFeature>()
+            val meState = me
             val filesService = get<FilesClientService>()
             val usersFeature = get<UsersFeature>()
             val currencyService = get<CurrencyService>()
@@ -140,7 +141,7 @@ object Plugin : StartPlugin {
                     itemsFeature.delete(id)
 
                 override suspend fun getCurrentUserId(): UserId? =
-                    authFeature.getMe()?.id
+                    meState.value?.id
 
                 /**
                  * Single ownership predicate: authenticated caller + (`null` target = own context,

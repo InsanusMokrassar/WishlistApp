@@ -8,8 +8,8 @@ import dev.inmo.wishlist.features.common.client.models.ViewConfig
 import dev.inmo.wishlist.features.ui.booking.ui.BookingModel
 import dev.inmo.wishlist.features.ui.booking.ui.BookingViewConfig
 import dev.inmo.wishlist.features.ui.booking.ui.BookingViewModel
-import dev.inmo.wishlist.features.ui.booking.ui.MyPresentsViewConfig
-import dev.inmo.wishlist.features.ui.booking.ui.MyPresentsViewModel
+import dev.inmo.wishlist.features.ui.booking.ui.MyPresentsBooksViewConfig
+import dev.inmo.wishlist.features.ui.booking.ui.MyPresentsBooksViewModel
 import dev.inmo.wishlist.features.wishlist.common.models.RegisteredWishlistItem
 import dev.inmo.wishlist.features.wishlist.common.models.WishlistItemId
 import kotlinx.serialization.json.JsonObject
@@ -21,8 +21,8 @@ import org.koin.core.module.Module
  * Platform-agnostic startup plugin for the booking UI scenario.
  *
  * Registers in Koin:
- * - Polymorphic serializers for [BookingViewConfig] (view A) and [MyPresentsViewConfig] (view B).
- * - Koin factories for [BookingViewModel] and [MyPresentsViewModel].
+ * - Polymorphic serializers for [BookingViewConfig] (view A) and [MyPresentsBooksViewConfig] (view B).
+ * - Koin factories for [BookingViewModel] and [MyPresentsBooksViewModel].
  * - [BookingModel] singleton backed by [BookingFeature].
  *
  * Platform-specific plugins register the [dev.inmo.navigation.core.NavigationNodeFactory] entries.
@@ -33,13 +33,13 @@ object Plugin : StartPlugin {
             SerializersModule {
                 polymorphic(Any::class, BookingViewConfig::class, BookingViewConfig.serializer())
                 polymorphic(ViewConfig::class, BookingViewConfig::class, BookingViewConfig.serializer())
-                polymorphic(Any::class, MyPresentsViewConfig::class, MyPresentsViewConfig.serializer())
-                polymorphic(ViewConfig::class, MyPresentsViewConfig::class, MyPresentsViewConfig.serializer())
+                polymorphic(Any::class, MyPresentsBooksViewConfig::class, MyPresentsBooksViewConfig.serializer())
+                polymorphic(ViewConfig::class, MyPresentsBooksViewConfig::class, MyPresentsBooksViewConfig.serializer())
             }
         }
 
         factory { BookingViewModel(it.get(), get()) }
-        factory { MyPresentsViewModel(it.get(), get(), get()) }
+        factory { MyPresentsBooksViewModel(it.get(), get(), get()) }
 
         single<BookingModel> {
             val bookingFeature = get<BookingFeature>()
@@ -53,8 +53,8 @@ object Plugin : StartPlugin {
                 override suspend fun cancelBooking(itemId: WishlistItemId): Boolean =
                     bookingFeature.cancelBooking(itemId)
 
-                override suspend fun myPresents(): List<RegisteredWishlistItem> =
-                    bookingFeature.myPresents()
+                override suspend fun myPresentsBooks(): List<RegisteredWishlistItem> =
+                    bookingFeature.myPresentsBooks()
             }
         }
     }

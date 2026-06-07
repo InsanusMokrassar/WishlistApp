@@ -49,5 +49,5 @@ interface BookingFeature {
      *
      * @return Items the caller has reserved; empty when nothing booked or on any non-2xx response.
      */
-    suspend fun myPresents(): List<RegisteredWishlistItem>
+    suspend fun myPresentsBooks(): List<RegisteredWishlistItem>
 }

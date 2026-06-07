@@ -50,3 +50,10 @@ End-to-end bearer-token authentication. Handles login (BCrypt password check), o
 - `AuthFeatureService.purgeUser(userId)` (server-only) removes the stored password hash and every active access/refresh session for a user; used by the admin user-delete cascade (`features/admin`).
 - `SerializationConfigurator` sets `defaultRequest { contentType(ContentType.Application.Json) }` so individual request builders need not repeat it.
 - `ServerUrlStorage` and `AuthCredentialsStorage` use `SmartRWLocker` for concurrent access safety.
+
+## Client-side "me" State
+
+- New `features/auth/client/src/commonMain/kotlin/Me.kt` defines `meQualifier = named("me")` (Koin qualifier) and extensions `Koin.me` / `Scope.me` returning `StateFlow<RegisteredUser?>`.
+- `features/auth/client/.../Plugin.kt` registers a `MutableRedeliverStateFlow<RegisteredUser?>(null)` under the `meQualifier` and exposes it as `StateFlow<RegisteredUser?>`.
+- In `startPlugin`, subscribes to `AuthCredentialsStorage.userAuthorised`: when authorised, fetches `ClientAuthFeature.getMe()` into the flow; when not authorised (logout), sets the flow to `null`.
+- Consumers should read the "me" flow via `Scope.me` instead of calling `getMe()` per request, reducing redundant API calls. Login gate check in `features/ui/auth` still uses raw `getMe()` request intentionally (requires fresh auth validation).

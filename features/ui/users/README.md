@@ -37,7 +37,7 @@ None — client-only UI feature. Consumes `features/users/client` (public read),
 | `UsersListViewConfig` | Empty `@Serializable class` — main slot root identifier |
 | `UserViewConfig` | `data class(userId: UserId)` — public profile detail |
 | `UserEditViewConfig` | `data class(userId: UserId)` — profile edit (owner/root) |
-| `UsersModel` | Single feature model (renamed from `UsersListModel`). Wraps `UsersFeature.getAll()`, `ClientAuthFeature` (`getCurrentUserId`, `isCurrentUserRoot`), admin `AdminFeature.usersManagement` (`updateUsername`, `setPassword`, `deleteUser`), and `FilesClientService` (`getAvatar`, `uploadAvatar`, `imageUrl`, `loadImageBytes`); `getUser(id)` resolves from the public list |
+| `UsersModel` | Single feature model (renamed from `UsersListModel`). Wraps `UsersFeature.getAll()`, auth "me" `StateFlow<RegisteredUser?>` from `features/auth/client` `Scope.me` (`getCurrentUserId`, `isCurrentUserRoot`), admin `AdminFeature.usersManagement` (`updateUsername`, `setPassword`, `deleteUser`), and `FilesClientService` (`getAvatar`, `uploadAvatar`, `imageUrl`, `loadImageBytes`); `getUser(id)` resolves from the public list |
 | `UsersListViewInteractor` | `onUserSelected(node, userId)` (→ user's all-items view), `onOpenProfile(node, userId)` (→ profile view) |
 | `UserViewInteractor` | `onBack(node)`, `onEditUser(node)` (→ edit) |
 | `UserEditViewInteractor` | `onNavigateBack(node)`, `onSaved(node)`, `onDeleted(node)` |
@@ -51,8 +51,8 @@ None — client-only UI feature. Consumes `features/users/client` (public read),
 - All three screens' interactors are implemented in `client/ClientPlugin` (intra-feature push/pop). `onOpenProfile`/`UserViewInteractor.onEditUser` push `UserViewConfig`/`UserEditViewConfig` onto `node.chain`.
 - `build.gradle` deps: `features/auth/client` (`ClientAuthFeature`), `features/admin/client` (`AdminFeature`), `features/files/client` (`FilesClientService`).
 - **Single model**: `UsersListModel` was renamed to `UsersModel` and expanded to back all three screens (matching the one-model-per-UI-feature convention used by `wishlist`/`adminPanel`).
-- **Root detection** is client-side (`authFeature.getMe()?.username?.string == "root"`); the server still enforces root on every admin endpoint (`403`) and owner-or-root on the avatar `PUT` (`403`).
-- **My profile**: `UsersListViewModel` loads `currentUserIdState` (= `authFeature.getMe()?.id`); the header button is shown only when non-null and pushes `UserViewConfig(currentUserId)`.
+- **Root detection** is client-side (`me.value?.username?.string == "root"`); the server still enforces root on every admin endpoint (`403`) and owner-or-root on the avatar `PUT` (`403`).
+- **My profile**: `UsersListViewModel` loads `currentUserIdState` (= `me.value?.id`); the header button is shown only when non-null and pushes `UserViewConfig(currentUserId)`.
 - **Profile edit gating** (`UserEditViewModel`):
   - `isRootState` gates the editable username/password fields, the delete button, and `canSaveState`. Non-root owners see read-only username + a "no editable fields" note + the avatar uploader.
   - `canSaveState` = root && username non-blank && not loading && (password blank or password == confirm). `passwordMismatchState` drives the inline error. `onSave` calls `updateUsername` always and `setPassword` only when a new password was entered.

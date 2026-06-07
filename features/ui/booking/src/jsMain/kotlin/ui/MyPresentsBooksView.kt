@@ -24,16 +24,16 @@ import org.koin.core.parameter.parametersOf
  *
  * Lists every item the caller has booked. Per issue #29 point #6 nothing navigates here yet.
  */
-class MyPresentsView(
+class MyPresentsBooksView(
     chain: NavigationChain<ViewConfig>,
-    config: MyPresentsViewConfig,
-) : ComposeView<MyPresentsViewConfig, ViewConfig, MyPresentsViewModel>(config, chain), TopBarTitleProvider {
-    override val viewModel: MyPresentsViewModel by inject(mode = LazyThreadSafetyMode.SYNCHRONIZED) {
-        parametersOf(this@MyPresentsView)
+    config: MyPresentsBooksViewConfig,
+) : ComposeView<MyPresentsBooksViewConfig, ViewConfig, MyPresentsBooksViewModel>(config, chain), TopBarTitleProvider {
+    override val viewModel: MyPresentsBooksViewModel by inject(mode = LazyThreadSafetyMode.SYNCHRONIZED) {
+        parametersOf(this@MyPresentsBooksView)
     }
 
     override val title: String
-        @Composable get() = BookingStrings.myPresentsTitle.translation()
+        @Composable get() = BookingStrings.myPresentsBooksTitle.translation()
 
     @Composable
     override fun onDraw() {
@@ -45,7 +45,7 @@ class MyPresentsView(
             Div({ classes("d-flex", "align-items-center", "mb-3", "gap-2") }) {
                 BackButton(BookingStrings.backButton.translation()) { viewModel.onBack() }
             }
-            ScreenTitle(BookingStrings.myPresentsTitle.translation())
+            ScreenTitle(BookingStrings.myPresentsBooksTitle.translation())
 
             when {
                 loading -> P { Text(BookingStrings.loading.translation()) }

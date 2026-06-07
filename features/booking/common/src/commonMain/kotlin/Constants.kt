@@ -18,6 +18,6 @@ object Constants {
     /** Path segment for the cancel-booking route: `.../cancel/{itemId}`. */
     const val bookingCancelPathPart = "cancel"
 
-    /** Path segment for the my-presents route: `.../myPresents`. Returns items the caller has booked. */
-    const val bookingMyPresentsPathPart = "myPresents"
+    /** Path segment for the my-presents route: `.../myPresentsBooks`. Returns items the caller has booked. */
+    const val bookingMyPresentsBooksPathPart = "myPresentsBooks"
 }

@@ -24,7 +24,7 @@ import dev.inmo.wishlist.features.wishlist.common.repo.WishlistRepo
  * 1. Only authorized users reach this service (the routing layer wraps all booking routes in
  *    Ktor `authenticate { }`; this service is never invoked for anonymous callers).
  * 2. Other users can observe only whether an item is booked, never WHO booked it: results carry
- *    no booker identity, only the sealed [BookingState]. [myPresents] returns the CALLER's own
+ *    no booker identity, only the sealed [BookingState]. [myPresentsBooks] returns the CALLER's own
  *    booked items (the caller is the booker), so no other booker's identity is leaked.
  * 3. The item OWNER is fully cut off from booking state: every per-item operation returns
  *    [BookingResult.OwnerForbidden] / [BookResult.OwnerForbidden] / [CancelResult.OwnerForbidden]
@@ -39,7 +39,7 @@ import dev.inmo.wishlist.features.wishlist.common.repo.WishlistRepo
  *
  * @param bookingRepo Repository storing the single active booking per item.
  * @param wishlistItemRepo Repository used to resolve an item's parent wishlist and to materialize
- *   booked items for [myPresents].
+ *   booked items for [myPresentsBooks].
  * @param wishlistRepo Repository used to resolve the parent wishlist owner.
  */
 class BookingService(
@@ -144,7 +144,7 @@ class BookingService(
      * @param callerId Authenticated caller whose booked items to list.
      * @return Items the caller has reserved for gifting; empty when the caller booked nothing.
      */
-    suspend fun myPresents(callerId: UserId): List<RegisteredWishlistItem> = locker.withReadAcquire {
+    suspend fun myPresentsBooks(callerId: UserId): List<RegisteredWishlistItem> = locker.withReadAcquire {
         bookingRepo.getByUserId(callerId).mapNotNull { wishlistItemRepo.getById(it.itemId) }
     }
 }
