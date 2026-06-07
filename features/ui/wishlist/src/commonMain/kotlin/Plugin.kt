@@ -4,7 +4,7 @@ import dev.inmo.micro_utils.koin.getAllDistinct
 import dev.inmo.micro_utils.koin.singleWithRandomQualifier
 import dev.inmo.micro_utils.startup.plugin.StartPlugin
 import dev.inmo.micro_utils.common.MPPFile
-import dev.inmo.wishlist.features.auth.client.me
+import dev.inmo.wishlist.features.auth.client.meStateFlow
 import dev.inmo.wishlist.features.common.client.models.ViewConfig
 import dev.inmo.wishlist.features.currency.client.CurrencyService
 import dev.inmo.wishlist.features.currency.common.models.CurrencyCode
@@ -88,7 +88,7 @@ object Plugin : StartPlugin {
         single<WishlistsModel> {
             val wishlistsFeature = get<WishlistsFeature>()
             val itemsFeature = get<WishlistsItemsFeature>()
-            val meState = me
+            val meState = meStateFlow
             val filesService = get<FilesClientService>()
             val usersFeature = get<UsersFeature>()
             val currencyService = get<CurrencyService>()

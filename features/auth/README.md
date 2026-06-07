@@ -53,7 +53,8 @@ End-to-end bearer-token authentication. Handles login (BCrypt password check), o
 
 ## Client-side "me" State
 
-- New `features/auth/client/src/commonMain/kotlin/Me.kt` defines `meQualifier = named("me")` (Koin qualifier) and extensions `Koin.me` / `Scope.me` returning `StateFlow<RegisteredUser?>`.
-- `features/auth/client/.../Plugin.kt` registers a `MutableRedeliverStateFlow<RegisteredUser?>(null)` under the `meQualifier` and exposes it as `StateFlow<RegisteredUser?>`.
-- In `startPlugin`, subscribes to `AuthCredentialsStorage.userAuthorised`: when authorised, fetches `ClientAuthFeature.getMe()` into the flow; when not authorised (logout), sets the flow to `null`.
-- Consumers should read the "me" flow via `Scope.me` instead of calling `getMe()` per request, reducing redundant API calls. Login gate check in `features/ui/auth` still uses raw `getMe()` request intentionally (requires fresh auth validation).
+- New `features/auth/client/src/commonMain/kotlin/Me.kt` defines `meQualifier = named("me")` (Koin qualifier) and extensions `Koin.meStateFlow` / `Scope.meStateFlow` returning `StateFlow<RegisteredUser?>`.
+- `features/auth/client/.../Plugin.kt` registers `MutableRedeliverStateFlow<RegisteredUser?>(null)` under internal qualifier `secretMeMutablemeStateFlowQualifier = named("secret_me")`; exposes read-only `StateFlow<RegisteredUser?>` under `meQualifier` via `asStateFlow()`.
+- Internal accessors `Koin.secretMeMutableStateFlow` / `Scope.secretMeMutableStateFlow` return `MutableStateFlow<RegisteredUser?>` for write access.
+- In `startPlugin`: on authorised → wraps `feature.getMe()` in `runCatchingLogging { }.getOrElse { null }` (failure → flow value=null); on logout → sets flow to `null`.
+- Consumers should read the "me" flow via `Scope.meStateFlow` instead of calling `getMe()` per request, reducing redundant API calls. Login gate check in `features/ui/auth` still uses raw `getMe()` request intentionally (requires fresh auth validation).

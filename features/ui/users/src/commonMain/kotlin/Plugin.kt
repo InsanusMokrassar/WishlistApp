@@ -4,7 +4,7 @@ import dev.inmo.micro_utils.common.MPPFile
 import dev.inmo.micro_utils.koin.singleWithRandomQualifier
 import dev.inmo.micro_utils.startup.plugin.StartPlugin
 import dev.inmo.wishlist.features.admin.client.AdminFeature
-import dev.inmo.wishlist.features.auth.client.me
+import dev.inmo.wishlist.features.auth.client.meStateFlow
 import dev.inmo.wishlist.features.auth.common.models.Password
 import dev.inmo.wishlist.features.common.client.models.ViewConfig
 import dev.inmo.wishlist.features.files.client.FilesClientService
@@ -51,7 +51,7 @@ object Plugin : StartPlugin {
         factory { UserEditViewModel(node = it.get(), model = get(), interactor = get()) }
         single<UsersModel> {
             val feature = get<UsersFeature>()
-            val meState = me
+            val meState = meStateFlow
             val adminFeature = get<AdminFeature>()
             val filesService = get<FilesClientService>()
             object : UsersModel {

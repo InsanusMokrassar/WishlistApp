@@ -1,6 +1,7 @@
 package dev.inmo.wishlist.features.auth.client
 
 import dev.inmo.micro_utils.coroutines.MutableRedeliverStateFlow
+import dev.inmo.micro_utils.coroutines.runCatchingLogging
 import dev.inmo.micro_utils.coroutines.subscribeLoggingDropExceptions
 import dev.inmo.micro_utils.koin.singleWithRandomQualifier
 import dev.inmo.micro_utils.startup.plugin.StartPlugin
@@ -14,6 +15,7 @@ import dev.inmo.wishlist.features.auth.client.configurators.DefaultUrlHttpClient
 import dev.inmo.wishlist.features.auth.common.AuthFeature
 import dev.inmo.wishlist.features.common.client.configurators.HttpClientConfigurator
 import dev.inmo.wishlist.features.users.common.models.RegisteredUser
+import kotlinx.coroutines.flow.asStateFlow
 
 object Plugin : StartPlugin {
     override fun Module.setupDI(config: JsonObject) {
@@ -30,9 +32,9 @@ object Plugin : StartPlugin {
         single<ClientAuthFeature> { get<AuthFeatureService>() }
         single<AuthFeature> { get<AuthFeatureService>() }
 
-        single(qualifier = meQualifier) { MutableRedeliverStateFlow<RegisteredUser?>(null) }
+        single(qualifier = secretMeMutablemeStateFlowQualifier) { MutableRedeliverStateFlow<RegisteredUser?>(null) }
         single<StateFlow<RegisteredUser?>>(qualifier = meQualifier) {
-            get<MutableRedeliverStateFlow<RegisteredUser?>>(qualifier = meQualifier)
+            get<MutableRedeliverStateFlow<RegisteredUser?>>(qualifier = secretMeMutablemeStateFlowQualifier).asStateFlow()
         }
     }
 
@@ -41,9 +43,13 @@ object Plugin : StartPlugin {
 
         val storage = koin.get<AuthCredentialsStorage>()
         val feature = koin.get<ClientAuthFeature>()
-        val mutableMe = koin.get<MutableRedeliverStateFlow<RegisteredUser?>>(qualifier = meQualifier)
+        val mutableMe = koin.secretMeMutableStateFlow
         storage.userAuthorised.subscribeLoggingDropExceptions(koin.get<CoroutineScope>()) { authorised ->
-            mutableMe.value = if (authorised) feature.getMe() else null
+            mutableMe.value = runCatchingLogging {
+                feature.getMe()
+            }.getOrElse {
+                null
+            }
         }
     }
 }
