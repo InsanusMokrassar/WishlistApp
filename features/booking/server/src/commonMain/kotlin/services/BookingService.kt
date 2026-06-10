@@ -1,5 +1,7 @@
 package dev.inmo.wishlist.features.booking.server.services
 
+import dev.inmo.kslog.common.e
+import dev.inmo.kslog.common.logger
 import dev.inmo.micro_utils.coroutines.SmartRWLocker
 import dev.inmo.micro_utils.coroutines.withReadAcquire
 import dev.inmo.micro_utils.coroutines.withWriteLock
@@ -32,7 +34,9 @@ import dev.inmo.wishlist.features.wishlist.common.repo.WishlistRepo
  * 4. An item can be booked by at most one user: [tryBook] rejects when a booking already exists.
  *    Defense-in-depth: an in-process [SmartRWLocker] serialises all mutations (so the check-then-create
  *    of [tryBook] is atomic against concurrent in-process callers) AND the underlying repository's
- *    unique item-id index rejects any duplicate that races past the locker (e.g. multi-instance).
+ *    unique item-id index rejects any duplicate that races past the locker (e.g. multi-instance); such
+ *    a constraint violation (or any other persistence failure) is logged and surfaced as
+ *    [BookResult.Error].
  *
  * Concurrency: [getState] runs under the locker's read acquire; [tryBook] and [cancel] run under the
  * write lock, so the single-active-booking invariant holds in-process, not only at the DB index.
@@ -97,6 +101,8 @@ class BookingService(
      * @return [BookResult.ItemNotFound] when the item/parent is missing,
      *   [BookResult.OwnerForbidden] when the caller owns the item (rule 3),
      *   [BookResult.AlreadyBooked] when another booking already exists (rule 4),
+     *   [BookResult.Error] when persistence fails (e.g. a unique-index violation racing past the
+     *   locker, or any other repository error — logged before returning),
      *   [BookResult.Ok] on success.
      */
     suspend fun tryBook(itemId: WishlistItemId, callerId: UserId): BookResult = locker.withWriteLock {
@@ -107,8 +113,8 @@ class BookingService(
             bookingRepo.create(NewBooking(itemId, callerId))
             BookResult.Ok
         } catch (e: Throwable) {
-            // Unique item-id index rejects a concurrent second booking; surface it as a conflict.
-            BookResult.AlreadyBooked
+            logger.e("Error during trying to book $itemId by user $callerId", e)
+            BookResult.Error
         }
     }
 

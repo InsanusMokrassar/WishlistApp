@@ -36,6 +36,9 @@ sealed interface BookResult {
     /** Item is already reserved by some user; only one active booking is allowed (rule 4). */
     data object AlreadyBooked : BookResult
 
+    /** Booking faced some error. */
+    data object Error : BookResult
+
     /** Booking succeeded. */
     data object Ok : BookResult
 }

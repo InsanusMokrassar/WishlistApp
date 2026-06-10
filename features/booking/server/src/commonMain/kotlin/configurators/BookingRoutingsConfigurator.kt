@@ -69,6 +69,7 @@ class BookingRoutingsConfigurator(
                         BookResult.OwnerForbidden -> call.respond(HttpStatusCode.Forbidden)
                         BookResult.AlreadyBooked -> call.respond(HttpStatusCode.Conflict)
                         BookResult.Ok -> call.respond(HttpStatusCode.OK)
+                        BookResult.Error -> call.respond(HttpStatusCode.InternalServerError)
                     }
                 }
                 post("${Constants.bookingCancelPathPart}/{itemId}") {
