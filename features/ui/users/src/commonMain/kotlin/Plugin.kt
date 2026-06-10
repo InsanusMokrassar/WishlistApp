@@ -21,6 +21,11 @@ import dev.inmo.wishlist.features.ui.users.ui.UserViewModel
 import dev.inmo.wishlist.features.ui.users.ui.UsersListViewConfig
 import dev.inmo.wishlist.features.ui.users.ui.UsersListViewModel
 import dev.inmo.wishlist.features.ui.users.ui.UsersModel
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.flow.SharingStarted
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.flow.stateIn
 import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.modules.SerializersModule
 import org.koin.core.Koin
@@ -54,16 +59,19 @@ object Plugin : StartPlugin {
             val meState = meStateFlow
             val adminFeature = get<AdminFeature>()
             val filesService = get<FilesClientService>()
+            val scope = get<CoroutineScope>()
             object : UsersModel {
                 override suspend fun getAllUsers(): List<RegisteredUser> = feature.getAll()
 
                 override suspend fun getUser(id: UserId): RegisteredUser? =
                     feature.getAll().find { it.id == id }
 
-                override suspend fun getCurrentUserId(): UserId? = meState.value?.id
+                override val currentUserIdFlow: StateFlow<UserId?> =
+                    meState.map { it?.id }.stateIn(scope, SharingStarted.Eagerly, meState.value?.id)
 
-                override suspend fun isCurrentUserRoot(): Boolean =
-                    meState.value?.username?.string == "root"
+                override val isCurrentUserRootFlow: StateFlow<Boolean> =
+                    meState.map { it?.username?.string == "root" }
+                        .stateIn(scope, SharingStarted.Eagerly, meState.value?.username?.string == "root")
 
                 override suspend fun updateUsername(id: UserId, username: Username): Boolean =
                     adminFeature.usersManagement.update(id, NewUser(username))

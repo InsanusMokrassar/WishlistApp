@@ -10,6 +10,7 @@ import dev.inmo.wishlist.features.common.client.models.ViewConfig
 import dev.inmo.wishlist.features.files.common.models.FileId
 import dev.inmo.wishlist.features.users.common.models.RegisteredUser
 import dev.inmo.wishlist.features.users.common.models.UserId
+import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.flow.merge
@@ -40,10 +41,12 @@ class UsersListViewModel(
     /** `true` while a network request is in flight. */
     val loadingState = _loadingState.asStateFlow()
 
-    private val _currentUserIdState = MutableRedeliverStateFlow<UserId?>(null)
-
-    /** Authenticated caller id, or `null` when anonymous; gates the "My profile" button. */
-    val currentUserIdState = _currentUserIdState.asStateFlow()
+    /**
+     * Authenticated caller id, or `null` when anonymous; gates the "My profile" button. Sourced
+     * reactively from [UsersModel.currentUserIdFlow], so it self-corrects once the cold-start
+     * `getMe()` round-trip completes and on later login/logout (PR #31 F2).
+     */
+    val currentUserIdState: StateFlow<UserId?> = model.currentUserIdFlow
 
     private val _avatarsState = MutableRedeliverStateFlow<Map<UserId, FileId>>(emptyMap())
 
@@ -59,7 +62,6 @@ class UsersListViewModel(
     private suspend fun loadUsers() {
         _loadingState.value = true
         try {
-            _currentUserIdState.value = model.getCurrentUserId()
             val users = model.getAllUsers()
             _usersState.value = users
             _avatarsState.value = users
@@ -75,7 +77,7 @@ class UsersListViewModel(
      * No-op when anonymous (no current user id resolved yet).
      */
     fun onMyProfile() {
-        val myId = _currentUserIdState.value ?: return
+        val myId = currentUserIdState.value ?: return
         scope.launchLoggingDropExceptions { interactor.onOpenProfile(node, myId) }
     }
 

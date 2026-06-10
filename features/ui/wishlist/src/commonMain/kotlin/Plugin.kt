@@ -39,7 +39,11 @@ import dev.inmo.wishlist.features.ui.wishlist.ui.UserWishlistsViewConfig
 import dev.inmo.wishlist.features.ui.wishlist.ui.UserWishlistsViewModel
 import dev.inmo.wishlist.features.ui.wishlist.ui.BookingConfigsProvider
 import dev.inmo.wishlist.features.ui.wishlist.ui.WishlistAdditionalConfigsProvider
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.flow.stateIn
 import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.modules.SerializersModule
 import org.koin.core.Koin
@@ -93,6 +97,7 @@ object Plugin : StartPlugin {
             val usersFeature = get<UsersFeature>()
             val currencyService = get<CurrencyService>()
             val viewModeStorage = get<WishlistViewModeStorage>()
+            val scope = get<CoroutineScope>()
             object : WishlistsModel {
                 override suspend fun getSavedViewMode(): WishlistViewMode =
                     viewModeStorage.getViewMode() ?: WishlistViewMode.List
@@ -140,17 +145,8 @@ object Plugin : StartPlugin {
                 override suspend fun deleteWishlistItem(id: WishlistItemId): Boolean =
                     itemsFeature.delete(id)
 
-                override suspend fun getCurrentUserId(): UserId? =
-                    meState.value?.id
-
-                /**
-                 * Single ownership predicate: authenticated caller + (`null` target = own context,
-                 * non-null target must equal the caller's id). See [WishlistsModel.isOwner].
-                 */
-                override suspend fun isOwner(userId: UserId?): Boolean {
-                    val currentUserId = getCurrentUserId()
-                    return currentUserId != null && (userId == null || userId == currentUserId)
-                }
+                override val currentUserIdFlow: StateFlow<UserId?> =
+                    meState.map { it?.id }.stateIn(scope, SharingStarted.Eagerly, meState.value?.id)
 
                 override suspend fun getUserName(userId: UserId): String? =
                     usersFeature.getAll().find { it.id == userId }?.username?.string

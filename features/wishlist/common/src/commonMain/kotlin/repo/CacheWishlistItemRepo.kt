@@ -35,6 +35,9 @@ class CacheWishlistItemRepo(
     locker = locker,
     idGetter = RegisteredWishlistItem::id
 ) {
+    /** Same in-memory cache handed to [FullCRUDCacheRepo], kept for the cache-first [getByIds]. */
+    private val cache: KeyValueRepo<WishlistItemId, RegisteredWishlistItem> = kvCache
+
     /**
      * Delegates directly to [originalRepo] because the flat cache cannot filter by parent wishlist.
      *
@@ -43,4 +46,27 @@ class CacheWishlistItemRepo(
      */
     override suspend fun getByWishlistId(wishlistId: WishlistId): List<RegisteredWishlistItem> =
         originalRepo.getByWishlistId(wishlistId)
+
+    /**
+     * Serves ids from the in-memory [cache] first; any ids missing from the cache (e.g. not yet
+     * synced) are resolved together in a single [originalRepo] batch call rather than one-by-one.
+     * Result is in [ids] order with duplicates and unknown ids removed (PR #31 F6).
+     *
+     * @param ids Item ids to resolve; an empty list short-circuits without touching storage.
+     * @return Matching items in [ids] order, missing ids omitted.
+     */
+    override suspend fun getByIds(ids: List<WishlistItemId>): List<RegisteredWishlistItem> {
+        if (ids.isEmpty()) return emptyList()
+        val distinct = ids.distinct()
+        val resolved = HashMap<WishlistItemId, RegisteredWishlistItem>()
+        val missing = mutableListOf<WishlistItemId>()
+        distinct.forEach { id ->
+            val cached = cache.get(id)
+            if (cached != null) resolved[id] = cached else missing.add(id)
+        }
+        if (missing.isNotEmpty()) {
+            originalRepo.getByIds(missing).forEach { resolved[it.id] = it }
+        }
+        return distinct.mapNotNull { resolved[it] }
+    }
 }

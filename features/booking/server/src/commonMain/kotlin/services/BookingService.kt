@@ -151,6 +151,7 @@ class BookingService(
      * @return Items the caller has reserved for gifting; empty when the caller booked nothing.
      */
     suspend fun myPresentsBooks(callerId: UserId): List<RegisteredWishlistItem> = locker.withReadAcquire {
-        bookingRepo.getByUserId(callerId).mapNotNull { wishlistItemRepo.getById(it.itemId) }
+        val itemIds = bookingRepo.getByUserId(callerId).map { it.itemId }
+        wishlistItemRepo.getByIds(itemIds)
     }
 }

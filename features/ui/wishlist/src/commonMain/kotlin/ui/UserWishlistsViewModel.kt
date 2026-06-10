@@ -16,6 +16,9 @@ import dev.inmo.wishlist.features.currency.common.utils.isCostSortAvailable
 import dev.inmo.wishlist.features.files.common.models.FileId
 import dev.inmo.wishlist.features.wishlist.common.models.RegisteredWishlist
 import dev.inmo.wishlist.features.wishlist.common.models.RegisteredWishlistItem
+import kotlinx.coroutines.async
+import kotlinx.coroutines.awaitAll
+import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -125,15 +128,26 @@ class UserWishlistsViewModel(
     private val _sortModeState = MutableRedeliverStateFlow(WishlistSortMode.None)
 
     /**
+     * Single source of the "sorting is meaningful" rule (two or more items exist across all loaded
+     * sections): sorting fewer than two items is a no-op and a non-[WishlistSortMode.None] mode would
+     * blank the grouped presentation (PR #31 T1). [sortModeState], [sortSelectorVisibleState] and
+     * [sortedItemsState] all derive from this one flow so the threshold lives in exactly one place
+     * (PR #31 F7).
+     */
+    private val sortableState: StateFlow<Boolean> =
+        _sectionsState.map { sections -> sections.sumOf { it.items.size } >= 2 }
+            .stateIn(scope, SharingStarted.Eagerly, false)
+
+    /**
      * Effective ordering applied by the views. Mirrors the user selection from [onSortModeSelected]
-     * but is clamped to [WishlistSortMode.None] while fewer than two items exist across all loaded
-     * sections — sorting fewer than two items is meaningless and a non-[WishlistSortMode.None] mode
-     * would blank the grouped presentation (PR #31 T1). The raw selection is kept privately, so it
-     * re-applies when the item count grows back to two or more.
+     * but is clamped to [WishlistSortMode.None] while the sections are not [sortableState] —
+     * sorting fewer than two items is meaningless and a non-[WishlistSortMode.None] mode would blank
+     * the grouped presentation (PR #31 T1). The raw selection is kept privately, so it re-applies
+     * when the item count grows back to two or more.
      */
     val sortModeState: StateFlow<WishlistSortMode> =
-        combine(_sortModeState, _sectionsState) { mode, sections ->
-            if (sections.sumOf { it.items.size } < 2) WishlistSortMode.None else mode
+        combine(_sortModeState, sortableState) { mode, sortable ->
+            if (sortable) mode else WishlistSortMode.None
         }.stateIn(scope, SharingStarted.Eagerly, WishlistSortMode.None)
 
     /**
@@ -142,9 +156,7 @@ class UserWishlistsViewModel(
      * [WishlistSortMode.None], so the selector (including a meaningless Cost option for an empty
      * item set) would only mislead (PR #31 T1).
      */
-    val sortSelectorVisibleState: StateFlow<Boolean> =
-        _sectionsState.map { sections -> sections.sumOf { it.items.size } >= 2 }
-            .stateIn(scope, SharingStarted.Eagerly, false)
+    val sortSelectorVisibleState: StateFlow<Boolean> = sortableState
 
     private val _currencyEnabledState = MutableRedeliverStateFlow(false)
 
@@ -182,11 +194,11 @@ class UserWishlistsViewModel(
      * [WishlistSortMode.None] while fewer than two items are loaded (PR #31 T1).
      */
     val sortedItemsState =
-        combine(_sectionsState, _sortModeState, _ratesState, _currencyEnabledState) { sections, mode, rates, enabled ->
+        combine(_sectionsState, _sortModeState, _ratesState, _currencyEnabledState, sortableState) { sections, mode, rates, enabled, sortable ->
             val allItems = sections.flatMap { it.items }
             val pricedUnits = allItems.filter { it.approximatePrice != null }.map { it.priceUnits }
             val effectiveMode = when {
-                allItems.size < 2 -> WishlistSortMode.None
+                !sortable -> WishlistSortMode.None
                 mode == WishlistSortMode.Cost && !isCostSortAvailable(pricedUnits, enabled) -> WishlistSortMode.None
                 else -> mode
             }
@@ -213,14 +225,14 @@ class UserWishlistsViewModel(
     /** Shared selected conversion target; `null` means original prices. */
     val selectedCurrencyState: StateFlow<CurrencyCode?> = model.selectedCurrency
 
-    private val _isOwnerState = MutableRedeliverStateFlow(false)
-
     /**
      * `true` when the authenticated caller is the user whose items are displayed. The view shows the
      * "New Wishlist" button only when this is `true`, mirroring the ownership gating of the
-     * wishlists list screen. Derivation routes through [WishlistsModel.isOwner].
+     * wishlists list screen. Derived reactively from [WishlistsModel.isOwnerFlow], so it self-corrects
+     * once the cold-start `getMe()` round-trip completes and on later login/logout (PR #31 F2).
      */
-    val isOwnerState = _isOwnerState.asStateFlow()
+    val isOwnerState: StateFlow<Boolean> =
+        model.isOwnerFlow(node.config.userId).stateIn(scope, SharingStarted.Eagerly, false)
 
     private val _viewModeState = MutableRedeliverStateFlow(WishlistViewMode.List)
 
@@ -234,10 +246,19 @@ class UserWishlistsViewModel(
         merge(flowOf(Unit), node.onResumeFlow).subscribeLoggingDropExceptions(scope) {
             _loadingState.value = true
             try {
-                _isOwnerState.value = model.isOwner(node.config.userId)
-                _userNameState.value = model.getUserName(node.config.userId)
-                _sectionsState.value = model.getUserWishlists(node.config.userId)
-                    .map { wishlist -> UserWishlistsSection(wishlist, model.getWishlistItems(wishlist.id)) }
+                // Fan out the independent fetches instead of awaiting them one-by-one: the user name
+                // runs concurrently with the wishlists load, and each wishlist's items are fetched in
+                // parallel rather than W serial round-trips (PR #31 F8).
+                coroutineScope {
+                    val userNameDeferred = async { model.getUserName(node.config.userId) }
+                    val sectionsDeferred = async {
+                        model.getUserWishlists(node.config.userId).map { wishlist ->
+                            async { UserWishlistsSection(wishlist, model.getWishlistItems(wishlist.id)) }
+                        }.awaitAll()
+                    }
+                    _userNameState.value = userNameDeferred.await()
+                    _sectionsState.value = sectionsDeferred.await()
+                }
             } finally {
                 _loadingState.value = false
             }

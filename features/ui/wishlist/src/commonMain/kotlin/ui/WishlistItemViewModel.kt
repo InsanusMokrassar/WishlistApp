@@ -11,11 +11,15 @@ import dev.inmo.wishlist.features.currency.common.models.CurrencyCode
 import dev.inmo.wishlist.features.currency.common.models.CurrencyInfo
 import dev.inmo.wishlist.features.currency.common.models.CurrencyRates
 import dev.inmo.wishlist.features.files.common.models.FileId
+import dev.inmo.wishlist.features.wishlist.common.models.RegisteredWishlist
 import dev.inmo.wishlist.features.wishlist.common.models.RegisteredWishlistItem
+import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.flow.merge
+import kotlinx.coroutines.flow.stateIn
 
 /**
  * ViewModel for the wishlist item read-only view screen.
@@ -45,14 +49,19 @@ class WishlistItemViewModel(
     /** The loaded item, `null` while loading or when not found. */
     val itemState = _itemState.asStateFlow()
 
-    private val _isOwnerState = MutableRedeliverStateFlow(false)
+    private val _parentWishlistState = MutableRedeliverStateFlow<RegisteredWishlist?>(null)
 
     /**
      * `true` when the authenticated caller is the parent wishlist owner. Controls visibility of the
-     * Edit button. Assigned on every (re)load via [WishlistsModel.isOwner]; a missing (`null`)
-     * parent wishlist counts as not-owned.
+     * Edit button. Derived reactively from the loaded parent wishlist and the auth "me" flow
+     * ([WishlistsModel.currentUserIdFlow]), so it self-corrects once the cold-start `getMe()`
+     * round-trip completes and on later login/logout (PR #31 F2). A missing (`null`) parent wishlist
+     * counts as not-owned.
      */
-    val isOwnerState: StateFlow<Boolean> = _isOwnerState.asStateFlow()
+    val isOwnerState: StateFlow<Boolean> =
+        combine(_parentWishlistState, model.currentUserIdFlow) { wishlist, currentUserId ->
+            wishlist != null && model.isOwner(wishlist.userId, currentUserId)
+        }.stateIn(scope, SharingStarted.Eagerly, false)
 
     private val _loadingState = MutableRedeliverStateFlow(false)
 
@@ -81,8 +90,7 @@ class WishlistItemViewModel(
         merge(flowOf(Unit), node.onResumeFlow).subscribeLoggingDropExceptions(scope) {
             _loadingState.value = true
             val item = try {
-                val wishlist = model.getWishlist(node.config.wishlistId)
-                _isOwnerState.value = wishlist != null && model.isOwner(wishlist.userId)
+                _parentWishlistState.value = model.getWishlist(node.config.wishlistId)
                 model.getWishlistItems(node.config.wishlistId)
                     .find { it.id == node.config.wishlistItemId }
                     .also { _itemState.value = it }
