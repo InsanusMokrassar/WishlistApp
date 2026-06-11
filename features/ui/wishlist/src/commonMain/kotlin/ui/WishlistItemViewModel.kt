@@ -11,7 +11,6 @@ import dev.inmo.wishlist.features.currency.common.models.CurrencyCode
 import dev.inmo.wishlist.features.currency.common.models.CurrencyInfo
 import dev.inmo.wishlist.features.currency.common.models.CurrencyRates
 import dev.inmo.wishlist.features.files.common.models.FileId
-import dev.inmo.wishlist.features.users.common.models.UserId
 import dev.inmo.wishlist.features.wishlist.common.models.RegisteredWishlist
 import dev.inmo.wishlist.features.wishlist.common.models.RegisteredWishlistItem
 import kotlinx.coroutines.flow.SharingStarted
@@ -27,32 +26,42 @@ import kotlinx.coroutines.flow.stateIn
  *
  * Loads the item identified by [WishlistItemViewConfig.wishlistItemId] and the parent wishlist.
  * Exposes [isOwnerState] so the view can conditionally render an "Edit" button.
+ *
+ * Booking and any other item-scoped extra views are no longer hard-coded here: each registered
+ * [WishlistAdditionalConfigsProvider] contributes one compact view drawn INLINE by the item view
+ * (via `InjectNavigationChain` / `InjectNavigationNode`); see [additionalConfigsProviders].
  * Navigation side-effects are delegated to [interactor].
  *
  * @param node Navigation node this ViewModel is bound to.
  * @param model Wishlist data source.
  * @param interactor Navigation delegate for this screen.
+ * @param additionalConfigsProviders All registered providers of item-scoped extra views, injected
+ *   via Koin `getAllDistinct`; each drawn inline in the item view.
  */
 class WishlistItemViewModel(
     private val node: NavigationNode<WishlistItemViewConfig, ViewConfig>,
     private val model: WishlistsModel,
-    private val interactor: WishlistItemViewInteractor
+    private val interactor: WishlistItemViewInteractor,
+    val additionalConfigsProviders: List<WishlistAdditionalConfigsProvider>
 ) : ViewModel<ViewConfig>(node) {
     private val _itemState = MutableRedeliverStateFlow<RegisteredWishlistItem?>(null)
 
     /** The loaded item, `null` while loading or when not found. */
     val itemState = _itemState.asStateFlow()
 
-    private val _wishlistState = MutableRedeliverStateFlow<RegisteredWishlist?>(null)
-    private val _currentUserIdState = MutableRedeliverStateFlow<UserId?>(null)
+    private val _parentWishlistState = MutableRedeliverStateFlow<RegisteredWishlist?>(null)
 
     /**
-     * `true` when the authenticated caller is the parent wishlist owner.
-     * Controls visibility of the Edit button.
+     * `true` when the authenticated caller is the parent wishlist owner. Controls visibility of the
+     * Edit button. Derived reactively from the loaded parent wishlist and the auth "me" flow
+     * ([WishlistsModel.currentUserIdFlow]), so it self-corrects once the cold-start `getMe()`
+     * round-trip completes and on later login/logout (PR #31 F2). A missing (`null`) parent wishlist
+     * counts as not-owned.
      */
-    val isOwnerState: StateFlow<Boolean> = combine(_wishlistState, _currentUserIdState) { wishlist, userId ->
-        wishlist != null && userId != null && wishlist.userId == userId
-    }.stateIn(scope, SharingStarted.Eagerly, false)
+    val isOwnerState: StateFlow<Boolean> =
+        combine(_parentWishlistState, model.currentUserIdFlow) { wishlist, currentUserId ->
+            wishlist != null && model.isOwner(wishlist.userId, currentUserId)
+        }.stateIn(scope, SharingStarted.Eagerly, false)
 
     private val _loadingState = MutableRedeliverStateFlow(false)
 
@@ -81,8 +90,7 @@ class WishlistItemViewModel(
         merge(flowOf(Unit), node.onResumeFlow).subscribeLoggingDropExceptions(scope) {
             _loadingState.value = true
             val item = try {
-                _currentUserIdState.value = model.getCurrentUserId()
-                _wishlistState.value = model.getWishlist(node.config.wishlistId)
+                _parentWishlistState.value = model.getWishlist(node.config.wishlistId)
                 model.getWishlistItems(node.config.wishlistId)
                     .find { it.id == node.config.wishlistItemId }
                     .also { _itemState.value = it }

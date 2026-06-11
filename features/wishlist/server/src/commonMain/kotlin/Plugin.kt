@@ -20,6 +20,8 @@ import org.koin.core.module.Module
  * - [WishlistRoutingsConfigurator] as [ApplicationRoutingConfigurator.Element]
  * - [WishlistItemRoutingsConfigurator] as [ApplicationRoutingConfigurator.Element]
  *
+ * Booking service and routes were extracted into `features/booking/server`.
+ *
  * Neither [WishlistService] nor [WishlistItemService] is bound to a client-facing feature
  * interface because their mutation methods carry an explicit caller
  * [dev.inmo.wishlist.features.users.common.models.UserId] parameter that is absent from

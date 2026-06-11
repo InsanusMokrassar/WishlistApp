@@ -37,6 +37,8 @@ import dev.inmo.wishlist.features.ui.adminPanel.ui.AdminWishlistsListViewConfig
 import dev.inmo.wishlist.features.ui.adminPanel.ui.AdminWishlistsListViewInteractor
 import dev.inmo.wishlist.features.ui.auth.ui.AuthViewConfig
 import dev.inmo.wishlist.features.ui.auth.ui.AuthViewInteractor
+import dev.inmo.wishlist.features.ui.booking.ui.MyPresentsBooksViewConfig
+import dev.inmo.wishlist.features.ui.booking.ui.MyPresentsBooksViewInteractor
 import dev.inmo.wishlist.features.ui.scaffold.ui.ScaffoldViewConfig
 import dev.inmo.wishlist.features.ui.serverUrl.ui.ServerUrlViewConfig
 import dev.inmo.wishlist.features.ui.serverUrl.ui.ServerUrlViewInteractor
@@ -232,6 +234,17 @@ object ClientPlugin : StartPlugin {
                 ) {
                     node.chain.push(UserViewConfig(userId))
                 }
+                override suspend fun onCreateWishlistClick(
+                    node: NavigationNode<UserWishlistsViewConfig, ViewConfig>
+                ) {
+                    node.chain.push(WishlistEditViewConfig(null))
+                }
+                override suspend fun onCreateItemClick(
+                    node: NavigationNode<UserWishlistsViewConfig, ViewConfig>,
+                    wishlistId: WishlistId
+                ) {
+                    node.chain.push(WishlistItemEditViewConfig(null, wishlistId))
+                }
             }
         }
 
@@ -302,6 +315,14 @@ object ClientPlugin : StartPlugin {
                     node: NavigationNode<WishlistItemViewConfig, ViewConfig>
                 ) {
                     node.chain.push(WishlistItemEditViewConfig(node.config.wishlistItemId, node.config.wishlistId))
+                }
+            }
+        }
+
+        single<MyPresentsBooksViewInteractor> {
+            object : MyPresentsBooksViewInteractor {
+                override suspend fun onBack(node: NavigationNode<MyPresentsBooksViewConfig, ViewConfig>) {
+                    node.chain.pop()
                 }
             }
         }

@@ -9,9 +9,13 @@ import dev.inmo.navigation.mvvm.ViewModel
 import dev.inmo.wishlist.features.common.client.models.ViewConfig
 import dev.inmo.wishlist.features.files.common.models.FileId
 import dev.inmo.wishlist.features.users.common.models.RegisteredUser
+import kotlinx.coroutines.flow.SharingStarted
+import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.flow.merge
+import kotlinx.coroutines.flow.stateIn
 
 /**
  * ViewModel for the public user profile detail screen.
@@ -38,10 +42,16 @@ class UserViewModel(
     /** Avatar file id of the loaded user, or `null` when no avatar is set. */
     val avatarIdState = _avatarIdState.asStateFlow()
 
-    private val _canEditState = MutableRedeliverStateFlow(false)
-
-    /** `true` when the caller may edit this profile (the owner or `root`); gates the Edit button. */
-    val canEditState = _canEditState.asStateFlow()
+    /**
+     * `true` when the caller may edit this profile (the owner or `root`); gates the Edit button.
+     * Derived reactively from [UsersModel.isCurrentUserRootFlow] and [UsersModel.currentUserIdFlow],
+     * so it self-corrects once the cold-start `getMe()` round-trip completes and on later
+     * login/logout (PR #31 F2).
+     */
+    val canEditState: StateFlow<Boolean> =
+        combine(model.isCurrentUserRootFlow, model.currentUserIdFlow) { isRoot, currentUserId ->
+            isRoot || currentUserId == node.config.userId
+        }.stateIn(scope, SharingStarted.Eagerly, false)
 
     private val _loadingState = MutableRedeliverStateFlow(false)
 
@@ -60,8 +70,6 @@ class UserViewModel(
             val loaded = model.getUser(node.config.userId)
             _userState.value = loaded
             _avatarIdState.value = model.getAvatar(node.config.userId)
-            val currentUserId = model.getCurrentUserId()
-            _canEditState.value = model.isCurrentUserRoot() || currentUserId == node.config.userId
             loaded
         } finally {
             _loadingState.value = false

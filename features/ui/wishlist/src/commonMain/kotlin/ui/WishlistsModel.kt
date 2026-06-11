@@ -11,7 +11,9 @@ import dev.inmo.wishlist.features.wishlist.common.models.WishlistItemId
 import dev.inmo.wishlist.features.currency.common.models.CurrencyCode
 import dev.inmo.wishlist.features.currency.common.models.CurrencyInfo
 import dev.inmo.wishlist.features.currency.common.models.CurrencyRates
+import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.map
 
 /**
  * Model interface for all wishlist UI screens.
@@ -104,11 +106,45 @@ interface WishlistsModel {
     suspend fun deleteWishlistItem(id: WishlistItemId): Boolean
 
     /**
-     * Returns the [UserId] of the authenticated caller, or `null` when not available.
+     * Reactive id of the authenticated caller ("me"), or `null` when anonymous / not yet resolved.
      *
-     * Used to determine ownership of wishlists in [WishlistViewModel].
+     * Backed by the auth "me" [StateFlow], so it self-corrects as the first `getMe()` round-trip
+     * completes and on every later login/logout. Ownership-derived UI state ([isOwnerFlow]) MUST be
+     * built on top of this flow rather than a one-shot snapshot, otherwise it stays stale after a
+     * cold start that races the auth subscription (PR #31 F2).
      */
-    suspend fun getCurrentUserId(): UserId?
+    val currentUserIdFlow: StateFlow<UserId?>
+
+    /**
+     * Pure ownership predicate: returns `true` iff a caller is authenticated ([currentUserId] is
+     * non-`null`) AND ([ownerId] is `null` OR [ownerId] equals [currentUserId]). A `null` [ownerId]
+     * means "the caller's own context" (e.g. the wishlists list opened without a target user) and is
+     * owned by any authenticated caller.
+     *
+     * Callers holding a nullable wishlist MUST treat a `null` wishlist as not-owned BEFORE calling,
+     * e.g. `wishlist != null && isOwner(wishlist.userId, currentUserId)` — this predicate cannot
+     * distinguish "no wishlist" from "own context".
+     *
+     * @param ownerId Owner id of the checked context, or `null` for the caller's own context.
+     * @param currentUserId Id of the authenticated caller, or `null` when anonymous.
+     * @return `true` when the authenticated caller owns the context; `false` for anonymous callers.
+     */
+    fun isOwner(ownerId: UserId?, currentUserId: UserId?): Boolean =
+        currentUserId != null && (ownerId == null || ownerId == currentUserId)
+
+    /**
+     * Reactive ownership of the context identified by [ownerId], tracking [currentUserIdFlow] so the
+     * result self-corrects on login/logout and after the cold-start "me" round-trip.
+     *
+     * Use only for contexts with a fixed [ownerId] (e.g. a screen's target user id). For a context
+     * whose owner is itself loaded asynchronously (a nullable wishlist), combine [currentUserIdFlow]
+     * with the loaded value and call [isOwner] directly, so a missing context reads as not-owned.
+     *
+     * @param ownerId Owner id of the checked context, or `null` for the caller's own context.
+     * @return Flow emitting `true` while the authenticated caller owns the context.
+     */
+    fun isOwnerFlow(ownerId: UserId?): Flow<Boolean> =
+        currentUserIdFlow.map { isOwner(ownerId, it) }
 
     /**
      * Resolves the display name of the user identified by [userId].

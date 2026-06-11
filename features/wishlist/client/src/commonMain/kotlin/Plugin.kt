@@ -12,6 +12,8 @@ import org.koin.core.module.Module
  * - [KtorWishlistFeature] (concrete + [WishlistsFeature] binding)
  * - [KtorWishlistItemFeature] (concrete + [WishlistsItemsFeature] binding)
  *
+ * Booking client code was extracted into `features/booking/client`.
+ *
  * Platform-specific plugins (JSPlugin, JVMPlugin, AndroidPlugin) delegate to this object.
  */
 object Plugin : StartPlugin {

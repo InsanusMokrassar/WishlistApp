@@ -1,9 +1,10 @@
 package dev.inmo.wishlist.features.ui.wishlist
 
+import dev.inmo.micro_utils.koin.getAllDistinct
 import dev.inmo.micro_utils.koin.singleWithRandomQualifier
 import dev.inmo.micro_utils.startup.plugin.StartPlugin
 import dev.inmo.micro_utils.common.MPPFile
-import dev.inmo.wishlist.features.auth.client.ClientAuthFeature
+import dev.inmo.wishlist.features.auth.client.meStateFlow
 import dev.inmo.wishlist.features.common.client.models.ViewConfig
 import dev.inmo.wishlist.features.currency.client.CurrencyService
 import dev.inmo.wishlist.features.currency.common.models.CurrencyCode
@@ -36,7 +37,13 @@ import dev.inmo.wishlist.features.ui.wishlist.ui.WishlistViewMode
 import dev.inmo.wishlist.features.ui.wishlist.ui.WishlistViewModeStorage
 import dev.inmo.wishlist.features.ui.wishlist.ui.UserWishlistsViewConfig
 import dev.inmo.wishlist.features.ui.wishlist.ui.UserWishlistsViewModel
+import dev.inmo.wishlist.features.ui.wishlist.ui.BookingConfigsProvider
+import dev.inmo.wishlist.features.ui.wishlist.ui.WishlistAdditionalConfigsProvider
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.flow.stateIn
 import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.modules.SerializersModule
 import org.koin.core.Koin
@@ -48,7 +55,8 @@ import org.koin.core.module.Module
  * Registers in Koin:
  * - Polymorphic serializers for all four [ViewConfig] subclasses
  * - Koin factories for all four ViewModels
- * - [WishlistsModel] singleton backed by [WishlistsFeature], [WishlistsItemsFeature], [ClientAuthFeature]
+ * - [WishlistsModel] singleton backed by [WishlistsFeature], [WishlistsItemsFeature] and the
+ *   authenticated-user ("me") state flow
  *
  * Platform-specific plugins (JSPlugin, JVMPlugin, AndroidPlugin) delegate to this object
  * and register [dev.inmo.navigation.core.NavigationNodeFactory] entries for each View.
@@ -76,17 +84,20 @@ object Plugin : StartPlugin {
         factory { WishlistViewModel(it.get(), get(), get()) }
         factory { WishlistEditViewModel(it.get(), get(), get()) }
         factory { WishlistItemEditViewModel(it.get(), get(), get()) }
-        factory { WishlistItemViewModel(it.get(), get(), get()) }
+        factory { WishlistItemViewModel(it.get(), get(), get(), getAllDistinct()) }
         factory { UserWishlistsViewModel(it.get(), get(), get()) }
+
+        singleWithRandomQualifier<WishlistAdditionalConfigsProvider> { BookingConfigsProvider() }
 
         single<WishlistsModel> {
             val wishlistsFeature = get<WishlistsFeature>()
             val itemsFeature = get<WishlistsItemsFeature>()
-            val authFeature = get<ClientAuthFeature>()
+            val meState = meStateFlow
             val filesService = get<FilesClientService>()
             val usersFeature = get<UsersFeature>()
             val currencyService = get<CurrencyService>()
             val viewModeStorage = get<WishlistViewModeStorage>()
+            val scope = get<CoroutineScope>()
             object : WishlistsModel {
                 override suspend fun getSavedViewMode(): WishlistViewMode =
                     viewModeStorage.getViewMode() ?: WishlistViewMode.List
@@ -134,8 +145,10 @@ object Plugin : StartPlugin {
                 override suspend fun deleteWishlistItem(id: WishlistItemId): Boolean =
                     itemsFeature.delete(id)
 
-                override suspend fun getCurrentUserId(): UserId? =
-                    authFeature.getMe()?.id
+                override val currentUserIdFlow: StateFlow<UserId?> =
+                    meState.map {
+                        it?.id
+                    }.stateIn(scope, SharingStarted.Eagerly, meState.value?.id)
 
                 override suspend fun getUserName(userId: UserId): String? =
                     usersFeature.getAll().find { it.id == userId }?.username?.string

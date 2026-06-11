@@ -19,6 +19,7 @@ kotlin {
                 api project(":wishlist.features.files.client")
                 api project(":wishlist.features.users.client")
                 api project(":wishlist.features.currency.client")
+                api project(":wishlist.features.ui.booking")
             }
         }
     }

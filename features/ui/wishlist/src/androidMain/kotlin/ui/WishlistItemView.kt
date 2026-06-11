@@ -114,6 +114,13 @@ class WishlistItemView(
                 Text(WishlistStrings.priorityLabel.translation(resources), style = MaterialTheme.typography.titleSmall)
                 PriorityBadge(it.priority)
 
+                // Each registered WishlistAdditionalConfigsProvider (e.g. booking) is drawn through the
+                // shared WishlistItemAdditionalConfigView: injected inline right here, in a fresh
+                // anonymous chain.
+                viewModel.additionalConfigsProviders.forEach { provider ->
+                    WishlistItemAdditionalConfigView(provider, it, this@WishlistItemView)
+                }
+
                 Text(WishlistStrings.linksLabel.translation(resources), style = MaterialTheme.typography.titleSmall)
                 if (it.links.isEmpty()) {
                     Text(WishlistStrings.noLinks.translation(resources), style = MaterialTheme.typography.bodySmall)

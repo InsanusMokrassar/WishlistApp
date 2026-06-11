@@ -10,7 +10,6 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
-import androidx.compose.material3.Button
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Text
@@ -85,11 +84,7 @@ class WishlistsListView(
                             Text(WishlistStrings.allItemsButton.translation(resources))
                         }
                     }
-                    if (isOwner) {
-                        Button(onClick = { viewModel.onCreateWishlist() }) {
-                            Text(WishlistStrings.createWishlistButton.translation(resources))
-                        }
-                    }
+                    CreateWishlistButton(isOwner) { viewModel.onCreateWishlist() }
                 }
             }
             Spacer(modifier = Modifier.height(8.dp))

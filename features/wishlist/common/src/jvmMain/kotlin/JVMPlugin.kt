@@ -19,6 +19,8 @@ import org.koin.core.module.Module
  * - [ExposedWishlistRepo] → [CacheWishlistRepo] bound as [WishlistRepo]
  * - [ExposedWishlistItemRepo] → [CacheWishlistItemRepo] bound as [WishlistItemRepo]
  *
+ * Booking repositories were extracted into `features/booking`.
+ *
  * Also delegates to [Plugin] for platform-agnostic DI bindings.
  */
 object JVMPlugin : StartPlugin {

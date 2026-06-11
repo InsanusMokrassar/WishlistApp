@@ -69,14 +69,7 @@ class WishlistsListView(
                             Text(WishlistStrings.allItemsButton.translation())
                         }
                     }
-                    if (isOwner) {
-                        Button({
-                            classes("btn", "btn-primary")
-                            onClick { viewModel.onCreateWishlist() }
-                        }) {
-                            Text(WishlistStrings.createWishlistButton.translation())
-                        }
-                    }
+                    CreateWishlistButton(isOwner) { viewModel.onCreateWishlist() }
                 }
             }
             if (loading) {

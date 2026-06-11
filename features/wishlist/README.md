@@ -30,6 +30,8 @@ Full-stack wishlist management. Users create wishlists and add items to them. Al
 | PUT | `/wishlistItem/update/{id}` | Bearer | `NewWishlistItem → 200 \| 400 \| 403 \| 404` | Replace item data if caller owns parent wishlist |
 | DELETE | `/wishlistItem/delete/{id}` | Bearer | `→ 200 \| 400 \| 403 \| 404` | Remove item if caller owns parent wishlist |
 
+> **Note** Gift booking (`/wishlistItemBooking/...`) was extracted into the standalone `features/booking` feature (issue #29, PR #31). See `features/booking/README.md`.
+
 HTTP status semantics:
 - `200` — success
 - `400` — path parameter not a valid Long
@@ -64,6 +66,8 @@ Note: item `create` maps both "parent not found" and "caller not owner" to `null
 | `FileId` | common | Imported from `features/files` — string type wrapping a file identifier |
 | `WishlistsItemsFeature` | client | Client-side interface: `getByWishlistId`, `create`, `update`, `delete` |
 
+> **Note** Booking models (`BookingId` / `Booking` / `NewBooking` / `RegisteredBooking` / `BookingState`) and the `BookingFeature` client interface were moved to `features/booking`. The wishlist read repos (`WishlistItemRepo` / `WishlistRepo`) are still used by `features/booking/server` to resolve an item's owner.
+
 ## Architecture Notes
 
 - `WishlistService` and `WishlistItemService` are **not** bound to `WishlistsFeature` / `WishlistsItemsFeature` in Koin because their mutation methods carry an explicit `callerId: UserId` parameter absent from the client interfaces. Routing configurators inject the services directly.
@@ -81,3 +85,4 @@ Note: item `create` maps both "parent not found" and "caller not owner" to `null
 - `links` are stored in a separate `wishlist_item_links` table, managed exclusively by `ExposedWishlistItemRepo` (private `linksTable`). On item delete, cascade FK removes link rows automatically. On read, a sub-query per item row fetches links within the same transaction (N+1 trade-off).
 - `imageIds` are stored in a separate `wishlist_item_images` table, managed exclusively by `ExposedWishlistItemRepo` (private `imagesTable`). Columns: `item_id` (BIGINT FK → wishlist_items.id ON DELETE CASCADE), `file_id` (TEXT), `order` (INT for display order); PK = (item_id, file_id). On item delete, cascade FK removes image rows automatically. On read, images are fetched ordered by `order` column within the same transaction. On update, image rows are deleted and reinserted (same pattern as links).
 - Client-side interfaces (`WishlistsFeature`, `WishlistsItemsFeature`) are declared in `features/wishlist/client` and implemented by `KtorWishlistFeature` / `KtorWishlistItemFeature`.
+- **Booking (gift reservation, issue #29)** was extracted into the standalone `features/booking` feature (PR #31). The `wishlist_item_bookings` table and all four server-enforced rules now live there; `features/wishlist` only still exposes the `WishlistItemRepo` / `WishlistRepo` read repos that `features/booking/server` uses to resolve an item's owner. See `features/booking/README.md`.
