@@ -146,7 +146,9 @@ object Plugin : StartPlugin {
                     itemsFeature.delete(id)
 
                 override val currentUserIdFlow: StateFlow<UserId?> =
-                    meState.map { it?.id }.stateIn(scope, SharingStarted.Eagerly, meState.value?.id)
+                    meState.map {
+                        it?.id
+                    }.stateIn(scope, SharingStarted.Eagerly, meState.value?.id)
 
                 override suspend fun getUserName(userId: UserId): String? =
                     usersFeature.getAll().find { it.id == userId }?.username?.string

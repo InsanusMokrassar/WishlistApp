@@ -59,7 +59,10 @@ class WishlistViewModel(
      * missing (`null`) wishlist counts as not-owned.
      */
     val isOwnerState: StateFlow<Boolean> =
-        combine(_wishlistState, model.currentUserIdFlow) { wishlist, currentUserId ->
+        merge(_wishlistState, model.currentUserIdFlow).map {
+            val wishlist = wishlistState.value
+            val currentUserId = model.currentUserIdFlow.value
+
             wishlist != null && model.isOwner(wishlist.userId, currentUserId)
         }.stateIn(scope, SharingStarted.Eagerly, false)
 

@@ -100,6 +100,41 @@ object Plugin : StartPlugin {
 }
 ```
 
+### Typed definition & accessor helpers
+
+When a qualified dependency is registered in one plugin and resolved at other call sites, do not repeat raw `single<T>(qualifier = ...)` / `get<T>(qualifier = ...)` calls. Instead, define typed helpers in a dedicated file (one per logical dependency) so the qualifier, the type, and the resolution rule are declared exactly once:
+
+- one `Module.singleXxx(...)` registration extension wrapping `single(qualifier, createdAtStart, definition)`;
+- typed read accessors `Koin.xxx` and `Scope.xxx` wrapping `get(qualifier = ...)` — `Scope` accessor lets other `single { }`/`factory { }` blocks resolve the dependency without naming the qualifier.
+
+Visibility mirrors the dependency's public surface: expose the read-only/public type with public helpers; keep any mutable backing dependency `private`/`internal` (private qualifier + `internal` helpers and accessors).
+
+```kotlin
+// MyThing.kt — declares qualifier, registration helper, and accessors once
+val myThingQualifier: StringQualifier = named("myThing")
+
+internal fun Module.singleMyThing(
+    createdAtStart: Boolean = false,
+    definition: Definition<MyThing>,
+): KoinDefinition<MyThing> = single(myThingQualifier, createdAtStart, definition)
+
+val Koin.myThing: MyThing
+    get() = get(qualifier = myThingQualifier)
+
+val Scope.myThing: MyThing
+    get() = get(qualifier = myThingQualifier)
+```
+
+```kotlin
+// Plugin.kt — registration and resolution stay free of raw qualifier/type literals
+override fun Module.setupDI(config: JsonObject) {
+    singleMyThing { MyThing(/* ... */) }
+    single { Consumer(dep = myThing) } // Scope.myThing accessor
+}
+```
+
+For a dependency with a public read-only view backed by a private mutable instance, declare two pairs of helpers in the same file: public `singleXxx` + `Koin.xxx`/`Scope.xxx` for the read-only type, and `internal` `singleSecretXxxMutable` + `internal` `Koin.secretXxxMutable`/`Scope.secretXxxMutable` (with a `private` qualifier) for the mutable backing instance.
+
 ---
 
 ## Full-Stack Feature Implementation
