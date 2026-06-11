@@ -10,9 +10,12 @@ import dev.inmo.wishlist.features.common.client.models.ViewConfig
 import dev.inmo.wishlist.features.users.common.models.UserId
 import dev.inmo.wishlist.features.wishlist.common.models.RegisteredWishlist
 import dev.inmo.wishlist.features.wishlist.common.models.WishlistId
+import kotlinx.coroutines.flow.SharingStarted
+import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.flow.merge
+import kotlinx.coroutines.flow.stateIn
 
 /**
  * ViewModel for the wishlists list screen.
@@ -63,14 +66,15 @@ class WishlistsListViewModel(
      */
     val userNameState = _userNameState.asStateFlow()
 
-    private val _isOwnerState = MutableRedeliverStateFlow(false)
-
     /**
      * `true` when the authenticated caller owns the displayed list and may create wishlists in it:
      * either browsing their own list ([targetUserId] is `null`) or browsing themselves by id.
      * `false` for anonymous callers and when browsing another user — hides the "New Wishlist" button.
+     * Derived reactively from [WishlistsModel.isOwnerFlow], so it self-corrects once the cold-start
+     * `getMe()` round-trip completes and on later login/logout (PR #31 F2).
      */
-    val isOwnerState = _isOwnerState.asStateFlow()
+    val isOwnerState: StateFlow<Boolean> =
+        model.isOwnerFlow(targetUserId).stateIn(scope, SharingStarted.Eagerly, false)
 
     init {
         merge(flowOf(Unit), node.onResumeFlow).subscribeLoggingDropExceptions(scope) {
@@ -83,16 +87,14 @@ class WishlistsListViewModel(
         _loadingState.value = true
         try {
             val targetUserId = node.config.userId
-            val currentUserId = model.getCurrentUserId()
             _wishlistsState.value = if (targetUserId == null) {
                 model.getMyWishlists()
             } else {
                 model.getUserWishlists(targetUserId)
             }
-            val profileUserId = targetUserId ?: currentUserId
+            val profileUserId = targetUserId ?: model.currentUserIdFlow.value
             _profileUserIdState.value = profileUserId
             _userNameState.value = profileUserId?.let { model.getUserName(it) }
-            _isOwnerState.value = currentUserId != null && (targetUserId == null || targetUserId == currentUserId)
         } finally {
             _loadingState.value = false
         }

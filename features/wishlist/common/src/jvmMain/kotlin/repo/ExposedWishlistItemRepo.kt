@@ -15,6 +15,7 @@ import org.jetbrains.exposed.v1.core.ReferenceOption
 import org.jetbrains.exposed.v1.core.ResultRow
 import org.jetbrains.exposed.v1.core.Table
 import org.jetbrains.exposed.v1.core.eq
+import org.jetbrains.exposed.v1.core.inList
 import org.jetbrains.exposed.v1.core.statements.InsertStatement
 import org.jetbrains.exposed.v1.core.statements.UpdateBuilder
 import org.jetbrains.exposed.v1.jdbc.Database
@@ -240,4 +241,22 @@ class ExposedWishlistItemRepo(
         transaction(db = database) {
             selectAll().where { wishlistIdColumn eq wishlistId.long }.map { it.asObject }
         }
+
+    /**
+     * Resolves all rows whose `id` is in [ids] with a single `WHERE id IN (...)` query inside one
+     * transaction, replacing the per-id transaction-per-call pattern (PR #31 F6). Rows are returned
+     * in [ids] order so callers keep their original ordering; ids absent from the table are omitted.
+     *
+     * @param ids Item ids to resolve; an empty list short-circuits to an empty list.
+     * @return Matching items in [ids] order, each populated with its links and images.
+     */
+    override suspend fun getByIds(ids: List<WishlistItemId>): List<RegisteredWishlistItem> {
+        if (ids.isEmpty()) return emptyList()
+        val byId = transaction(db = database) {
+            selectAll().where { idColumn inList ids.map { it.long } }
+                .map { it.asObject }
+                .associateBy { it.id }
+        }
+        return ids.distinct().mapNotNull { byId[it] }
+    }
 }

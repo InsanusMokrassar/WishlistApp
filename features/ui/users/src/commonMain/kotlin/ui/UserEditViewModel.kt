@@ -47,10 +47,12 @@ class UserEditViewModel(
     /** Identifier of the edited user; surfaced read-only to the view. */
     val userId: UserId = node.config.userId
 
-    private val _isRootState = MutableRedeliverStateFlow(false)
-
-    /** `true` when the caller is `root`; gates the editable username/password fields and delete. */
-    val isRootState = _isRootState.asStateFlow()
+    /**
+     * `true` when the caller is `root`; gates the editable username/password fields and delete.
+     * Sourced reactively from [UsersModel.isCurrentUserRootFlow], so it self-corrects once the
+     * cold-start `getMe()` round-trip completes and on later login/logout (PR #31 F2).
+     */
+    val isRootState: StateFlow<Boolean> = model.isCurrentUserRootFlow
 
     private val _usernameState = MutableRedeliverStateFlow("")
 
@@ -112,7 +114,7 @@ class UserEditViewModel(
      */
     val canSaveState: StateFlow<Boolean> =
         combine(
-            _isRootState,
+            model.isCurrentUserRootFlow,
             _usernameState,
             _passwordState,
             _confirmPasswordState,
@@ -127,7 +129,6 @@ class UserEditViewModel(
         merge(flowOf(Unit), node.onResumeFlow).takeWhile { !inited }.subscribeLoggingDropExceptions(scope) {
             _loadingState.value = true
             try {
-                _isRootState.value = model.isCurrentUserRoot()
                 model.getUser(userId)?.let { _usernameState.value = it.username.string }
                 _avatarIdState.value = model.getAvatar(userId)
             } finally {
@@ -230,7 +231,7 @@ class UserEditViewModel(
 
     /** Opens the delete confirmation dialog. No-op unless the caller is root. */
     fun onDeleteRequest() {
-        if (!_isRootState.value) return
+        if (!isRootState.value) return
         _showDeleteDialogState.value = true
     }
 

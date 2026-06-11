@@ -25,6 +25,8 @@ import org.koin.core.module.Module
  * [WishlistCopyService] depends on JVM-only repo bindings; its worker is started from
  * [JVMPlugin.startPlugin] (after the common JVM repo plugin has registered them).
  *
+ * Booking service and routes were extracted into `features/booking/server`.
+ *
  * Neither [WishlistService] nor [WishlistItemService] is bound to a client-facing feature
  * interface because their mutation methods carry an explicit caller
  * [dev.inmo.wishlist.features.users.common.models.UserId] parameter that is absent from

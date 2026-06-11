@@ -58,62 +58,99 @@ class UserWishlistsView(
         val selectedCurrency by viewModel.selectedCurrencyState.collectAsState()
         val rates by viewModel.ratesState.collectAsState()
         val costSortAvailable by viewModel.costSortAvailableState.collectAsState()
+        val isOwner by viewModel.isOwnerState.collectAsState()
+        val sortSelectorVisible by viewModel.sortSelectorVisibleState.collectAsState()
 
         Div({ classes("container", "py-3") }) {
             Div({ classes("d-flex", "align-items-center", "mb-3", "gap-2") }) {
                 BackButton(WishlistStrings.backButton.translation()) { viewModel.onBack() }
-                Button({
-                    classes("btn", "btn-outline-primary", "ms-auto")
-                    onClick { viewModel.onOpenProfile() }
-                }) {
-                    Text(WishlistStrings.profileButton.translation())
+                Div({ classes("d-flex", "align-items-center", "gap-2", "ms-auto") }) {
+                    CreateWishlistButton(isOwner) { viewModel.onCreateWishlist() }
+                    Button({
+                        classes("btn", "btn-outline-primary")
+                        onClick { viewModel.onOpenProfile() }
+                    }) {
+                        Text(WishlistStrings.profileButton.translation())
+                    }
                 }
             }
 
-            if (loading) {
-                P { Text(WishlistStrings.loading.translation()) }
-            } else if (sections.isEmpty()) {
-                P({ classes("text-muted") }) { Text(WishlistStrings.emptyItems.translation()) }
-            } else {
-                WishlistSelectorsRow(
-                    sortMode = sortMode,
-                    onSortModeSelected = viewModel::onSortModeSelected,
-                    costSortAvailable = costSortAvailable,
-                    isCurrenciesFeatureEnabled = currencyEnabled,
-                    currencies = currencies,
-                    selectedCurrency = selectedCurrency,
-                    onCurrencySelected = viewModel::onCurrencySelected,
-                    viewMode = viewMode,
-                    onViewModeSelected = viewModel::onViewModeSelected
-                )
+            when {
+                loading -> {
+                    P { Text(WishlistStrings.loading.translation()) }
+                }
+                sections.isEmpty() -> {
+                    P({ classes("text-muted") }) { Text(WishlistStrings.emptyItems.translation()) }
+                }
+                else -> {
+                    WishlistSelectorsRow(
+                        sortMode = sortMode,
+                        onSortModeSelected = viewModel::onSortModeSelected,
+                        costSortAvailable = costSortAvailable,
+                        showSortSelector = sortSelectorVisible,
+                        isCurrenciesFeatureEnabled = currencyEnabled,
+                        currencies = currencies,
+                        selectedCurrency = selectedCurrency,
+                        onCurrencySelected = viewModel::onCurrencySelected,
+                        viewMode = viewMode,
+                        onViewModeSelected = viewModel::onViewModeSelected
+                    )
 
-                if (sortMode == WishlistSortMode.None) {
-                    sections.forEach { section ->
-                        Div({
-                            classes("d-flex", "align-items-center", "justify-content-between", "mt-3", "mb-1", "border-bottom", "pb-1")
-                        }) {
-                            H6({ classes("mb-0", "text-muted") }) { Text(section.wishlist.title) }
-                            Button({
-                                classes("btn", "btn-sm", "btn-outline-primary")
-                                onClick { viewModel.onWishlistSelected(section.wishlist) }
+                    if (sortMode == WishlistSortMode.None) {
+                        sections.forEach { section ->
+                            Div({
+                                classes(
+                                    "d-flex",
+                                    "align-items-center",
+                                    "justify-content-between",
+                                    "mt-3",
+                                    "mb-1",
+                                    "border-bottom",
+                                    "pb-1"
+                                )
                             }) {
-                                Text(WishlistStrings.openWishlistButton.translation())
+                                H6({ classes("mb-0", "text-muted") }) { Text(section.wishlist.title) }
+                                Div({ classes("d-flex", "align-items-center", "gap-2") }) {
+                                    if (isOwner) {
+                                        Button({
+                                            classes("btn", "btn-sm", "btn-primary")
+                                            onClick { viewModel.onCreateItem(section.wishlist) }
+                                        }) {
+                                            Text(WishlistStrings.addItemButton.translation())
+                                        }
+                                    }
+                                    Button({
+                                        classes("btn", "btn-sm", "btn-outline-primary")
+                                        onClick { viewModel.onWishlistSelected(section.wishlist) }
+                                    }) {
+                                        Text(WishlistStrings.openWishlistButton.translation())
+                                    }
+                                }
+                            }
+                            if (section.items.isEmpty()) {
+                                P({ classes("text-muted") }) { Text(WishlistStrings.emptyItems.translation()) }
+                            } else if (viewMode == WishlistViewMode.Grid) {
+                                ItemsGrid(section.items.map { it to section.wishlist.title })
+                            } else {
+                                Ul({ classes("list-group") }) {
+                                    section.items.forEach { item -> ItemRow(item, null, selectedCurrency, rates) }
+                                }
                             }
                         }
+                    } else {
                         if (viewMode == WishlistViewMode.Grid) {
-                            ItemsGrid(section.items.map { it to section.wishlist.title })
+                            ItemsGrid(sortedItems.map { it.item to it.wishlistTitle })
                         } else {
                             Ul({ classes("list-group") }) {
-                                section.items.forEach { item -> ItemRow(item, null, selectedCurrency, rates) }
+                                sortedItems.forEach { sorted ->
+                                    ItemRow(
+                                        sorted.item,
+                                        sorted.wishlistTitle,
+                                        selectedCurrency,
+                                        rates
+                                    )
+                                }
                             }
-                        }
-                    }
-                } else {
-                    if (viewMode == WishlistViewMode.Grid) {
-                        ItemsGrid(sortedItems.map { it.item to it.wishlistTitle })
-                    } else {
-                        Ul({ classes("list-group") }) {
-                            sortedItems.forEach { sorted -> ItemRow(sorted.item, sorted.wishlistTitle, selectedCurrency, rates) }
                         }
                     }
                 }

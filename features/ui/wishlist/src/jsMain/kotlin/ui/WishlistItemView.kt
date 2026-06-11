@@ -12,6 +12,7 @@ import dev.inmo.wishlist.features.common.client.ui.components.ListRow
 import dev.inmo.wishlist.features.currency.common.utils.formatItemPrice
 import dev.inmo.wishlist.features.ui.topBar.ui.TopBarTitleProvider
 import dev.inmo.wishlist.features.ui.wishlist.WishlistStrings
+import org.jetbrains.compose.web.attributes.disabled
 import org.jetbrains.compose.web.dom.A
 import org.jetbrains.compose.web.dom.Button
 import org.jetbrains.compose.web.dom.Div
@@ -114,6 +115,17 @@ class WishlistItemView(
                 Div({ classes("mb-3") }) {
                     H6({ classes("text-muted") }) { Text(WishlistStrings.priorityLabel.translation()) }
                     P { PriorityBadge(it.priority) }
+                }
+
+                // Each registered WishlistAdditionalConfigsProvider (e.g. booking) is drawn through the
+                // shared WishlistItemAdditionalConfigView: injected inline right here, in a fresh
+                // anonymous chain.
+                if (viewModel.additionalConfigsProviders.isNotEmpty()) {
+                    Div({ classes("d-flex", "flex-wrap", "gap-2", "mb-3") }) {
+                        viewModel.additionalConfigsProviders.forEach { provider ->
+                            WishlistItemAdditionalConfigView(provider, it, this@WishlistItemView)
+                        }
+                    }
                 }
 
                 Div({ classes("mb-3") }) {

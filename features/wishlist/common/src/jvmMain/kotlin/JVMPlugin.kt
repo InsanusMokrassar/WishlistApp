@@ -24,6 +24,8 @@ import org.koin.core.module.Module
  * - [ExposedWishlistCopyJobRepo] → [CacheWishlistCopyJobRepo] bound as [WishlistCopyJobRepo]
  *   (persistent queue for whole-wishlist copy jobs)
  *
+ * Booking repositories were extracted into `features/booking`.
+ *
  * Also delegates to [Plugin] for platform-agnostic DI bindings.
  */
 object JVMPlugin : StartPlugin {

@@ -16,11 +16,15 @@ import dev.inmo.wishlist.features.currency.common.utils.isCostSortAvailable
 import dev.inmo.wishlist.features.files.common.models.FileId
 import dev.inmo.wishlist.features.wishlist.common.models.RegisteredWishlist
 import dev.inmo.wishlist.features.wishlist.common.models.RegisteredWishlistItem
+import kotlinx.coroutines.async
+import kotlinx.coroutines.awaitAll
+import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.flowOf
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.merge
 import kotlinx.coroutines.flow.stateIn
 
@@ -102,8 +106,9 @@ class UserWishlistsViewModel(
     private val _sectionsState = MutableRedeliverStateFlow<List<UserWishlistsSection>>(emptyList())
 
     /**
-     * Items of the target user grouped by their wishlist. Wishlists with no items are omitted so
-     * the view never renders an empty separator.
+     * Items of the target user grouped by their wishlist. Wishlists with no items are included with
+     * an empty [UserWishlistsSection.items] list so the view can render their header with an
+     * "empty" placeholder instead of hiding them.
      */
     val sectionsState = _sectionsState.asStateFlow()
 
@@ -123,10 +128,35 @@ class UserWishlistsViewModel(
     private val _sortModeState = MutableRedeliverStateFlow(WishlistSortMode.None)
 
     /**
-     * Currently selected ordering. [WishlistSortMode.None] keeps the grouped presentation; any other
-     * value switches the view to the flat [sortedItemsState] list.
+     * Single source of the "sorting is meaningful" rule (two or more items exist across all loaded
+     * sections): sorting fewer than two items is a no-op and a non-[WishlistSortMode.None] mode would
+     * blank the grouped presentation (PR #31 T1). [sortModeState], [sortSelectorVisibleState] and
+     * [sortedItemsState] all derive from this one flow so the threshold lives in exactly one place
+     * (PR #31 F7).
      */
-    val sortModeState = _sortModeState.asStateFlow()
+    private val sortableState: StateFlow<Boolean> =
+        _sectionsState.map { sections -> sections.sumOf { it.items.size } >= 2 }
+            .stateIn(scope, SharingStarted.Eagerly, false)
+
+    /**
+     * Effective ordering applied by the views. Mirrors the user selection from [onSortModeSelected]
+     * but is clamped to [WishlistSortMode.None] while the sections are not [sortableState] —
+     * sorting fewer than two items is meaningless and a non-[WishlistSortMode.None] mode would blank
+     * the grouped presentation (PR #31 T1). The raw selection is kept privately, so it re-applies
+     * when the item count grows back to two or more.
+     */
+    val sortModeState: StateFlow<WishlistSortMode> =
+        combine(_sortModeState, sortableState) { mode, sortable ->
+            if (sortable) mode else WishlistSortMode.None
+        }.stateIn(scope, SharingStarted.Eagerly, WishlistSortMode.None)
+
+    /**
+     * `true` when the sort selector should be rendered: two or more items exist across all loaded
+     * sections. Hidden otherwise — with fewer than two items every mode is equivalent to
+     * [WishlistSortMode.None], so the selector (including a meaningless Cost option for an empty
+     * item set) would only mislead (PR #31 T1).
+     */
+    val sortSelectorVisibleState: StateFlow<Boolean> = sortableState
 
     private val _currencyEnabledState = MutableRedeliverStateFlow(false)
 
@@ -160,18 +190,18 @@ class UserWishlistsViewModel(
      * renders [sectionsState] instead). Each entry keeps its wishlist title so the view can show it
      * after the item title in brackets. [WishlistSortMode.Cost] compares prices in the items' dominant
      * currency (converted via [ratesState] when the feature is enabled), with unpriced/unconvertible
-     * items last; it falls back to grouped order when cost sorting is unavailable.
+     * items last; it falls back to grouped order when cost sorting is unavailable. Also clamped to
+     * [WishlistSortMode.None] while fewer than two items are loaded (PR #31 T1).
      */
     val sortedItemsState =
-        combine(_sectionsState, _sortModeState, _ratesState, _currencyEnabledState) { sections, mode, rates, enabled ->
+        combine(_sectionsState, _sortModeState, _ratesState, _currencyEnabledState, sortableState) { sections, mode, rates, enabled, sortable ->
             val allItems = sections.flatMap { it.items }
             val pricedUnits = allItems.filter { it.approximatePrice != null }.map { it.priceUnits }
-            val effectiveMode =
-                if (mode == WishlistSortMode.Cost && !isCostSortAvailable(pricedUnits, enabled)) {
-                    WishlistSortMode.None
-                } else {
-                    mode
-                }
+            val effectiveMode = when {
+                !sortable -> WishlistSortMode.None
+                mode == WishlistSortMode.Cost && !isCostSortAvailable(pricedUnits, enabled) -> WishlistSortMode.None
+                else -> mode
+            }
             if (effectiveMode == WishlistSortMode.None) {
                 emptyList()
             } else {
@@ -195,6 +225,15 @@ class UserWishlistsViewModel(
     /** Shared selected conversion target; `null` means original prices. */
     val selectedCurrencyState: StateFlow<CurrencyCode?> = model.selectedCurrency
 
+    /**
+     * `true` when the authenticated caller is the user whose items are displayed. The view shows the
+     * "New Wishlist" button only when this is `true`, mirroring the ownership gating of the
+     * wishlists list screen. Derived reactively from [WishlistsModel.isOwnerFlow], so it self-corrects
+     * once the cold-start `getMe()` round-trip completes and on later login/logout (PR #31 F2).
+     */
+    val isOwnerState: StateFlow<Boolean> =
+        model.isOwnerFlow(node.config.userId).stateIn(scope, SharingStarted.Eagerly, false)
+
     private val _viewModeState = MutableRedeliverStateFlow(WishlistViewMode.List)
 
     /**
@@ -207,10 +246,19 @@ class UserWishlistsViewModel(
         merge(flowOf(Unit), node.onResumeFlow).subscribeLoggingDropExceptions(scope) {
             _loadingState.value = true
             try {
-                _userNameState.value = model.getUserName(node.config.userId)
-                _sectionsState.value = model.getUserWishlists(node.config.userId)
-                    .map { wishlist -> UserWishlistsSection(wishlist, model.getWishlistItems(wishlist.id)) }
-                    .filter { it.items.isNotEmpty() }
+                // Fan out the independent fetches instead of awaiting them one-by-one: the user name
+                // runs concurrently with the wishlists load, and each wishlist's items are fetched in
+                // parallel rather than W serial round-trips (PR #31 F8).
+                coroutineScope {
+                    val userNameDeferred = async { model.getUserName(node.config.userId) }
+                    val sectionsDeferred = async {
+                        model.getUserWishlists(node.config.userId).map { wishlist ->
+                            async { UserWishlistsSection(wishlist, model.getWishlistItems(wishlist.id)) }
+                        }.awaitAll()
+                    }
+                    _userNameState.value = userNameDeferred.await()
+                    _sectionsState.value = sectionsDeferred.await()
+                }
             } finally {
                 _loadingState.value = false
             }
@@ -282,6 +330,20 @@ class UserWishlistsViewModel(
     /** Opens the target user's public profile via [UserWishlistsViewInteractor.onOpenProfile]. */
     fun onOpenProfile() {
         scope.launchLoggingDropExceptions { interactor.onOpenProfile(node, node.config.userId) }
+    }
+
+    /** Opens the wishlist create form via [UserWishlistsViewInteractor.onCreateWishlistClick]. */
+    fun onCreateWishlist() {
+        scope.launchLoggingDropExceptions { interactor.onCreateWishlistClick(node) }
+    }
+
+    /**
+     * Opens the item create form for [wishlist] via [UserWishlistsViewInteractor.onCreateItemClick].
+     *
+     * @param wishlist Wishlist the new item should be created in.
+     */
+    fun onCreateItem(wishlist: RegisteredWishlist) {
+        scope.launchLoggingDropExceptions { interactor.onCreateItemClick(node, wishlist.id) }
     }
 
     /** Download URL of image [id], for platforms that render directly from a URL (JS). */

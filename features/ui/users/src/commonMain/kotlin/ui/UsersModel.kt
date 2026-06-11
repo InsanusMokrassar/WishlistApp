@@ -6,6 +6,7 @@ import dev.inmo.wishlist.features.files.common.models.FileId
 import dev.inmo.wishlist.features.users.common.models.RegisteredUser
 import dev.inmo.wishlist.features.users.common.models.UserId
 import dev.inmo.wishlist.features.users.common.models.Username
+import kotlinx.coroutines.flow.StateFlow
 
 /**
  * Model facade consumed by every users UI screen (list, profile view, profile edit).
@@ -31,19 +32,23 @@ interface UsersModel {
     suspend fun getUser(id: UserId): RegisteredUser?
 
     /**
-     * Returns the [UserId] of the authenticated caller, or `null` when anonymous.
+     * Reactive id of the authenticated caller ("me"), or `null` when anonymous / not yet resolved.
      *
-     * Used to decide profile-edit access (owner) and the "My profile" target.
+     * Backed by the auth "me" [StateFlow], so it self-corrects as the first `getMe()` round-trip
+     * completes and on every later login/logout. Used to decide profile-edit access (owner) and the
+     * "My profile" target; consumers MUST derive from this flow rather than a one-shot snapshot so
+     * the gated UI does not stay stale after a cold start (PR #31 F2).
      */
-    suspend fun getCurrentUserId(): UserId?
+    val currentUserIdFlow: StateFlow<UserId?>
 
     /**
-     * Reports whether the authenticated caller is the `root` user — the only identity
+     * Reactive flag: `true` while the authenticated caller is the `root` user — the only identity
      * permitted to edit arbitrary user fields or delete users.
      *
-     * @return `true` when logged in as `root`; `false` otherwise (including anonymous).
+     * Backed by the auth "me" [StateFlow] (same self-correcting guarantee as [currentUserIdFlow]);
+     * `false` while anonymous or not yet resolved.
      */
-    suspend fun isCurrentUserRoot(): Boolean
+    val isCurrentUserRootFlow: StateFlow<Boolean>
 
     /**
      * Updates the username of user [id] (root-only on the server).

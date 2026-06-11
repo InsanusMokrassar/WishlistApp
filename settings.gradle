@@ -33,6 +33,10 @@ String[] includes = [
     ":features:currency:server",
     ":features:currency:client",
 
+    ":features:booking:common",
+    ":features:booking:server",
+    ":features:booking:client",
+
     ":features:ui:sample",
     ":features:ui:auth",
     ":features:ui:wishlist",
@@ -41,6 +45,7 @@ String[] includes = [
     ":features:ui:users",
     ":features:ui:topBar",
     ":features:ui:serverUrl",
+    ":features:ui:booking",
 
     ":client",
     ":client:android",

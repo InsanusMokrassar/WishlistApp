@@ -54,6 +54,7 @@ class WishlistView(
         val selectedCurrency by viewModel.selectedCurrencyState.collectAsState()
         val rates by viewModel.ratesState.collectAsState()
         val costSortAvailable by viewModel.costSortAvailableState.collectAsState()
+        val sortSelectorVisible by viewModel.sortSelectorVisibleState.collectAsState()
 
         Div({ classes("container", "py-3") }) {
             Div({ classes("d-flex", "align-items-center", "mb-3", "gap-2") }) {
@@ -100,6 +101,7 @@ class WishlistView(
                     sortMode = sortMode,
                     onSortModeSelected = viewModel::onSortModeSelected,
                     costSortAvailable = costSortAvailable,
+                    showSortSelector = sortSelectorVisible,
                     noneLabel = WishlistStrings.sortDefault,
                     isCurrenciesFeatureEnabled = currencyEnabled,
                     currencies = currencies,
