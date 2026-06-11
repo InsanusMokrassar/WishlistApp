@@ -22,6 +22,22 @@ After you are done with changes - you must run required compilation task. In mos
 
 ---
 
+## Control Flow
+
+NEVER use `else if`. Always use `when` in cases it is suitable for the situation (multi-branch conditionals, value matching, range/type checks). Replace every `if (a) { ... } else if (b) { ... } else { ... }` chain with a `when`:
+
+```kotlin
+when {
+    loading -> showLoading()
+    items.isEmpty() -> showEmpty()
+    else -> showList(items)
+}
+```
+
+A single binary `if` / `else` (no `else if`) stays allowed — the ban is specifically on `else if` chains.
+
+---
+
 ## JS Stylesheet Rule
 
 Every JS (`jsMain`) view that needs custom CSS **MUST** define its styles in a dedicated
@@ -380,6 +396,20 @@ Key rules:
   val loadingState = _loadingState.asStateFlow()
   ```
 - Must contain **all MVVM logic**: reacting to user events, calling `Model` methods, updating state flows, and triggering navigation.
+- **Refresh-on-resume rule:** any data that can become stale while the user is away on another screen (pushed a child screen, opened an edit/create form, etc.) MUST be (re)loaded from a `node.onResumeFlow` subscription, NOT only in `init`. Combine `flowOf(Unit)` with `node.onResumeFlow` so the load runs on first show and on every resume:
+  ```kotlin
+  init {
+      merge(flowOf(Unit), node.onResumeFlow).subscribeLoggingDropExceptions(scope) {
+          _loadingState.value = true
+          try {
+              _itemsState.value = model.getItems()
+          } finally {
+              _loadingState.value = false
+          }
+      }
+  }
+  ```
+  Data that never changes behind the screen's back (one-time config, static currency lists) may stay in a plain `init { scope.launchLoggingDropExceptions { ... } }`. Reference: `WishlistItemViewModel` / `WishlistItemCopyViewModel` `init` blocks.
 - The `View` must be as dumb as possible — it only observes state and forwards user actions to the ViewModel.
 - **User interaction handlers** are named by their meaning (what the user intends), not by the UI action that triggered them:
   ```kotlin

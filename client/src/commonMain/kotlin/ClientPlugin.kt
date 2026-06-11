@@ -338,6 +338,11 @@ object ClientPlugin : StartPlugin {
                 ) {
                     node.chain.pop()
                 }
+                override suspend fun onCreateWishlist(
+                    node: NavigationNode<WishlistItemCopyViewConfig, ViewConfig>
+                ) {
+                    node.chain.push(WishlistEditViewConfig(null))
+                }
             }
         }
 

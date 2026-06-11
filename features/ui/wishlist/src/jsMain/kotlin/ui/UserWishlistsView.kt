@@ -127,12 +127,10 @@ class UserWishlistsView(
                                     }
                                 }
                             }
-                            if (section.items.isEmpty()) {
-                                P({ classes("text-muted") }) { Text(WishlistStrings.emptyItems.translation()) }
-                            } else if (viewMode == WishlistViewMode.Grid) {
-                                ItemsGrid(section.items.map { it to section.wishlist.title })
-                            } else {
-                                Ul({ classes("list-group") }) {
+                            when {
+                                section.items.isEmpty() -> P({ classes("text-muted") }) { Text(WishlistStrings.emptyItems.translation()) }
+                                viewMode == WishlistViewMode.Grid -> ItemsGrid(section.items.map { it to section.wishlist.title })
+                                else -> Ul({ classes("list-group") }) {
                                     section.items.forEach { item -> ItemRow(item, null, selectedCurrency, rates) }
                                 }
                             }

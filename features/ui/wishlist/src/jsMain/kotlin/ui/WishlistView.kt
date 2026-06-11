@@ -90,13 +90,12 @@ class WishlistView(
                 }
             }
 
-            if (loading) {
-                P { Text(WishlistStrings.loading.translation()) }
-            } else if (items.isEmpty()) {
-                P({ classes("text-muted") }) {
+            when {
+                loading -> P { Text(WishlistStrings.loading.translation()) }
+                items.isEmpty() -> P({ classes("text-muted") }) {
                     Text(WishlistStrings.emptyItems.translation())
                 }
-            } else {
+                else -> {
                 WishlistSelectorsRow(
                     sortMode = sortMode,
                     onSortModeSelected = viewModel::onSortModeSelected,
@@ -155,6 +154,7 @@ class WishlistView(
                             }
                         }
                     }
+                }
                 }
             }
 

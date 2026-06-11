@@ -59,20 +59,20 @@ class AdminWishlistsListView(
                 }
             }
             Spacer(modifier = Modifier.height(8.dp))
-            if (loading) {
-                CircularProgressIndicator()
-            } else if (wishlists.isEmpty()) {
-                Text(AdminPanelStrings.emptyWishlists.translation())
-            } else {
-                LazyColumn(verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                    items(wishlists) { wishlist ->
-                        ListRow(onSelect = { viewModel.onWishlistSelected(wishlist.id) }) {
-                            Row(
-                                modifier = Modifier.fillMaxWidth(),
-                                horizontalArrangement = Arrangement.SpaceBetween
-                            ) {
-                                Text(wishlist.title)
-                                Text("user #${wishlist.userId.long}", color = MaterialTheme.colors.onSurface.copy(alpha = 0.5f))
+            when {
+                loading -> CircularProgressIndicator()
+                wishlists.isEmpty() -> Text(AdminPanelStrings.emptyWishlists.translation())
+                else -> {
+                    LazyColumn(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                        items(wishlists) { wishlist ->
+                            ListRow(onSelect = { viewModel.onWishlistSelected(wishlist.id) }) {
+                                Row(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    horizontalArrangement = Arrangement.SpaceBetween
+                                ) {
+                                    Text(wishlist.title)
+                                    Text("user #${wishlist.userId.long}", color = MaterialTheme.colors.onSurface.copy(alpha = 0.5f))
+                                }
                             }
                         }
                     }

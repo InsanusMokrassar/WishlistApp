@@ -103,11 +103,10 @@ class WishlistView(
             }
             Spacer(modifier = Modifier.height(8.dp))
 
-            if (loading) {
-                CircularProgressIndicator()
-            } else if (items.isEmpty()) {
-                Text(WishlistStrings.emptyItems.translation(resources))
-            } else {
+            when {
+                loading -> CircularProgressIndicator()
+                items.isEmpty() -> Text(WishlistStrings.emptyItems.translation(resources))
+                else -> {
                 if (sortSelectorVisible) {
                     WishlistSortSelector(
                         selected = sortMode,
@@ -177,6 +176,7 @@ class WishlistView(
                             }
                         }
                     }
+                }
                 }
             }
 

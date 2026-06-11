@@ -2,12 +2,16 @@ package dev.inmo.wishlist.features.ui.wishlist.ui
 
 import dev.inmo.micro_utils.coroutines.MutableRedeliverStateFlow
 import dev.inmo.micro_utils.coroutines.launchLoggingDropExceptions
+import dev.inmo.micro_utils.coroutines.subscribeLoggingDropExceptions
 import dev.inmo.navigation.core.NavigationNode
+import dev.inmo.navigation.core.onResumeFlow
 import dev.inmo.navigation.mvvm.ViewModel
 import dev.inmo.wishlist.features.common.client.models.ViewConfig
 import dev.inmo.wishlist.features.wishlist.common.models.RegisteredWishlist
 import dev.inmo.wishlist.features.wishlist.common.models.WishlistId
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.flowOf
+import kotlinx.coroutines.flow.merge
 
 /**
  * ViewModel for the "copy item to my wishlist" target-picker screen.
@@ -41,7 +45,11 @@ class WishlistItemCopyViewModel(
     val errorState = _errorState.asStateFlow()
 
     init {
-        scope.launchLoggingDropExceptions {
+        // Reload the caller's wishlists on first show AND on every resume, so a wishlist created
+        // via the "Create new wishlist" button (which leaves and returns to this picker) appears
+        // as a fresh copy target. Any data that can change while the user is away on another screen
+        // MUST be refreshed in this onResume flow rather than only in init.
+        merge(flowOf(Unit), node.onResumeFlow).subscribeLoggingDropExceptions(scope) {
             _loadingState.value = true
             try {
                 _targetsState.value = model.getMyWishlists()
@@ -80,5 +88,10 @@ class WishlistItemCopyViewModel(
     /** Delegates to [WishlistItemCopyViewInteractor.onBack]. */
     fun onBack() {
         scope.launchLoggingDropExceptions { interactor.onBack(node) }
+    }
+
+    /** Opens the wishlist create form via [WishlistItemCopyViewInteractor.onCreateWishlist]. */
+    fun onCreateWishlist() {
+        scope.launchLoggingDropExceptions { interactor.onCreateWishlist(node) }
     }
 }

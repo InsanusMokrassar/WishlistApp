@@ -23,4 +23,12 @@ interface WishlistItemCopyViewInteractor {
      * @param node Current navigation node.
      */
     suspend fun onCopied(node: NavigationNode<WishlistItemCopyViewConfig, ViewConfig>)
+
+    /**
+     * Called when the user chooses to create a new wishlist to copy into. Pushes the wishlist
+     * create form onto the navigation chain.
+     *
+     * @param node Current navigation node.
+     */
+    suspend fun onCreateWishlist(node: NavigationNode<WishlistItemCopyViewConfig, ViewConfig>)
 }

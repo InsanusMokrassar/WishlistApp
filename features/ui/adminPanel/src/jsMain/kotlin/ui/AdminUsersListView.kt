@@ -46,12 +46,10 @@ class AdminUsersListView(
                     Text(AdminPanelStrings.addUserButton.translation())
                 }
             }
-            if (loading) {
-                P { Text(AdminPanelStrings.loading.translation()) }
-            } else if (users.isEmpty()) {
-                P({ classes("text-muted") }) { Text(AdminPanelStrings.emptyUsers.translation()) }
-            } else {
-                Ul({ classes("list-group") }) {
+            when {
+                loading -> P { Text(AdminPanelStrings.loading.translation()) }
+                users.isEmpty() -> P({ classes("text-muted") }) { Text(AdminPanelStrings.emptyUsers.translation()) }
+                else -> Ul({ classes("list-group") }) {
                     users.forEach { user ->
                         ListRow(onSelect = { viewModel.onUserSelected(user.id) }) {
                             Span { Text(user.username.string) }

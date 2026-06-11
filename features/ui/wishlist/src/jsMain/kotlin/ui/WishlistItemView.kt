@@ -74,11 +74,10 @@ class WishlistItemView(
                 }
             }
 
-            if (loading) {
-                P { Text(WishlistStrings.loading.translation()) }
-            } else if (item == null) {
-                P({ classes("text-muted") }) { Text(WishlistStrings.loading.translation()) }
-            } else {
+            when {
+                loading -> P { Text(WishlistStrings.loading.translation()) }
+                item == null -> P({ classes("text-muted") }) { Text(WishlistStrings.loading.translation()) }
+                else -> {
                 val it = item!!
 
                 if (it.description.isNotBlank()) {
@@ -160,6 +159,7 @@ class WishlistItemView(
                         }
                     }
                 }
+            }
             }
         }
     }

@@ -40,6 +40,7 @@ class WishlistItemCopyView(
         Div({ classes("container", "py-3") }) {
             Div({ classes("d-flex", "align-items-center", "mb-3", "gap-2") }) {
                 BackButton(WishlistStrings.backButton.translation()) { viewModel.onBack() }
+                CreateWishlistButton(isOwner = true) { viewModel.onCreateWishlist() }
             }
 
             if (error) {
@@ -48,18 +49,18 @@ class WishlistItemCopyView(
                 }
             }
 
-            if (loading) {
-                P { Text(WishlistStrings.loading.translation()) }
-            } else if (targets.isEmpty()) {
-                P({ classes("text-muted") }) { Text(WishlistStrings.copyNoTargets.translation()) }
-            } else {
-                P { Text(WishlistStrings.copySelectTargetPrompt.translation()) }
-                Ul({ classes("list-group") }) {
-                    targets.forEach { wishlist ->
-                        ListRow(
-                            text = wishlist.title,
-                            onSelect = { viewModel.onSelectTarget(wishlist.id) }
-                        )
+            when {
+                loading -> P { Text(WishlistStrings.loading.translation()) }
+                targets.isEmpty() -> P({ classes("text-muted") }) { Text(WishlistStrings.copyNoTargets.translation()) }
+                else -> {
+                    P { Text(WishlistStrings.copySelectTargetPrompt.translation()) }
+                    Ul({ classes("list-group") }) {
+                        targets.forEach { wishlist ->
+                            ListRow(
+                                text = wishlist.title,
+                                onSelect = { viewModel.onSelectTarget(wishlist.id) }
+                            )
+                        }
                     }
                 }
             }

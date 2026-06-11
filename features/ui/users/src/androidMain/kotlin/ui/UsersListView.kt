@@ -70,11 +70,10 @@ class UsersListView(
                 }
             }
             Spacer(modifier = Modifier.height(8.dp))
-            if (loading) {
-                CircularProgressIndicator()
-            } else if (users.isEmpty()) {
-                Text(UsersListStrings.empty.translation(resources))
-            } else {
+            when {
+                loading -> CircularProgressIndicator()
+                users.isEmpty() -> Text(UsersListStrings.empty.translation(resources))
+                else -> {
                 LazyColumn(verticalArrangement = Arrangement.spacedBy(4.dp)) {
                     items(users) { user ->
                         ListRow(
@@ -103,6 +102,7 @@ class UsersListView(
                             Text(user.username.string)
                         }
                     }
+                }
                 }
             }
         }

@@ -50,23 +50,24 @@ class WishlistItemCopyView(
             verticalArrangement = Arrangement.spacedBy(8.dp)
         ) {
             BackButton(WishlistStrings.backButton.translation()) { viewModel.onBack() }
+            CreateWishlistButton(isOwner = true) { viewModel.onCreateWishlist() }
 
             if (error) {
                 Text(WishlistStrings.copyFailed.translation(), style = MaterialTheme.typography.caption)
             }
 
-            if (loading) {
-                CircularProgressIndicator()
-            } else if (targets.isEmpty()) {
-                Text(WishlistStrings.copyNoTargets.translation())
-            } else {
-                Text(WishlistStrings.copySelectTargetPrompt.translation(), style = MaterialTheme.typography.subtitle2)
-                LazyColumn(modifier = Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                    items(targets) { wishlist ->
-                        ListRow(
-                            text = wishlist.title,
-                            onSelect = { viewModel.onSelectTarget(wishlist.id) }
-                        )
+            when {
+                loading -> CircularProgressIndicator()
+                targets.isEmpty() -> Text(WishlistStrings.copyNoTargets.translation())
+                else -> {
+                    Text(WishlistStrings.copySelectTargetPrompt.translation(), style = MaterialTheme.typography.subtitle2)
+                    LazyColumn(modifier = Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                        items(targets) { wishlist ->
+                            ListRow(
+                                text = wishlist.title,
+                                onSelect = { viewModel.onSelectTarget(wishlist.id) }
+                            )
+                        }
                     }
                 }
             }

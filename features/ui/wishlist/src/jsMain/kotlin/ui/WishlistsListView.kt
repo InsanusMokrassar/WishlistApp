@@ -72,14 +72,12 @@ class WishlistsListView(
                     CreateWishlistButton(isOwner) { viewModel.onCreateWishlist() }
                 }
             }
-            if (loading) {
-                P { Text(WishlistStrings.loading.translation()) }
-            } else if (wishlists.isEmpty()) {
-                P({ classes("text-muted") }) {
+            when {
+                loading -> P { Text(WishlistStrings.loading.translation()) }
+                wishlists.isEmpty() -> P({ classes("text-muted") }) {
                     Text(WishlistStrings.emptyWishlists.translation())
                 }
-            } else {
-                Ul({ classes("list-group") }) {
+                else -> Ul({ classes("list-group") }) {
                     wishlists.forEach { wishlist ->
                         ListRow(
                             text = wishlist.title,
