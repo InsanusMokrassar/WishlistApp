@@ -63,6 +63,39 @@ fun formatItemPrice(
 }
 
 /**
+ * Produces the user-facing price string for an item, folding in its quantity when [amount] exceeds 1.
+ *
+ * Behavior:
+ * - `amount <= 1` yields exactly [formatItemPrice] (price-only, empty string when [price] is `null`).
+ * - `amount > 1` with `null` [price] yields `"×<amount>"` (quantity alone, no price).
+ * - `amount > 1` with a price yields `"<unit>x<amount> (<whole>)"`, where `unit` is the per-item price
+ *   and `whole` is `price * amount`, both formatted through [formatItemPrice] so currency conversion
+ *   and unit labels stay consistent.
+ *
+ * Pure function, safe to call during composition.
+ *
+ * @param price Item unit price, possibly `null`.
+ * @param priceUnits Free-form units label stored on the item.
+ * @param amount Item quantity.
+ * @param target Currency the user selected to convert into, or `null` for no conversion.
+ * @param rates Latest rates snapshot, or `null` when unavailable.
+ * @return Display string combining price and quantity.
+ */
+fun formatItemPriceWithAmount(
+    price: Amount?,
+    priceUnits: String,
+    amount: UInt,
+    target: CurrencyCode?,
+    rates: CurrencyRates?
+): String {
+    if (amount <= 1u) return formatItemPrice(price, priceUnits, target, rates)
+    if (price == null) return "×$amount"
+    val unit = formatItemPrice(price, priceUnits, target, rates)
+    val whole = formatItemPrice(price * amount.toLong().toDouble(), priceUnits, target, rates)
+    return "${unit}x$amount ($whole)"
+}
+
+/**
  * The currency most often present among [priceUnitsList] — used as the common currency to compare
  * prices against when sorting by cost. Only resolvable labels (see [PriceUnitsResolver.resolve])
  * participate; ties are broken arbitrarily.

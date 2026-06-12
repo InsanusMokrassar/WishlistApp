@@ -29,7 +29,7 @@ import dev.inmo.navigation.mvvm.compose.ComposeView
 import dev.inmo.wishlist.features.common.client.models.ViewConfig
 import dev.inmo.wishlist.features.common.client.ui.components.BackButton
 import dev.inmo.wishlist.features.common.client.ui.components.ListRow
-import dev.inmo.wishlist.features.currency.common.utils.formatItemPrice
+import dev.inmo.wishlist.features.currency.common.utils.formatItemPriceWithAmount
 import dev.inmo.wishlist.features.ui.topBar.ui.TopBarTitleProvider
 import dev.inmo.wishlist.features.ui.wishlist.WishlistStrings
 import dev.inmo.wishlist.features.ui.wishlist.ui.WishlistViewConfig
@@ -159,9 +159,12 @@ class WishlistView(
                                             Text(item.title, style = MaterialTheme.typography.subtitle1)
                                             PriorityBadge(item.priority)
                                         }
-                                        if (item.approximatePrice != null) {
+                                        val priceText = formatItemPriceWithAmount(
+                                            item.approximatePrice, item.priceUnits, item.amount, selectedCurrency, rates
+                                        )
+                                        if (priceText.isNotEmpty()) {
                                             Text(
-                                                formatItemPrice(item.approximatePrice, item.priceUnits, selectedCurrency, rates),
+                                                priceText,
                                                 style = MaterialTheme.typography.caption
                                             )
                                         }

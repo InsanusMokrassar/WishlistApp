@@ -25,7 +25,7 @@ import dev.inmo.navigation.core.NavigationChain
 import dev.inmo.navigation.mvvm.compose.ComposeView
 import dev.inmo.wishlist.features.common.client.models.ViewConfig
 import dev.inmo.wishlist.features.common.client.ui.components.BackButton
-import dev.inmo.wishlist.features.currency.common.utils.formatItemPrice
+import dev.inmo.wishlist.features.currency.common.utils.formatItemPriceWithAmount
 import dev.inmo.wishlist.features.ui.topBar.ui.TopBarTitleProvider
 import dev.inmo.wishlist.features.ui.wishlist.WishlistStrings
 import dev.inmo.wishlist.features.ui.wishlist.ui.WishlistItemViewConfig
@@ -96,11 +96,6 @@ class WishlistItemView(
                     Text(it.description, style = MaterialTheme.typography.bodyMedium)
                 }
 
-                if (it.amount != 1u) {
-                    Text(WishlistStrings.amountLabel.translation(resources), style = MaterialTheme.typography.titleSmall)
-                    Text("×${it.amount}", style = MaterialTheme.typography.bodyMedium)
-                }
-
                 if (currencyEnabled && currencies.isNotEmpty()) {
                     CurrencySelector(
                         currencies = currencies,
@@ -110,11 +105,9 @@ class WishlistItemView(
                 }
 
                 Text(WishlistStrings.priceLabel.translation(resources), style = MaterialTheme.typography.titleSmall)
-                if (it.approximatePrice != null) {
-                    Text(
-                        formatItemPrice(it.approximatePrice, it.priceUnits, selectedCurrency, rates),
-                        style = MaterialTheme.typography.bodyMedium
-                    )
+                val priceText = formatItemPriceWithAmount(it.approximatePrice, it.priceUnits, it.amount, selectedCurrency, rates)
+                if (priceText.isNotEmpty()) {
+                    Text(priceText, style = MaterialTheme.typography.bodyMedium)
                 } else {
                     Text(WishlistStrings.noPrice.translation(resources), style = MaterialTheme.typography.bodySmall)
                 }

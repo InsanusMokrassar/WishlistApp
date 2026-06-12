@@ -9,7 +9,7 @@ import dev.inmo.navigation.mvvm.compose.ComposeView
 import dev.inmo.wishlist.features.common.client.models.ViewConfig
 import dev.inmo.wishlist.features.common.client.ui.components.BackButton
 import dev.inmo.wishlist.features.common.client.ui.components.ListRow
-import dev.inmo.wishlist.features.currency.common.utils.formatItemPrice
+import dev.inmo.wishlist.features.currency.common.utils.formatItemPriceWithAmount
 import dev.inmo.wishlist.features.ui.topBar.ui.TopBarTitleProvider
 import dev.inmo.wishlist.features.ui.wishlist.WishlistStrings
 import org.jetbrains.compose.web.dom.Button
@@ -132,16 +132,16 @@ class WishlistView(
                                             Span { Text(item.title) }
                                             PriorityBadge(item.priority)
                                         }
-                                        if (item.approximatePrice != null) {
+                                        val priceText = formatItemPriceWithAmount(
+                                            item.approximatePrice,
+                                            item.priceUnits,
+                                            item.amount,
+                                            selectedCurrency,
+                                            rates
+                                        )
+                                        if (priceText.isNotEmpty()) {
                                             Span({ classes("text-muted", "small") }) {
-                                                Text(
-                                                    formatItemPrice(
-                                                        item.approximatePrice,
-                                                        item.priceUnits,
-                                                        selectedCurrency,
-                                                        rates
-                                                    )
-                                                )
+                                                Text(priceText)
                                             }
                                         }
                                     }

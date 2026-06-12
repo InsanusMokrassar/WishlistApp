@@ -24,7 +24,7 @@ import dev.inmo.navigation.core.NavigationChain
 import dev.inmo.navigation.mvvm.compose.ComposeView
 import dev.inmo.wishlist.features.common.client.models.ViewConfig
 import dev.inmo.wishlist.features.common.client.ui.components.BackButton
-import dev.inmo.wishlist.features.currency.common.utils.formatItemPrice
+import dev.inmo.wishlist.features.currency.common.utils.formatItemPriceWithAmount
 import dev.inmo.wishlist.features.ui.topBar.ui.TopBarTitleProvider
 import dev.inmo.wishlist.features.ui.wishlist.WishlistStrings
 import org.koin.core.component.inject
@@ -91,11 +91,6 @@ class WishlistItemView(
                     Text(it.description, style = MaterialTheme.typography.body1)
                 }
 
-                if (it.amount != 1u) {
-                    Text(WishlistStrings.amountLabel.translation(), style = MaterialTheme.typography.subtitle2)
-                    Text("×${it.amount}", style = MaterialTheme.typography.body1)
-                }
-
                 if (currencyEnabled && currencies.isNotEmpty()) {
                     CurrencySelector(
                         currencies = currencies,
@@ -105,11 +100,9 @@ class WishlistItemView(
                 }
 
                 Text(WishlistStrings.priceLabel.translation(), style = MaterialTheme.typography.subtitle2)
-                if (it.approximatePrice != null) {
-                    Text(
-                        formatItemPrice(it.approximatePrice, it.priceUnits, selectedCurrency, rates),
-                        style = MaterialTheme.typography.body1
-                    )
+                val priceText = formatItemPriceWithAmount(it.approximatePrice, it.priceUnits, it.amount, selectedCurrency, rates)
+                if (priceText.isNotEmpty()) {
+                    Text(priceText, style = MaterialTheme.typography.body1)
                 } else {
                     Text(WishlistStrings.noPrice.translation(), style = MaterialTheme.typography.caption)
                 }
