@@ -97,11 +97,10 @@ class UserWishlistsView(
                 }
             }
 
-            if (loading) {
-                Text(WishlistStrings.loading.translation(resources))
-            } else if (sections.isEmpty()) {
-                Text(WishlistStrings.emptyItems.translation(resources), style = MaterialTheme.typography.bodySmall)
-            } else {
+            when {
+                loading -> Text(WishlistStrings.loading.translation(resources))
+                sections.isEmpty() -> Text(WishlistStrings.emptyItems.translation(resources), style = MaterialTheme.typography.bodySmall)
+                else -> {
                 if (sortSelectorVisible) {
                     WishlistSortSelector(
                         selected = sortMode,
@@ -163,6 +162,7 @@ class UserWishlistsView(
                         }
                     }
                 }
+            }
             }
         }
     }

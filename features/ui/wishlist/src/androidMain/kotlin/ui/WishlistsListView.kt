@@ -88,17 +88,17 @@ class WishlistsListView(
                 }
             }
             Spacer(modifier = Modifier.height(8.dp))
-            if (loading) {
-                CircularProgressIndicator()
-            } else if (wishlists.isEmpty()) {
-                Text(WishlistStrings.emptyWishlists.translation(resources))
-            } else {
-                LazyColumn(verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                    items(wishlists) { wishlist ->
-                        ListRow(
-                            text = wishlist.title,
-                            onSelect = { viewModel.onWishlistSelected(wishlist.id) }
-                        )
+            when {
+                loading -> CircularProgressIndicator()
+                wishlists.isEmpty() -> Text(WishlistStrings.emptyWishlists.translation(resources))
+                else -> {
+                    LazyColumn(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                        items(wishlists) { wishlist ->
+                            ListRow(
+                                text = wishlist.title,
+                                onSelect = { viewModel.onWishlistSelected(wishlist.id) }
+                            )
+                        }
                     }
                 }
             }

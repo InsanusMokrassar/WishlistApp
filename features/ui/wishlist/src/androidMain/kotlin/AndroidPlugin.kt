@@ -11,6 +11,8 @@ import dev.inmo.wishlist.features.ui.wishlist.ui.WishlistViewConfig
 import dev.inmo.wishlist.features.ui.wishlist.ui.WishlistsListViewConfig
 import dev.inmo.wishlist.features.ui.wishlist.ui.UserWishlistsViewConfig
 import dev.inmo.wishlist.features.ui.wishlist.ui.UserWishlistsView
+import dev.inmo.wishlist.features.ui.wishlist.ui.WishlistItemCopyViewConfig
+import dev.inmo.wishlist.features.ui.wishlist.ui.WishlistItemCopyView
 import dev.inmo.wishlist.features.ui.wishlist.ui.WishlistEditView
 import dev.inmo.wishlist.features.ui.wishlist.ui.WishlistItemEditView
 import dev.inmo.wishlist.features.ui.wishlist.ui.WishlistItemView
@@ -52,6 +54,9 @@ object AndroidPlugin : StartPlugin {
         }
         singleWithRandomQualifier<NavigationNodeFactory<ViewConfig>> {
             NavigationNodeFactory.Typed<UserWishlistsViewConfig, ViewConfig> { chain, cfg -> UserWishlistsView(chain, cfg) }
+        }
+        singleWithRandomQualifier<NavigationNodeFactory<ViewConfig>> {
+            NavigationNodeFactory.Typed<WishlistItemCopyViewConfig, ViewConfig> { chain, cfg -> WishlistItemCopyView(chain, cfg) }
         }
     }
 

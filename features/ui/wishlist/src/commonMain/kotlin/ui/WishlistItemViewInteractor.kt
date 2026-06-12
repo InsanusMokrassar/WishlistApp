@@ -23,4 +23,11 @@ interface WishlistItemViewInteractor {
      * @param node Current navigation node.
      */
     suspend fun onEditItem(node: NavigationNode<WishlistItemViewConfig, ViewConfig>)
+
+    /**
+     * Called when an authenticated non-owner taps Copy to choose a target wishlist for the copy.
+     *
+     * @param node Current navigation node.
+     */
+    suspend fun onCopyItem(node: NavigationNode<WishlistItemViewConfig, ViewConfig>)
 }

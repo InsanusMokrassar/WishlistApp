@@ -46,12 +46,10 @@ class AdminWishlistsListView(
                     Text(AdminPanelStrings.addWishlistButton.translation())
                 }
             }
-            if (loading) {
-                P { Text(AdminPanelStrings.loading.translation()) }
-            } else if (wishlists.isEmpty()) {
-                P({ classes("text-muted") }) { Text(AdminPanelStrings.emptyWishlists.translation()) }
-            } else {
-                Ul({ classes("list-group") }) {
+            when {
+                loading -> P { Text(AdminPanelStrings.loading.translation()) }
+                wishlists.isEmpty() -> P({ classes("text-muted") }) { Text(AdminPanelStrings.emptyWishlists.translation()) }
+                else -> Ul({ classes("list-group") }) {
                     wishlists.forEach { wishlist ->
                         ListRow(onSelect = { viewModel.onWishlistSelected(wishlist.id) }) {
                             Span { Text(wishlist.title) }

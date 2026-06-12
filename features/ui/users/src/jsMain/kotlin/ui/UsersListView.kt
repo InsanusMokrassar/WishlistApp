@@ -52,12 +52,10 @@ class UsersListView(
                     }) { Text(UsersListStrings.myProfileButton.translation()) }
                 }
             }
-            if (loading) {
-                P { Text(UsersListStrings.loading.translation()) }
-            } else if (users.isEmpty()) {
-                P({ classes("text-muted") }) { Text(UsersListStrings.empty.translation()) }
-            } else {
-                Ul({ classes("list-group") }) {
+            when {
+                loading -> P { Text(UsersListStrings.loading.translation()) }
+                users.isEmpty() -> P({ classes("text-muted") }) { Text(UsersListStrings.empty.translation()) }
+                else -> Ul({ classes("list-group") }) {
                     users.forEach { user ->
                         ListRow(
                             onSelect = { viewModel.onUserSelected(user.id) },

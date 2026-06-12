@@ -18,6 +18,7 @@ Full-stack wishlist management. Users create wishlists and add items to them. Al
 | GET | `/wishlist/getById/{id}` | None | `→ RegisteredWishlist \| 400 \| 404` | Single wishlist by id; public |
 | GET | `/wishlist/getMy` | Bearer | `→ List<RegisteredWishlist>` | All wishlists owned by the authenticated caller |
 | POST | `/wishlist/create` | Bearer | `NewWishlistInFeature → RegisteredWishlist \| 500` | Create wishlist; owner resolved from bearer token |
+| POST | `/wishlist/copy` | Bearer | `CopyWishlistRequest → 202 \| 500` | Enqueue a background deep-copy of any wishlist into the caller's profile (recipient = caller) |
 | PUT | `/wishlist/update/{id}` | Bearer | `NewWishlistInFeature → 200 \| 400 \| 403 \| 404` | Replace wishlist data if caller is owner |
 | DELETE | `/wishlist/delete/{id}` | Bearer | `→ 200 \| 400 \| 403 \| 404` | Remove wishlist if caller is owner |
 
@@ -27,6 +28,7 @@ Full-stack wishlist management. Users create wishlists and add items to them. Al
 |--------|------|------|-----------------|-------------|
 | GET | `/wishlistItem/getByWishlistId/{wishlistId}` | None | `→ List<RegisteredWishlistItem> \| 400` | All items in a wishlist; public |
 | POST | `/wishlistItem/create` | Bearer | `NewWishlistItem → RegisteredWishlistItem \| 500` | Create item; caller must own parent wishlist (null=not found or not owner → 500) |
+| POST | `/wishlistItem/copy` | Bearer | `CopyItemRequest → RegisteredWishlistItem \| 500` | Deep-copy a source item (any owner) into a caller-owned target wishlist; idempotent (returns existing identical item if present); 500 when target not owned / source or target missing |
 | PUT | `/wishlistItem/update/{id}` | Bearer | `NewWishlistItem → 200 \| 400 \| 403 \| 404` | Replace item data if caller owns parent wishlist |
 | DELETE | `/wishlistItem/delete/{id}` | Bearer | `→ 200 \| 400 \| 403 \| 404` | Remove item if caller owns parent wishlist |
 
@@ -64,7 +66,19 @@ Note: item `create` maps both "parent not found" and "caller not owner" to `null
 | `NewWishlistItem` | common | Create/update payload: `wishlistId`, `title`, `amount: Int = 1` (desired quantity, always `>= 1`), `priority: Priority = Priority.Medium`, `approximatePrice?: Amount`, `priceUnits: String`, `links: List<String>`, `description: String`, `imageIds: List<FileId> = emptyList()` — ordered ids of attached images (default empty) |
 | `RegisteredWishlistItem` | common | Persisted entity: adds `id: WishlistItemId` to `NewWishlistItem` fields |
 | `FileId` | common | Imported from `features/files` — string type wrapping a file identifier |
-| `WishlistsItemsFeature` | client | Client-side interface: `getByWishlistId`, `create`, `update`, `delete` |
+| `WishlistsItemsFeature` | client | Client-side interface: `getByWishlistId`, `create`, `copy`, `update`, `delete` |
+
+### Copy (deep-copy of items and wishlists)
+
+| Type | Package | Description |
+|------|---------|-------------|
+| `CopyItemRequest` | common | `@Serializable data class(sourceItemId, sourceWishlistId, targetWishlistId)` — body of `POST /wishlistItem/copy` |
+| `CopyWishlistRequest` | common | `@Serializable data class(sourceWishlistId)` — body of `POST /wishlist/copy`; recipient is always the caller |
+| `WishlistCopyJobId` | common | `@JvmInline value class(val long: Long)` — queue row primary key |
+| `WishlistCopyJobStatus` | common | enum `Pending`, `InProgress`, `Done`, `Failed`; `Pending`+`InProgress` = unfinished (resumed on startup) |
+| `WishlistCopyJob` | common | Sealed base for `NewWishlistCopyJob` / `RegisteredWishlistCopyJob` (`sourceWishlistId`, `recipientUserId`, `status`) |
+| `RegisteredWishlistCopyJob.toNewItem` / `WishlistItem.hasSameContentAs` | common | `RegisteredWishlistItem.toNewItem(targetWishlistId)` deep-copies value fields; `hasSameContentAs` compares all value fields (used by both idempotency checks) |
+| `WishlistCopyFeature` | client | Client-side interface: `enqueueCopy(CopyWishlistRequest): Boolean` |
 
 > **Note** Booking models (`BookingId` / `Booking` / `NewBooking` / `RegisteredBooking` / `BookingState`) and the `BookingFeature` client interface were moved to `features/booking`. The wishlist read repos (`WishlistItemRepo` / `WishlistRepo`) are still used by `features/booking/server` to resolve an item's owner.
 
@@ -84,5 +98,17 @@ Note: item `create` maps both "parent not found" and "caller not owner" to `null
 - `Amount` stored as two BIGINT columns (`approx_price_int` = integer part, `approx_price_dec` = `ULong.decimalPart` stored as signed Long bit pattern). Both null → `Amount` is null.
 - `links` are stored in a separate `wishlist_item_links` table, managed exclusively by `ExposedWishlistItemRepo` (private `linksTable`). On item delete, cascade FK removes link rows automatically. On read, a sub-query per item row fetches links within the same transaction (N+1 trade-off).
 - `imageIds` are stored in a separate `wishlist_item_images` table, managed exclusively by `ExposedWishlistItemRepo` (private `imagesTable`). Columns: `item_id` (BIGINT FK → wishlist_items.id ON DELETE CASCADE), `file_id` (TEXT), `order` (INT for display order); PK = (item_id, file_id). On item delete, cascade FK removes image rows automatically. On read, images are fetched ordered by `order` column within the same transaction. On update, image rows are deleted and reinserted (same pattern as links).
-- Client-side interfaces (`WishlistsFeature`, `WishlistsItemsFeature`) are declared in `features/wishlist/client` and implemented by `KtorWishlistFeature` / `KtorWishlistItemFeature`.
+- Client-side interfaces (`WishlistsFeature`, `WishlistsItemsFeature`, `WishlistCopyFeature`) are declared in `features/wishlist/client` and implemented by `KtorWishlistFeature` / `KtorWishlistItemFeature` / `KtorWishlistCopyFeature`.
 - **Booking (gift reservation, issue #29)** was extracted into the standalone `features/booking` feature (PR #31). The `wishlist_item_bookings` table and all four server-enforced rules now live there; `features/wishlist` only still exposes the `WishlistItemRepo` / `WishlistRepo` read repos that `features/booking/server` uses to resolve an item's owner. See `features/booking/README.md`.
+
+### Copy feature (issue #30)
+
+- **Single-item copy (synchronous):** `WishlistItemService.copyItem(CopyItemRequest, callerId)` enforces `target.userId == callerId` server-side, deep-copies the source item's value fields via `RegisteredWishlistItem.toNewItem(targetWishlistId)`, and is idempotent — if the target wishlist already holds an item with identical content (`WishlistItem.hasSameContentAs`) the existing item is returned instead of inserting a duplicate. Route: `POST /wishlistItem/copy` inside `authenticate {}`. Source items are read via the existing (public) item repo.
+- **Whole-wishlist copy (asynchronous, persistent queue):** `POST /wishlist/copy` (inside `authenticate {}`) calls `WishlistCopyService.enqueue(sourceWishlistId, callerId)` which persists a `wishlist_copy_jobs` row (status `Pending`) and returns `202 Accepted`. Recipient is always the authenticated caller, never client-supplied.
+- **Queue persistence:** `ExposedWishlistCopyJobRepo` (table `wishlist_copy_jobs`: `id BIGINT PK AUTO`, `source_wishlist_id BIGINT`, `recipient_user_id BIGINT`, `status TEXT`) wrapped by `CacheWishlistCopyJobRepo`, bound as `WishlistCopyJobRepo` in `wishlist.common.JVMPlugin`. Jobs survive process restarts.
+- **Resume on restart + parallelism:** `WishlistCopyService.start()` (invoked from `wishlist.server.JVMPlugin.startPlugin`, after the common JVM repo plugin) re-scans `WishlistCopyJobRepo.getUnfinished()` (Pending+InProgress) and re-submits them. Submitted job ids flow through an unbounded `Channel`; the worker launches one child coroutine per job, bounded by a `Semaphore(4)`, so up to 4 jobs are deep-copied concurrently in the shared application `CoroutineScope`.
+- **Two idempotency checks** in `WishlistCopyService.processJob` make a restart-resumed re-run safe (no duplicates):
+  1. *Wishlist-by-name:* `wishlistRepo.getByUserId(recipient).find { it.title == source.title }` is reused if present, otherwise a new wishlist is created.
+  2. *Item-existence:* for each source item, the new payload is compared against existing target items with `hasSameContentAs`; the item is created only when absent.
+  Status transitions: `Pending → InProgress → Done`; a missing source wishlist or unobtainable target sets `Failed`.
+- `WishlistCopyService` is registered as a `single` in the common server `Plugin` (its repo dependencies are JVM-only and resolved lazily); its worker is started only on JVM. `WishlistRoutingsConfigurator` gained a second ctor arg (`WishlistCopyService`).

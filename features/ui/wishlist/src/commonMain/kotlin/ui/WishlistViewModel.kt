@@ -66,6 +66,24 @@ class WishlistViewModel(
             wishlist != null && model.isOwner(wishlist.userId, currentUserId)
         }.stateIn(scope, SharingStarted.Eagerly, false)
 
+    /**
+     * `true` when an authenticated caller views a wishlist they do NOT own — the only case in which
+     * copying the whole wishlist into their own profile is offered. Controls the Copy button.
+     */
+    val canCopyState: StateFlow<Boolean> = combine(_wishlistState, model.currentUserIdFlow) { wishlist, userId ->
+        wishlist != null && userId != null && wishlist.userId != userId
+    }.stateIn(scope, SharingStarted.Eagerly, false)
+
+    private val _copyRequestedState = MutableRedeliverStateFlow(false)
+
+    /** `true` once a whole-wishlist copy has been queued; the view shows a confirmation message. */
+    val copyRequestedState = _copyRequestedState.asStateFlow()
+
+    private val _copyFailedState = MutableRedeliverStateFlow(false)
+
+    /** `true` when the most recent copy-enqueue attempt failed. */
+    val copyFailedState = _copyFailedState.asStateFlow()
+
     private val _loadingState = MutableRedeliverStateFlow(false)
 
     /** `true` while a network request is in flight. */
@@ -268,5 +286,22 @@ class WishlistViewModel(
     /** Delegates to [WishlistViewInteractor.onAddItem]. */
     fun onAddItem() {
         scope.launchLoggingDropExceptions { interactor.onAddItem(node) }
+    }
+
+    /**
+     * Enqueues a server-side background deep copy of the displayed wishlist into the caller's
+     * profile and reflects the outcome in [copyRequestedState] / [copyFailedState].
+     * Only meaningful when [canCopyState] is `true`.
+     */
+    fun onCopyWishlist() {
+        scope.launchLoggingDropExceptions {
+            _copyFailedState.value = false
+            val queued = model.enqueueWishlistCopy(node.config.wishlistId)
+            if (queued) {
+                _copyRequestedState.value = true
+            } else {
+                _copyFailedState.value = true
+            }
+        }
     }
 }

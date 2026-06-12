@@ -82,6 +82,19 @@ object WishlistStrings {
     val confirmDeleteWishlistMessage = buildStringResource("This wishlist and all its items will be permanently removed. Continue?") {
         IetfLang.Russian("Этот список и все его товары будут удалены безвозвратно. Продолжить?")
     }
+    val copyItemButton = buildStringResource("Copy to my wishlist") { IetfLang.Russian("Скопировать в мой список") }
+    val copyWishlistButton = buildStringResource("Copy to my profile") { IetfLang.Russian("Скопировать в мой профиль") }
+    val copyTargetTitle = buildStringResource("Copy item to…") { IetfLang.Russian("Скопировать товар в…") }
+    val copySelectTargetPrompt = buildStringResource("Select a target wishlist") { IetfLang.Russian("Выберите список-получатель") }
+    val copyNoTargets = buildStringResource("You have no wishlists yet. Create one first.") {
+        IetfLang.Russian("У вас пока нет списков. Сначала создайте список.")
+    }
+    val copyQueued = buildStringResource("Copy queued. It will appear in your profile shortly.") {
+        IetfLang.Russian("Копирование поставлено в очередь. Скоро появится в вашем профиле.")
+    }
+    val copyFailed = buildStringResource("Copy failed. Please try again.") {
+        IetfLang.Russian("Не удалось скопировать. Попробуйте ещё раз.")
+    }
 }
 
 /**

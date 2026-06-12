@@ -4,8 +4,10 @@ import dev.inmo.micro_utils.ktor.server.configurators.ApplicationRoutingConfigur
 import dev.inmo.wishlist.features.auth.server.utils.getCallerUserIdOrAnswerUnauthorized
 import dev.inmo.wishlist.features.users.common.models.UserId
 import dev.inmo.wishlist.features.wishlist.common.Constants
+import dev.inmo.wishlist.features.wishlist.common.models.CopyWishlistRequest
 import dev.inmo.wishlist.features.wishlist.common.models.NewWishlistInFeature
 import dev.inmo.wishlist.features.wishlist.common.models.WishlistId
+import dev.inmo.wishlist.features.wishlist.server.services.WishlistCopyService
 import dev.inmo.wishlist.features.wishlist.server.services.WishlistService
 import io.ktor.http.HttpStatusCode
 import io.ktor.server.auth.authenticate
@@ -28,18 +30,22 @@ import io.ktor.server.routing.route
  * **Auth-required routes** (valid bearer token mandatory):
  * - `GET  /wishlist/getMy` — returns all wishlists owned by the authenticated caller
  * - `POST /wishlist/create` — creates a new wishlist for the caller; body: [NewWishlistInFeature]
+ * - `POST /wishlist/copy` — enqueues a background deep-copy of a wishlist into the caller's profile; body: [CopyWishlistRequest]
  * - `PUT  /wishlist/update/{id}` — replaces wishlist data if caller is owner; body: [NewWishlistInFeature]
  * - `DELETE /wishlist/delete/{id}` — removes a wishlist if caller is owner
  *
  * HTTP status codes for ownership-guarded routes:
  * - `200 OK` — operation succeeded
+ * - `202 Accepted` — wishlist-copy job queued for background processing
  * - `403 Forbidden` — wishlist exists but caller is not the owner
  * - `404 Not Found` — no wishlist with the given id
  *
  * @param wishlistService Service that enforces ownership and translates requests to repo calls.
+ * @param wishlistCopyService Background queue service that processes whole-wishlist copy jobs.
  */
 class WishlistRoutingsConfigurator(
-    private val wishlistService: WishlistService
+    private val wishlistService: WishlistService,
+    private val wishlistCopyService: WishlistCopyService
 ) : ApplicationRoutingConfigurator.Element {
     override fun Route.invoke() {
         route(Constants.wishlistPrefixPathPart) {
@@ -76,6 +82,16 @@ class WishlistRoutingsConfigurator(
                         call.respond(HttpStatusCode.InternalServerError)
                     } else {
                         call.respond(result)
+                    }
+                }
+                post(Constants.wishlistCopyPathPart) {
+                    val callerId = getCallerUserIdOrAnswerUnauthorized() ?: return@post
+                    val request = call.receive<CopyWishlistRequest>()
+                    val job = wishlistCopyService.enqueue(request.sourceWishlistId, callerId)
+                    if (job == null) {
+                        call.respond(HttpStatusCode.InternalServerError)
+                    } else {
+                        call.respond(HttpStatusCode.Accepted)
                     }
                 }
                 put("${Constants.wishlistUpdatePathPart}/{id}") {

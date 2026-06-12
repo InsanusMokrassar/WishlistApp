@@ -59,20 +59,20 @@ class AdminUsersListView(
                 }
             }
             Spacer(modifier = Modifier.height(8.dp))
-            if (loading) {
-                CircularProgressIndicator()
-            } else if (users.isEmpty()) {
-                Text(AdminPanelStrings.emptyUsers.translation())
-            } else {
-                LazyColumn(verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                    items(users) { user ->
-                        ListRow(onSelect = { viewModel.onUserSelected(user.id) }) {
-                            Row(
-                                modifier = Modifier.fillMaxWidth(),
-                                horizontalArrangement = Arrangement.SpaceBetween
-                            ) {
-                                Text(user.username.string)
-                                Text("#${user.id.long}", color = MaterialTheme.colors.onSurface.copy(alpha = 0.5f))
+            when {
+                loading -> CircularProgressIndicator()
+                users.isEmpty() -> Text(AdminPanelStrings.emptyUsers.translation())
+                else -> {
+                    LazyColumn(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                        items(users) { user ->
+                            ListRow(onSelect = { viewModel.onUserSelected(user.id) }) {
+                                Row(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    horizontalArrangement = Arrangement.SpaceBetween
+                                ) {
+                                    Text(user.username.string)
+                                    Text("#${user.id.long}", color = MaterialTheme.colors.onSurface.copy(alpha = 0.5f))
+                                }
                             }
                         }
                     }

@@ -63,6 +63,9 @@ class WishlistView(
         val sortedItems by viewModel.sortedItemsState.collectAsState()
         val viewMode by viewModel.viewModeState.collectAsState()
         val isOwner by viewModel.isOwnerState.collectAsState()
+        val canCopy by viewModel.canCopyState.collectAsState()
+        val copyRequested by viewModel.copyRequestedState.collectAsState()
+        val copyFailed by viewModel.copyFailedState.collectAsState()
         val loading by viewModel.loadingState.collectAsState()
         val currencyEnabled by viewModel.currencyEnabledState.collectAsState()
         val currencies by viewModel.currenciesState.collectAsState()
@@ -79,19 +82,31 @@ class WishlistView(
             ) {
                 BackButton(WishlistStrings.backButton.translation(resources)) { viewModel.onBack() }
                 Spacer(modifier = Modifier.weight(1f))
-                if (isOwner) {
-                    Button(onClick = { viewModel.onEditWishlist() }) {
-                        Text(WishlistStrings.editButton.translation(resources))
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    if (canCopy) {
+                        Button(onClick = { viewModel.onCopyWishlist() }, enabled = !copyRequested) {
+                            Text(WishlistStrings.copyWishlistButton.translation(resources))
+                        }
+                    }
+                    if (isOwner) {
+                        Button(onClick = { viewModel.onEditWishlist() }) {
+                            Text(WishlistStrings.editButton.translation(resources))
+                        }
                     }
                 }
             }
+            if (copyRequested) {
+                Text(WishlistStrings.copyQueued.translation(resources), style = MaterialTheme.typography.bodySmall)
+            }
+            if (copyFailed) {
+                Text(WishlistStrings.copyFailed.translation(resources), style = MaterialTheme.typography.bodySmall)
+            }
             Spacer(modifier = Modifier.height(8.dp))
 
-            if (loading) {
-                CircularProgressIndicator()
-            } else if (items.isEmpty()) {
-                Text(WishlistStrings.emptyItems.translation(resources))
-            } else {
+            when {
+                loading -> CircularProgressIndicator()
+                items.isEmpty() -> Text(WishlistStrings.emptyItems.translation(resources))
+                else -> {
                 if (sortSelectorVisible) {
                     WishlistSortSelector(
                         selected = sortMode,
@@ -161,6 +176,7 @@ class WishlistView(
                             }
                         }
                     }
+                }
                 }
             }
 

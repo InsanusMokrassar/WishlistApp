@@ -52,6 +52,8 @@ import dev.inmo.wishlist.features.ui.users.ui.UsersListViewConfig
 import dev.inmo.wishlist.features.ui.users.ui.UsersListViewInteractor
 import dev.inmo.wishlist.features.ui.wishlist.ui.WishlistEditViewConfig
 import dev.inmo.wishlist.features.ui.wishlist.ui.WishlistEditViewInteractor
+import dev.inmo.wishlist.features.ui.wishlist.ui.WishlistItemCopyViewConfig
+import dev.inmo.wishlist.features.ui.wishlist.ui.WishlistItemCopyViewInteractor
 import dev.inmo.wishlist.features.ui.wishlist.ui.WishlistItemEditViewConfig
 import dev.inmo.wishlist.features.ui.wishlist.ui.WishlistItemEditViewInteractor
 import dev.inmo.wishlist.features.ui.wishlist.ui.WishlistItemViewConfig
@@ -315,6 +317,31 @@ object ClientPlugin : StartPlugin {
                     node: NavigationNode<WishlistItemViewConfig, ViewConfig>
                 ) {
                     node.chain.push(WishlistItemEditViewConfig(node.config.wishlistItemId, node.config.wishlistId))
+                }
+                override suspend fun onCopyItem(
+                    node: NavigationNode<WishlistItemViewConfig, ViewConfig>
+                ) {
+                    node.chain.push(WishlistItemCopyViewConfig(node.config.wishlistItemId, node.config.wishlistId))
+                }
+            }
+        }
+
+        single<WishlistItemCopyViewInteractor> {
+            object : WishlistItemCopyViewInteractor {
+                override suspend fun onBack(
+                    node: NavigationNode<WishlistItemCopyViewConfig, ViewConfig>
+                ) {
+                    node.chain.pop()
+                }
+                override suspend fun onCopied(
+                    node: NavigationNode<WishlistItemCopyViewConfig, ViewConfig>
+                ) {
+                    node.chain.pop()
+                }
+                override suspend fun onCreateWishlist(
+                    node: NavigationNode<WishlistItemCopyViewConfig, ViewConfig>
+                ) {
+                    node.chain.push(WishlistEditViewConfig(null))
                 }
             }
         }

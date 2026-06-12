@@ -46,6 +46,7 @@ class WishlistItemView(
         val item by viewModel.itemState.collectAsState()
         val loading by viewModel.loadingState.collectAsState()
         val isOwner by viewModel.isOwnerState.collectAsState()
+        val canCopy by viewModel.canCopyState.collectAsState()
         val currencyEnabled by viewModel.currencyEnabledState.collectAsState()
         val currencies by viewModel.currenciesState.collectAsState()
         val selectedCurrency by viewModel.selectedCurrencyState.collectAsState()
@@ -55,6 +56,14 @@ class WishlistItemView(
             Div({ classes("d-flex", "align-items-center", "mb-3", "gap-2") }) {
                 BackButton(WishlistStrings.backButton.translation()) { viewModel.onBack() }
                 Div({ classes("flex-grow-1") }) {}
+                if (canCopy) {
+                    Button({
+                        classes("btn", "btn-outline-success")
+                        onClick { viewModel.onCopyItem() }
+                    }) {
+                        Text(WishlistStrings.copyItemButton.translation())
+                    }
+                }
                 if (isOwner) {
                     Button({
                         classes("btn", "btn-outline-primary")
@@ -65,11 +74,10 @@ class WishlistItemView(
                 }
             }
 
-            if (loading) {
-                P { Text(WishlistStrings.loading.translation()) }
-            } else if (item == null) {
-                P({ classes("text-muted") }) { Text(WishlistStrings.loading.translation()) }
-            } else {
+            when {
+                loading -> P { Text(WishlistStrings.loading.translation()) }
+                item == null -> P({ classes("text-muted") }) { Text(WishlistStrings.loading.translation()) }
+                else -> {
                 val it = item!!
 
                 if (it.description.isNotBlank()) {
@@ -151,6 +159,7 @@ class WishlistItemView(
                         }
                     }
                 }
+            }
             }
         }
     }
