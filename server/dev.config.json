@@ -3,12 +3,12 @@
   "port": 8196,
   "publicHost": "0.0.0.0",
   "staticFolders": {
-    "": "/static"
+    "": "../client/build/dist/js/developmentExecutable"
   },
   "database": {
-    "url": "jdbc:postgresql://postgres:5432/TEST_DB",
-    "username": "TEST_USERNAME",
-    "password": "TEST_PASSWORD"
+    "url": "jdbc:postgresql://127.0.0.1:8501/test",
+    "username": "test",
+    "password": "test"
   },
   "plugins": [
     "dev.inmo.wishlist.features.common.server.JVMPlugin",
@@ -21,7 +21,7 @@
     "dev.inmo.wishlist.features.currency.server.JVMPlugin",
     "dev.inmo.wishlist.features.booking.server.JVMPlugin"
   ],
-  "filesFolder": "/data/uploaded_files",
+  "filesFolder": "./local.uploaded_files",
   "useCache": true,
   "tokenTtl": "PT15M",
   "refreshTokenTtl": "P7D",
@@ -29,4 +29,3 @@
   "openExchangeRatesAppId": null,
   "openExchangeRatesRefreshTTLMillis": 3600000
 }
-

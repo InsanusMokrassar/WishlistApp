@@ -1,0 +1,27 @@
+services:
+  wishlists_postgres:
+    image: postgres
+    container_name: wishlists_postgres
+    restart: "always"
+    environment:
+      POSTGRES_USER: "TEST_USERNAME"
+      POSTGRES_PASSWORD: "TEST_PASSWORD"
+      POSTGRES_DB: "TEST_DB"
+    volumes:
+      - "./data/db/:/var/lib/postgresql/"
+    ports:
+      - "8501:5432"
+  wishlists:
+    image: insanusmokrassar/wishlists
+    container_name: wishlists
+    restart: "always"
+    user: "1000" # Default user ID in linux systems, set it to those one who will own volumes files
+    volumes:
+      - "./config.json:/config.json:ro"
+      - "./data/uploaded_files/:/data/uploaded_files/"
+    ports:
+      - "8196:8196"
+    depends_on:
+      - "wishlists_postgres"
+    links:
+      - "wishlists_postgres:postgres"

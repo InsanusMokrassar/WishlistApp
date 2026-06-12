@@ -63,12 +63,13 @@ both the API and the Web UI.
    docker compose up        # use `docker-compose up` on older Docker
    ```
 
-2. Run the server. The `run` task automatically builds the web client's development bundle
-   first (the config serves it from `../client/build/dist/js/developmentExecutable`):
+2. Run the server with the development config. The `run` task automatically builds the web
+   client's development bundle first (`dev.config.json` serves it from
+   `../client/build/dist/js/developmentExecutable`):
 
    ```bash
    # from the project root
-   ./gradlew :wishlist.server:run --args="sample.config.json"
+   ./gradlew :wishlist.server:run --args="dev.config.json"
    ```
 
 3. Open <http://127.0.0.1:8196> for the Web client.
@@ -78,8 +79,9 @@ On first start, watch the server log for the generated `root` password.
 ### Server configuration
 
 The server takes a single argument: the path to a config JSON (working directory is the
-`server/` module, so `sample.config.json` resolves to `server/sample.config.json`). Key fields
-in `server/sample.config.json`:
+`server/` module, so `dev.config.json` resolves to `server/dev.config.json`). For local
+development use `server/dev.config.json`; `server/sample.config.json` is the production
+template (see [Production deployment](#production-deployment)). Key fields:
 
 | Field | Meaning |
 |-------|---------|
@@ -89,8 +91,31 @@ in `server/sample.config.json`:
 | `database` | JDBC `url`, `username`, `password` for PostgreSQL |
 | `plugins` | fully-qualified server feature plugins loaded by reflection |
 | `filesFolder` | directory for uploaded item images |
+| `useCache` | enable in-memory caching of repositories |
 | `tokenTtl` / `refreshTokenTtl` | bearer / refresh token lifetimes (ISO-8601 durations) |
 | `enableRegistration` | allow new-user registration |
+| `openExchangeRatesAppId` | Open Exchange Rates App ID enabling the currency feature (`null` disables it) |
+| `openExchangeRatesRefreshTTLMillis` | currency-rates cache lifetime in milliseconds |
+
+## Production deployment
+
+Local development uses `server/dev.config.json` together with `server/docker-compose.yml`
+(a throwaway PostgreSQL with `test`/`test` credentials). Production runs from a set of
+**sample template files** in `server/` — copy each one, replace its placeholder values, and
+never commit the result.
+
+| File | Role | What to change before use |
+|------|------|---------------------------|
+| `server/sample.config.json` | Production server config template. Serves the web bundle from `/static`, stores uploads under `/data/uploaded_files`, and points the database at the `postgres` service host. | Replace the `database` `url` / `username` / `password` (placeholders `TEST_DB` / `TEST_USERNAME` / `TEST_PASSWORD`), set `publicHost` to your real public address, set `openExchangeRatesAppId` if you use the currency feature, and review `enableRegistration`. Mount the finished file into the container at `/config.json`. |
+| `server/sample.docker-compose.yml` | Production Docker Compose template. Runs the published `insanusmokrassar/wishlists` image plus a PostgreSQL service, mounts `./config.json:/config.json:ro` and `./data/uploaded_files/`, and publishes port `8196`. | Copy to `docker-compose.yml`, replace the `POSTGRES_USER` / `POSTGRES_PASSWORD` / `POSTGRES_DB` placeholders (match them to your config's `database` block), and provide your filled-in `config.json` next to it. |
+| `server/Dockerfile` | Builds the server image (`amazoncorretto:21`). Unpacks the web production bundle into `/static` and the server distribution, and runs the entrypoint against `/config.json`. | Usually unchanged; used by `deploy.sh`. |
+| `server/deploy.sh` | Build-and-publish script: packs the web `productionExecutable` bundle, then builds, tags, and pushes the Docker image to the registry. | Set `app` / `version` / `server` (registry account) to your own. Build the client (`./gradlew :wishlist.client:jsBrowserDistribution`) and server distribution tar first. |
+
+Hardening notes for production:
+
+- The server speaks plain HTTP — terminate TLS with a reverse proxy in front of it.
+- Replace every `TEST_*` placeholder; the sample files ship with placeholders only.
+- On first start, watch the server log for the generated `root` password and store it.
 
 ## Running the Desktop client
 
