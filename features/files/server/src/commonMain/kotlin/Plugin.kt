@@ -6,6 +6,7 @@ import dev.inmo.micro_utils.ktor.server.configurators.ApplicationRoutingConfigur
 import dev.inmo.micro_utils.startup.plugin.StartPlugin
 import dev.inmo.wishlist.features.files.server.configurators.FilesRoutingsConfigurator
 import dev.inmo.wishlist.features.files.server.services.FilesService
+import dev.inmo.wishlist.features.files.server.services.TimedTemporalFilesUtilizer
 import kotlinx.serialization.json.JsonObject
 import org.koin.core.Koin
 import org.koin.core.module.Module
@@ -24,8 +25,18 @@ import org.koin.core.module.Module
  * [dev.inmo.wishlist.features.files.common.repo.FilesMetaInfoRepo] bindings are added by [JVMPlugin].
  */
 object Plugin : StartPlugin {
+    /** Lifetime of an unfinalized temporal upload before it is purged from disk: one hour. */
+    private const val temporalFileTtlMillis = 60L * 60L * 1000L
+
     override fun Module.setupDI(config: JsonObject) {
-        single { TemporalFilesRoutingConfigurator() }
+        single {
+            TemporalFilesRoutingConfigurator(
+                temporalFilesUtilizer = TimedTemporalFilesUtilizer(
+                    scope = get(),
+                    ttlMillis = temporalFileTtlMillis
+                )
+            )
+        }
         singleWithRandomQualifier<ApplicationRoutingConfigurator.Element> {
             get<TemporalFilesRoutingConfigurator>()
         }
