@@ -35,21 +35,20 @@ class FilesService(
     /**
      * Moves the temp file referenced by [request] into permanent storage and records its metadata.
      *
-     * Rejects (returns `null`) when the temp file is missing/expired or when the declared MIME type
-     * is not an image. A non-image temp file is deleted before returning.
+     * Rejects (returns `null`) when the temp file is missing/expired or when the payload is not an
+     * allowlisted raster image whose bytes match the declared type (see [isSupportedRasterImage]).
+     * The temp file is always consumed (read then deleted) before validation so a rejected upload
+     * leaves nothing behind.
      *
      * @param request Reference to the temporal upload plus the metadata to persist.
      * @param callerId Authenticated uploader, recorded as the file owner.
-     * @return Persisted [RegisteredFileMetaInfo], or `null` on missing temp file or non-image MIME.
+     * @return Persisted [RegisteredFileMetaInfo], or `null` on missing temp file or rejected payload.
      */
     suspend fun finalize(request: FinalizeFileRequest, callerId: UserId): RegisteredFileMetaInfo? {
         val tempFile = temporalFiles.getAndRemoveTemporalFile(request.temporalFileId) ?: return null
-        if (!request.mimeType.startsWith("image/")) {
-            tempFile.delete()
-            return null
-        }
         val bytes = tempFile.readBytes()
         tempFile.delete()
+        if (!isSupportedRasterImage(request.mimeType, bytes)) return null
         val fileId = FileId(uuid4().toString())
         filesRepo.put(fileId, bytes)
         val meta = RegisteredFileMetaInfo(
@@ -99,4 +98,61 @@ class FilesService(
      * @param id File identifier.
      */
     suspend fun getBytes(id: FileId): ByteArray? = filesRepo.get(id)
+
+    /**
+     * Validates that a finalized payload is a supported raster image whose declared [mimeType]
+     * matches the actual file signature.
+     *
+     * Only the fixed allowlist in [allowedImageSignatures] is accepted. Vector formats — notably
+     * `image/svg+xml`, which can carry active script — and any payload whose leading bytes do not
+     * match the declared type are rejected. This prevents a malicious file from being stored and
+     * later served as active content from the application origin.
+     *
+     * @param mimeType Client-declared MIME type; parameters such as `; charset=…` are ignored.
+     * @param bytes Full payload to inspect.
+     * @return `true` only when [mimeType] is allowlisted and [bytes] start with the matching signature.
+     */
+    private fun isSupportedRasterImage(mimeType: String, bytes: ByteArray): Boolean {
+        val normalized = mimeType.substringBefore(';').trim().lowercase()
+        val matchesSignature = allowedImageSignatures[normalized] ?: return false
+        return matchesSignature(bytes)
+    }
+
+    companion object {
+        /**
+         * Allowlist of accepted image MIME types, each mapped to a predicate verifying the payload's
+         * leading "magic" bytes. An entry here is necessary but not sufficient: the bytes must also
+         * match, so a renamed non-image (or an SVG) cannot pass by merely claiming an allowed type.
+         */
+        private val allowedImageSignatures: Map<String, (ByteArray) -> Boolean> = mapOf(
+            "image/png" to { bytes: ByteArray -> bytes.startsWithBytes(0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A) },
+            "image/jpeg" to { bytes: ByteArray -> bytes.startsWithBytes(0xFF, 0xD8, 0xFF) },
+            "image/gif" to { bytes: ByteArray -> bytes.startsWithBytes(0x47, 0x49, 0x46, 0x38) },
+            "image/bmp" to { bytes: ByteArray -> bytes.startsWithBytes(0x42, 0x4D) },
+            "image/webp" to { bytes: ByteArray ->
+                bytes.startsWithBytes(0x52, 0x49, 0x46, 0x46) && bytes.bytesAtMatch(8, 0x57, 0x45, 0x42, 0x50)
+            }
+        )
+
+        /**
+         * Returns `true` when the receiver's first bytes equal [expected], compared as unsigned 0..255.
+         *
+         * @param expected Expected leading byte values.
+         */
+        private fun ByteArray.startsWithBytes(vararg expected: Int): Boolean = bytesAtMatch(0, *expected)
+
+        /**
+         * Returns `true` when the bytes starting at [offset] equal [expected], compared as unsigned 0..255.
+         *
+         * @param offset Index of the first byte to compare.
+         * @param expected Expected byte values at [offset].
+         */
+        private fun ByteArray.bytesAtMatch(offset: Int, vararg expected: Int): Boolean {
+            if (size < offset + expected.size) return false
+            for (index in expected.indices) {
+                if (this[offset + index].toInt() and 0xFF != expected[index]) return false
+            }
+            return true
+        }
+    }
 }
