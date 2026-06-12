@@ -44,6 +44,22 @@ class AuthFeatureService(
     private val refreshTokens = MapKeyValueRepo<RefreshToken, Entry>()
     private val tokenToRefreshToken = MapKeyValueRepo<Token, RefreshToken>()
 
+    /** Minimum accepted length of a self-service registration password. */
+    private val minPasswordLength = 8
+
+    /** Maximum accepted password length; BCrypt ignores any input past 72 bytes. */
+    private val maxPasswordLength = 72
+
+    /**
+     * Returns `true` when [password] satisfies the self-service registration policy — its length is
+     * within [minPasswordLength]..[maxPasswordLength]. Guards against empty/trivial passwords and
+     * against silent BCrypt truncation of over-long input.
+     *
+     * @param password Candidate plaintext password.
+     */
+    private fun isAcceptablePassword(password: Password): Boolean =
+        password.string.length in minPasswordLength..maxPasswordLength
+
     override suspend fun login(username: Username, password: Password): AuthCredentials? {
         locker.withWriteLock {
             val userInfo = usersRepo.getUserByUsername(username) ?: return null
@@ -95,6 +111,7 @@ class AuthFeatureService(
 
     override suspend fun register(username: Username, password: Password): AuthCredentials? {
         if (enableRegistration == false) return null
+        if (!isAcceptablePassword(password)) return null
 
         locker.withWriteLock {
             if (usersRepo.getUserByUsername(username) != null) return null
