@@ -9,7 +9,7 @@ import dev.inmo.navigation.mvvm.compose.ComposeView
 import dev.inmo.wishlist.features.common.client.models.ViewConfig
 import dev.inmo.wishlist.features.common.client.ui.components.BackButton
 import dev.inmo.wishlist.features.common.client.ui.components.ListRow
-import dev.inmo.wishlist.features.currency.common.utils.formatItemPrice
+import dev.inmo.wishlist.features.currency.common.utils.formatItemPriceWithAmount
 import dev.inmo.wishlist.features.ui.topBar.ui.TopBarTitleProvider
 import dev.inmo.wishlist.features.ui.wishlist.WishlistStrings
 import org.jetbrains.compose.web.attributes.disabled
@@ -87,13 +87,6 @@ class WishlistItemView(
                     }
                 }
 
-                if (it.amount != 1u) {
-                    Div({ classes("mb-3") }) {
-                        H6({ classes("text-muted") }) { Text(WishlistStrings.amountLabel.translation()) }
-                        P { Text("×${it.amount}") }
-                    }
-                }
-
                 if (currencyEnabled && currencies.isNotEmpty()) {
                     CurrencySelector(
                         currencies = currencies,
@@ -104,8 +97,11 @@ class WishlistItemView(
 
                 Div({ classes("mb-3") }) {
                     H6({ classes("text-muted") }) { Text(WishlistStrings.priceLabel.translation()) }
-                    if (it.approximatePrice != null) {
-                        P { Text(formatItemPrice(it.approximatePrice, it.priceUnits, selectedCurrency, rates)) }
+                    val priceText = formatItemPriceWithAmount(
+                        it.approximatePrice, it.priceUnits, it.amount, selectedCurrency, rates
+                    )
+                    if (priceText.isNotEmpty()) {
+                        P { Text(priceText) }
                     } else {
                         P({ classes("text-muted") }) { Text(WishlistStrings.noPrice.translation()) }
                     }
