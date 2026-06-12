@@ -13,7 +13,7 @@ End-to-end bearer-token authentication. Handles login (BCrypt password check), o
 | Method | Path | Auth | Body / Response | Description |
 |--------|------|------|-----------------|-------------|
 | GET | `/auth/is_registration_available` | None | `→ Boolean` | Returns `true` when self-service registration is open |
-| POST | `/auth/register` | None | `RegisterRequest → AuthCredentials \| 400` | Creates account; 400 when disabled or username taken |
+| POST | `/auth/register` | None | `RegisterRequest → AuthCredentials \| 400` | Creates account; 400 when disabled, username taken, or password length is outside 8..72 |
 | POST | `/auth/login` | None | `LoginRequest → AuthCredentials \| 401` | Validates credentials, returns token + refreshToken |
 | POST | `/auth/refresh` | None | `RefreshRequest → AuthCredentials \| 401` | Exchanges refreshToken for new credentials |
 | POST | `/auth/logout` | Bearer | `→ 200` | Invalidates the bearer token |
@@ -44,6 +44,7 @@ End-to-end bearer-token authentication. Handles login (BCrypt password check), o
 - `BearerAuthHttpClientConfigurator` installs Ktor `Auth` plugin on `HttpClient`; `refreshTokens` calls the refresh endpoint using the inner `client` (avoids recursion).
 - `sendWithoutRequest` skips preemptive auth for `/auth/login`, `/auth/refresh`, `/auth/register`, and `/auth/is_registration_available` endpoints.
 - `Config.enableRegistration` (default `false`) gates the register endpoint; disabled → service returns `null` → router responds 400.
+- `AuthFeatureService.register` enforces a password length policy (8..72): too-short/empty passwords are refused, and the upper bound avoids BCrypt silently ignoring input past 72 bytes. Returns `null` (→ 400) on violation. Admin-set passwords (root-only path) are not subject to this check.
 - `AuthFeature.isRegistrationAvailable()` is the cross-cutting flag; server impl returns `enableRegistration` directly; client impl calls `GET /auth/is_registration_available` and deserializes the `Boolean` body.
 - `AuthConfig` is server-only (package `dev.inmo.wishlist.features.auth.server.models`) — client never imports it.
 - `AuthFeatureService` (server) requires `WriteUsersRepo` in addition to `ReadUsersRepo` to create accounts during registration.
