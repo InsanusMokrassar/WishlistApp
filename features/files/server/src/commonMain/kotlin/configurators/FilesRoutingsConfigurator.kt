@@ -8,7 +8,9 @@ import dev.inmo.wishlist.features.files.common.models.FinalizeFileRequest
 import dev.inmo.wishlist.features.files.server.services.FilesService
 import dev.inmo.wishlist.features.users.common.models.UserId
 import dev.inmo.wishlist.features.users.common.repo.ReadUsersRepo
+import io.ktor.http.ContentDisposition
 import io.ktor.http.ContentType
+import io.ktor.http.HttpHeaders
 import io.ktor.http.HttpStatusCode
 import io.ktor.server.request.receive
 import io.ktor.server.response.respond
@@ -77,6 +79,13 @@ class FilesRoutingsConfigurator(
                     call.respond(HttpStatusCode.NotFound)
                     return@get
                 }
+                call.response.headers.append("X-Content-Type-Options", "nosniff")
+                call.response.headers.append(
+                    HttpHeaders.ContentDisposition,
+                    ContentDisposition.Attachment
+                        .withParameter(ContentDisposition.Parameters.FileName, meta.fileName.string)
+                        .toString()
+                )
                 call.respondBytes(bytes, ContentType.parse(meta.mimeType))
             }
             get("${Constants.avatarPathPart}/{userId}") {
