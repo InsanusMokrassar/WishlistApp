@@ -14,7 +14,7 @@ import dev.inmo.wishlist.features.wishlist.common.models.WishlistCopyJobStatus
 import dev.inmo.wishlist.features.wishlist.common.models.WishlistId
 import dev.inmo.wishlist.features.wishlist.common.models.hasSameContentAs
 import dev.inmo.wishlist.features.wishlist.common.models.toNewItem
-import dev.inmo.wishlist.features.wishlist.common.repo.WishlistCopyJobRepo
+import dev.inmo.wishlist.features.wishlist.server.repo.WishlistCopyJobRepo
 import dev.inmo.wishlist.features.wishlist.common.repo.WishlistItemRepo
 import dev.inmo.wishlist.features.wishlist.common.repo.WishlistRepo
 import kotlinx.coroutines.CoroutineScope

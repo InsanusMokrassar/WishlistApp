@@ -1,4 +1,4 @@
-package dev.inmo.wishlist.features.wishlist.common.repo
+package dev.inmo.wishlist.features.wishlist.server.repo
 
 import dev.inmo.micro_utils.coroutines.SmartRWLocker
 import dev.inmo.micro_utils.repos.KeyValueRepo
