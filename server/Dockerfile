@@ -8,5 +8,5 @@ VOLUME /db
 
 ENTRYPOINT ["/wishlist.server/bin/wishlist.server", "/config.json"]
 
+ADD ./build/productionExecutable.tar /static/
 ADD ./build/distributions/wishlist.server.tar /
-ADD ../client/build/dist/js/productionExecutable/ /static/
