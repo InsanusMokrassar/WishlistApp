@@ -1,0 +1,53 @@
+plugins {
+    id "org.jetbrains.kotlin.multiplatform"
+    id "org.jetbrains.kotlin.plugin.serialization"
+    id "com.android.library"
+    alias(libs.plugins.compose)
+    alias(libs.plugins.kt.compose)
+}
+
+apply from: "$mppJvmJsAndroidWithCompose"
+
+kotlin {
+    js(IR) {
+        binaries.executable()
+    }
+    sourceSets {
+        commonMain {
+            dependencies {
+                api libs.microutils.startup.launcher
+                api libs.navigation.mvvm
+                api project(":wishlist.features.common.client")
+                api project(":wishlist.features.sample.client")
+                api project(":wishlist.features.users.client")
+                api project(":wishlist.features.auth.client")
+                api project(":wishlist.features.wishlist.client")
+                api project(":wishlist.features.files.client")
+                api project(":wishlist.features.admin.client")
+                api project(":wishlist.features.currency.client")
+                api project(":wishlist.features.booking.client")
+                api project(":wishlist.features.ui.sample")
+                api project(":wishlist.features.ui.auth")
+                api project(":wishlist.features.ui.wishlist")
+                api project(":wishlist.features.ui.adminPanel")
+                api project(":wishlist.features.ui.scaffold")
+                api project(":wishlist.features.ui.users")
+                api project(":wishlist.features.ui.topBar")
+                api project(":wishlist.features.ui.serverUrl")
+                api project(":wishlist.features.ui.booking")
+            }
+        }
+    }
+}
+
+project.tasks.configureEach {
+    if (it.name == "jsBrowserProductionWebpack") {
+        it.dependsOn("jsDevelopmentExecutableCompileSync")
+    }
+}
+
+project.tasks.configureEach {
+    if (it.name == "jsProductionExecutableCompileSync") {
+        it.dependsOn("jsBrowserDevelopmentWebpack")
+    }
+}

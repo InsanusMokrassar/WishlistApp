@@ -1,0 +1,134 @@
+# WishlistApp
+
+A multiplatform wishlist application: users create wishlists, fill them with items
+(price, priority, images), and share them so other people can see what to gift.
+Server and all three clients (Web, Desktop, Android) are built from a single Kotlin
+Multiplatform codebase.
+
+## Functionality
+
+- **Accounts** — registration and login with bearer-token auth (auto-refreshing tokens,
+  BCrypt password hashing on the server). A `root` user is bootstrapped on first server
+  start; its generated password is printed once to the server log.
+- **Wishlists** — each user owns wishlists. Owners can create, rename, and delete their
+  own wishlists; edit controls are hidden for non-owners.
+- **Items** — every wishlist holds items with a title, description, price, a priority
+  (Low / Medium / High / Custom weight), and one or more images. Owners create, edit, and
+  delete items.
+- **Browsing other users** — wishlists are publicly readable. You can open another user's
+  profile, view their wishlists, and view an aggregated "all items" screen across all of
+  their wishlists.
+- **Sorting** — items on a wishlist (and on the all-items screen) can be sorted by Cost,
+  Priority, or Title; the default keeps the stored order.
+- **Images** — items support image upload/preview; files are stored on the server and
+  served back to all clients.
+- **Admin panel** — the `root` user gets an admin panel for CRUD over users and wishlists.
+
+## Supported platforms
+
+| Platform | UI toolkit | How it ships |
+|----------|------------|--------------|
+| Web      | Compose HTML (Kotlin/JS) | Static JS bundle served by the server |
+| Desktop  | Compose for Desktop (JVM) | Run from the `:wishlist.client` JVM target |
+| Android  | Jetpack Compose + Material 3 | Installed APK (`:wishlist.client.android`) |
+| Server   | Ktor (Netty) + PostgreSQL via Exposed | JVM application |
+
+## Architecture (short)
+
+- **Backend** — Ktor on Netty, PostgreSQL accessed through the Exposed ORM.
+- **Plugin-based startup** — server and clients boot via `StartLauncherPlugin`; each feature
+  is an isolated `StartPlugin` with `setupDI` / `startPlugin` lifecycle phases. Server plugins
+  are listed in the config JSON and loaded by reflection; client plugins are listed in each
+  client's `Main` entry point.
+- **Client MVVM** — `dev.inmo:navigation.mvvm` + Koin DI, with the
+  `ViewConfig / ViewModel / View / Model / Interactor` pattern shared across all three clients.
+
+See `agents/CODING.md` for the full coding conventions and feature patterns.
+
+## Prerequisites
+
+- JDK 17+
+- Docker engine + Docker Compose (for the PostgreSQL database)
+
+## Running the server (with the web client)
+
+The server also serves the compiled web client as static files, so a single `run` brings up
+both the API and the Web UI.
+
+1. Start the PostgreSQL database (config expects it on `127.0.0.1:8501`):
+
+   ```bash
+   # from the project root
+   cd server
+   docker compose up        # use `docker-compose up` on older Docker
+   ```
+
+2. Run the server with the development config. The `run` task automatically builds the web
+   client's development bundle first (`dev.config.json` serves it from
+   `../client/build/dist/js/developmentExecutable`):
+
+   ```bash
+   # from the project root
+   ./gradlew :wishlist.server:run --args="dev.config.json"
+   ```
+
+3. Open <http://127.0.0.1:8196> for the Web client.
+
+On first start, watch the server log for the generated `root` password.
+
+### Server configuration
+
+The server takes a single argument: the path to a config JSON (working directory is the
+`server/` module, so `dev.config.json` resolves to `server/dev.config.json`). For local
+development use `server/dev.config.json`; `server/sample.config.json` is the production
+template (see [Production deployment](#production-deployment)). Key fields:
+
+| Field | Meaning |
+|-------|---------|
+| `host` / `port` | bind address and port (default `8196`) |
+| `publicHost` | host advertised to clients |
+| `staticFolders` | static content roots (serves the web client bundle) |
+| `database` | JDBC `url`, `username`, `password` for PostgreSQL |
+| `plugins` | fully-qualified server feature plugins loaded by reflection |
+| `filesFolder` | directory for uploaded item images |
+| `useCache` | enable in-memory caching of repositories |
+| `tokenTtl` / `refreshTokenTtl` | bearer / refresh token lifetimes (ISO-8601 durations) |
+| `enableRegistration` | allow new-user registration |
+| `openExchangeRatesAppId` | Open Exchange Rates App ID enabling the currency feature (`null` disables it) |
+| `openExchangeRatesRefreshTTLMillis` | currency-rates cache lifetime in milliseconds |
+
+## Production deployment
+
+Local development uses `server/dev.config.json` together with `server/docker-compose.yml`
+(a throwaway PostgreSQL with `test`/`test` credentials). Production runs from a set of
+**sample template files** in `server/` — copy each one, replace its placeholder values, and
+never commit the result.
+
+| File | Role | What to change before use |
+|------|------|---------------------------|
+| `server/sample.config.json` | Production server config template. Serves the web bundle from `/static`, stores uploads under `/data/uploaded_files`, and points the database at the `postgres` service host. | Replace the `database` `url` / `username` / `password` (placeholders `TEST_DB` / `TEST_USERNAME` / `TEST_PASSWORD`), set `publicHost` to your real public address, set `openExchangeRatesAppId` if you use the currency feature, and review `enableRegistration`. Mount the finished file into the container at `/config.json`. |
+| `server/sample.docker-compose.yml` | Production Docker Compose template. Runs the published `insanusmokrassar/wishlists` image plus a PostgreSQL service, mounts `./config.json:/config.json:ro` and `./data/uploaded_files/`, and publishes port `8196`. | Copy to `docker-compose.yml`, replace the `POSTGRES_USER` / `POSTGRES_PASSWORD` / `POSTGRES_DB` placeholders (match them to your config's `database` block), and provide your filled-in `config.json` next to it. |
+| `server/Dockerfile` | Builds the server image (`amazoncorretto:21`). Unpacks the web production bundle into `/static` and the server distribution, and runs the entrypoint against `/config.json`. | Usually unchanged; used by `deploy.sh`. |
+| `server/deploy.sh` | Build-and-publish script: packs the web `productionExecutable` bundle, then builds, tags, and pushes the Docker image to the registry. | Set `app` / `version` / `server` (registry account) to your own. Build the client (`./gradlew :wishlist.client:jsBrowserDistribution`) and server distribution tar first. |
+
+Hardening notes for production:
+
+- The server speaks plain HTTP — terminate TLS with a reverse proxy in front of it.
+- Replace every `TEST_*` placeholder; the sample files ship with placeholders only.
+- On first start, watch the server log for the generated `root` password and store it.
+
+## Running the Desktop client
+
+The desktop client is the JVM target of `:wishlist.client`. Its entry point is
+`dev.inmo.wishlist.client.MainKt` (`client/src/jvmMain/kotlin/Main.kt`), launched with the
+Compose for Desktop runtime — run it from your IDE's run configuration for that `main`.
+Set the server address in the client's login screen.
+
+## Running the Android client
+
+```bash
+# from the project root, with a device/emulator connected
+./gradlew :wishlist.client.android:installDebug
+```
+
+Then launch the installed app and set the server address on the login screen.

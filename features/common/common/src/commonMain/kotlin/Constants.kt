@@ -1,0 +1,1 @@
+package dev.inmo.wishlist.features.common.common

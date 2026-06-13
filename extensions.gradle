@@ -1,0 +1,88 @@
+Map commonExtensions = new HashMap();
+
+def ksp_generators = new ArrayList()
+ksp_generators.add(libs.microutils.koin.generator)
+ksp_generators.add(libs.microutils.ksp.sealed.generator)
+ksp_generators.add(libs.microutils.ksp.classcasts.generator)
+commonExtensions["ksp_generators"] = ksp_generators
+
+def enableKspForTarget = { target, it ->
+    it.dependencies {
+        ksp_generators.forEach {
+            add(target, it)
+        }
+    }
+}
+
+commonExtensions["enableKspForCommon"] = {
+    enableKspForTarget("kspCommonMainMetadata", it)
+}
+
+commonExtensions["enableKspForJs"] = {
+    enableKspForTarget("kspJs", it)
+}
+
+commonExtensions["enableKspForJvm"] = {
+    enableKspForTarget("kspJvm", it)
+}
+
+commonExtensions["enableKspForAndroid"] = {
+    enableKspForTarget("kspAndroid", it)
+}
+
+File templatesFolder = new File("$rootProject.projectDir.absolutePath${File.separatorChar}gradle${File.separatorChar}templates")
+
+Map properties = new HashMap<String, String>()
+
+if (templatesFolder.exists() && templatesFolder.isDirectory()) {
+    templatesFolder.listFiles().each { file ->
+        if (file.isFile()) {
+            String key = file.name - ".gradle"
+            String value = "${templatesFolder}/${file.name}"
+            commonExtensions[key] = value
+        }
+    }
+}
+
+allprojects {
+    ext {
+        commonExtensions.each { k, v ->
+            if (v != null) {
+                it[k] = v
+            }
+        }
+    }
+}
+
+properties["projectByName"] = { name ->
+    for (subproject in rootProject.subprojects) {
+        if (subproject.name == name) {
+            return subproject
+        }
+    }
+    return null
+}
+
+properties["internalProject"] = { name ->
+    projectByName("$name")
+}
+
+allprojects {
+    ext {
+        releaseMode = (project.hasProperty('RELEASE_MODE') && project.property('RELEASE_MODE') == "true") || System.getenv('RELEASE_MODE') == "true"
+
+        properties.forEach { k, v ->
+            it[k] = v
+        }
+    }
+}
+
+tasks.register("getPublishableModules") {
+    doLast {
+        rootProject.subprojects.each { project ->
+            if (project.plugins.hasPlugin('maven-publish')) {
+                println(":${project.name}")
+            }
+        }
+    }
+}

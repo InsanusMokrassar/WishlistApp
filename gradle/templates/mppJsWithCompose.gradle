@@ -1,0 +1,4 @@
+apply from: "$defaultProjectWithSerialization"
+apply from: "$enableMPPJs"
+apply from: "$addCompose"
+apply from: "$addComposeForJs"

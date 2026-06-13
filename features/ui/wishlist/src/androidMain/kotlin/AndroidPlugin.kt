@@ -1,0 +1,67 @@
+package dev.inmo.wishlist.features.ui.wishlist
+
+import dev.inmo.micro_utils.koin.singleWithRandomQualifier
+import dev.inmo.micro_utils.startup.plugin.StartPlugin
+import dev.inmo.navigation.core.NavigationNodeFactory
+import dev.inmo.wishlist.features.common.client.models.ViewConfig
+import dev.inmo.wishlist.features.ui.wishlist.ui.WishlistEditViewConfig
+import dev.inmo.wishlist.features.ui.wishlist.ui.WishlistItemEditViewConfig
+import dev.inmo.wishlist.features.ui.wishlist.ui.WishlistItemViewConfig
+import dev.inmo.wishlist.features.ui.wishlist.ui.WishlistViewConfig
+import dev.inmo.wishlist.features.ui.wishlist.ui.WishlistsListViewConfig
+import dev.inmo.wishlist.features.ui.wishlist.ui.UserWishlistsViewConfig
+import dev.inmo.wishlist.features.ui.wishlist.ui.UserWishlistsView
+import dev.inmo.wishlist.features.ui.wishlist.ui.WishlistItemCopyViewConfig
+import dev.inmo.wishlist.features.ui.wishlist.ui.WishlistItemCopyView
+import dev.inmo.wishlist.features.ui.wishlist.ui.WishlistEditView
+import dev.inmo.wishlist.features.ui.wishlist.ui.WishlistItemEditView
+import dev.inmo.wishlist.features.ui.wishlist.ui.WishlistItemView
+import dev.inmo.wishlist.features.ui.wishlist.ui.WishlistView
+import dev.inmo.wishlist.features.ui.wishlist.ui.WishlistsListView
+import dev.inmo.wishlist.features.ui.wishlist.ui.SharedPreferencesWishlistViewModeStorage
+import dev.inmo.wishlist.features.ui.wishlist.ui.WishlistViewModeStorage
+import kotlinx.serialization.json.JsonObject
+import org.koin.core.Koin
+import org.koin.core.module.Module
+
+/**
+ * Android platform startup plugin for the wishlist UI feature.
+ *
+ * Delegates to [Plugin] for common DI and registers [NavigationNodeFactory] entries
+ * for all four Android Compose-Material3 views.
+ */
+object AndroidPlugin : StartPlugin {
+    override fun Module.setupDI(config: JsonObject) {
+        with(Plugin) { setupDI(config) }
+
+        single { SharedPreferencesWishlistViewModeStorage(get()) }
+        single<WishlistViewModeStorage> { get<SharedPreferencesWishlistViewModeStorage>() }
+
+        singleWithRandomQualifier<NavigationNodeFactory<ViewConfig>> {
+            NavigationNodeFactory.Typed<WishlistsListViewConfig, ViewConfig> { chain, cfg -> WishlistsListView(chain, cfg) }
+        }
+        singleWithRandomQualifier<NavigationNodeFactory<ViewConfig>> {
+            NavigationNodeFactory.Typed<WishlistViewConfig, ViewConfig> { chain, cfg -> WishlistView(chain, cfg) }
+        }
+        singleWithRandomQualifier<NavigationNodeFactory<ViewConfig>> {
+            NavigationNodeFactory.Typed<WishlistEditViewConfig, ViewConfig> { chain, cfg -> WishlistEditView(chain, cfg) }
+        }
+        singleWithRandomQualifier<NavigationNodeFactory<ViewConfig>> {
+            NavigationNodeFactory.Typed<WishlistItemEditViewConfig, ViewConfig> { chain, cfg -> WishlistItemEditView(chain, cfg) }
+        }
+        singleWithRandomQualifier<NavigationNodeFactory<ViewConfig>> {
+            NavigationNodeFactory.Typed<WishlistItemViewConfig, ViewConfig> { chain, cfg -> WishlistItemView(chain, cfg) }
+        }
+        singleWithRandomQualifier<NavigationNodeFactory<ViewConfig>> {
+            NavigationNodeFactory.Typed<UserWishlistsViewConfig, ViewConfig> { chain, cfg -> UserWishlistsView(chain, cfg) }
+        }
+        singleWithRandomQualifier<NavigationNodeFactory<ViewConfig>> {
+            NavigationNodeFactory.Typed<WishlistItemCopyViewConfig, ViewConfig> { chain, cfg -> WishlistItemCopyView(chain, cfg) }
+        }
+    }
+
+    override suspend fun startPlugin(koin: Koin) {
+        super.startPlugin(koin)
+        Plugin.startPlugin(koin)
+    }
+}

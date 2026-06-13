@@ -1,0 +1,32 @@
+{
+  "host": "0.0.0.0",
+  "port": 8196,
+  "publicHost": "0.0.0.0",
+  "staticFolders": {
+    "": "/static"
+  },
+  "database": {
+    "url": "jdbc:postgresql://postgres:5432/TEST_DB",
+    "username": "TEST_USERNAME",
+    "password": "TEST_PASSWORD"
+  },
+  "plugins": [
+    "dev.inmo.wishlist.features.common.server.JVMPlugin",
+    "dev.inmo.wishlist.features.sample.server.JVMPlugin",
+    "dev.inmo.wishlist.features.users.server.JVMPlugin",
+    "dev.inmo.wishlist.features.auth.server.JVMPlugin",
+    "dev.inmo.wishlist.features.wishlist.server.JVMPlugin",
+    "dev.inmo.wishlist.features.files.server.JVMPlugin",
+    "dev.inmo.wishlist.features.admin.server.JVMPlugin",
+    "dev.inmo.wishlist.features.currency.server.JVMPlugin",
+    "dev.inmo.wishlist.features.booking.server.JVMPlugin"
+  ],
+  "filesFolder": "/data/uploaded_files",
+  "useCache": true,
+  "tokenTtl": "PT15M",
+  "refreshTokenTtl": "P7D",
+  "enableRegistration": true,
+  "openExchangeRatesAppId": null,
+  "openExchangeRatesRefreshTTLMillis": 3600000
+}
+

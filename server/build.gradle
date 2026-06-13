@@ -1,0 +1,49 @@
+plugins {
+    id "org.jetbrains.kotlin.jvm"
+    id "org.jetbrains.kotlin.plugin.serialization"
+    id "com.google.devtools.ksp"
+    id "application"
+}
+
+version = null
+
+application {
+    mainClass = "dev.inmo.micro_utils.startup.launcher.MainKt"
+}
+
+dependencies {
+    api project(":wishlist.features.common.server")
+    api project(":wishlist.features.sample.server")
+    api project(":wishlist.features.users.server")
+    api project(":wishlist.features.auth.server")
+    api project(":wishlist.features.wishlist.server")
+    api project(":wishlist.features.files.server")
+    api project(":wishlist.features.admin.server")
+    api project(":wishlist.features.currency.server")
+    api project(":wishlist.features.booking.server")
+
+    api libs.ktor.websockets
+    api libs.ktor.serialization.kotlinx.json
+    api libs.exposed.jdbc
+    api libs.psql
+}
+
+compileKotlin {
+    kotlinOptions.jvmTarget = JavaVersion.VERSION_17.toString()
+}
+
+ksp {
+}
+
+java {
+    sourceCompatibility = JavaVersion.VERSION_17
+    targetCompatibility = JavaVersion.VERSION_17
+}
+
+project.tasks.configureEach {
+    if (it.name == "run") {
+        def jsDevelopmentExecutableTask = project(":wishlist.client").getTasksByName("jsBrowserDevelopmentExecutableDistribution", true)
+        it.dependsOn(jsDevelopmentExecutableTask)
+        it.shouldRunAfter(jsDevelopmentExecutableTask)
+    }
+}

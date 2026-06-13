@@ -1,0 +1,50 @@
+plugins {
+    id "org.jetbrains.kotlin.multiplatform"
+    id "org.jetbrains.kotlin.plugin.serialization"
+    id "com.android.library"
+    alias(libs.plugins.compose)
+    alias(libs.plugins.kt.compose)
+}
+
+apply from: "$mppJvmJsAndroidWithCompose"
+
+kotlin {
+    sourceSets {
+        commonMain {
+            dependencies {
+                api project(":wishlist.features.common.common")
+                api libs.navigation.mvvm
+                api libs.microutils.koin
+                api libs.ktor.client.content.negotiation
+                api libs.ktor.serialization.kotlinx.json
+                api libs.ktor.client.logging
+                api libs.ktor.client.encoding
+                api compose.runtime
+            }
+        }
+
+        jsMain {
+            dependencies {
+                implementation compose.web.core
+                api libs.ktor.client.js
+            }
+        }
+        jvmMain {
+            dependencies {
+                api compose.desktop.currentOs
+                api compose.foundation
+                api compose.material3
+                api libs.material.icons
+                api libs.ktor.client.okhttp
+            }
+        }
+        androidMain {
+            dependencies {
+                api compose.foundation
+                api compose.material3
+                api libs.material.icons
+                api libs.ktor.client.android
+            }
+        }
+    }
+}

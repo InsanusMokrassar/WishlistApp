@@ -1,0 +1,91 @@
+package dev.inmo.wishlist.features.ui.wishlist.ui
+
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
+import dev.inmo.micro_utils.strings.translation
+import dev.inmo.navigation.core.NavigationChain
+import dev.inmo.navigation.mvvm.compose.ComposeView
+import dev.inmo.wishlist.features.common.client.models.ViewConfig
+import dev.inmo.wishlist.features.common.client.ui.components.BackButton
+import dev.inmo.wishlist.features.common.client.ui.components.ListRow
+import dev.inmo.wishlist.features.ui.topBar.ui.TopBarTitleProvider
+import dev.inmo.wishlist.features.ui.wishlist.WishlistStrings
+import org.jetbrains.compose.web.dom.Button
+import org.jetbrains.compose.web.dom.Div
+import org.jetbrains.compose.web.dom.P
+import org.jetbrains.compose.web.dom.Text
+import org.jetbrains.compose.web.dom.Ul
+import org.koin.core.component.inject
+import org.koin.core.parameter.parametersOf
+
+/** JS Compose-HTML view for the wishlists list screen. Uses Bootstrap classes. */
+class WishlistsListView(
+    chain: NavigationChain<ViewConfig>,
+    config: WishlistsListViewConfig,
+) : ComposeView<WishlistsListViewConfig, ViewConfig, WishlistsListViewModel>(config, chain), TopBarTitleProvider {
+    override val viewModel: WishlistsListViewModel by inject(mode = LazyThreadSafetyMode.SYNCHRONIZED) {
+        parametersOf(this@WishlistsListView)
+    }
+
+    override val title: String
+        @Composable get() {
+            val userName by viewModel.userNameState.collectAsState()
+            return userName?.let {
+                WishlistStrings.userWishlistsTitleFormat.translation().replace("{name}", it)
+            } ?: WishlistStrings.wishlistsTitle.translation()
+        }
+
+    @Composable
+    override fun onDraw() {
+        super.onDraw()
+        val wishlists by viewModel.wishlistsState.collectAsState()
+        val loading by viewModel.loadingState.collectAsState()
+        val profileUserId by viewModel.profileUserIdState.collectAsState()
+        val isOwner by viewModel.isOwnerState.collectAsState()
+        val stack by chain.stackFlow.collectAsState()
+
+        Div({ classes("container", "py-3") }) {
+            Div({ classes("d-flex", "justify-content-between", "align-items-center", "mb-3") }) {
+                Div({ classes("d-flex", "align-items-center", "gap-2") }) {
+                    if (stack.size > 1) {
+                        BackButton(WishlistStrings.backButton.translation()) { viewModel.onBack() }
+                    }
+                }
+                Div({ classes("d-flex", "gap-2") }) {
+                    if (profileUserId != null) {
+                        Button({
+                            classes("btn", "btn-outline-secondary")
+                            onClick { viewModel.onShowProfile() }
+                        }) {
+                            Text(WishlistStrings.profileButton.translation())
+                        }
+                    }
+                    if (viewModel.targetUserId != null) {
+                        Button({
+                            classes("btn", "btn-outline-secondary")
+                            onClick { viewModel.onShowUserWishlists() }
+                        }) {
+                            Text(WishlistStrings.allItemsButton.translation())
+                        }
+                    }
+                    CreateWishlistButton(isOwner) { viewModel.onCreateWishlist() }
+                }
+            }
+            when {
+                loading -> P { Text(WishlistStrings.loading.translation()) }
+                wishlists.isEmpty() -> P({ classes("text-muted") }) {
+                    Text(WishlistStrings.emptyWishlists.translation())
+                }
+                else -> Ul({ classes("list-group") }) {
+                    wishlists.forEach { wishlist ->
+                        ListRow(
+                            text = wishlist.title,
+                            onSelect = { viewModel.onWishlistSelected(wishlist.id) }
+                        )
+                    }
+                }
+            }
+        }
+    }
+}

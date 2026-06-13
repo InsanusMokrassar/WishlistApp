@@ -1,0 +1,262 @@
+package dev.inmo.wishlist.features.wishlist.common.repo
+
+import dev.inmo.micro_utils.repos.exposed.AbstractExposedCRUDRepo
+import dev.inmo.micro_utils.repos.exposed.ExposedRepo
+import dev.inmo.micro_utils.repos.exposed.initTable
+import dev.inmo.wishlist.features.common.common.models.Amount
+import dev.inmo.wishlist.features.files.common.models.FileId
+import dev.inmo.wishlist.features.wishlist.common.models.NewWishlistItem
+import dev.inmo.wishlist.features.wishlist.common.models.Priority
+import dev.inmo.wishlist.features.wishlist.common.models.RegisteredWishlistItem
+import dev.inmo.wishlist.features.wishlist.common.models.WishlistId
+import dev.inmo.wishlist.features.wishlist.common.models.WishlistItemId
+import org.jetbrains.exposed.v1.core.Op
+import org.jetbrains.exposed.v1.core.ReferenceOption
+import org.jetbrains.exposed.v1.core.ResultRow
+import org.jetbrains.exposed.v1.core.Table
+import org.jetbrains.exposed.v1.core.eq
+import org.jetbrains.exposed.v1.core.inList
+import org.jetbrains.exposed.v1.core.statements.InsertStatement
+import org.jetbrains.exposed.v1.core.statements.UpdateBuilder
+import org.jetbrains.exposed.v1.jdbc.Database
+import org.jetbrains.exposed.v1.jdbc.SchemaUtils
+import org.jetbrains.exposed.v1.jdbc.deleteWhere
+import org.jetbrains.exposed.v1.jdbc.insert
+import org.jetbrains.exposed.v1.jdbc.selectAll
+import org.jetbrains.exposed.v1.jdbc.transactions.transaction
+
+/**
+ * Exposed JDBC implementation of [WishlistItemRepo] backed by the `wishlist_items` table.
+ *
+ * Schema (`wishlist_items`):
+ * - `id` — BIGINT, autoincrement primary key → [WishlistItemId]
+ * - `wishlist_id` — BIGINT → parent [WishlistId]
+ * - `title` — TEXT
+ * - `amount` — INT, defaults to `1` → desired quantity of the item
+ * - `approx_price_int` — BIGINT NULL → [Amount.integerPart]
+ * - `approx_price_dec` — BIGINT NULL → [Amount.decimalPart] stored as signed Long bits
+ * - `price_units` — TEXT
+ * - `description` — TEXT
+ * - `priority_weight` — BIGINT, defaults to [Priority.Medium] weight (`50`) → [Priority]
+ *
+ * Links are stored in a separate `wishlist_item_links` table (see [linksTable]),
+ * private to this class and managed exclusively here. On item delete, the DB cascades
+ * removal of the corresponding link rows automatically.
+ *
+ * [Amount] is `null` when both price columns are `null`.
+ * [Amount.decimalPart] ([ULong]) is stored as its [Long] bit pattern and reconstructed with [Long.toULong].
+ *
+ * @param database Exposed [Database] instance injected from Koin.
+ */
+class ExposedWishlistItemRepo(
+    override val database: Database,
+) : WishlistItemRepo, AbstractExposedCRUDRepo<RegisteredWishlistItem, WishlistItemId, NewWishlistItem>(tableName = "wishlist_items") {
+    private val idColumn = long("id").autoIncrement()
+    private val wishlistIdColumn = long("wishlist_id")
+    private val titleColumn = text("title")
+    private val amountColumn = integer("amount").default(1)
+    private val approxPriceIntColumn = long("approx_price_int").nullable()
+    private val approxPriceDecColumn = long("approx_price_dec").nullable()
+    private val priceUnitsColumn = text("price_units")
+    private val descriptionColumn = text("description")
+    private val priorityWeightColumn = long("priority_weight").default(Priority.Medium.weight.toLong())
+
+    override val primaryKey = PrimaryKey(idColumn)
+
+    private inner class WishlistItemsLinks(override val database: Database) : Table("wishlist_item_links"), ExposedRepo {
+        val itemId = long("item_id").references(idColumn, onDelete = ReferenceOption.CASCADE)
+        val link = text("link")
+        override val primaryKey = PrimaryKey(itemId, link)
+
+        init {
+            this@WishlistItemsLinks.initTable()
+        }
+    }
+    /**
+     * Internal table holding one row per link per wishlist item.
+     * Never accessed outside [ExposedWishlistItemRepo]. Cascade-deletes when the parent item is removed.
+     *
+     * Schema (`wishlist_item_links`):
+     * - `item_id` — BIGINT FK → `wishlist_items.id` ON DELETE CASCADE
+     * - `link` — TEXT
+     * - PK: (item_id, link)
+     */
+    private val linksTable = WishlistItemsLinks(database)
+
+    private inner class WishlistItemImages(override val database: Database) : Table("wishlist_item_images"), ExposedRepo {
+        val itemId = long("item_id").references(idColumn, onDelete = ReferenceOption.CASCADE)
+        val fileId = text("file_id")
+        val order = integer("order")
+        override val primaryKey = PrimaryKey(itemId, fileId)
+
+        init {
+            this@WishlistItemImages.initTable()
+        }
+    }
+    /**
+     * Internal table holding one row per attached image per wishlist item.
+     * Never accessed outside [ExposedWishlistItemRepo]. Cascade-deletes when the parent item is removed.
+     *
+     * Schema (`wishlist_item_images`):
+     * - `item_id` — BIGINT FK → `wishlist_items.id` ON DELETE CASCADE
+     * - `file_id` — TEXT → [FileId] of an image stored in the files feature
+     * - `order` — INT, preserves display order of the images
+     * - PK: (item_id, file_id)
+     */
+    private val imagesTable = WishlistItemImages(database)
+
+    /** Returns an [Amount] from the current row, or `null` if either price column is absent. */
+    private fun ResultRow.amountOrNull(): Amount? {
+        val intPart = get(approxPriceIntColumn) ?: return null
+        val decPart = get(approxPriceDecColumn) ?: return null
+        return Amount(intPart, decPart.toULong())
+    }
+
+    /**
+     * Fetches all link strings for [itemId] from [linksTable]. Must be called within an active transaction.
+     *
+     * @param itemId Raw Long id of the parent item.
+     * @return Ordered list of link strings.
+     */
+    private fun linksFor(itemId: Long): List<String> =
+        linksTable.selectAll().where { linksTable.itemId eq itemId }.map { it[linksTable.link] }
+
+    /**
+     * Fetches all image [FileId]s for [itemId] from [imagesTable], ordered by the stored order
+     * column. Must be called within an active transaction.
+     *
+     * @param itemId Raw Long id of the parent item.
+     * @return Ordered list of image ids.
+     */
+    private fun imagesFor(itemId: Long): List<FileId> =
+        imagesTable.selectAll().where { imagesTable.itemId eq itemId }
+            .orderBy(imagesTable.order)
+            .map { FileId(it[imagesTable.fileId]) }
+
+    override val ResultRow.asObject: RegisteredWishlistItem
+        get() {
+            val id = get(idColumn)
+            return RegisteredWishlistItem(
+                id = WishlistItemId(id),
+                wishlistId = WishlistId(get(wishlistIdColumn)),
+                title = get(titleColumn),
+                amount = get(amountColumn).toUInt(),
+                approximatePrice = amountOrNull(),
+                priceUnits = get(priceUnitsColumn),
+                links = linksFor(id),
+                description = get(descriptionColumn),
+                priority = Priority.fromWeight(get(priorityWeightColumn).toUInt()),
+                imageIds = imagesFor(id)
+            )
+        }
+
+    override val ResultRow.asId: WishlistItemId
+        get() = WishlistItemId(get(idColumn))
+
+    override val selectById: (WishlistItemId) -> Op<Boolean> = { idColumn.eq(it.long) }
+
+    init {
+        initTable()
+    }
+
+    /**
+     * Fills [it] with scalar columns from [value]. When [id] is non-null (update path),
+     * also replaces all link rows in [linksTable] for that item.
+     *
+     * @param id Non-null on update, null on insert (links for insert are written in [InsertStatement.asObject]).
+     * @param value New item data.
+     * @param it Builder targeting the `wishlist_items` row.
+     */
+    override fun update(id: WishlistItemId?, value: NewWishlistItem, it: UpdateBuilder<Int>) {
+        it[wishlistIdColumn] = value.wishlistId.long
+        it[titleColumn] = value.title
+        it[amountColumn] = value.amount.toInt()
+        it[approxPriceIntColumn] = value.approximatePrice?.integerPart
+        it[approxPriceDecColumn] = value.approximatePrice?.decimalPart?.toLong()
+        it[priceUnitsColumn] = value.priceUnits
+        it[descriptionColumn] = value.description
+        it[priorityWeightColumn] = value.priority.weight.toLong()
+        if (id != null) {
+            linksTable.deleteWhere { linksTable.itemId eq id.long }
+            value.links.forEach { link ->
+                linksTable.insert { stmt ->
+                    stmt[linksTable.itemId] = id.long
+                    stmt[linksTable.link] = link
+                }
+            }
+            imagesTable.deleteWhere { imagesTable.itemId eq id.long }
+            value.imageIds.forEachIndexed { index, imageId ->
+                imagesTable.insert { stmt ->
+                    stmt[imagesTable.itemId] = id.long
+                    stmt[imagesTable.fileId] = imageId.string
+                    stmt[imagesTable.order] = index
+                }
+            }
+        }
+    }
+
+    /**
+     * Constructs the [RegisteredWishlistItem] after a successful insert and writes
+     * the item's links into [linksTable] within the same transaction.
+     *
+     * @param value Source data containing links to persist.
+     * @return Fully populated [RegisteredWishlistItem] including the auto-generated id.
+     */
+    override fun InsertStatement<Number>.asObject(value: NewWishlistItem): RegisteredWishlistItem {
+        val id = this[idColumn]
+        value.links.forEach { link ->
+            linksTable.insert { stmt ->
+                stmt[linksTable.itemId] = id
+                stmt[linksTable.link] = link
+            }
+        }
+        value.imageIds.forEachIndexed { index, imageId ->
+            imagesTable.insert { stmt ->
+                stmt[imagesTable.itemId] = id
+                stmt[imagesTable.fileId] = imageId.string
+                stmt[imagesTable.order] = index
+            }
+        }
+        return RegisteredWishlistItem(
+            id = WishlistItemId(id),
+            wishlistId = value.wishlistId,
+            title = value.title,
+            amount = value.amount,
+            approximatePrice = value.approximatePrice,
+            priceUnits = value.priceUnits,
+            links = value.links,
+            description = value.description,
+            priority = value.priority,
+            imageIds = value.imageIds
+        )
+    }
+
+    /**
+     * Queries `wishlist_items` filtered by `wishlist_id` column.
+     *
+     * @param wishlistId Parent wishlist to filter by.
+     * @return All items with matching `wishlist_id`, each populated with links from [linksTable].
+     */
+    override suspend fun getByWishlistId(wishlistId: WishlistId): List<RegisteredWishlistItem> =
+        transaction(db = database) {
+            selectAll().where { wishlistIdColumn eq wishlistId.long }.map { it.asObject }
+        }
+
+    /**
+     * Resolves all rows whose `id` is in [ids] with a single `WHERE id IN (...)` query inside one
+     * transaction, replacing the per-id transaction-per-call pattern (PR #31 F6). Rows are returned
+     * in [ids] order so callers keep their original ordering; ids absent from the table are omitted.
+     *
+     * @param ids Item ids to resolve; an empty list short-circuits to an empty list.
+     * @return Matching items in [ids] order, each populated with its links and images.
+     */
+    override suspend fun getByIds(ids: List<WishlistItemId>): List<RegisteredWishlistItem> {
+        if (ids.isEmpty()) return emptyList()
+        val byId = transaction(db = database) {
+            selectAll().where { idColumn inList ids.map { it.long } }
+                .map { it.asObject }
+                .associateBy { it.id }
+        }
+        return ids.distinct().mapNotNull { byId[it] }
+    }
+}

@@ -1,0 +1,6 @@
+apply from: "$defaultProjectWithSerialization"
+apply from: "$enableMPPJvm"
+apply from: "$enableMPPAndroid"
+apply from: "$addCompose"
+apply from: "$addComposeForDesktop"
+apply from: "$addComposeForAndroid"

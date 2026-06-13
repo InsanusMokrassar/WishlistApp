@@ -1,0 +1,18 @@
+plugins {
+    id "org.jetbrains.kotlin.multiplatform"
+    id "org.jetbrains.kotlin.plugin.serialization"
+}
+
+apply from: "$mppJavaProject"
+
+kotlin {
+    sourceSets {
+        commonMain {
+            dependencies {
+                api project(":wishlist.features.admin.common")
+                api project(":wishlist.features.auth.server")
+                api project(":wishlist.features.wishlist.server")
+            }
+        }
+    }
+}

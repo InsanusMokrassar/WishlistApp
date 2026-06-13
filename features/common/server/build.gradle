@@ -1,0 +1,35 @@
+plugins {
+    id "org.jetbrains.kotlin.multiplatform"
+    id "org.jetbrains.kotlin.plugin.serialization"
+}
+
+apply from: "$mppJavaProject"
+
+kotlin {
+    sourceSets {
+        commonMain {
+            dependencies {
+                api project(":wishlist.features.common.common")
+                api libs.microutils.repos.exposed
+                api libs.microutils.repos.cache
+                api libs.microutils.repos.ktor.server
+            }
+        }
+
+        jvmMain {
+            dependencies {
+                api libs.ktor.serialization.kotlinx.json
+                api libs.kotlin.coroutines.debug
+                api libs.microutils.startup.plugin
+                api libs.microutils.startup.launcher
+                api libs.ktor.server.netty
+                api libs.ktor.server.auth
+                api libs.ktor.server.compression
+                api libs.ktor.websockets
+                api libs.exposed.jdbc
+                api libs.logback
+                api libs.psql
+            }
+        }
+    }
+}
