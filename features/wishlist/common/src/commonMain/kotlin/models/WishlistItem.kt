@@ -32,8 +32,8 @@ sealed interface WishlistItem {
     /** Currency or unit label for [approximatePrice] (e.g. `"$"`, `"€"`). Empty when not applicable. */
     val priceUnits: String
 
-    /** External URLs related to the item (e.g. product pages). */
-    val links: List<String>
+    /** External links related to the item (e.g. product pages); each carries a url and an optional title. */
+    val links: List<WishlistItemLink>
 
     /** Additional free-form description. */
     val description: String
@@ -53,7 +53,7 @@ sealed interface WishlistItem {
  * @property amount Desired quantity of the item; defaults to `1`.
  * @property approximatePrice Optional estimated cost.
  * @property priceUnits Currency or unit label for [approximatePrice].
- * @property links External URLs related to the item.
+ * @property links External links related to the item (each with a url and optional title).
  * @property description Free-form additional notes.
  * @property priority Relative importance of the item.
  * @property imageIds Ids of images attached to the item, in display order.
@@ -65,7 +65,7 @@ data class NewWishlistItem(
     override val amount: UInt = 1u,
     override val approximatePrice: Amount? = null,
     override val priceUnits: String = "",
-    override val links: List<String> = emptyList(),
+    override val links: List<WishlistItemLink> = emptyList(),
     override val description: String = "",
     override val priority: Priority = Priority.Medium,
     override val imageIds: List<FileId> = emptyList()
@@ -80,7 +80,7 @@ data class NewWishlistItem(
  * @property amount Desired quantity of the item; defaults to `1`.
  * @property approximatePrice Optional estimated cost.
  * @property priceUnits Currency or unit label for [approximatePrice].
- * @property links External URLs related to the item.
+ * @property links External links related to the item (each with a url and optional title).
  * @property description Free-form additional notes.
  * @property priority Relative importance of the item.
  * @property imageIds Ids of images attached to the item, in display order.
@@ -93,7 +93,7 @@ data class RegisteredWishlistItem(
     override val amount: UInt = 1u,
     override val approximatePrice: Amount? = null,
     override val priceUnits: String = "",
-    override val links: List<String> = emptyList(),
+    override val links: List<WishlistItemLink> = emptyList(),
     override val description: String = "",
     override val priority: Priority = Priority.Medium,
     override val imageIds: List<FileId> = emptyList()

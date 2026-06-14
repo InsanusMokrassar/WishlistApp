@@ -38,6 +38,7 @@ import dev.inmo.wishlist.features.ui.wishlist.ui.WishlistItemEditViewConfig
 import dev.inmo.wishlist.features.ui.wishlist.ui.WishlistItemEditViewModel
 import dev.inmo.wishlist.features.ui.wishlist.utils.pickImageFile
 import dev.inmo.wishlist.features.wishlist.common.models.Priority
+import dev.inmo.wishlist.features.wishlist.common.models.displayText
 import kotlinx.coroutines.launch
 import org.koin.core.component.inject
 import org.koin.core.parameter.parametersOf
@@ -69,6 +70,7 @@ class WishlistItemEditView(
         val priceUnits by viewModel.priceUnitsState.collectAsState()
         val priority by viewModel.priorityState.collectAsState()
         val links by viewModel.linksState.collectAsState()
+        val newLinkTitle by viewModel.newLinkTitleState.collectAsState()
         val newLink by viewModel.newLinkState.collectAsState()
         val imageIds by viewModel.imageIdsState.collectAsState()
         val uploadingImage by viewModel.uploadingImageState.collectAsState()
@@ -204,7 +206,7 @@ class WishlistItemEditView(
                         }
                     }
                 ) {
-                    Text(link, style = MaterialTheme.typography.bodyMedium)
+                    Text(link.displayText, style = MaterialTheme.typography.bodyMedium)
                 }
             }
             Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -212,6 +214,14 @@ class WishlistItemEditView(
                     value = newLink,
                     onValueChange = { viewModel.onNewLinkChanged(it) },
                     label = { Text(WishlistStrings.newLinkPlaceholder.translation(resources)) },
+                    singleLine = true,
+                    enabled = !loading,
+                    modifier = Modifier.weight(1f)
+                )
+                OutlinedTextField(
+                    value = newLinkTitle,
+                    onValueChange = { viewModel.onNewLinkTitleChanged(it) },
+                    label = { Text(WishlistStrings.linkTitlePlaceholder.translation(resources)) },
                     singleLine = true,
                     enabled = !loading,
                     modifier = Modifier.weight(1f)

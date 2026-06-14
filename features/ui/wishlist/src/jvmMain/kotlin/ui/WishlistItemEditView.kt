@@ -37,6 +37,7 @@ import dev.inmo.wishlist.features.ui.wishlist.ui.WishlistItemEditViewConfig
 import dev.inmo.wishlist.features.ui.wishlist.ui.WishlistItemEditViewModel
 import dev.inmo.wishlist.features.ui.wishlist.utils.pickImageFile
 import dev.inmo.wishlist.features.wishlist.common.models.Priority
+import dev.inmo.wishlist.features.wishlist.common.models.displayText
 import kotlinx.coroutines.launch
 import org.koin.core.component.inject
 import org.koin.core.parameter.parametersOf
@@ -65,6 +66,7 @@ class WishlistItemEditView(
         val priority by viewModel.priorityState.collectAsState()
         val links by viewModel.linksState.collectAsState()
         val newLink by viewModel.newLinkState.collectAsState()
+        val newLinkTitle by viewModel.newLinkTitleState.collectAsState()
         val imageIds by viewModel.imageIdsState.collectAsState()
         val uploadingImage by viewModel.uploadingImageState.collectAsState()
         val loading by viewModel.loadingState.collectAsState()
@@ -199,7 +201,7 @@ class WishlistItemEditView(
                         }
                     }
                 ) {
-                    Text(link)
+                    Text(link.displayText)
                 }
             }
             Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -207,6 +209,14 @@ class WishlistItemEditView(
                     value = newLink,
                     onValueChange = { viewModel.onNewLinkChanged(it) },
                     label = { Text(WishlistStrings.newLinkPlaceholder.translation()) },
+                    singleLine = true,
+                    enabled = !loading,
+                    modifier = Modifier.weight(1f)
+                )
+                OutlinedTextField(
+                    value = newLinkTitle,
+                    onValueChange = { viewModel.onNewLinkTitleChanged(it) },
+                    label = { Text(WishlistStrings.linkTitlePlaceholder.translation()) },
                     singleLine = true,
                     enabled = !loading,
                     modifier = Modifier.weight(1f)
