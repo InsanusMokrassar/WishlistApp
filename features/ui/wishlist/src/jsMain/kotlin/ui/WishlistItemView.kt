@@ -9,6 +9,7 @@ import dev.inmo.navigation.mvvm.compose.ComposeView
 import dev.inmo.wishlist.features.common.client.models.ViewConfig
 import dev.inmo.wishlist.features.common.client.ui.components.BackButton
 import dev.inmo.wishlist.features.common.client.ui.components.ListRow
+import dev.inmo.wishlist.features.wishlist.common.models.displayText
 import dev.inmo.wishlist.features.currency.common.utils.formatItemPriceWithAmount
 import dev.inmo.wishlist.features.ui.topBar.ui.TopBarTitleProvider
 import dev.inmo.wishlist.features.ui.wishlist.WishlistStrings
@@ -131,8 +132,8 @@ class WishlistItemView(
                         Ul({ classes("list-group") }) {
                             it.links.forEach { link ->
                                 ListRow {
-                                    A(href = link, attrs = { attr("target", "_blank") }) {
-                                        Text(link)
+                                    A(href = link.url, attrs = { attr("target", "_blank") }) {
+                                        Text(link.displayText)
                                     }
                                 }
                             }

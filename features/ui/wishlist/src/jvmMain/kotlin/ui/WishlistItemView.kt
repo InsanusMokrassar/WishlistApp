@@ -25,6 +25,7 @@ import dev.inmo.navigation.mvvm.compose.ComposeView
 import dev.inmo.wishlist.features.common.client.models.ViewConfig
 import dev.inmo.wishlist.features.common.client.ui.components.BackButton
 import dev.inmo.wishlist.features.currency.common.utils.formatItemPriceWithAmount
+import dev.inmo.wishlist.features.wishlist.common.models.displayText
 import dev.inmo.wishlist.features.ui.topBar.ui.TopBarTitleProvider
 import dev.inmo.wishlist.features.ui.wishlist.WishlistStrings
 import org.koin.core.component.inject
@@ -122,7 +123,7 @@ class WishlistItemView(
                     Text(WishlistStrings.noLinks.translation(), style = MaterialTheme.typography.caption)
                 } else {
                     it.links.forEach { link ->
-                        Text(link, style = MaterialTheme.typography.body2)
+                        Text(link.displayText, style = MaterialTheme.typography.body2)
                     }
                 }
 

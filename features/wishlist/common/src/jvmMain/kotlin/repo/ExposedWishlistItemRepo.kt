@@ -10,6 +10,7 @@ import dev.inmo.wishlist.features.wishlist.common.models.Priority
 import dev.inmo.wishlist.features.wishlist.common.models.RegisteredWishlistItem
 import dev.inmo.wishlist.features.wishlist.common.models.WishlistId
 import dev.inmo.wishlist.features.wishlist.common.models.WishlistItemId
+import dev.inmo.wishlist.features.wishlist.common.models.WishlistItemLink
 import org.jetbrains.exposed.v1.core.Op
 import org.jetbrains.exposed.v1.core.ReferenceOption
 import org.jetbrains.exposed.v1.core.ResultRow
@@ -66,6 +67,7 @@ class ExposedWishlistItemRepo(
     private inner class WishlistItemsLinks(override val database: Database) : Table("wishlist_item_links"), ExposedRepo {
         val itemId = long("item_id").references(idColumn, onDelete = ReferenceOption.CASCADE)
         val link = text("link")
+        val titleColumn = text("title").nullable()
         override val primaryKey = PrimaryKey(itemId, link)
 
         init {
@@ -78,7 +80,8 @@ class ExposedWishlistItemRepo(
      *
      * Schema (`wishlist_item_links`):
      * - `item_id` — BIGINT FK → `wishlist_items.id` ON DELETE CASCADE
-     * - `link` — TEXT
+     * - `link` — TEXT → [WishlistItemLink.url]
+     * - `title` — TEXT NULL → optional [WishlistItemLink.title]; `null` for pre-#38 rows (bare-url display)
      * - PK: (item_id, link)
      */
     private val linksTable = WishlistItemsLinks(database)
@@ -116,10 +119,11 @@ class ExposedWishlistItemRepo(
      * Fetches all link strings for [itemId] from [linksTable]. Must be called within an active transaction.
      *
      * @param itemId Raw Long id of the parent item.
-     * @return Ordered list of link strings.
+     * @return Ordered list of links (url + optional title).
      */
-    private fun linksFor(itemId: Long): List<String> =
-        linksTable.selectAll().where { linksTable.itemId eq itemId }.map { it[linksTable.link] }
+    private fun linksFor(itemId: Long): List<WishlistItemLink> =
+        linksTable.selectAll().where { linksTable.itemId eq itemId }
+            .map { WishlistItemLink(url = it[linksTable.link], title = it[linksTable.titleColumn]) }
 
     /**
      * Fetches all image [FileId]s for [itemId] from [imagesTable], ordered by the stored order
@@ -181,7 +185,8 @@ class ExposedWishlistItemRepo(
             value.links.forEach { link ->
                 linksTable.insert { stmt ->
                     stmt[linksTable.itemId] = id.long
-                    stmt[linksTable.link] = link
+                    stmt[linksTable.link] = link.url
+                    stmt[linksTable.titleColumn] = link.title
                 }
             }
             imagesTable.deleteWhere { imagesTable.itemId eq id.long }
@@ -207,7 +212,8 @@ class ExposedWishlistItemRepo(
         value.links.forEach { link ->
             linksTable.insert { stmt ->
                 stmt[linksTable.itemId] = id
-                stmt[linksTable.link] = link
+                stmt[linksTable.link] = link.url
+                stmt[linksTable.titleColumn] = link.title
             }
         }
         value.imageIds.forEachIndexed { index, imageId ->
