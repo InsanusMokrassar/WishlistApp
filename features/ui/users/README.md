@@ -60,3 +60,14 @@ None — client-only UI feature. Consumes `features/users/client` (public read),
   - **Delete** (root only) was **moved here from the users list** (per the requirement). A single confirmation dialog → `model.deleteUser(id)` → `interactor.onDeleted(node)` pops the edit screen; `UserViewModel` then reloads, finds the user gone, and auto-`onBack`s.
 - Avatar rendering: JS uses `<img src=imageUrl>`; JVM/Android use a feature-local `RemoteImage` composable (Skia / `BitmapFactory`), mirroring the wishlist feature. The **users list** loads each user's avatar id via `UsersModel.getAvatar` into `avatarsState` during `loadUsers` and renders it as the `ListRow` `leading` slot (circular 48dp thumbnail, neutral placeholder box when none), mirroring the `UserWishlistsView` item-avatar pattern.
 - JS uses Bootstrap modals; JVM uses Material v2 `AlertDialog`; Android uses Material3 `AlertDialog`.
+- **Default avatar placeholder (issue #39):** when a user has no uploaded photo (`avatarId == null`),
+  every avatar render site (UsersListView 48dp circular thumbnail, UserView and UserEditView 160dp
+  previews) shows a Compose-drawn gray profile silhouette instead of a neutral box / nothing. The
+  placeholder is the per-platform `UserAvatarPlaceholder` composable
+  (`src/{jsMain,jvmMain,androidMain}/kotlin/ui/UserAvatarPlaceholder.kt`): JS renders an inline-SVG
+  `data:` URI through `Img` (params `sizePx`, `circle`, `alt`); JVM/Android draw the silhouette with
+  `androidx.compose.foundation.Canvas` (`drawRect` background + `drawCircle` head + `drawPath`
+  shoulders, neutral `Color` literals so the same body compiles under both material v2 and material3),
+  taking a `Modifier`+`contentDescription` mirroring `RemoteImage`'s call shape. No static assets and
+  no image-loader dependency. New localized string `UsersListStrings.avatarPlaceholderAlt` (EN+RU)
+  supplies the `alt`/`contentDescription`.

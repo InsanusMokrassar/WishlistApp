@@ -186,13 +186,15 @@ class UserWishlistsView(
                         }
                     }
                 } else {
-                    Div({
-                        classes("rounded", "bg-secondary-subtle", "flex-shrink-0")
+                    WishlistItemImagePlaceholder(
+                        alt = WishlistStrings.itemImagePlaceholderAlt.translation()
+                    ) {
+                        classes("rounded", "flex-shrink-0")
                         style {
                             width(48.px)
                             height(48.px)
                         }
-                    })
+                    }
                 }
             }
         ) {

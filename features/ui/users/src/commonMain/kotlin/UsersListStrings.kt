@@ -146,4 +146,9 @@ object UsersListStrings {
     val confirmButton = buildStringResource("Confirm") {
         IetfLang.Russian("Подтвердить")
     }
+
+    /** Accessibility text for the default avatar placeholder shown when a user has no photo. */
+    val avatarPlaceholderAlt = buildStringResource("User avatar placeholder") {
+        IetfLang.Russian("Заполнитель аватара пользователя")
+    }
 }

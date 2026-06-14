@@ -143,7 +143,12 @@ class WishlistItemView(
                 Div({ classes("mb-3") }) {
                     H6({ classes("text-muted") }) { Text(WishlistStrings.imagesLabel.translation()) }
                     if (it.imageIds.isEmpty()) {
-                        P({ classes("text-muted") }) { Text(WishlistStrings.noImages.translation()) }
+                        WishlistItemImagePlaceholder(
+                            alt = WishlistStrings.itemImagePlaceholderAlt.translation()
+                        ) {
+                            classes("rounded", "border")
+                            attr("style", "width: 160px; height: 160px; object-fit: cover;")
+                        }
                     } else {
                         Div({ classes("d-flex", "flex-wrap", "gap-2") }) {
                             it.imageIds.forEach { id ->

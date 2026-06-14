@@ -62,6 +62,27 @@ JS views use Bootstrap CSS classes via Compose HTML. JVM uses Material v2, Andro
   - Image picking is platform-specific: `expect suspend fun pickImageFile(): MPPFile?` in `commonMain/utils/PickImageFile.kt`; JS uses hidden `<input type="file">` element; JVM uses Swing `JFileChooser`; Android uses `ActivityResultContracts.GetContent` through `AndroidImagePicker`, which `MainActivity` registers in `onCreate()`.
   - Image preview: JS renders `<img src=imageUrl>` directly. JVM/Android use a `RemoteImage` composable that calls `loadImageBytes` and decodes via platform codec (Skia on desktop, BitmapFactory on Android). No third-party image-loader dependency.
   - New `WishlistStrings` keys: `imagesLabel`, `addImageButton`, `removeImageButton`, `uploadingImage`, `noImages` (English + Russian translations).
+- **Default placeholder images (issue #39):**
+  - Strategy: Compose-drawn vector placeholders (no static assets, no image-loader dependency),
+    matching the existing image stance. JS renders inline-SVG `data:` URIs through `Img`; JVM/Android
+    draw with `androidx.compose.foundation.Canvas` using neutral `Color` literals so one body compiles
+    under both material v2 (jvm) and material3 (android). JS and Compose-Foundation have no common
+    drawing API, so each placeholder is a small per-platform file (`jsMain`/`jvmMain`/`androidMain`).
+  - **Item gift-box placeholder** `WishlistItemImagePlaceholder` (`ui/WishlistItemImagePlaceholder.kt`,
+    all 3 platforms): a present/gift box (body + lid + ribbon + bow). Shown wherever a wishlist item
+    has no image (`imageIds` empty): `WishlistItemCard` media area (replaces the previously-omitted
+    media; full width × 160dp/180px), `UserWishlistsView` item-row 48dp leading (replaces the neutral
+    box), and `WishlistItemView` detail "Images" section (replaces the bare `noImages` text with a
+    160dp placeholder). JS signature `(alt, attrs)`; JVM/Android `(modifier, contentDescription)`.
+  - **Wishlist stacked-items placeholder** `WishlistImagePlaceholder`
+    (`ui/WishlistImagePlaceholder.kt`, all 3 platforms): three small item cards stacked behind each
+    other, each offset by +x/+y (rearmost faintest). Wishlists have NO image field
+    (`RegisteredWishlist` carries no image), so this placeholder is the wishlist thumbnail and is
+    rendered as a new 48dp `leading` slot on every `WishlistsListView` row (JS/JVM/Android); `ListRow`
+    already supports `leading` on all platforms. Same JS/(JVM/Android) signature split as the item
+    placeholder.
+  - New `WishlistStrings` keys (EN+RU): `itemImagePlaceholderAlt`, `wishlistImagePlaceholderAlt`
+    (used as JS `alt` / JVM/Android `contentDescription`).
 - **Item cards and view mode (list / grid):**
   - `WishlistViewMode` enum (`commonMain/ui/WishlistViewMode.kt`) has `List` (single-column rows, the default) and `Grid` (multi-column cards). Both `WishlistViewModel` and `UserWishlistsViewModel` expose `viewModeState: StateFlow<WishlistViewMode>` (default `List`) and `onViewModeSelected(mode)`.
   - **View-mode persistence (issue #21):** the selected view mode is persisted to per-client local storage and restored on screen (re)open so it survives a page refresh / app reopen. `WishlistViewModeStorage` (`commonMain/ui/WishlistViewModeStorage.kt`) is a tiny `suspend` `getViewMode(): WishlistViewMode?` / `saveViewMode(mode)` interface following the `ServerUrlStorage` pattern, with one impl per platform guarded by `SmartRWLocker`, storing the enum's `name` string: JS `LocalStorageWishlistViewModeStorage` (browser `localStorage`, key `wishlist.items.viewMode`), JVM `PreferencesWishlistViewModeStorage` (`Preferences` node `wishlist/items`, key `viewMode`), Android `SharedPreferencesWishlistViewModeStorage` (`SharedPreferences` file `wishlist.items`, key `viewMode`; `Context` from Koin). Each platform plugin registers the concrete impl as its own `single` and binds `WishlistViewModeStorage` to it via `get<Impl>()`. `WishlistsModel` exposes `suspend getSavedViewMode(): WishlistViewMode` (storage `null` → `List`) and `suspend saveViewMode(mode)`, delegating to the injected storage. Both ViewModels read the saved mode in `init` (`scope.launchLoggingDropExceptions { _viewModeState.value = model.getSavedViewMode() }`) and persist on every `onViewModeSelected` (`model.saveViewMode(mode)`); the JS node is recreated on refresh so `init` re-reads `localStorage`. The persisted mode is shared across both the detail and all-items screens.

@@ -133,7 +133,10 @@ class WishlistItemView(
 
                 Text(WishlistStrings.imagesLabel.translation(resources), style = MaterialTheme.typography.titleSmall)
                 if (it.imageIds.isEmpty()) {
-                    Text(WishlistStrings.noImages.translation(resources), style = MaterialTheme.typography.bodySmall)
+                    WishlistItemImagePlaceholder(
+                        modifier = Modifier.size(160.dp),
+                        contentDescription = WishlistStrings.itemImagePlaceholderAlt.translation(resources)
+                    )
                 } else {
                     Row(
                         modifier = Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()),
