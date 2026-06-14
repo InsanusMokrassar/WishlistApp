@@ -16,6 +16,7 @@ import dev.inmo.wishlist.features.ui.wishlist.ui.WishlistItemEditViewConfig
 import dev.inmo.wishlist.features.ui.wishlist.ui.WishlistItemEditViewModel
 import dev.inmo.wishlist.features.ui.wishlist.utils.pickImageFile
 import dev.inmo.wishlist.features.wishlist.common.models.Priority
+import dev.inmo.wishlist.features.wishlist.common.models.displayText
 import kotlinx.coroutines.launch
 import org.jetbrains.compose.web.attributes.InputType
 import org.jetbrains.compose.web.attributes.disabled
@@ -58,6 +59,7 @@ class WishlistItemEditView(
         val priority by viewModel.priorityState.collectAsState()
         val links by viewModel.linksState.collectAsState()
         val newLink by viewModel.newLinkState.collectAsState()
+        val newLinkTitle by viewModel.newLinkTitleState.collectAsState()
         val imageIds by viewModel.imageIdsState.collectAsState()
         val uploadingImage by viewModel.uploadingImageState.collectAsState()
         val loading by viewModel.loadingState.collectAsState()
@@ -226,7 +228,10 @@ class WishlistItemEditView(
                                     }) { Text("×") }
                                 }
                             ) {
-                                Span({ classes("text-truncate", "me-2") }) { Text(link) }
+                                Span({ classes("text-truncate", "me-2") }) { Text(link.displayText) }
+                                if (link.title?.isNotBlank() == true) {
+                                    Span({ classes("text-muted", "small", "text-truncate") }) { Text(link.url) }
+                                }
                             }
                         }
                     }
@@ -237,6 +242,13 @@ class WishlistItemEditView(
                         value(newLink)
                         placeholder(WishlistStrings.newLinkPlaceholder.translation())
                         onInput { viewModel.onNewLinkChanged(it.value) }
+                        if (loading) disabled()
+                    }
+                    Input(InputType.Text) {
+                        classes("form-control")
+                        value(newLinkTitle)
+                        placeholder(WishlistStrings.linkTitlePlaceholder.translation())
+                        onInput { viewModel.onNewLinkTitleChanged(it.value) }
                         if (loading) disabled()
                     }
                     Button({

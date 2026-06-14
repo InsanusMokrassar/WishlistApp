@@ -12,6 +12,7 @@ import dev.inmo.wishlist.features.common.common.models.Amount
 import dev.inmo.wishlist.features.files.common.models.FileId
 import dev.inmo.wishlist.features.wishlist.common.models.NewWishlistItem
 import dev.inmo.wishlist.features.wishlist.common.models.Priority
+import dev.inmo.wishlist.features.wishlist.common.models.WishlistItemLink
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.flow.merge
@@ -71,15 +72,20 @@ class WishlistItemEditViewModel(
     /** Currently selected item [Priority]; defaults to [Priority.Medium]. */
     val priorityState = _priorityState.asStateFlow()
 
-    private val _linksState = MutableRedeliverStateFlow<List<String>>(emptyList())
+    private val _linksState = MutableRedeliverStateFlow<List<WishlistItemLink>>(emptyList())
 
-    /** Current list of external links. */
+    /** Current list of external links (each with a url and optional title). */
     val linksState = _linksState.asStateFlow()
 
     private val _newLinkState = MutableRedeliverStateFlow("")
 
-    /** Text currently typed in the "add link" input field. */
+    /** Url currently typed in the "add link" input field. */
     val newLinkState = _newLinkState.asStateFlow()
+
+    private val _newLinkTitleState = MutableRedeliverStateFlow("")
+
+    /** Optional title currently typed in the "add link" title input field. */
+    val newLinkTitleState = _newLinkTitleState.asStateFlow()
 
     private val _imageIdsState = MutableRedeliverStateFlow<List<FileId>>(emptyList())
 
@@ -197,15 +203,23 @@ class WishlistItemEditViewModel(
         _isDirtyState.value = true
     }
 
-    /** @param v Text typed in the new-link input. */
+    /** @param v Url typed in the new-link url input. */
     fun onNewLinkChanged(v: String) { _newLinkState.value = v }
 
-    /** Appends [newLinkState] to the links list and clears the input. No-op when blank. */
+    /** @param v Optional title typed in the new-link title input. */
+    fun onNewLinkTitleChanged(v: String) { _newLinkTitleState.value = v }
+
+    /**
+     * Appends a [WishlistItemLink] built from [newLinkState] (url) and [newLinkTitleState] (optional title)
+     * to the links list, then clears both inputs. No-op when the url is blank; a blank title is stored as `null`.
+     */
     fun onAddLink() {
-        val link = _newLinkState.value.trim()
-        if (link.isNotBlank()) {
-            _linksState.value = _linksState.value + link
+        val url = _newLinkState.value.trim()
+        if (url.isNotBlank()) {
+            val title = _newLinkTitleState.value.trim().takeIf { it.isNotBlank() }
+            _linksState.value = _linksState.value + WishlistItemLink(url = url, title = title)
             _newLinkState.value = ""
+            _newLinkTitleState.value = ""
             _isDirtyState.value = true
         }
     }
