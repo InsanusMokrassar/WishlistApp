@@ -22,8 +22,8 @@ object ClientJSPlugin : StartPlugin {
         with(ClientPlugin) { setupDI(config) }
 
         single<NavigationConfigsRepo<ViewConfig>> {
-//            WishlistsAppUrlNavigationConfigsRepo()
-            NavigationConfigsRepo.InMemory()
+            WishlistsAppUrlNavigationConfigsRepo()
+//            NavigationConfigsRepo.InMemory()
         }
     }
 

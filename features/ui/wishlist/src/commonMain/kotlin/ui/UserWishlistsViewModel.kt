@@ -125,6 +125,13 @@ class UserWishlistsViewModel(
     /** `true` while a network request is in flight. */
     val loadingState = _loadingState.asStateFlow()
 
+    /**
+     * Label for the contextual Back button. Back replaces this screen with the global users list
+     * ([UsersListViewConfig]), whose name is a static title rather than a per-entity name, so this
+     * flow stays `null` and the view supplies the static users-list label as the fallback.
+     */
+    val backLabelState: StateFlow<String?> = MutableRedeliverStateFlow<String?>(null).asStateFlow()
+
     private val _sortModeState = MutableRedeliverStateFlow(WishlistSortMode.None)
 
     /**

@@ -129,7 +129,7 @@ object ClientPlugin : StartPlugin {
         single<UserViewInteractor> {
             object : UserViewInteractor {
                 override suspend fun onBack(node: NavigationNode<UserViewConfig, ViewConfig>) {
-                    node.chain.pop()
+                    node.chain.replace(node, UserWishlistsViewConfig(node.config.userId))
                 }
                 override suspend fun onEditUser(node: NavigationNode<UserViewConfig, ViewConfig>) {
                     node.chain.push(UserEditViewConfig(node.config.userId))
@@ -228,7 +228,7 @@ object ClientPlugin : StartPlugin {
                 override suspend fun onBack(
                     node: NavigationNode<UserWishlistsViewConfig, ViewConfig>
                 ) {
-                    node.chain.pop()
+                    node.chain.replace(node, UsersListViewConfig())
                 }
                 override suspend fun onOpenProfile(
                     node: NavigationNode<UserWishlistsViewConfig, ViewConfig>,
@@ -253,9 +253,14 @@ object ClientPlugin : StartPlugin {
         single<WishlistViewInteractor> {
             object : WishlistViewInteractor {
                 override suspend fun onBack(
-                    node: NavigationNode<WishlistViewConfig, ViewConfig>
+                    node: NavigationNode<WishlistViewConfig, ViewConfig>,
+                    ownerUserId: UserId?
                 ) {
-                    node.chain.pop()
+                    if (ownerUserId == null) {
+                        node.chain.pop()
+                    } else {
+                        node.chain.replace(node, UserWishlistsViewConfig(ownerUserId))
+                    }
                 }
                 override suspend fun onEditWishlist(
                     node: NavigationNode<WishlistViewConfig, ViewConfig>
@@ -283,6 +288,16 @@ object ClientPlugin : StartPlugin {
                 ) {
                     node.chain.pop()
                 }
+                override suspend fun onNavigateBackToParent(
+                    node: NavigationNode<WishlistEditViewConfig, ViewConfig>
+                ) {
+                    val wishlistId = node.config.wishlistId
+                    if (wishlistId == null) {
+                        node.chain.pop()
+                    } else {
+                        node.chain.replace(node, WishlistViewConfig(wishlistId))
+                    }
+                }
                 override suspend fun onSaved(
                     node: NavigationNode<WishlistEditViewConfig, ViewConfig>
                 ) {
@@ -298,6 +313,16 @@ object ClientPlugin : StartPlugin {
                 ) {
                     node.chain.pop()
                 }
+                override suspend fun onNavigateBackToParent(
+                    node: NavigationNode<WishlistItemEditViewConfig, ViewConfig>
+                ) {
+                    val itemId = node.config.wishlistItemId
+                    if (itemId == null) {
+                        node.chain.replace(node, WishlistViewConfig(node.config.wishlistId))
+                    } else {
+                        node.chain.replace(node, WishlistItemViewConfig(itemId, node.config.wishlistId))
+                    }
+                }
                 override suspend fun onSaved(
                     node: NavigationNode<WishlistItemEditViewConfig, ViewConfig>
                 ) {
@@ -311,7 +336,7 @@ object ClientPlugin : StartPlugin {
                 override suspend fun onBack(
                     node: NavigationNode<WishlistItemViewConfig, ViewConfig>
                 ) {
-                    node.chain.pop()
+                    node.chain.replace(node, WishlistViewConfig(node.config.wishlistId))
                 }
                 override suspend fun onEditItem(
                     node: NavigationNode<WishlistItemViewConfig, ViewConfig>

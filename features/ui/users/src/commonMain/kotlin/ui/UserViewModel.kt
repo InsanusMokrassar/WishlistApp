@@ -14,6 +14,7 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.flowOf
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.merge
 import kotlinx.coroutines.flow.stateIn
 
@@ -36,6 +37,15 @@ class UserViewModel(
 
     /** The loaded user, `null` while loading or after the user was removed. */
     val userState = _userState.asStateFlow()
+
+    /**
+     * Label for the contextual Back button: this user's display name. Back replaces this screen with
+     * the user's all-items screen, so the button names the destination. `null` until the user
+     * resolves — the view then falls back to the generic back string. Derived from the already-loaded
+     * [userState], so it adds no extra round-trip.
+     */
+    val backLabelState: StateFlow<String?> =
+        _userState.map { it?.username?.string }.stateIn(scope, SharingStarted.Eagerly, null)
 
     private val _avatarIdState = MutableRedeliverStateFlow<FileId?>(null)
 

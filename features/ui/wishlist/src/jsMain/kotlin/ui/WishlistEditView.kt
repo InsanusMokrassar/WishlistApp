@@ -39,6 +39,7 @@ class WishlistEditView(
     override fun onDraw() {
         super.onDraw()
         val title by viewModel.titleState.collectAsState()
+        val backLabel by viewModel.backLabelState.collectAsState()
         val defaultPriceUnits by viewModel.defaultPriceUnitsState.collectAsState()
         val loading by viewModel.loadingState.collectAsState()
         val showDialog by viewModel.showConfirmDialogState.collectAsState()
@@ -102,7 +103,7 @@ class WishlistEditView(
 
         Div({ classes("container", "py-3") }) {
             Div({ classes("d-flex", "align-items-center", "mb-3", "gap-2") }) {
-                BackButton(WishlistStrings.backButton.translation()) { viewModel.onBack() }
+                BackButton(backLabel ?: WishlistStrings.backButton.translation()) { viewModel.onBack() }
             }
             Div({ classes("mb-3") }) {
                 Label("wl-title") {

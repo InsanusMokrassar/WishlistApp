@@ -47,6 +47,17 @@ class WishlistItemEditViewModel(
     /** Current value of the title input field. */
     val titleState = _titleState.asStateFlow()
 
+    private val _backLabelState = MutableRedeliverStateFlow<String?>(null)
+
+    /**
+     * Label for the contextual Back button. In EDIT mode Back replaces this screen with the item's
+     * read view, so the label is that item's title; in CREATE mode Back replaces it with the
+     * containing wishlist's detail screen, so the label is the wishlist's title. Both are resolved
+     * when the form's initial data loads. `null` until resolved — the view then falls back to the
+     * generic back string.
+     */
+    val backLabelState = _backLabelState.asStateFlow()
+
     private val _descriptionState = MutableRedeliverStateFlow("")
 
     /** Current value of the description input field. */
@@ -129,6 +140,7 @@ class WishlistItemEditViewModel(
                     val item = model.getWishlistItems(node.config.wishlistId).find { it.id == itemId }
                     if (item != null) {
                         _titleState.value = item.title
+                        _backLabelState.value = item.title
                         _amountState.value = item.amount.toString()
                         _descriptionState.value = item.description
                         _priceState.value = item.approximatePrice?.toString() ?: ""
@@ -145,8 +157,11 @@ class WishlistItemEditViewModel(
                 _loadingState.value = true
                 try {
                     val wishlist = model.getWishlist(node.config.wishlistId)
-                    if (wishlist != null && _priceUnitsState.value.isBlank()) {
-                        _priceUnitsState.value = wishlist.defaultPriceUnits
+                    if (wishlist != null) {
+                        if (_priceUnitsState.value.isBlank()) {
+                            _priceUnitsState.value = wishlist.defaultPriceUnits
+                        }
+                        _backLabelState.value = wishlist.title
                     }
                 } finally {
                     _loadingState.value = false
@@ -282,21 +297,22 @@ class WishlistItemEditViewModel(
     suspend fun loadImageBytes(id: FileId): ByteArray? = model.loadImageBytes(id)
 
     /**
-     * Attempts to navigate back. Shows confirm dialog when [isDirtyState] is `true`,
-     * otherwise delegates to [WishlistItemEditViewInteractor.onNavigateBack].
+     * Attempts to navigate back. Shows confirm dialog when [isDirtyState] is `true`, otherwise
+     * navigates to the logical parent via [WishlistItemEditViewInteractor.onNavigateBackToParent]
+     * (the item's read view in EDIT mode, the containing wishlist in CREATE mode).
      */
     fun onBack() {
         if (_isDirtyState.value) {
             _showConfirmDialogState.value = true
         } else {
-            scope.launchLoggingDropExceptions { interactor.onNavigateBack(node) }
+            scope.launchLoggingDropExceptions { interactor.onNavigateBackToParent(node) }
         }
     }
 
-    /** Confirms discarding changes and delegates to [WishlistItemEditViewInteractor.onNavigateBack]. */
+    /** Confirms discarding changes and navigates to the logical parent (see [onBack]). */
     fun onConfirmBack() {
         _showConfirmDialogState.value = false
-        scope.launchLoggingDropExceptions { interactor.onNavigateBack(node) }
+        scope.launchLoggingDropExceptions { interactor.onNavigateBackToParent(node) }
     }
 
     /** Cancels the confirm dialog, returning the user to the form. */

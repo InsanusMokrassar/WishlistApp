@@ -64,6 +64,7 @@ class UserWishlistsView(
         super.onDraw()
         val resources = LocalResources.current
         val sections by viewModel.sectionsState.collectAsState()
+        val backLabel by viewModel.backLabelState.collectAsState()
         val sortMode by viewModel.sortModeState.collectAsState()
         val sortedItems by viewModel.sortedItemsState.collectAsState()
         val viewMode by viewModel.viewModeState.collectAsState()
@@ -85,7 +86,7 @@ class UserWishlistsView(
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                BackButton(WishlistStrings.backButton.translation(resources)) { viewModel.onBack() }
+                BackButton(backLabel ?: WishlistStrings.usersListBackLabel.translation(resources)) { viewModel.onBack() }
                 Row(
                     horizontalArrangement = Arrangement.spacedBy(8.dp),
                     verticalAlignment = Alignment.CenterVertically

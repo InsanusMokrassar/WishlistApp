@@ -52,6 +52,16 @@ class WishlistViewModel(
     /** Items belonging to the loaded wishlist. */
     val itemsState = _itemsState.asStateFlow()
 
+    private val _backLabelState = MutableRedeliverStateFlow<String?>(null)
+
+    /**
+     * Label for the contextual Back button: the wishlist owner's display name. Back replaces this
+     * screen with that owner's all-items screen, so the button names the destination. `null` until
+     * the owner name resolves (or unknown) — the view then falls back to the generic back string.
+     * Resolved from the loaded wishlist's `userId` via [WishlistsModel.getUserName] in [loadWishlist].
+     */
+    val backLabelState = _backLabelState.asStateFlow()
+
     /**
      * `true` when the authenticated caller is the wishlist owner. Derived reactively from the loaded
      * [wishlistState] and the auth "me" flow ([WishlistsModel.currentUserIdFlow]), so it self-corrects
@@ -219,16 +229,22 @@ class WishlistViewModel(
         } finally {
             _loadingState.value = false
         }
+        // Resolve the owner's name for the contextual Back label, reusing the just-loaded wishlist's
+        // userId (one cached UsersFeature lookup; no item round-trips repeated).
+        _backLabelState.value = wishlist?.userId?.let { model.getUserName(it) }
         // Wishlist may have been deleted (here or from the edit screen) — leave the screen
         // automatically when it no longer exists, matching a plain back navigation.
         if (wishlist == null) {
-            interactor.onBack(node)
+            interactor.onBack(node, null)
         }
     }
 
-    /** Delegates to [WishlistViewInteractor.onBack]. */
+    /**
+     * Delegates to [WishlistViewInteractor.onBack], passing the loaded wishlist's owner id so Back
+     * leads to that owner's all-items screen. A `null` owner (wishlist not loaded) falls back to pop.
+     */
     fun onBack() {
-        scope.launchLoggingDropExceptions { interactor.onBack(node) }
+        scope.launchLoggingDropExceptions { interactor.onBack(node, wishlistState.value?.userId) }
     }
 
     /** Delegates to [WishlistViewInteractor.onEditWishlist]. Requires ownership. */
