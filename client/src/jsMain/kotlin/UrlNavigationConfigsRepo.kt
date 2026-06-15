@@ -11,32 +11,54 @@ import dev.inmo.wishlist.features.common.client.models.MainNavigationChainId
 import dev.inmo.wishlist.features.common.client.models.TopNavigationChainId
 import dev.inmo.wishlist.features.common.client.models.ViewConfig
 import dev.inmo.wishlist.features.ui.topBar.ui.TopBarViewConfig
+import dev.inmo.wishlist.features.ui.users.ui.UserEditViewConfig
 import dev.inmo.wishlist.features.ui.users.ui.UserViewConfig
 import dev.inmo.wishlist.features.ui.users.ui.UsersListViewConfig
 import dev.inmo.wishlist.features.ui.wishlist.ui.UserWishlistsViewConfig
+import dev.inmo.wishlist.features.ui.wishlist.ui.WishlistEditViewConfig
+import dev.inmo.wishlist.features.ui.wishlist.ui.WishlistItemEditViewConfig
 import dev.inmo.wishlist.features.ui.wishlist.ui.WishlistItemViewConfig
 import dev.inmo.wishlist.features.ui.wishlist.ui.WishlistViewConfig
 import dev.inmo.wishlist.features.users.common.models.UserId
 import dev.inmo.wishlist.features.wishlist.common.models.WishlistId
 import dev.inmo.wishlist.features.wishlist.common.models.WishlistItemId
+import kotlinx.browser.document
+import org.w3c.dom.url.URL
 
 /** Default browser-tab/site title; always resolved regardless of the current navigation state. */
 private const val SITE_TITLE = "wishlist"
 
-/** Query-param key for the [UserWishlistsViewConfig] screen (a user's wishlists overview). */
-private const val USER_WISHLISTS_PARAM = "user_wishlists"
+/** Path segment introducing a user-scoped subtree (`user/<userId>`). */
+private const val USER_SEGMENT = "user"
 
-/** Query-param key for the [UserViewConfig] screen (a public user profile). */
-private const val USER_PARAM = "user"
+/** Path segment for a user's wishlists overview (`user/<userId>/wishlists`). */
+private const val WISHLISTS_SEGMENT = "wishlists"
 
-/** Query-param key for the [WishlistViewConfig] screen (a single wishlist). */
-private const val WISHLIST_PARAM = "wishlist"
+/** Path segment introducing a wishlist-scoped subtree (`wishlist/<wishlistId>`). */
+private const val WISHLIST_SEGMENT = "wishlist"
 
-/** Query-param key for the [WishlistItemViewConfig] screen (a single wishlist item). */
-private const val WISHLIST_ITEM_PARAM = "wishlist_item"
+/** Path segment introducing an item-scoped subtree (`wishlist/<wishlistId>/item/<itemId>`). */
+private const val ITEM_SEGMENT = "item"
 
-/** Separator between the item id and its parent wishlist id inside the [WISHLIST_ITEM_PARAM] value. */
-private const val WISHLIST_ITEM_SEPARATOR = "_"
+/** Trailing path segment marking an edit screen (`.../edit`). */
+private const val EDIT_SEGMENT = "edit"
+
+/** Path segment marking a create screen, where no entity id exists yet (`.../new`). */
+private const val NEW_SEGMENT = "new"
+
+/**
+ * Path segments of the directory the web client is mounted under (e.g. `/ui/` → `["ui"]`), derived
+ * from the document base URL (`<base href>`).
+ *
+ * The client is served under a sub-path (see issue #43), so every saved URL must be prefixed with it
+ * and every parsed URL must have it stripped before the app-specific segments are interpreted.
+ * Resolving it from `<base href>` keeps this client free of any hard dependency on the server-side
+ * sub-path constant.
+ *
+ * @return The non-empty segments of the base path; empty when the client is served from the root.
+ */
+private fun appBasePathSegments(): List<String> =
+    URL(document.baseURI).pathname.split("/").filter { it.isNotBlank() }
 
 /**
  * Folds a top-to-bottom list of stack configs into the linked [ConfigHolder.Node] form used by the
@@ -50,77 +72,156 @@ private fun List<ViewConfig>.toNodeChain(): ConfigHolder.Node<ViewConfig>? =
     }
 
 /**
- * Collects the URL-relevant configs found anywhere in [holder] into [target] (last occurrence wins).
+ * Maps a single deep-linkable [config] to its canonical, self-contained URL path (app segments only,
+ * without the [appBasePathSegments] prefix).
  *
- * Only the four deep-linkable screens are recorded; the scaffold skeleton and edit/admin screens are
- * intentionally ignored so the URL stays a stable, shareable pointer to a content screen.
+ * Each path embeds the full ancestry of its screen, so it can be reversed by [parseMainStack] into a
+ * sensible breadcrumb stack. Edit screens append [EDIT_SEGMENT]; create screens (no entity id yet)
+ * use [NEW_SEGMENT].
+ *
+ * @return the path segments, or `null` when [config] is not a deep-linkable content screen.
  */
-private fun collectParams(holder: ConfigHolder<ViewConfig>, target: MutableMap<String, String>) {
-    when (holder) {
-        is ConfigHolder.Chain -> holder.firstNodeConfig?.let { collectParams(it, target) }
-        is ConfigHolder.Node -> {
-            when (val config = holder.config) {
-                is UserWishlistsViewConfig -> target[USER_WISHLISTS_PARAM] = config.userId.long.toString()
-                is UserViewConfig -> target[USER_PARAM] = config.userId.long.toString()
-                is WishlistViewConfig -> target[WISHLIST_PARAM] = config.wishlistId.long.toString()
-                is WishlistItemViewConfig -> target[WISHLIST_ITEM_PARAM] =
-                    "${config.wishlistItemId.long}$WISHLIST_ITEM_SEPARATOR${config.wishlistId.long}"
+private fun configPath(config: ViewConfig): List<String>? = when (config) {
+    is UserEditViewConfig ->
+        listOf(USER_SEGMENT, config.userId.long.toString(), EDIT_SEGMENT)
+    is UserWishlistsViewConfig ->
+        listOf(USER_SEGMENT, config.userId.long.toString(), WISHLISTS_SEGMENT)
+    is UserViewConfig ->
+        listOf(USER_SEGMENT, config.userId.long.toString())
+    is WishlistItemEditViewConfig -> buildList {
+        add(WISHLIST_SEGMENT)
+        add(config.wishlistId.long.toString())
+        add(ITEM_SEGMENT)
+        val itemId = config.wishlistItemId
+        if (itemId != null) {
+            add(itemId.long.toString())
+            add(EDIT_SEGMENT)
+        } else {
+            add(NEW_SEGMENT)
+        }
+    }
+    is WishlistItemViewConfig ->
+        listOf(WISHLIST_SEGMENT, config.wishlistId.long.toString(), ITEM_SEGMENT, config.wishlistItemId.long.toString())
+    is WishlistEditViewConfig -> config.wishlistId?.let {
+        listOf(WISHLIST_SEGMENT, it.long.toString(), EDIT_SEGMENT)
+    } ?: listOf(WISHLIST_SEGMENT, NEW_SEGMENT)
+    is WishlistViewConfig ->
+        listOf(WISHLIST_SEGMENT, config.wishlistId.long.toString())
+    else -> null
+}
+
+/**
+ * Finds the deepest (most specific) deep-linkable screen anywhere in [holder].
+ *
+ * The navigation tree is walked and every [configPath]-mappable config is considered; the one
+ * yielding the longest path wins (ties resolve to the last visited). Because an edit/item screen
+ * always produces a longer path than its parent view, the currently focused screen is selected even
+ * when its ancestors are also present in the stack.
+ *
+ * @return the winning screen's app path segments, or `null` when no deep-linkable screen is present.
+ */
+private fun deepestConfigPath(holder: ConfigHolder<ViewConfig>): List<String>? {
+    var best: List<String>? = null
+    fun visit(current: ConfigHolder<ViewConfig>) {
+        when (current) {
+            is ConfigHolder.Chain -> current.firstNodeConfig?.let { visit(it) }
+            is ConfigHolder.Node -> {
+                configPath(current.config)?.let { path ->
+                    if (best == null || path.size > best!!.size) best = path
+                }
+                current.subchains.forEach { visit(it) }
+                current.subnode?.let { visit(it) }
             }
-            holder.subchains.forEach { collectParams(it, target) }
-            holder.subnode?.let { collectParams(it, target) }
         }
+    }
+    visit(holder)
+    return best
+}
+
+/**
+ * Encodes the current navigation [holder] into the URL path.
+ *
+ * Emits the [appBasePathSegments] prefix followed by the [deepestConfigPath] of the focused screen
+ * (nothing beyond the prefix when only the root users list is shown). Mirrored by [parsePath].
+ */
+private fun LocationData.Builder.buildPath(holder: ConfigHolder<ViewConfig>) {
+    appBasePathSegments().forEach { pathSegment(it) }
+    deepestConfigPath(holder)?.forEach { pathSegment(it) }
+}
+
+/**
+ * Rebuilds the main-chain stack (top-to-bottom) from the app-specific path [segments] produced by
+ * [configPath], always rooted at [UsersListViewConfig].
+ *
+ * @return the stack, or `null` when [segments] do not describe a known screen.
+ */
+private fun parseMainStack(segments: List<String>): List<ViewConfig>? = when (segments.firstOrNull()) {
+    USER_SEGMENT -> parseUserStack(segments.drop(1))
+    WISHLIST_SEGMENT -> parseWishlistStack(segments.drop(1))
+    else -> null
+}
+
+private fun parseUserStack(rest: List<String>): List<ViewConfig>? {
+    val userId = rest.getOrNull(0)?.toLongOrNull()?.let(::UserId) ?: return null
+    val root = UsersListViewConfig()
+    return when (rest.getOrNull(1)) {
+        null -> listOf(root, UserViewConfig(userId))
+        EDIT_SEGMENT -> listOf(root, UserViewConfig(userId), UserEditViewConfig(userId))
+        WISHLISTS_SEGMENT -> listOf(root, UserWishlistsViewConfig(userId))
+        else -> null
+    }
+}
+
+private fun parseWishlistStack(rest: List<String>): List<ViewConfig>? {
+    val root = UsersListViewConfig()
+    if (rest.getOrNull(0) == NEW_SEGMENT) {
+        return listOf(root, WishlistEditViewConfig(null))
+    }
+    val wishlistId = rest.getOrNull(0)?.toLongOrNull()?.let(::WishlistId) ?: return null
+    return when (rest.getOrNull(1)) {
+        null -> listOf(root, WishlistViewConfig(wishlistId))
+        EDIT_SEGMENT -> listOf(root, WishlistViewConfig(wishlistId), WishlistEditViewConfig(wishlistId))
+        ITEM_SEGMENT -> parseItemStack(root, wishlistId, rest.drop(2))
+        else -> null
+    }
+}
+
+private fun parseItemStack(
+    root: ViewConfig,
+    wishlistId: WishlistId,
+    rest: List<String>
+): List<ViewConfig>? {
+    val wishlist = WishlistViewConfig(wishlistId)
+    if (rest.getOrNull(0) == NEW_SEGMENT) {
+        return listOf(root, wishlist, WishlistItemEditViewConfig(null, wishlistId))
+    }
+    val itemId = rest.getOrNull(0)?.toLongOrNull()?.let(::WishlistItemId) ?: return null
+    val item = WishlistItemViewConfig(itemId, wishlistId)
+    return when (rest.getOrNull(1)) {
+        null -> listOf(root, wishlist, item)
+        EDIT_SEGMENT -> listOf(root, wishlist, item, WishlistItemEditViewConfig(itemId, wishlistId))
+        else -> null
     }
 }
 
 /**
- * Encodes the current navigation [holder] into URL query parameters.
+ * Rebuilds the navigation hierarchy from the URL path produced by [buildPath].
  *
- * Mirrors [parseSearchParams]: it walks the hierarchy and emits one parameter per deep-linkable
- * screen it finds (see the `*_PARAM` keys).
+ * The [appBasePathSegments] prefix is stripped, then the remaining segments are decoded into the
+ * main-chain stack via [parseMainStack]. The scaffold skeleton (empty root → scaffold → top + main
+ * chains) is recreated around that stack so [ScaffoldView] can reattach each restored chain to its
+ * slot.
+ *
+ * @return the restored root [ConfigHolder.Chain], or `null` when the path holds no deep-linkable
+ * screen (so the default scaffold is created by the standard navigation init path instead).
  */
-private fun LocationData.Builder.buildSearchParams(holder: ConfigHolder<ViewConfig>) {
-    val params = linkedMapOf<String, String>()
-    collectParams(holder, params)
-    params.forEach { (key, value) -> parameter(key, value) }
-}
+private fun parsePath(data: LocationData): ConfigHolder.Chain<ViewConfig>? {
+    val base = appBasePathSegments()
+    val segments = data.pathSegments.filter { it.isNotBlank() }
+    val appSegments = if (segments.take(base.size) == base) segments.drop(base.size) else segments
+    if (appSegments.isEmpty()) return null
 
-/**
- * Rebuilds the navigation hierarchy from URL query parameters produced by [buildSearchParams].
- *
- * The reconstructed main-chain stack always starts at [UsersListViewConfig] and then deepens in a
- * fixed order that respects the app's tree of possible moves
- * (`UsersList → UserWishlists → Wishlist → WishlistItem → User`), appending only the nodes whose
- * parameters are present. The scaffold skeleton (empty root → scaffold → top + main chains) is
- * recreated around that stack so [ScaffoldView] can reattach each restored chain to its slot.
- *
- * @return the restored root [ConfigHolder.Chain], or `null` when no deep-link parameter is present
- * (so the default scaffold is created by the standard navigation init path instead).
- */
-private fun parseSearchParams(data: LocationData): ConfigHolder.Chain<ViewConfig>? {
-    val params = data.urlSearchParams
-    val userWishlists = params.get(USER_WISHLISTS_PARAM)?.toLongOrNull()
-    val user = params.get(USER_PARAM)?.toLongOrNull()
-    val wishlist = params.get(WISHLIST_PARAM)?.toLongOrNull()
-    val wishlistItem = params.get(WISHLIST_ITEM_PARAM)?.let { raw ->
-        val parts = raw.split(WISHLIST_ITEM_SEPARATOR)
-        val itemId = parts.getOrNull(0)?.toLongOrNull()
-        val wishlistId = parts.getOrNull(1)?.toLongOrNull()
-        if (itemId != null && wishlistId != null) itemId to wishlistId else null
-    }
-
-    if (userWishlists == null && user == null && wishlist == null && wishlistItem == null) {
-        return null
-    }
-
-    val mainStack = buildList<ViewConfig> {
-        add(UsersListViewConfig())
-        userWishlists?.let { add(UserWishlistsViewConfig(UserId(it))) }
-        wishlist?.let { add(WishlistViewConfig(WishlistId(it))) }
-        wishlistItem?.let { (itemId, wishlistId) ->
-            add(WishlistItemViewConfig(WishlistItemId(itemId), WishlistId(wishlistId)))
-        }
-        user?.let { add(UserViewConfig(UserId(it))) }
-    }
+    val mainStack = parseMainStack(appSegments) ?: return null
 
     val scaffoldNode = ConfigHolder.Node<ViewConfig>(
         config = ClientPlugin.mainScaffoldConfig,
@@ -145,12 +246,12 @@ private fun parseSearchParams(data: LocationData): ConfigHolder.Chain<ViewConfig
 }
 
 /**
- * Builds the JS [NavigationConfigsRepo] that stores the navigation hierarchy in the page URL, so
- * deep links to the four content screens are shareable and survive a reload.
+ * Builds the JS [NavigationConfigsRepo] that stores the navigation hierarchy in the page URL path, so
+ * deep links to the content screens are shareable and survive a reload.
  */
 fun WishlistsAppUrlNavigationConfigsRepo(): NavigationConfigsRepo<ViewConfig> =
     UrlParametersNavigationConfigsRepo(
-        buildSearchParams = { holder -> buildSearchParams(holder) },
-        parseSearchParams = ::parseSearchParams,
+        buildSearchParams = { holder -> buildPath(holder) },
+        parseSearchParams = ::parsePath,
         titleResolver = { SITE_TITLE }
     )
