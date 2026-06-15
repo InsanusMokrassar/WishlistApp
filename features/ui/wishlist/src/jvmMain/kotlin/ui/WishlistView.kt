@@ -56,6 +56,7 @@ class WishlistView(
     override fun onDraw() {
         super.onDraw()
         val wishlist by viewModel.wishlistState.collectAsState()
+        val backLabel by viewModel.backLabelState.collectAsState()
         val items by viewModel.itemsState.collectAsState()
         val sortMode by viewModel.sortModeState.collectAsState()
         val sortedItems by viewModel.sortedItemsState.collectAsState()
@@ -78,7 +79,7 @@ class WishlistView(
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                BackButton(WishlistStrings.backButton.translation()) { viewModel.onBack() }
+                BackButton(backLabel ?: WishlistStrings.backButton.translation()) { viewModel.onBack() }
                 Spacer(modifier = Modifier.weight(1f))
                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                     if (canCopy) {

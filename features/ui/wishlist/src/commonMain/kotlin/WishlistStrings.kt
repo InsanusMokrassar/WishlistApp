@@ -11,6 +11,12 @@ import dev.inmo.wishlist.features.wishlist.common.models.Priority
 object WishlistStrings {
     val wishlistsTitle = buildStringResource("My Wishlists") { IetfLang.Russian("Мои списки желаний") }
     val backButton = buildStringResource("Back") { IetfLang.Russian("Назад") }
+
+    /**
+     * Contextual Back-button label on the all-items screen, naming its parent: the global users list.
+     * Used because that parent is identified by a static title rather than a per-entity name.
+     */
+    val usersListBackLabel = buildStringResource("Users") { IetfLang.Russian("Пользователи") }
     val editButton = buildStringResource("Edit") { IetfLang.Russian("Редактировать") }
     val saveButton = CommonStrings.save
     val addItemButton = buildStringResource("Add Item") { IetfLang.Russian("Добавить товар") }

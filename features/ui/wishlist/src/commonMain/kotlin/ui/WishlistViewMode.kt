@@ -7,9 +7,9 @@ package dev.inmo.wishlist.features.ui.wishlist.ui
  * Lets the user switch between the compact single-column row layout and a multi-column card grid.
  */
 enum class WishlistViewMode {
-    /** Items are shown as single-column rows (the default, compact presentation). */
+    /** Items are shown as single-column rows (the compact presentation). */
     List,
 
-    /** Items are shown as cards arranged in a responsive multi-column grid. */
+    /** Items are shown as cards arranged in a responsive multi-column grid (the default presentation). */
     Grid
 }

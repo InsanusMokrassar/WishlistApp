@@ -3,7 +3,7 @@
   "port": 8196,
   "publicHost": "0.0.0.0",
   "staticFolders": {
-    "": "/static"
+    "ui": "/static"
   },
   "database": {
     "url": "jdbc:postgresql://postgres:5432/TEST_DB",

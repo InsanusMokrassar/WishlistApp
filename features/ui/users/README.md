@@ -71,3 +71,4 @@ None — client-only UI feature. Consumes `features/users/client` (public read),
   taking a `Modifier`+`contentDescription` mirroring `RemoteImage`'s call shape. No static assets and
   no image-loader dependency. New localized string `UsersListStrings.avatarPlaceholderAlt` (EN+RU)
   supplies the `alt`/`contentDescription`.
+- **Contextual Back navigation (issue #43):** `UserView` Back is now REPLACE semantics: `UserViewInteractor.onBack` does `node.chain.replaceLastOrBackUntil(UserWishlistsViewConfig(userId))` (navigate to that user's all-items screen, popping back to it if already in the chain) instead of pop. `UserViewModel` exposes `backLabelState: StateFlow<String?>` derived from the loaded `userState` (= `username.string`); the view renders `backLabel ?: UsersListStrings.backButton.translation()`.

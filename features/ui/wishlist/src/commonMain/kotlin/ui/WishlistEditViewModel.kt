@@ -43,6 +43,16 @@ class WishlistEditViewModel(
     /** Current default currency/units pre-filled into new items of this wishlist. */
     val defaultPriceUnitsState = _defaultPriceUnitsState.asStateFlow()
 
+    private val _backLabelState = MutableRedeliverStateFlow<String?>(null)
+
+    /**
+     * Label for the contextual Back button. In EDIT mode Back replaces this screen with the edited
+     * wishlist's detail screen, so the label is that wishlist's title (set once the wishlist loads).
+     * In CREATE mode there is no parent entity, so this stays `null` and the view falls back to the
+     * generic back string.
+     */
+    val backLabelState = _backLabelState.asStateFlow()
+
     private val _isDirtyState = MutableRedeliverStateFlow(false)
 
     /** `true` when any field has been modified since the screen was opened. */
@@ -76,6 +86,7 @@ class WishlistEditViewModel(
                     if (wishlist != null) {
                         _titleState.value = wishlist.title
                         _defaultPriceUnitsState.value = wishlist.defaultPriceUnits
+                        _backLabelState.value = wishlist.title
                     }
                 } finally {
                     _loadingState.value = false
@@ -106,21 +117,37 @@ class WishlistEditViewModel(
     }
 
     /**
-     * Attempts to navigate back. Shows confirm dialog when [isDirtyState] is `true`,
-     * otherwise delegates to [WishlistEditViewInteractor.onNavigateBack].
+     * Attempts to navigate back. Shows confirm dialog when [isDirtyState] is `true`, otherwise
+     * navigates to the logical parent: in EDIT mode the wishlist's detail screen (via
+     * [WishlistEditViewInteractor.onNavigateBackToParent]); in CREATE mode a plain pop (via
+     * [WishlistEditViewInteractor.onNavigateBack]).
      */
     fun onBack() {
         if (_isDirtyState.value) {
             _showConfirmDialogState.value = true
         } else {
-            scope.launchLoggingDropExceptions { interactor.onNavigateBack(node) }
+            navigateBack()
         }
     }
 
-    /** Confirms discarding changes and delegates to [WishlistEditViewInteractor.onNavigateBack]. */
+    /** Confirms discarding changes and navigates to the logical parent (see [onBack]). */
     fun onConfirmBack() {
         _showConfirmDialogState.value = false
-        scope.launchLoggingDropExceptions { interactor.onNavigateBack(node) }
+        navigateBack()
+    }
+
+    /**
+     * Routes back navigation: EDIT mode replaces the current node with the wishlist detail screen,
+     * CREATE mode pops the create form off the chain.
+     */
+    private fun navigateBack() {
+        scope.launchLoggingDropExceptions {
+            if (isCreating) {
+                interactor.onNavigateBack(node)
+            } else {
+                interactor.onNavigateBackToParent(node)
+            }
+        }
     }
 
     /** Cancels the confirm dialog, returning the user to the form. */

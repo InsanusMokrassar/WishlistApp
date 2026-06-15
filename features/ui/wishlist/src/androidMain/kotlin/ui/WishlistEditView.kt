@@ -51,6 +51,7 @@ class WishlistEditView(
         super.onDraw()
         val resources = LocalResources.current
         val title by viewModel.titleState.collectAsState()
+        val backLabel by viewModel.backLabelState.collectAsState()
         val defaultPriceUnits by viewModel.defaultPriceUnitsState.collectAsState()
         val loading by viewModel.loadingState.collectAsState()
         val showDialog by viewModel.showConfirmDialogState.collectAsState()
@@ -104,7 +105,7 @@ class WishlistEditView(
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                BackButton(WishlistStrings.backButton.translation(resources)) { viewModel.onBack() }
+                BackButton(backLabel ?: WishlistStrings.backButton.translation(resources)) { viewModel.onBack() }
             }
             OutlinedTextField(
                 value = title,

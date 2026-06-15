@@ -40,6 +40,7 @@ class WishlistView(
     override fun onDraw() {
         super.onDraw()
         val wishlist by viewModel.wishlistState.collectAsState()
+        val backLabel by viewModel.backLabelState.collectAsState()
         val items by viewModel.itemsState.collectAsState()
         val sortMode by viewModel.sortModeState.collectAsState()
         val sortedItems by viewModel.sortedItemsState.collectAsState()
@@ -58,7 +59,7 @@ class WishlistView(
 
         Div({ classes("container", "py-3") }) {
             Div({ classes("d-flex", "align-items-center", "mb-3", "gap-2") }) {
-                BackButton(WishlistStrings.backButton.translation()) { viewModel.onBack() }
+                BackButton(backLabel ?: WishlistStrings.backButton.translation()) { viewModel.onBack() }
                 Div({ classes("flex-grow-1") }) {}
                 if (canCopy) {
                     Button({

@@ -49,6 +49,7 @@ class UserWishlistsView(
     override fun onDraw() {
         super.onDraw()
         val sections by viewModel.sectionsState.collectAsState()
+        val backLabel by viewModel.backLabelState.collectAsState()
         val sortMode by viewModel.sortModeState.collectAsState()
         val sortedItems by viewModel.sortedItemsState.collectAsState()
         val viewMode by viewModel.viewModeState.collectAsState()
@@ -63,7 +64,7 @@ class UserWishlistsView(
 
         Div({ classes("container", "py-3") }) {
             Div({ classes("d-flex", "align-items-center", "mb-3", "gap-2") }) {
-                BackButton(WishlistStrings.backButton.translation()) { viewModel.onBack() }
+                BackButton(backLabel ?: WishlistStrings.usersListBackLabel.translation()) { viewModel.onBack() }
                 Div({ classes("d-flex", "align-items-center", "gap-2", "ms-auto") }) {
                     CreateWishlistButton(isOwner) { viewModel.onCreateWishlist() }
                     Button({

@@ -50,6 +50,7 @@ class WishlistItemView(
     override fun onDraw() {
         super.onDraw()
         val item by viewModel.itemState.collectAsState()
+        val backLabel by viewModel.backLabelState.collectAsState()
         val loading by viewModel.loadingState.collectAsState()
         val isOwner by viewModel.isOwnerState.collectAsState()
         val canCopy by viewModel.canCopyState.collectAsState()
@@ -67,7 +68,7 @@ class WishlistItemView(
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                BackButton(WishlistStrings.backButton.translation()) { viewModel.onBack() }
+                BackButton(backLabel ?: WishlistStrings.backButton.translation()) { viewModel.onBack() }
                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                     if (canCopy) {
                         Button(onClick = { viewModel.onCopyItem() }) {

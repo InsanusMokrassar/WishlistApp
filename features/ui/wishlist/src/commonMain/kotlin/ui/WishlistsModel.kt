@@ -251,7 +251,7 @@ interface WishlistsModel {
      * Backed by per-platform local storage (browser `localStorage` on JS), so a returning user keeps
      * the presentation chosen before the refresh / reopen.
      *
-     * @return The saved [WishlistViewMode], or [WishlistViewMode.List] when nothing was ever saved.
+     * @return The saved [WishlistViewMode], or [WishlistViewMode.Grid] when nothing was ever saved.
      */
     suspend fun getSavedViewMode(): WishlistViewMode
 
