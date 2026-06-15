@@ -111,30 +111,35 @@ private fun configPath(config: ViewConfig): List<String>? = when (config) {
 }
 
 /**
- * Finds the deepest (most specific) deep-linkable screen anywhere in [holder].
+ * Finds the currently focused deep-linkable screen anywhere in [holder].
  *
- * The navigation tree is walked and every [configPath]-mappable config is considered; the one
- * yielding the longest path wins (ties resolve to the last visited). Because an edit/item screen
- * always produces a longer path than its parent view, the currently focused screen is selected even
- * when its ancestors are also present in the stack.
+ * The navigation tree is walked tracking each node's depth (every pushed `subnode` and branched
+ * `subchain` deepens the stack); the deep-linkable config sitting at the greatest depth wins, with
+ * ties resolving to the last visited (i.e. the most recently pushed screen). Ranking by depth — not
+ * by path length — is what makes a later, shallower-pathed screen (e.g. a profile `user/<id>` opened
+ * on top of a wishlists overview `user/<id>/wishlists`) correctly replace the URL.
  *
- * @return the winning screen's app path segments, or `null` when no deep-linkable screen is present.
+ * @return the focused screen's app path segments, or `null` when no deep-linkable screen is present.
  */
 private fun deepestConfigPath(holder: ConfigHolder<ViewConfig>): List<String>? {
     var best: List<String>? = null
-    fun visit(current: ConfigHolder<ViewConfig>) {
+    var bestDepth = -1
+    fun visit(current: ConfigHolder<ViewConfig>, depth: Int) {
         when (current) {
-            is ConfigHolder.Chain -> current.firstNodeConfig?.let { visit(it) }
+            is ConfigHolder.Chain -> current.firstNodeConfig?.let { visit(it, depth) }
             is ConfigHolder.Node -> {
                 configPath(current.config)?.let { path ->
-                    if (best == null || path.size > best!!.size) best = path
+                    if (depth >= bestDepth) {
+                        best = path
+                        bestDepth = depth
+                    }
                 }
-                current.subchains.forEach { visit(it) }
-                current.subnode?.let { visit(it) }
+                current.subchains.forEach { visit(it, depth + 1) }
+                current.subnode?.let { visit(it, depth + 1) }
             }
         }
     }
-    visit(holder)
+    visit(holder, 0)
     return best
 }
 
