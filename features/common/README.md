@@ -22,6 +22,7 @@ Cross-cutting infrastructure loaded by every consumer. Provides: shared domain m
 | `ViewConfig` | `common/client` | Navigation screen identifier interface; every screen config implements this |
 | `EmptyConfig` | `common/client` | Empty `@Serializable` startup config placeholder |
 | `findConfig<T, R>` | `common/client` | Extension on `ConfigHolder<T>`: DFS traversal (Chain→Node→subnode→subchains) returning first match of type `R`; defined in `utils/ConfigHolderFind.kt` |
+| `actionOrBackUntil` / `pushOrBackUntil` / `replaceLastOrBackUntil` | `common/client` | Navigation helpers in `utils/NavigationPushOrBackUpTo.kt`: back up the chain to an existing node matching `config` (default predicate `node.config == config`) when present, otherwise perform an action — push, replace the last node, or a custom action. Used for contextual Back navigation. |
 
 ## Architecture Notes
 
