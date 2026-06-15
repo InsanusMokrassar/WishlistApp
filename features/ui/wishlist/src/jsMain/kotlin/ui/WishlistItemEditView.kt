@@ -158,8 +158,10 @@ class WishlistItemEditView(
                     id("item-amount")
                     classes("form-control")
                     value(amount)
+                    attr("type", "number")
                     attr("inputmode", "numeric")
                     attr("min", "1")
+                    attr("step", "1")
                     placeholder("1")
                     onInput { viewModel.onAmountChanged(it.value) }
                     if (loading) disabled()
