@@ -19,6 +19,7 @@ import dev.inmo.navigation.core.extensions.dropNodesInSubTree
 import dev.inmo.wishlist.features.common.client.models.EmptyConfig
 import dev.inmo.wishlist.features.common.client.models.RootNodeFactoryGetter
 import dev.inmo.wishlist.features.common.client.models.ViewConfig
+import dev.inmo.wishlist.features.common.client.utils.pushOrBackUntil
 import dev.inmo.wishlist.features.ui.adminPanel.ui.AdminPanelViewConfig
 import dev.inmo.wishlist.features.ui.adminPanel.ui.AdminPanelViewInteractor
 import dev.inmo.wishlist.features.ui.adminPanel.ui.AdminUserEditViewConfig
@@ -129,7 +130,7 @@ object ClientPlugin : StartPlugin {
         single<UserViewInteractor> {
             object : UserViewInteractor {
                 override suspend fun onBack(node: NavigationNode<UserViewConfig, ViewConfig>) {
-                    node.chain.replace(node, UserWishlistsViewConfig(node.config.userId))
+                    node.chain.pushOrBackUntil(UserWishlistsViewConfig(node.config.userId))
                 }
                 override suspend fun onEditUser(node: NavigationNode<UserViewConfig, ViewConfig>) {
                     node.chain.push(UserEditViewConfig(node.config.userId))
@@ -228,7 +229,8 @@ object ClientPlugin : StartPlugin {
                 override suspend fun onBack(
                     node: NavigationNode<UserWishlistsViewConfig, ViewConfig>
                 ) {
-                    node.chain.replace(node, UsersListViewConfig())
+                    // UsersListViewConfig is not a data class, so match the existing root node by type.
+                    node.chain.pushOrBackUntil(UsersListViewConfig()) { n, _ -> n.config is UsersListViewConfig }
                 }
                 override suspend fun onOpenProfile(
                     node: NavigationNode<UserWishlistsViewConfig, ViewConfig>,
@@ -259,7 +261,7 @@ object ClientPlugin : StartPlugin {
                     if (ownerUserId == null) {
                         node.chain.pop()
                     } else {
-                        node.chain.replace(node, UserWishlistsViewConfig(ownerUserId))
+                        node.chain.pushOrBackUntil(UserWishlistsViewConfig(ownerUserId))
                     }
                 }
                 override suspend fun onEditWishlist(
@@ -295,7 +297,7 @@ object ClientPlugin : StartPlugin {
                     if (wishlistId == null) {
                         node.chain.pop()
                     } else {
-                        node.chain.replace(node, WishlistViewConfig(wishlistId))
+                        node.chain.pushOrBackUntil(WishlistViewConfig(wishlistId))
                     }
                 }
                 override suspend fun onSaved(
@@ -318,9 +320,9 @@ object ClientPlugin : StartPlugin {
                 ) {
                     val itemId = node.config.wishlistItemId
                     if (itemId == null) {
-                        node.chain.replace(node, WishlistViewConfig(node.config.wishlistId))
+                        node.chain.pushOrBackUntil(WishlistViewConfig(node.config.wishlistId))
                     } else {
-                        node.chain.replace(node, WishlistItemViewConfig(itemId, node.config.wishlistId))
+                        node.chain.pushOrBackUntil(WishlistItemViewConfig(itemId, node.config.wishlistId))
                     }
                 }
                 override suspend fun onSaved(
@@ -336,7 +338,7 @@ object ClientPlugin : StartPlugin {
                 override suspend fun onBack(
                     node: NavigationNode<WishlistItemViewConfig, ViewConfig>
                 ) {
-                    node.chain.replace(node, WishlistViewConfig(node.config.wishlistId))
+                    node.chain.pushOrBackUntil(WishlistViewConfig(node.config.wishlistId))
                 }
                 override suspend fun onEditItem(
                     node: NavigationNode<WishlistItemViewConfig, ViewConfig>
