@@ -19,7 +19,8 @@
     "dev.inmo.wishlist.features.files.server.JVMPlugin",
     "dev.inmo.wishlist.features.admin.server.JVMPlugin",
     "dev.inmo.wishlist.features.currency.server.JVMPlugin",
-    "dev.inmo.wishlist.features.booking.server.JVMPlugin"
+    "dev.inmo.wishlist.features.booking.server.JVMPlugin",
+    "dev.inmo.wishlist.features.email.server.JVMPlugin"
   ],
   "filesFolder": "/data/uploaded_files",
   "useCache": true,
@@ -27,6 +28,7 @@
   "refreshTokenTtl": "P7D",
   "enableRegistration": true,
   "openExchangeRatesAppId": null,
-  "openExchangeRatesRefreshTTLMillis": 3600000
+  "openExchangeRatesRefreshTTLMillis": 3600000,
+  "smtp": null
 }
 

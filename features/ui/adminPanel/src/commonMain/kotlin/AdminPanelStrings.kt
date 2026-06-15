@@ -56,4 +56,11 @@ object AdminPanelStrings {
     val confirmDiscardMessage = buildStringResource("Unsaved changes will be lost.") { IetfLang.Russian("Несохранённые изменения будут потеряны.") }
 
     val ownerIdLabel = buildStringResource("Owner ID") { IetfLang.Russian("ID владельца") }
+
+    // Test email
+    val testEmailSection = buildStringResource("Send test email") { IetfLang.Russian("Отправить тестовое письмо") }
+    val testEmailLabel = buildStringResource("Recipient email") { IetfLang.Russian("Email получателя") }
+    val testEmailSendButton = buildStringResource("Send") { IetfLang.Russian("Отправить") }
+    val testEmailSuccess = buildStringResource("Test email sent.") { IetfLang.Russian("Тестовое письмо отправлено.") }
+    val testEmailFailure = buildStringResource("Failed to send test email.") { IetfLang.Russian("Не удалось отправить тестовое письмо.") }
 }

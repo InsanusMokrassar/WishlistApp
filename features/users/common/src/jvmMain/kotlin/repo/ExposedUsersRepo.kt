@@ -9,6 +9,7 @@ import org.jetbrains.exposed.v1.core.statements.InsertStatement
 import org.jetbrains.exposed.v1.core.statements.UpdateBuilder
 import org.jetbrains.exposed.v1.jdbc.Database
 import org.jetbrains.exposed.v1.jdbc.transactions.transaction
+import dev.inmo.wishlist.features.email.common.models.Email
 import dev.inmo.wishlist.features.users.common.models.NewUser
 import dev.inmo.wishlist.features.users.common.models.RegisteredUser
 import dev.inmo.wishlist.features.users.common.models.UserId
@@ -19,13 +20,22 @@ class ExposedUsersRepo(
 ) : UsersRepo, AbstractExposedCRUDRepo<RegisteredUser, UserId, NewUser>(tableName = "users") {
     private val idColumn = long("id").autoIncrement()
     private val usernameColumn = text("username").uniqueIndex()
+    private val emailColumn = text("email").nullable()
 
     override val primaryKey = PrimaryKey(idColumn)
+
+    /**
+     * Maps the nullable `email` column to an [Email]. A stored value that fails revalidation (e.g. legacy
+     * malformed data) decodes to `null` rather than throwing, keeping reads resilient.
+     */
+    private val ResultRow.email: Email?
+        get() = get(emailColumn)?.let { Email.parse(it).getOrNull() }
 
     override val ResultRow.asObject: RegisteredUser
         get() = RegisteredUser(
             id = UserId(get(idColumn)),
-            username = Username(get(usernameColumn))
+            username = Username(get(usernameColumn)),
+            email = email
         )
 
     override val ResultRow.asId: UserId
@@ -35,12 +45,14 @@ class ExposedUsersRepo(
 
     override fun update(id: UserId?, value: NewUser, it: UpdateBuilder<Int>) {
         it[usernameColumn] = value.username.string
+        it[emailColumn] = value.email?.raw
     }
 
     override fun InsertStatement<Number>.asObject(value: NewUser): RegisteredUser =
         RegisteredUser(
             id = UserId(this[idColumn]),
-            username = value.username
+            username = value.username,
+            email = value.email
         )
 
     override suspend fun getUserByUsername(username: Username): RegisteredUser? =

@@ -131,4 +131,12 @@ interface AdminPanelModel {
      * @return `true` on success.
      */
     suspend fun deleteWishlistItem(id: WishlistItemId): Boolean
+
+    /**
+     * Sends a test e-mail to [to] via the server (root-only on the server side).
+     *
+     * @param to Destination address as raw text; validated as an `Email` before sending.
+     * @return `true` when the address parsed and the server reported success; `false` otherwise.
+     */
+    suspend fun sendTestEmail(to: String): Boolean
 }

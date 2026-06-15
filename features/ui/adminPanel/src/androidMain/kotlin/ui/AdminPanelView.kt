@@ -4,11 +4,15 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.Button
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalResources
 import androidx.compose.ui.unit.dp
@@ -42,6 +46,32 @@ class AdminPanelView(
                 Button(onClick = { viewModel.onOpenWishlists() }) {
                     Text(AdminPanelStrings.wishlistsSection.translation(resources))
                 }
+            }
+
+            val address by viewModel.testEmailAddressState.collectAsState()
+            val sending by viewModel.sendingTestEmailState.collectAsState()
+            val result by viewModel.testEmailResultState.collectAsState()
+            Text(
+                AdminPanelStrings.testEmailSection.translation(resources),
+                style = MaterialTheme.typography.titleMedium
+            )
+            OutlinedTextField(
+                value = address,
+                onValueChange = { viewModel.onTestEmailAddressChanged(it) },
+                label = { Text(AdminPanelStrings.testEmailLabel.translation(resources)) },
+                singleLine = true,
+                modifier = Modifier.fillMaxWidth()
+            )
+            Button(
+                onClick = { viewModel.onSendTestEmail() },
+                enabled = !sending && address.isNotBlank()
+            ) {
+                Text(AdminPanelStrings.testEmailSendButton.translation(resources))
+            }
+            when (result) {
+                true -> Text(AdminPanelStrings.testEmailSuccess.translation(resources))
+                false -> Text(AdminPanelStrings.testEmailFailure.translation(resources))
+                null -> Unit
             }
         }
     }

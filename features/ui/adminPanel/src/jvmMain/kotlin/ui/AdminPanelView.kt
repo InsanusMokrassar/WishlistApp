@@ -4,11 +4,15 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material.Button
 import androidx.compose.material.MaterialTheme
+import androidx.compose.material.OutlinedTextField
 import androidx.compose.material.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import dev.inmo.micro_utils.strings.translation
@@ -40,6 +44,29 @@ class AdminPanelView(
                 Button(onClick = { viewModel.onOpenWishlists() }) {
                     Text(AdminPanelStrings.wishlistsSection.translation())
                 }
+            }
+
+            val address by viewModel.testEmailAddressState.collectAsState()
+            val sending by viewModel.sendingTestEmailState.collectAsState()
+            val result by viewModel.testEmailResultState.collectAsState()
+            Text(AdminPanelStrings.testEmailSection.translation(), style = MaterialTheme.typography.h6)
+            OutlinedTextField(
+                value = address,
+                onValueChange = { viewModel.onTestEmailAddressChanged(it) },
+                label = { Text(AdminPanelStrings.testEmailLabel.translation()) },
+                singleLine = true,
+                modifier = Modifier.fillMaxWidth()
+            )
+            Button(
+                onClick = { viewModel.onSendTestEmail() },
+                enabled = !sending && address.isNotBlank()
+            ) {
+                Text(AdminPanelStrings.testEmailSendButton.translation())
+            }
+            when (result) {
+                true -> Text(AdminPanelStrings.testEmailSuccess.translation())
+                false -> Text(AdminPanelStrings.testEmailFailure.translation())
+                null -> Unit
             }
         }
     }
