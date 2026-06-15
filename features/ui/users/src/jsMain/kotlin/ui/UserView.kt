@@ -34,13 +34,14 @@ class UserView(
     override fun onDraw() {
         super.onDraw()
         val user by viewModel.userState.collectAsState()
+        val backLabel by viewModel.backLabelState.collectAsState()
         val avatarId by viewModel.avatarIdState.collectAsState()
         val canEdit by viewModel.canEditState.collectAsState()
         val loading by viewModel.loadingState.collectAsState()
 
         Div({ classes("container", "py-3") }) {
             Div({ classes("d-flex", "align-items-center", "mb-3", "gap-2") }) {
-                BackButton(UsersListStrings.backButton.translation()) { viewModel.onBack() }
+                BackButton(backLabel ?: UsersListStrings.backButton.translation()) { viewModel.onBack() }
                 if (canEdit) {
                     Button({
                         classes("btn", "btn-outline-primary", "ms-auto")

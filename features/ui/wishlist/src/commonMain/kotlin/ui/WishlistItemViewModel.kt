@@ -18,6 +18,7 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.flowOf
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.merge
 import kotlinx.coroutines.flow.stateIn
 
@@ -50,6 +51,15 @@ class WishlistItemViewModel(
     val itemState = _itemState.asStateFlow()
 
     private val _parentWishlistState = MutableRedeliverStateFlow<RegisteredWishlist?>(null)
+
+    /**
+     * Label for the contextual Back button: the parent wishlist's title. Back replaces this screen
+     * with that wishlist, so the button names the destination. `null` until the parent wishlist
+     * resolves — the view then falls back to the generic back string. Derived from the already-loaded
+     * [_parentWishlistState], so it adds no extra round-trip.
+     */
+    val backLabelState: StateFlow<String?> =
+        _parentWishlistState.map { it?.title }.stateIn(scope, SharingStarted.Eagerly, null)
 
     /**
      * `true` when the authenticated caller is the parent wishlist owner. Controls visibility of the

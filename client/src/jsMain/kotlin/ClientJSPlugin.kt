@@ -23,6 +23,7 @@ object ClientJSPlugin : StartPlugin {
 
         single<NavigationConfigsRepo<ViewConfig>> {
             WishlistsAppUrlNavigationConfigsRepo()
+//            NavigationConfigsRepo.InMemory()
         }
     }
 

@@ -55,6 +55,7 @@ class WishlistItemView(
         super.onDraw()
         val resources = LocalResources.current
         val item by viewModel.itemState.collectAsState()
+        val backLabel by viewModel.backLabelState.collectAsState()
         val loading by viewModel.loadingState.collectAsState()
         val isOwner by viewModel.isOwnerState.collectAsState()
         val canCopy by viewModel.canCopyState.collectAsState()
@@ -72,7 +73,7 @@ class WishlistItemView(
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                BackButton(WishlistStrings.backButton.translation(resources)) { viewModel.onBack() }
+                BackButton(backLabel ?: WishlistStrings.backButton.translation(resources)) { viewModel.onBack() }
                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                     if (canCopy) {
                         Button(onClick = { viewModel.onCopyItem() }) {

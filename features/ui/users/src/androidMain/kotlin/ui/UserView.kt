@@ -47,6 +47,7 @@ class UserView(
         super.onDraw()
         val resources = LocalResources.current
         val user by viewModel.userState.collectAsState()
+        val backLabel by viewModel.backLabelState.collectAsState()
         val avatarId by viewModel.avatarIdState.collectAsState()
         val canEdit by viewModel.canEditState.collectAsState()
         val loading by viewModel.loadingState.collectAsState()
@@ -57,7 +58,7 @@ class UserView(
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                BackButton(UsersListStrings.backButton.translation(resources)) { viewModel.onBack() }
+                BackButton(backLabel ?: UsersListStrings.backButton.translation(resources)) { viewModel.onBack() }
                 if (canEdit) {
                     Button(onClick = { viewModel.onEditUser() }) {
                         Text(UsersListStrings.editButton.translation(resources))

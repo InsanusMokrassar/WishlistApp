@@ -46,6 +46,7 @@ class WishlistEditView(
     override fun onDraw() {
         super.onDraw()
         val title by viewModel.titleState.collectAsState()
+        val backLabel by viewModel.backLabelState.collectAsState()
         val defaultPriceUnits by viewModel.defaultPriceUnitsState.collectAsState()
         val loading by viewModel.loadingState.collectAsState()
         val showDialog by viewModel.showConfirmDialogState.collectAsState()
@@ -99,7 +100,7 @@ class WishlistEditView(
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                BackButton(WishlistStrings.backButton.translation()) { viewModel.onBack() }
+                BackButton(backLabel ?: WishlistStrings.backButton.translation()) { viewModel.onBack() }
             }
             OutlinedTextField(
                 value = title,
