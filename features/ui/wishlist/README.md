@@ -170,3 +170,8 @@ JS views use Bootstrap CSS classes via Compose HTML. JVM uses Material v2, Andro
     - `WishlistItemEditView` (discard modal kept): EDIT → `replaceLastOrBackUntil(WishlistItemViewConfig(itemId, wishlistId))` (label = item title); CREATE → `replaceLastOrBackUntil(WishlistViewConfig(wishlistId))` (label = wishlist title). Routed via new `WishlistItemEditViewInteractor.onNavigateBackToParent` (handles both modes from `node.config`).
   - The edit screens' `onSaved`/`onConfirmDelete` paths still pop (`onNavigateBack`) — only the user-facing Back/discard path was rerouted.
   - New `WishlistStrings` key: `usersListBackLabel` (EN "Users" / RU "Пользователи").
+- **Numeric amount input (issue #50):**
+  - The item-edit amount field is now a native numeric input on every platform (rejection of non-numeric input already enforced in `WishlistItemEditViewModel.onAmountChanged` via `toUIntOrNull` + clamp `>= 1`, which is unchanged).
+  - JS (`jsMain/ui/WishlistItemEditView.kt`): the Bootstrap `form-control` `Input(InputType.Text)` now also carries `attr("type","number")` (rendering an `<input type=number>` with spinner / numeric soft-keyboard) plus `inputmode=numeric`, `min=1`, `step=1`; the `InputType.Text` scope is kept so the field stays bound to the `String` `amountState` (compose-web `InputType.Number` would force a `Number` value binding and break the String MVVM contract).
+  - JVM (`jvmMain`) and Android (`androidMain`) `OutlinedTextField`s gained `keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number)` so the device shows a numeric keypad.
+  - No ViewModel/Model/common-logic change; `amountState` stays `StateFlow<String>`.
