@@ -69,15 +69,21 @@ class UserView(
             if (loading) {
                 CircularProgressIndicator()
             } else {
-                avatarId?.let { id ->
+                val id = avatarId
+                if (id != null) {
                     RemoteImage(
                         key = id.string,
                         loader = { viewModel.loadImageBytes(id) },
                         contentDescription = UsersListStrings.avatarLabel.translation(resources),
                         modifier = Modifier.size(160.dp)
                     )
-                    Spacer(modifier = Modifier.height(12.dp))
+                } else {
+                    UserAvatarPlaceholder(
+                        modifier = Modifier.size(160.dp),
+                        contentDescription = UsersListStrings.avatarPlaceholderAlt.translation(resources)
+                    )
                 }
+                Spacer(modifier = Modifier.height(12.dp))
                 Text(
                     user?.username?.string ?: "#${config.userId.long}",
                     style = MaterialTheme.typography.titleLarge

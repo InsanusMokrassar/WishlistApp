@@ -1,8 +1,10 @@
 package dev.inmo.wishlist.features.ui.wishlist.ui
 
 import androidx.compose.runtime.Composable
+import dev.inmo.micro_utils.strings.translation
 import dev.inmo.wishlist.features.currency.common.utils.formatItemPriceWithAmount
 import dev.inmo.wishlist.features.files.common.models.FileId
+import dev.inmo.wishlist.features.ui.wishlist.WishlistStrings
 import dev.inmo.wishlist.features.wishlist.common.models.RegisteredWishlistItem
 import org.jetbrains.compose.web.css.Style
 import org.jetbrains.compose.web.css.StyleSheet
@@ -71,6 +73,12 @@ fun WishlistItemCard(
         val firstImage = item.imageIds.firstOrNull()
         if (firstImage != null) {
             Img(src = imageUrl(firstImage), alt = "") {
+                classes("card-img-top", WishlistItemCardStylesheet.media)
+            }
+        } else {
+            WishlistItemImagePlaceholder(
+                alt = WishlistStrings.itemImagePlaceholderAlt.translation()
+            ) {
                 classes("card-img-top", WishlistItemCardStylesheet.media)
             }
         }

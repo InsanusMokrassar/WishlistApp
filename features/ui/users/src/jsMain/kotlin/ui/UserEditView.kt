@@ -92,14 +92,21 @@ class UserEditView(
             // Avatar section — available to owner and root.
             Div({ classes("mb-3") }) {
                 Label(null) { Text(UsersListStrings.avatarLabel.translation()) }
-                avatarId?.let { id ->
-                    Div({ classes("mb-2") }) {
+                Div({ classes("mb-2") }) {
+                    val id = avatarId
+                    if (id != null) {
                         Img(src = viewModel.imageUrl(id), alt = UsersListStrings.avatarLabel.translation()) {
                             classes("rounded", "border", "d-block")
                             attr("width", "160")
                             attr("height", "160")
                             attr("style", "object-fit: cover;")
                         }
+                    } else {
+                        UserAvatarPlaceholder(
+                            sizePx = 160,
+                            circle = false,
+                            alt = UsersListStrings.avatarPlaceholderAlt.translation()
+                        )
                     }
                 }
                 Button({

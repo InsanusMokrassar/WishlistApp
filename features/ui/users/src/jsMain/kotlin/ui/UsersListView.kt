@@ -71,13 +71,11 @@ class UsersListView(
                                         }
                                     }
                                 } else {
-                                    Div({
-                                        classes("rounded-circle", "bg-secondary-subtle", "flex-shrink-0")
-                                        style {
-                                            width(48.px)
-                                            height(48.px)
-                                        }
-                                    })
+                                    UserAvatarPlaceholder(
+                                        sizePx = 48,
+                                        circle = true,
+                                        alt = UsersListStrings.avatarPlaceholderAlt.translation()
+                                    )
                                 }
                             }
                         ) {

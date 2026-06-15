@@ -53,14 +53,21 @@ class UserView(
             if (loading) {
                 P { Text(UsersListStrings.loading.translation()) }
             } else {
-                avatarId?.let { id ->
-                    Div({ classes("mb-3") }) {
+                Div({ classes("mb-3") }) {
+                    val id = avatarId
+                    if (id != null) {
                         Img(src = viewModel.imageUrl(id), alt = UsersListStrings.avatarLabel.translation()) {
                             classes("rounded", "border")
                             attr("width", "160")
                             attr("height", "160")
                             attr("style", "object-fit: cover;")
                         }
+                    } else {
+                        UserAvatarPlaceholder(
+                            sizePx = 160,
+                            circle = false,
+                            alt = UsersListStrings.avatarPlaceholderAlt.translation()
+                        )
                     }
                 }
                 Div({ classes("mb-2") }) {

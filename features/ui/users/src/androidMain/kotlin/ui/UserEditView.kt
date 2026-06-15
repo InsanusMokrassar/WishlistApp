@@ -120,12 +120,18 @@ class UserEditView(
             )
 
             Text(UsersListStrings.avatarLabel.translation(resources), style = MaterialTheme.typography.titleSmall)
-            avatarId?.let { id ->
+            val avatarFileId = avatarId
+            if (avatarFileId != null) {
                 RemoteImage(
-                    key = id.string,
-                    loader = { viewModel.loadImageBytes(id) },
+                    key = avatarFileId.string,
+                    loader = { viewModel.loadImageBytes(avatarFileId) },
                     contentDescription = UsersListStrings.avatarLabel.translation(resources),
                     modifier = Modifier.size(160.dp)
+                )
+            } else {
+                UserAvatarPlaceholder(
+                    modifier = Modifier.size(160.dp),
+                    contentDescription = UsersListStrings.avatarPlaceholderAlt.translation(resources)
                 )
             }
             OutlinedButton(

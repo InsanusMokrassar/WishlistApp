@@ -1,6 +1,5 @@
 package dev.inmo.wishlist.features.ui.wishlist.ui
 
-import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -237,11 +236,7 @@ class UserWishlistsView(
                         modifier = avatarModifier
                     )
                 } else {
-                    Box(
-                        modifier = avatarModifier.background(
-                            MaterialTheme.colorScheme.surfaceVariant
-                        )
-                    )
+                    WishlistItemImagePlaceholder(modifier = avatarModifier)
                 }
             }
         ) {

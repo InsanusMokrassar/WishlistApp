@@ -52,6 +52,10 @@ fun WishlistItemCard(
                         contentDescription = null,
                         modifier = Modifier.fillMaxWidth().height(160.dp)
                     )
+                } else {
+                    WishlistItemImagePlaceholder(
+                        modifier = Modifier.fillMaxWidth().height(160.dp)
+                    )
                 }
                 Column(modifier = Modifier.fillMaxWidth().padding(12.dp)) {
                     Text(item.title, style = MaterialTheme.typography.titleMedium)

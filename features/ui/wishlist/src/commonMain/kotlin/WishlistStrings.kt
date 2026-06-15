@@ -102,6 +102,16 @@ object WishlistStrings {
     val copyFailed = buildStringResource("Copy failed. Please try again.") {
         IetfLang.Russian("Не удалось скопировать. Попробуйте ещё раз.")
     }
+
+    /** Accessibility text for the default gift-box placeholder shown when an item has no image. */
+    val itemImagePlaceholderAlt = buildStringResource("Gift placeholder") {
+        IetfLang.Russian("Заполнитель подарка")
+    }
+
+    /** Accessibility text for the default stacked-items placeholder shown for a wishlist. */
+    val wishlistImagePlaceholderAlt = buildStringResource("Wishlist placeholder") {
+        IetfLang.Russian("Заполнитель списка желаний")
+    }
 }
 
 /**

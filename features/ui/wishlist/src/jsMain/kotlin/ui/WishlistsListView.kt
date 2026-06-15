@@ -11,6 +11,9 @@ import dev.inmo.wishlist.features.common.client.ui.components.BackButton
 import dev.inmo.wishlist.features.common.client.ui.components.ListRow
 import dev.inmo.wishlist.features.ui.topBar.ui.TopBarTitleProvider
 import dev.inmo.wishlist.features.ui.wishlist.WishlistStrings
+import org.jetbrains.compose.web.css.height
+import org.jetbrains.compose.web.css.px
+import org.jetbrains.compose.web.css.width
 import org.jetbrains.compose.web.dom.Button
 import org.jetbrains.compose.web.dom.Div
 import org.jetbrains.compose.web.dom.P
@@ -81,7 +84,18 @@ class WishlistsListView(
                     wishlists.forEach { wishlist ->
                         ListRow(
                             text = wishlist.title,
-                            onSelect = { viewModel.onWishlistSelected(wishlist.id) }
+                            onSelect = { viewModel.onWishlistSelected(wishlist.id) },
+                            leading = {
+                                WishlistImagePlaceholder(
+                                    alt = WishlistStrings.wishlistImagePlaceholderAlt.translation()
+                                ) {
+                                    classes("rounded", "flex-shrink-0")
+                                    style {
+                                        width(48.px)
+                                        height(48.px)
+                                    }
+                                }
+                            }
                         )
                     }
                 }
