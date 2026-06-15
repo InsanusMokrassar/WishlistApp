@@ -19,7 +19,7 @@ import dev.inmo.navigation.core.extensions.dropNodesInSubTree
 import dev.inmo.wishlist.features.common.client.models.EmptyConfig
 import dev.inmo.wishlist.features.common.client.models.RootNodeFactoryGetter
 import dev.inmo.wishlist.features.common.client.models.ViewConfig
-import dev.inmo.wishlist.features.common.client.utils.pushOrBackUntil
+import dev.inmo.wishlist.features.common.client.utils.replaceLastOrBackUntil
 import dev.inmo.wishlist.features.ui.adminPanel.ui.AdminPanelViewConfig
 import dev.inmo.wishlist.features.ui.adminPanel.ui.AdminPanelViewInteractor
 import dev.inmo.wishlist.features.ui.adminPanel.ui.AdminUserEditViewConfig
@@ -130,7 +130,7 @@ object ClientPlugin : StartPlugin {
         single<UserViewInteractor> {
             object : UserViewInteractor {
                 override suspend fun onBack(node: NavigationNode<UserViewConfig, ViewConfig>) {
-                    node.chain.pushOrBackUntil(UserWishlistsViewConfig(node.config.userId))
+                    node.chain.replaceLastOrBackUntil(UserWishlistsViewConfig(node.config.userId))
                 }
                 override suspend fun onEditUser(node: NavigationNode<UserViewConfig, ViewConfig>) {
                     node.chain.push(UserEditViewConfig(node.config.userId))
@@ -230,7 +230,7 @@ object ClientPlugin : StartPlugin {
                     node: NavigationNode<UserWishlistsViewConfig, ViewConfig>
                 ) {
                     // UsersListViewConfig is not a data class, so match the existing root node by type.
-                    node.chain.pushOrBackUntil(UsersListViewConfig()) { n, _ -> n.config is UsersListViewConfig }
+                    node.chain.replaceLastOrBackUntil(UsersListViewConfig()) { n, _ -> n.config is UsersListViewConfig }
                 }
                 override suspend fun onOpenProfile(
                     node: NavigationNode<UserWishlistsViewConfig, ViewConfig>,
@@ -261,7 +261,7 @@ object ClientPlugin : StartPlugin {
                     if (ownerUserId == null) {
                         node.chain.pop()
                     } else {
-                        node.chain.pushOrBackUntil(UserWishlistsViewConfig(ownerUserId))
+                        node.chain.replaceLastOrBackUntil(UserWishlistsViewConfig(ownerUserId))
                     }
                 }
                 override suspend fun onEditWishlist(
@@ -297,7 +297,7 @@ object ClientPlugin : StartPlugin {
                     if (wishlistId == null) {
                         node.chain.pop()
                     } else {
-                        node.chain.pushOrBackUntil(WishlistViewConfig(wishlistId))
+                        node.chain.replaceLastOrBackUntil(WishlistViewConfig(wishlistId))
                     }
                 }
                 override suspend fun onSaved(
@@ -320,9 +320,9 @@ object ClientPlugin : StartPlugin {
                 ) {
                     val itemId = node.config.wishlistItemId
                     if (itemId == null) {
-                        node.chain.pushOrBackUntil(WishlistViewConfig(node.config.wishlistId))
+                        node.chain.replaceLastOrBackUntil(WishlistViewConfig(node.config.wishlistId))
                     } else {
-                        node.chain.pushOrBackUntil(WishlistItemViewConfig(itemId, node.config.wishlistId))
+                        node.chain.replaceLastOrBackUntil(WishlistItemViewConfig(itemId, node.config.wishlistId))
                     }
                 }
                 override suspend fun onSaved(
@@ -338,7 +338,7 @@ object ClientPlugin : StartPlugin {
                 override suspend fun onBack(
                     node: NavigationNode<WishlistItemViewConfig, ViewConfig>
                 ) {
-                    node.chain.pushOrBackUntil(WishlistViewConfig(node.config.wishlistId))
+                    node.chain.replaceLastOrBackUntil(WishlistViewConfig(node.config.wishlistId))
                 }
                 override suspend fun onEditItem(
                     node: NavigationNode<WishlistItemViewConfig, ViewConfig>
