@@ -109,7 +109,7 @@ object Plugin : StartPlugin {
             val scope = get<CoroutineScope>()
             object : WishlistsModel {
                 override suspend fun getSavedViewMode(): WishlistViewMode =
-                    viewModeStorage.getViewMode() ?: WishlistViewMode.List
+                    viewModeStorage.getViewMode() ?: WishlistViewMode.Grid
 
                 override suspend fun saveViewMode(mode: WishlistViewMode) =
                     viewModeStorage.saveViewMode(mode)
