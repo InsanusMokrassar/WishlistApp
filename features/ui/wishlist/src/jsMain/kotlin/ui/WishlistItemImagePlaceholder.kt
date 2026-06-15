@@ -30,8 +30,18 @@ private val giftBoxDataUri: String = "data:image/svg+xml;charset=UTF-8,$giftBoxS
  * @param alt Already-translated accessibility text for the image.
  * @param attrs Extra attribute builder applied to the `<img>` (classes, sizing). Lets callers reuse
  * the same placeholder both as fixed-size leading thumbnails and as full-width card media.
+ *
+ * Defaults to `object-fit: contain` plus the gift's neutral background so the whole gift icon stays
+ * visible (never cropped or stretched) whatever the container's aspect ratio is; the background fills
+ * any letterbox area. Callers may override via [attrs] (applied last).
  */
 @Composable
 fun WishlistItemImagePlaceholder(alt: String, attrs: AttrBuilderContext<HTMLImageElement> = {}) {
-    Img(src = giftBoxDataUri, alt = alt, attrs = attrs)
+    Img(src = giftBoxDataUri, alt = alt) {
+        style {
+            property("object-fit", "contain")
+            property("background-color", "#eef1f4")
+        }
+        attrs()
+    }
 }

@@ -59,15 +59,11 @@ fun WishlistItemImagePlaceholder(modifier: Modifier = Modifier, contentDescripti
             topLeft = Offset(w * 0.46f, h * 0.36f),
             size = Size(w * 0.08f, h * 0.46f)
         )
-        // Bow (two triangular loops meeting at the ribbon top).
+        // Bow (two rounded loops meeting at the ribbon top), mirroring the JS bezier shape.
         val bow = Path().apply {
             moveTo(w * 0.50f, h * 0.36f)
-            lineTo(w * 0.30f, h * 0.24f)
-            lineTo(w * 0.46f, h * 0.36f)
-            close()
-            moveTo(w * 0.50f, h * 0.36f)
-            lineTo(w * 0.70f, h * 0.24f)
-            lineTo(w * 0.54f, h * 0.36f)
+            cubicTo(w * 0.40f, h * 0.24f, w * 0.26f, h * 0.30f, w * 0.50f, h * 0.36f)
+            cubicTo(w * 0.74f, h * 0.30f, w * 0.60f, h * 0.24f, w * 0.50f, h * 0.36f)
             close()
         }
         drawPath(path = bow, color = GiftBoxRibbon)

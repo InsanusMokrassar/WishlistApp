@@ -77,7 +77,7 @@ JS views use Bootstrap CSS classes via Compose HTML. JVM uses Material v2, Andro
     has no image (`imageIds` empty): `WishlistItemCard` media area (replaces the previously-omitted
     media; full width × 160dp/180px), `UserWishlistsView` item-row 48dp leading (replaces the neutral
     box), and `WishlistItemView` detail "Images" section (replaces the bare `noImages` text with a
-    160dp placeholder). JS signature `(alt, attrs)`; JVM/Android `(modifier, contentDescription)`.
+    160dp placeholder). JS signature `(alt, attrs)`; JVM/Android `(modifier, contentDescription)`. On JVM/Android, the bow is drawn with rounded Compose `Path.cubicTo` bezier loops (mirroring the JS SVG bezier) instead of sharp triangles, so the bow has no sharp corners. On JS, the `<img>` defaults to `object-fit: contain` plus the gift's neutral background `#eef1f4`, so the whole gift icon always fits (never cropped or stretched) regardless of the container's aspect ratio; callers may override via `attrs`.
   - **Wishlist stacked-items placeholder** `WishlistImagePlaceholder`
     (`ui/WishlistImagePlaceholder.kt`, all 3 platforms): three small item cards stacked behind each
     other, each offset by +x/+y (rearmost faintest). Wishlists have NO image field
