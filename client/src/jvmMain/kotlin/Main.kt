@@ -20,6 +20,7 @@ suspend fun main() {
                 dev.inmo.wishlist.features.admin.client.JVMPlugin,
                 dev.inmo.wishlist.features.currency.client.JVMPlugin,
                 dev.inmo.wishlist.features.booking.client.JVMPlugin,
+                dev.inmo.wishlist.features.deeplinks.client.JVMPlugin,
 
                 dev.inmo.wishlist.features.ui.sample.JVMPlugin,
                 dev.inmo.wishlist.features.ui.auth.JVMPlugin,
