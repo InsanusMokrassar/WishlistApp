@@ -176,11 +176,11 @@ class WishlistViewModel(
     /** Shared selected conversion target; `null` means original prices. */
     val selectedCurrencyState: StateFlow<CurrencyCode?> = model.selectedCurrency
 
-    private val _viewModeState = MutableRedeliverStateFlow(WishlistViewMode.List)
+    private val _viewModeState = MutableRedeliverStateFlow(WishlistViewMode.Grid)
 
     /**
      * Currently selected presentation of the items: [WishlistViewMode.List] (rows) or
-     * [WishlistViewMode.Grid] (cards). Defaults to [WishlistViewMode.List].
+     * [WishlistViewMode.Grid] (cards). Defaults to [WishlistViewMode.Grid].
      */
     val viewModeState = _viewModeState.asStateFlow()
 

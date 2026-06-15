@@ -234,11 +234,11 @@ class UserWishlistsViewModel(
     val isOwnerState: StateFlow<Boolean> =
         model.isOwnerFlow(node.config.userId).stateIn(scope, SharingStarted.Eagerly, false)
 
-    private val _viewModeState = MutableRedeliverStateFlow(WishlistViewMode.List)
+    private val _viewModeState = MutableRedeliverStateFlow(WishlistViewMode.Grid)
 
     /**
      * Currently selected presentation of the items: [WishlistViewMode.List] (rows) or
-     * [WishlistViewMode.Grid] (cards). Defaults to [WishlistViewMode.List].
+     * [WishlistViewMode.Grid] (cards). Defaults to [WishlistViewMode.Grid].
      */
     val viewModeState = _viewModeState.asStateFlow()
 
