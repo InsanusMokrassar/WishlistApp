@@ -173,7 +173,7 @@ object JVMPlugin : StartPlugin {
             }
             ApplicationRoutingConfigurator.Element {
                 get("/") {
-                    call.respondRedirect("/$defaultWebClientSubPath")
+                    call.respondRedirect(url = "/$defaultWebClientSubPath", permanent = true)
                 }
                 config.staticFolders.forEach { (path, folderPath) ->
                     val file = File(folderPath)
