@@ -16,9 +16,12 @@ import dev.inmo.navigation.core.NavigationNodeFactory
 import dev.inmo.navigation.core.NavigationNodeState
 import dev.inmo.navigation.core.extensions.changesInSubtreeFlow
 import dev.inmo.navigation.core.extensions.dropNodesInSubTree
+import dev.inmo.navigation.core.extensions.findInSubTree
 import dev.inmo.wishlist.features.common.client.models.EmptyConfig
+import dev.inmo.wishlist.features.common.client.models.MainNavigationChainId
 import dev.inmo.wishlist.features.common.client.models.RootNodeFactoryGetter
 import dev.inmo.wishlist.features.common.client.models.ViewConfig
+import dev.inmo.wishlist.features.common.client.utils.pushOrBackUntil
 import dev.inmo.wishlist.features.common.client.utils.replaceLastOrBackUntil
 import dev.inmo.wishlist.features.ui.adminPanel.ui.AdminPanelViewConfig
 import dev.inmo.wishlist.features.ui.adminPanel.ui.AdminPanelViewInteractor
@@ -42,6 +45,8 @@ import dev.inmo.wishlist.features.ui.booking.ui.MyPresentsBooksViewConfig
 import dev.inmo.wishlist.features.ui.booking.ui.MyPresentsBooksViewInteractor
 import dev.inmo.wishlist.features.ui.scaffold.ui.ScaffoldViewConfig
 import dev.inmo.wishlist.features.ui.serverUrl.ui.ServerUrlViewConfig
+import dev.inmo.wishlist.features.ui.sidebar.ui.SidebarViewConfig
+import dev.inmo.wishlist.features.ui.sidebar.ui.SidebarViewInteractor
 import dev.inmo.wishlist.features.ui.serverUrl.ui.ServerUrlViewInteractor
 import dev.inmo.wishlist.features.ui.topBar.ui.TopBarViewConfig
 import dev.inmo.wishlist.features.ui.topBar.ui.TopBarViewInteractor
@@ -86,12 +91,24 @@ object ClientPlugin : StartPlugin {
     /** Compose drawing block sink the platform shells observe to render the app. */
     val currentDrawingBlock = MutableRedeliverStateFlow<@Composable () -> Unit>({})
 
-    /** Pre-built scaffold layout config used as the application's main screen. */
-    val mainScaffoldConfig: ScaffoldViewConfig
-        get() = ScaffoldViewConfig(
+    /**
+     * Builds the scaffold layout used as the application's main screen.
+     *
+     * Overridable so a platform shell can customize the chrome without forking the bootstrap: the
+     * web client ([dev.inmo.wishlist.client.ClientJSPlugin]) replaces this to add the Calm Studio
+     * left sidebar and land on "My Lists". The default (no left slot, users list as content) is what
+     * the Desktop and Android shells keep.
+     */
+    var mainScaffoldConfigProvider: () -> ScaffoldViewConfig = {
+        ScaffoldViewConfig(
             topConfig = TopBarViewConfig(),
             mainConfig = UsersListViewConfig()
         )
+    }
+
+    /** Pre-built scaffold layout config used as the application's main screen. */
+    val mainScaffoldConfig: ScaffoldViewConfig
+        get() = mainScaffoldConfigProvider()
 
     override fun Module.setupDI(config: JsonObject) {
         single<RootNodeFactoryGetter> {
@@ -159,6 +176,59 @@ object ClientPlugin : StartPlugin {
                     node: NavigationNode<TopBarViewConfig, ViewConfig>
                 ) {
                     rootChain.push(ServerUrlViewConfig())
+                }
+            }
+        }
+
+        single<SidebarViewInteractor> {
+            val rootChain = get<NavigationChain<ViewConfig>>()
+            object : SidebarViewInteractor {
+                private fun mainChain(): NavigationChain<ViewConfig>? =
+                    rootChain.findInSubTree(MainNavigationChainId)
+
+                private suspend fun navigateSection(
+                    target: ViewConfig,
+                    isSection: (ViewConfig) -> Boolean
+                ) {
+                    val mainChain = mainChain() ?: return
+                    mainChain.pushOrBackUntil(target) { node, _ -> isSection(node.config) }
+                }
+
+                override suspend fun onSelectMyLists(node: NavigationNode<SidebarViewConfig, ViewConfig>) {
+                    navigateSection(WishlistsListViewConfig()) { it is WishlistsListViewConfig && it.userId == null }
+                }
+
+                override suspend fun onSelectDiscover(node: NavigationNode<SidebarViewConfig, ViewConfig>) {
+                    navigateSection(UsersListViewConfig()) { it is UsersListViewConfig }
+                }
+
+                override suspend fun onSelectReserved(node: NavigationNode<SidebarViewConfig, ViewConfig>) {
+                    navigateSection(MyPresentsBooksViewConfig()) { it is MyPresentsBooksViewConfig }
+                }
+
+                override suspend fun onSelectSettings(
+                    node: NavigationNode<SidebarViewConfig, ViewConfig>,
+                    userId: UserId
+                ) {
+                    navigateSection(UserEditViewConfig(userId)) { it is UserEditViewConfig }
+                }
+
+                override suspend fun onSelectWishlist(
+                    node: NavigationNode<SidebarViewConfig, ViewConfig>,
+                    wishlistId: WishlistId
+                ) {
+                    mainChain()?.push(WishlistViewConfig(wishlistId))
+                }
+
+                override suspend fun onCreateList(node: NavigationNode<SidebarViewConfig, ViewConfig>) {
+                    mainChain()?.push(WishlistEditViewConfig(null))
+                }
+
+                override suspend fun onOpenProfile(
+                    node: NavigationNode<SidebarViewConfig, ViewConfig>,
+                    userId: UserId
+                ) {
+                    mainChain()?.push(UserViewConfig(userId))
                 }
             }
         }

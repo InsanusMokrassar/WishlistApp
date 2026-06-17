@@ -45,6 +45,14 @@ class TopBarViewModel(
      */
     val titleProviders = _titleProviders.asStateFlow()
 
+    private val _searchQueryState = MutableRedeliverStateFlow("")
+
+    /**
+     * Current text of the global search field (people / lists / items). Held here so the field
+     * keeps its value across recompositions; result navigation is wired in a later redesign phase.
+     */
+    val searchQueryState = _searchQueryState.asStateFlow()
+
     init {
         merge(flowOf(Unit), rootChain.changesInSubTreeFlow().map { }).subscribeLoggingDropExceptions(scope) {
             val mainChain = rootChain.findInSubTree(MainNavigationChainId)
@@ -54,6 +62,15 @@ class TopBarViewModel(
                 ?.filterIsInstance<TopBarTitleProvider>()
                 ?: emptyList()
         }
+    }
+
+    /**
+     * Updates the global search query as the user types.
+     *
+     * @param query New search text.
+     */
+    fun onSearchQueryChanged(query: String) {
+        _searchQueryState.value = query
     }
 
     /** Forwards "change server URL" to [TopBarViewInteractor.onChangeServerUrl]. */

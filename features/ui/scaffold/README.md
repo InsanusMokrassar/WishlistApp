@@ -32,8 +32,11 @@ None — client-only UI feature, no server routes.
   dispatches to the correct concrete serializer via the runtime `SerializersModule`.
 - The feature has no `ViewInteractor` — navigation inside each slot is fully owned by
   whatever feature config is passed as `topConfig` / `leftConfig` / `mainConfig`.
-- JS platform defines `ScaffoldViewStylesheet : StyleSheet` for the flex-based CSS layout;
-  JVM and Android use `Column`/`Row`/`Box` with `Modifier.weight`.
+- JS platform renders the Calm Studio shell: a full-height left sidebar next to a `.main` column
+  that stacks the top bar over a scrolling `.content` area. The layout classes (`app`, `main`,
+  `content`) live in the global shell CSS (`client/.../css/calm-studio.css`), and each slot view
+  owns its own block class (sidebar → `.sidebar`, top bar → `.topbar`); the former
+  `ScaffoldViewStylesheet` is removed. JVM and Android use `Column`/`Row`/`Box` with `Modifier.weight`.
 - **Stable slot chain ids (all platforms):** every slot's chain is created with a stable
   `NavigationChainId` — `TopNavigationChainId` / `LeftNavigationChainId` / `MainNavigationChainId` —
   so chains are addressable by slot (the top bar finds the main chain by id; a restored hierarchy can

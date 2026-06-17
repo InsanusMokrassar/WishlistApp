@@ -131,6 +131,15 @@ a { color: inherit; }
 .content { flex: 1; overflow-y: auto; padding: 26px 28px 60px; }
 .content-inner { max-width: var(--cs-content-max); margin: 0 auto; }
 
+/* slim breadcrumb strip rendered under the top bar (content depth) */
+.crumbbar { padding: 14px 28px 0; }
+.crumbbar .crumb { margin-bottom: 0; }
+
+/* keep the embedded auth widget legible on the light top bar until it is restyled
+   in a later phase (Bootstrap's btn-outline-light is white-on-white here) */
+.topbar .btn-outline-light { color: var(--cs-ink-2); border-color: var(--cs-line-2); }
+.topbar .btn-outline-light:hover { color: var(--cs-ink); background: var(--cs-surface-2); }
+
 /* ---- buttons ---- */
 .btn { font-size: 13.5px; font-weight: 700; border: 1px solid var(--cs-line-2); background: var(--cs-surface);
   color: var(--cs-ink); border-radius: 9px; padding: 8px 15px; cursor: pointer; display: inline-flex;

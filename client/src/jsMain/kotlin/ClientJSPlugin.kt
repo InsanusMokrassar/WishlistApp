@@ -4,6 +4,10 @@ import androidx.compose.runtime.collectAsState
 import dev.inmo.micro_utils.startup.plugin.StartPlugin
 import dev.inmo.navigation.core.repo.NavigationConfigsRepo
 import dev.inmo.wishlist.features.common.client.models.ViewConfig
+import dev.inmo.wishlist.features.ui.scaffold.ui.ScaffoldViewConfig
+import dev.inmo.wishlist.features.ui.sidebar.ui.SidebarViewConfig
+import dev.inmo.wishlist.features.ui.topBar.ui.TopBarViewConfig
+import dev.inmo.wishlist.features.ui.wishlist.ui.WishlistsListViewConfig
 import kotlinx.serialization.json.JsonObject
 import org.jetbrains.compose.web.renderComposable
 import org.koin.core.Koin
@@ -20,6 +24,15 @@ import org.koin.core.module.Module
 object ClientJSPlugin : StartPlugin {
     override fun Module.setupDI(config: JsonObject) {
         with(ClientPlugin) { setupDI(config) }
+
+        // Web shell: persistent Calm Studio sidebar on the left, landing on "My Lists".
+        ClientPlugin.mainScaffoldConfigProvider = {
+            ScaffoldViewConfig(
+                topConfig = TopBarViewConfig(),
+                leftConfig = SidebarViewConfig(),
+                mainConfig = WishlistsListViewConfig()
+            )
+        }
 
         single<NavigationConfigsRepo<ViewConfig>> {
             WishlistsAppUrlNavigationConfigsRepo()

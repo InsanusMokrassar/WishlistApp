@@ -11,13 +11,25 @@ import dev.inmo.navigation.mvvm.compose.ComposeView
 import dev.inmo.wishlist.features.common.client.models.ViewConfig
 import dev.inmo.wishlist.features.ui.auth.ui.AuthViewConfig
 import dev.inmo.wishlist.features.ui.topBar.TopBarStrings
-import org.jetbrains.compose.web.dom.A
+import org.jetbrains.compose.web.attributes.InputType
+import org.jetbrains.compose.web.attributes.placeholder
+import org.jetbrains.compose.web.dom.B
 import org.jetbrains.compose.web.dom.Div
-import org.jetbrains.compose.web.dom.Nav
+import org.jetbrains.compose.web.dom.Input
+import org.jetbrains.compose.web.dom.Label
+import org.jetbrains.compose.web.dom.Span
 import org.jetbrains.compose.web.dom.Text
 import org.koin.core.component.inject
 import org.koin.core.parameter.parametersOf
 
+/**
+ * JS Compose-HTML view for the Calm Studio top bar (the scaffold's top slot).
+ *
+ * Renders the global search field (people / lists / items) and the auth action (the embedded
+ * `features/ui/auth` widget — Log in / Log out). Below the bar it keeps a slim breadcrumb fed by the
+ * main chain's [TopBarTitleProvider]s so users still see their depth in the content. Class names
+ * match the Calm Studio shell CSS (`.topbar`, `.search`, `.kbd`, `.crumb`).
+ */
 class TopBarView(
     chain: NavigationChain<ViewConfig>,
     config: TopBarViewConfig,
@@ -26,23 +38,55 @@ class TopBarView(
         parametersOf(this@TopBarView)
     }
 
+    /** Lucide "search" glyph, injected as raw SVG (Compose-HTML has no SVG DOM builder). */
+    @Composable
+    private fun SearchIcon() {
+        Span(attrs = {
+            ref { element ->
+                element.innerHTML =
+                    """<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="7"/><path d="m20 20-3-3"/></svg>"""
+                onDispose { }
+            }
+        })
+    }
+
     @Composable
     override fun onDraw() {
         super.onDraw()
         val titleProviders by viewModel.titleProviders.collectAsState()
-        Nav({ classes("navbar", "navbar-expand", "navbar-dark", "bg-primary") }) {
-            Div({ classes("container-fluid") }) {
-                A(href = "#", { classes("navbar-brand") }) {
-                    Text(
-                        titleProviders
-                            .map { it.title }
-                            .takeIf { it.isNotEmpty() }
-                            ?.joinToString(" / ")
-                            ?: TopBarStrings.appTitle.translation()
-                    )
+        val searchQuery by viewModel.searchQueryState.collectAsState()
+
+        Div {
+            Div({ classes("topbar") }) {
+                Label(attrs = { classes("search") }) {
+                    SearchIcon()
+                    Input(type = InputType.Text) {
+                        value(searchQuery)
+                        placeholder(TopBarStrings.searchPlaceholder.translation())
+                        onInput { viewModel.onSearchQueryChanged(it.value) }
+                    }
+                    Span({ classes("kbd") }) { Text("⌘K") }
                 }
-                Div({ classes("d-flex") }) {
+                Div({ classes("sp") })
+                Div({ classes("d-flex", "align-items-center", "gap-2") }) {
                     InjectNavigationChain<ViewConfig> { InjectNavigationNode(AuthViewConfig()) }
+                }
+            }
+            val crumbTitles = titleProviders.map { it.title }.filter { it.isNotBlank() }
+            if (crumbTitles.isNotEmpty()) {
+                Div({ classes("crumbbar") }) {
+                    Div({ classes("crumb") }) {
+                        crumbTitles.forEachIndexed { index, title ->
+                            if (index > 0) {
+                                Span({ classes("sep") }) { Text("/") }
+                            }
+                            if (index == crumbTitles.lastIndex) {
+                                B { Text(title) }
+                            } else {
+                                Span { Text(title) }
+                            }
+                        }
+                    }
                 }
             }
         }
