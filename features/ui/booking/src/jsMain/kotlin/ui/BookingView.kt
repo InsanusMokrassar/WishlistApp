@@ -11,18 +11,21 @@ import dev.inmo.wishlist.features.common.client.models.ViewConfig
 import dev.inmo.wishlist.features.ui.booking.BookingStrings
 import org.jetbrains.compose.web.attributes.disabled
 import org.jetbrains.compose.web.dom.Button
-import org.jetbrains.compose.web.dom.Div
 import org.jetbrains.compose.web.dom.Span
 import org.jetbrains.compose.web.dom.Text
 import org.koin.core.component.inject
 import org.koin.core.parameter.parametersOf
 
 /**
- * JS Compose-HTML compact view for gift booking (scenario view A). Uses Bootstrap classes.
+ * JS Compose-HTML compact view for gift reservation (scenario view A), rendered in Calm Studio markup.
  *
- * Embedded inline inside the wishlist item screen: renders a single book/cancel control (or a short
- * status text) in one flex row. Shows nothing when [BookingViewModel.bookingState] is `null` (owner /
- * anonymous — server hides the state).
+ * Embedded inline inside the wishlist item screen's `.actbar`, so it emits its `.btn` / `.pill` controls
+ * as direct flex siblings (no wrapper). Shows nothing when [BookingViewModel.bookingState] is `null`
+ * (owner / anonymous — the server hides the state, so a list owner never learns an item is reserved
+ * through this control, and never who reserved it). States:
+ * - [BookingState.Free] → primary "Reserve this gift" button.
+ * - [BookingState.BookedByMe] → "Reserved by you" pill + "Cancel reservation" button.
+ * - [BookingState.Booked] → "Reserved by someone" pill only (the booker's identity is never exposed).
  */
 class BookingView(
     chain: NavigationChain<ViewConfig>,
@@ -32,6 +35,28 @@ class BookingView(
         parametersOf(this@BookingView)
     }
 
+    /**
+     * A green "reserved" status pill mirroring the design skill's reserved indicator.
+     *
+     * @param label Visible pill text.
+     */
+    @Composable
+    private fun ReservedPill(label: String) {
+        Span({
+            classes("pill")
+            style {
+                property("background", "var(--cs-ok-soft)")
+                property("color", "var(--cs-ok)")
+            }
+        }) {
+            Span({
+                classes("dot")
+                style { property("background", "var(--cs-ok)") }
+            })
+            Text(label)
+        }
+    }
+
     @Composable
     override fun onDraw() {
         super.onDraw()
@@ -39,29 +64,27 @@ class BookingView(
         val loading by viewModel.loadingState.collectAsState()
 
         booking?.let { state ->
-            Div({ classes("d-flex", "align-items-center", "gap-2") }) {
-                when (state) {
-                    BookingState.BookedByMe -> {
-                        Span({ classes("text-success") }) { Text(BookingStrings.bookedByYou.translation()) }
-                        Button({
-                            classes("btn", "btn-outline-danger", "btn-sm")
-                            if (loading) disabled()
-                            onClick { viewModel.onCancelBooking() }
-                        }) {
-                            Text(BookingStrings.cancelBookingButton.translation())
-                        }
+            when (state) {
+                BookingState.BookedByMe -> {
+                    ReservedPill(BookingStrings.reservedByYouLabel.translation())
+                    Button({
+                        classes("btn")
+                        if (loading) disabled()
+                        onClick { viewModel.onCancelBooking() }
+                    }) {
+                        Text(BookingStrings.cancelReservationButton.translation())
                     }
-                    BookingState.Booked -> {
-                        Span({ classes("text-warning") }) { Text(BookingStrings.bookedByOther.translation()) }
-                    }
-                    BookingState.Free -> {
-                        Button({
-                            classes("btn", "btn-primary", "btn-sm")
-                            if (loading) disabled()
-                            onClick { viewModel.onBook() }
-                        }) {
-                            Text(BookingStrings.bookButton.translation())
-                        }
+                }
+                BookingState.Booked -> {
+                    ReservedPill(BookingStrings.reservedBySomeoneLabel.translation())
+                }
+                BookingState.Free -> {
+                    Button({
+                        classes("btn", "primary")
+                        if (loading) disabled()
+                        onClick { viewModel.onBook() }
+                    }) {
+                        Text(BookingStrings.reserveGiftButton.translation())
                     }
                 }
             }

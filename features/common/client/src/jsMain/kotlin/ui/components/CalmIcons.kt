@@ -31,6 +31,9 @@ object CalmIcons {
 
     /** Empty-state compass glyph (Discover). */
     val compass = """<circle cx="12" cy="12" r="9"/><path d="m15.5 8.5-2 5-5 2 2-5z"/>"""
+
+    /** Reservation / bookmark glyph (Reserved section, empty state). */
+    val bookmark = """<path d="M19 21l-7-4-7 4V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z"/>"""
 }
 
 /**

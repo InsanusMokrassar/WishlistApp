@@ -7,22 +7,30 @@ import dev.inmo.micro_utils.strings.translation
 import dev.inmo.navigation.core.NavigationChain
 import dev.inmo.navigation.mvvm.compose.ComposeView
 import dev.inmo.wishlist.features.common.client.models.ViewConfig
-import dev.inmo.wishlist.features.common.client.ui.components.BackButton
-import dev.inmo.wishlist.features.common.client.ui.components.ListRow
-import dev.inmo.wishlist.features.common.client.ui.components.ScreenTitle
+import dev.inmo.wishlist.features.common.client.ui.components.CalmIcon
+import dev.inmo.wishlist.features.common.client.ui.components.CalmIcons
+import dev.inmo.wishlist.features.common.client.ui.components.tintClass
 import dev.inmo.wishlist.features.ui.booking.BookingStrings
 import dev.inmo.wishlist.features.ui.topBar.ui.TopBarTitleProvider
+import dev.inmo.wishlist.features.wishlist.common.models.RegisteredWishlistItem
 import org.jetbrains.compose.web.dom.Div
+import org.jetbrains.compose.web.dom.H1
+import org.jetbrains.compose.web.dom.H3
 import org.jetbrains.compose.web.dom.P
+import org.jetbrains.compose.web.dom.Span
 import org.jetbrains.compose.web.dom.Text
-import org.jetbrains.compose.web.dom.Ul
 import org.koin.core.component.inject
 import org.koin.core.parameter.parametersOf
 
 /**
- * JS Compose-HTML view for the my-presents screen (scenario view B). Uses Bootstrap classes.
+ * JS Compose-HTML view for the Calm Studio "Reserved" section (scenario view B).
  *
- * Lists every item the caller has booked. Per issue #29 point #6 nothing navigates here yet.
+ * Reached as a primary section from the sidebar (no back button), so it renders the standard
+ * `.content-inner` + `.pagehead` shell over a `.grid` of `.card`s — one per gift the caller has
+ * reserved, each carrying the green `.reserved-flag`. This is the caller's OWN reservation list, so it
+ * exposes no other user's identity; a list owner never sees this screen and never learns who reserved
+ * their items (the server only returns the caller's own bookings). Class names mirror the design skill's
+ * `app.jsx` so the shell CSS styles the screen directly.
  */
 class MyPresentsBooksView(
     chain: NavigationChain<ViewConfig>,
@@ -33,7 +41,35 @@ class MyPresentsBooksView(
     }
 
     override val title: String
-        @Composable get() = BookingStrings.myPresentsBooksTitle.translation()
+        @Composable get() = BookingStrings.reservedTitle.translation()
+
+    /**
+     * One reserved-gift card: a gradient `.media` strip carrying the green reserved flag over the item
+     * title and approximate price.
+     *
+     * @param item Reserved item to render.
+     */
+    @Composable
+    private fun ReservedCard(item: RegisteredWishlistItem) {
+        Div({ classes("card") }) {
+            Div({ classes("media", tintClass(item.id.long)) }) {
+                Span({ classes("reserved-flag") }) { Text(BookingStrings.reservedFlag.translation()) }
+            }
+            Div({ classes("c") }) {
+                H3 { Text(item.title) }
+                if (item.description.isNotBlank()) {
+                    P({ classes("desc") }) { Text(item.description) }
+                }
+                val price = item.approximatePrice
+                if (price != null) {
+                    val units = item.priceUnits.takeIf { it.isNotBlank() }?.let { " $it" } ?: ""
+                    val base = "≈ $price$units"
+                    val priceText = if (item.amount > 1u) "$base · ×${item.amount}" else base
+                    Div({ classes("price") }) { Text(priceText) }
+                }
+            }
+        }
+    }
 
     @Composable
     override fun onDraw() {
@@ -41,19 +77,23 @@ class MyPresentsBooksView(
         val presents by viewModel.presentsState.collectAsState()
         val loading by viewModel.loadingState.collectAsState()
 
-        Div({ classes("container", "py-3") }) {
-            Div({ classes("d-flex", "align-items-center", "mb-3", "gap-2") }) {
-                BackButton(BookingStrings.backButton.translation()) { viewModel.onBack() }
+        Div({ classes("content-inner") }) {
+            Div({ classes("pagehead") }) {
+                Div {
+                    H1 { Text(BookingStrings.reservedTitle.translation()) }
+                    P({ classes("subline") }) { Text(BookingStrings.reservedSubline.translation()) }
+                }
             }
-            ScreenTitle(BookingStrings.myPresentsBooksTitle.translation())
 
             when {
-                loading -> P { Text(BookingStrings.loading.translation()) }
-                presents.isEmpty() -> P({ classes("text-muted") }) { Text(BookingStrings.emptyPresents.translation()) }
-                else -> Ul({ classes("list-group") }) {
-                    presents.forEach { item ->
-                        ListRow(text = item.title)
-                    }
+                loading -> P({ classes("subline") }) { Text(BookingStrings.loading.translation()) }
+                presents.isEmpty() -> Div({ classes("empty") }) {
+                    Div({ classes("ic") }) { CalmIcon(CalmIcons.bookmark) }
+                    H3 { Text(BookingStrings.reservedEmptyTitle.translation()) }
+                    P { Text(BookingStrings.reservedEmptyBody.translation()) }
+                }
+                else -> Div({ classes("grid") }) {
+                    presents.forEach { item -> ReservedCard(item) }
                 }
             }
         }
