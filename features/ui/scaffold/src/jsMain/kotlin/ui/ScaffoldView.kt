@@ -12,6 +12,7 @@ import dev.inmo.wishlist.features.common.client.models.LeftNavigationChainId
 import dev.inmo.wishlist.features.common.client.models.MainNavigationChainId
 import dev.inmo.wishlist.features.common.client.models.TopNavigationChainId
 import dev.inmo.wishlist.features.common.client.models.ViewConfig
+import dev.inmo.wishlist.features.common.client.ui.components.ToastHost
 import org.jetbrains.compose.web.dom.Div
 import org.koin.core.component.inject
 import org.koin.core.parameter.parametersOf
@@ -91,6 +92,8 @@ class ScaffoldView(
                     }
                 }
             }
+            // Single app-wide toast host (position: fixed, so DOM placement is cosmetic).
+            ToastHost()
         }
     }
 }

@@ -12,14 +12,14 @@ import dev.inmo.wishlist.features.ui.topBar.ui.TopBarTitleProvider
 import dev.inmo.wishlist.features.ui.adminPanel.AdminPanelStrings
 import org.jetbrains.compose.web.dom.Button
 import org.jetbrains.compose.web.dom.Div
+import org.jetbrains.compose.web.dom.H1
 import org.jetbrains.compose.web.dom.P
 import org.jetbrains.compose.web.dom.Span
 import org.jetbrains.compose.web.dom.Text
-import org.jetbrains.compose.web.dom.Ul
 import org.koin.core.component.inject
 import org.koin.core.parameter.parametersOf
 
-/** JS Compose-HTML view for the admin wishlists list screen. Uses Bootstrap classes. */
+/** JS Compose-HTML view for the admin wishlists list screen (Calm Studio). */
 class AdminWishlistsListView(
     chain: NavigationChain<ViewConfig>,
     config: AdminWishlistsListViewConfig,
@@ -37,23 +37,28 @@ class AdminWishlistsListView(
         val wishlists by viewModel.wishlistsState.collectAsState()
         val loading by viewModel.loadingState.collectAsState()
 
-        Div({ classes("container", "py-3") }) {
-            Div({ classes("d-flex", "justify-content-between", "align-items-center", "mb-3") }) {
-                Button({
-                    classes("btn", "btn-primary")
-                    onClick { viewModel.onCreateWishlist() }
-                }) {
-                    Text(AdminPanelStrings.addWishlistButton.translation())
+        Div({ classes("content-inner") }) {
+            Div({ classes("pagehead") }) {
+                Div {
+                    H1 { Text(AdminPanelStrings.wishlistsListTitle.translation()) }
+                }
+                Div({ classes("acts") }) {
+                    Button({
+                        classes("btn", "primary")
+                        onClick { viewModel.onCreateWishlist() }
+                    }) {
+                        Text(AdminPanelStrings.addWishlistButton.translation())
+                    }
                 }
             }
             when {
-                loading -> P { Text(AdminPanelStrings.loading.translation()) }
-                wishlists.isEmpty() -> P({ classes("text-muted") }) { Text(AdminPanelStrings.emptyWishlists.translation()) }
-                else -> Ul({ classes("list-group") }) {
+                loading -> P({ classes("subline") }) { Text(AdminPanelStrings.loading.translation()) }
+                wishlists.isEmpty() -> P({ classes("subline") }) { Text(AdminPanelStrings.emptyWishlists.translation()) }
+                else -> Div({ classes("rows") }) {
                     wishlists.forEach { wishlist ->
                         ListRow(onSelect = { viewModel.onWishlistSelected(wishlist.id) }) {
                             Span { Text(wishlist.title) }
-                            Span({ classes("badge", "bg-secondary") }) {
+                            Span({ classes("pill") }) {
                                 Text("user #${wishlist.userId.long}")
                             }
                         }

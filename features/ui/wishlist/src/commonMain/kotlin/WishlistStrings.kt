@@ -107,6 +107,11 @@ object WishlistStrings {
         IetfLang.Russian("Не удалось скопировать. Попробуйте ещё раз.")
     }
 
+    /** Calm Studio toast shown after the Share action copies the list link to the clipboard. */
+    val shareLinkCopiedToast = buildStringResource("Link copied to clipboard") {
+        IetfLang.Russian("Ссылка скопирована в буфер обмена")
+    }
+
     /** Accessibility text for the default gift-box placeholder shown when an item has no image. */
     val itemImagePlaceholderAlt = buildStringResource("Gift placeholder") {
         IetfLang.Russian("Заполнитель подарка")

@@ -68,7 +68,13 @@ class TopBarView(
                     Span({ classes("kbd") }) { Text("⌘K") }
                 }
                 Div({ classes("sp") })
-                Div({ classes("d-flex", "align-items-center", "gap-2") }) {
+                Div({
+                    style {
+                        property("display", "flex")
+                        property("align-items", "center")
+                        property("gap", "8px")
+                    }
+                }) {
                     InjectNavigationChain<ViewConfig> { InjectNavigationNode(AuthViewConfig()) }
                 }
             }

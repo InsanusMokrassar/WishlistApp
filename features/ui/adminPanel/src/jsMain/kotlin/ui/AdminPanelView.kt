@@ -13,7 +13,7 @@ import org.jetbrains.compose.web.dom.Text
 import org.koin.core.component.inject
 import org.koin.core.parameter.parametersOf
 
-/** JS Compose-HTML view for the admin panel dashboard screen. Uses Bootstrap classes. */
+/** JS Compose-HTML view for the admin panel dashboard screen (Calm Studio). */
 class AdminPanelView(
     chain: NavigationChain<ViewConfig>,
     config: AdminPanelViewConfig,
@@ -26,22 +26,24 @@ class AdminPanelView(
     override fun onDraw() {
         super.onDraw()
 
-        Div({ classes("container", "py-4") }) {
-            H1({ classes("h2", "mb-4") }) {
-                Text(AdminPanelStrings.title.translation())
-            }
-            Div({ classes("d-flex", "gap-3") }) {
-                Button({
-                    classes("btn", "btn-primary", "btn-lg")
-                    onClick { viewModel.onOpenUsers() }
-                }) {
-                    Text(AdminPanelStrings.usersSection.translation())
+        Div({ classes("content-inner") }) {
+            Div({ classes("pagehead") }) {
+                Div {
+                    H1 { Text(AdminPanelStrings.title.translation()) }
                 }
-                Button({
-                    classes("btn", "btn-secondary", "btn-lg")
-                    onClick { viewModel.onOpenWishlists() }
-                }) {
-                    Text(AdminPanelStrings.wishlistsSection.translation())
+                Div({ classes("acts") }) {
+                    Button({
+                        classes("btn", "primary")
+                        onClick { viewModel.onOpenUsers() }
+                    }) {
+                        Text(AdminPanelStrings.usersSection.translation())
+                    }
+                    Button({
+                        classes("btn")
+                        onClick { viewModel.onOpenWishlists() }
+                    }) {
+                        Text(AdminPanelStrings.wishlistsSection.translation())
+                    }
                 }
             }
         }

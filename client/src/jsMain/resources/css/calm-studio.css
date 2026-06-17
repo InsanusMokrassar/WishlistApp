@@ -5,7 +5,7 @@
  * a persistent left-sidebar shell. Namespaced `--cs-*`; a single accent value
  * cascades via color-mix(), so retheming the product is one variable.
  *
- * Loaded AFTER bootstrap.min.css so these rules win where they overlap.
+ * The single stylesheet for the web client (Bootstrap was removed in phase 5).
  * Tokens mirror .claude/skills/wishlistapp-design/tokens/calm-studio.css; shell
  * rules are ported from ui_kits/calm-studio/styles.css, expressed against --cs-*.
  * Class names match the reference so later phases line up. */

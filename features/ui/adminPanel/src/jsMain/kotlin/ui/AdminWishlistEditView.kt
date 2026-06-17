@@ -12,20 +12,19 @@ import dev.inmo.wishlist.features.ui.topBar.ui.TopBarTitleProvider
 import dev.inmo.wishlist.features.ui.adminPanel.AdminPanelStrings
 import org.jetbrains.compose.web.attributes.InputType
 import org.jetbrains.compose.web.attributes.disabled
-import org.jetbrains.compose.web.attributes.forId
 import org.jetbrains.compose.web.attributes.placeholder
 import org.jetbrains.compose.web.dom.Button
 import org.jetbrains.compose.web.dom.Div
+import org.jetbrains.compose.web.dom.H1
 import org.jetbrains.compose.web.dom.Input
 import org.jetbrains.compose.web.dom.Label
 import org.jetbrains.compose.web.dom.Option
-import org.jetbrains.compose.web.dom.P
 import org.jetbrains.compose.web.dom.Select
 import org.jetbrains.compose.web.dom.Text
 import org.koin.core.component.inject
 import org.koin.core.parameter.parametersOf
 
-/** JS Compose-HTML view for the admin wishlist create/edit screen. Owner selection via dropdown. */
+/** JS Compose-HTML view for the admin wishlist create/edit screen (Calm Studio form). Owner selection via dropdown. */
 class AdminWishlistEditView(
     chain: NavigationChain<ViewConfig>,
     config: AdminWishlistEditViewConfig,
@@ -48,85 +47,79 @@ class AdminWishlistEditView(
         val showDialog by viewModel.showConfirmDialogState.collectAsState()
 
         if (showDialog) {
-            Div({ classes("modal-backdrop", "fade", "show") })
-            Div({ classes("modal", "d-block"); attr("tabindex", "-1") }) {
-                Div({ classes("modal-dialog") }) {
-                    Div({ classes("modal-content") }) {
-                        Div({ classes("modal-header") }) {
-                            Div({ classes("modal-title", "h5") }) {
-                                Text(AdminPanelStrings.confirmDiscardTitle.translation())
-                            }
-                        }
-                        Div({ classes("modal-body") }) {
-                            P { Text(AdminPanelStrings.confirmDiscardMessage.translation()) }
-                        }
-                        Div({ classes("modal-footer") }) {
-                            Button({
-                                classes("btn", "btn-secondary")
-                                onClick { viewModel.onCancelBack() }
-                            }) { Text(AdminPanelStrings.cancelButton.translation()) }
-                            Button({
-                                classes("btn", "btn-danger")
-                                onClick { viewModel.onConfirmBack() }
-                            }) { Text(AdminPanelStrings.confirmButton.translation()) }
-                        }
-                    }
-                }
-            }
+            DiscardModal(
+                onCancel = { viewModel.onCancelBack() },
+                onConfirm = { viewModel.onConfirmBack() },
+            )
         }
 
-        Div({ classes("container", "py-3") }) {
-            Div({ classes("d-flex", "align-items-center", "mb-3", "gap-2") }) {
-                BackButton(AdminPanelStrings.backButton.translation()) { viewModel.onBack() }
-            }
-            Div({ classes("mb-3") }) {
-                Label("wl-title") { Text(AdminPanelStrings.wishlistTitleLabel.translation()) }
-                Input(InputType.Text) {
-                    id("wl-title")
-                    classes("form-control")
-                    value(title)
-                    placeholder(AdminPanelStrings.wishlistTitleLabel.translation())
-                    onInput { viewModel.onTitleChanged(it.value) }
-                    if (loading) disabled()
+        Div({ classes("content-inner") }) {
+            Div({ classes("pagehead") }) {
+                Div {
+                    H1 {
+                        Text(
+                            if (viewModel.isCreating) AdminPanelStrings.newWishlistTitle.translation()
+                            else AdminPanelStrings.editWishlistTitle.translation()
+                        )
+                    }
+                }
+                Div({ classes("acts") }) {
+                    BackButton(AdminPanelStrings.backButton.translation()) { viewModel.onBack() }
                 }
             }
-            Div({ classes("mb-3") }) {
-                Label("wl-owner") { Text(AdminPanelStrings.ownerLabel.translation()) }
-                Select({
-                    id("wl-owner")
-                    classes("form-select")
-                    if (loading) disabled()
-                    onChange { event ->
-                        val value = event.value
-                        val userId = value?.toLongOrNull()?.let {
-                            dev.inmo.wishlist.features.users.common.models.UserId(it)
-                        }
-                        viewModel.onOwnerSelected(userId)
+
+            Div({ classes("form") }) {
+                Div({ classes("fieldset") }) {
+                    Label("wl-title") { Text(AdminPanelStrings.wishlistTitleLabel.translation()) }
+                    Input(InputType.Text) {
+                        id("wl-title")
+                        classes("input")
+                        value(title)
+                        placeholder(AdminPanelStrings.wishlistTitleLabel.translation())
+                        onInput { viewModel.onTitleChanged(it.value) }
+                        if (loading) disabled()
                     }
-                }) {
-                    Option("") {
-                        Text(AdminPanelStrings.selectOwner.translation())
-                    }
-                    users.forEach { user ->
-                        Option(
-                            user.id.long.toString(),
-                            {
-                                if (selectedUserId == user.id) {
-                                    attr("selected", "selected")
-                                }
+                }
+                Div({ classes("fieldset") }) {
+                    Label("wl-owner") { Text(AdminPanelStrings.ownerLabel.translation()) }
+                    Select({
+                        id("wl-owner")
+                        classes("select")
+                        if (loading) disabled()
+                        onChange { event ->
+                            val value = event.value
+                            val userId = value?.toLongOrNull()?.let {
+                                dev.inmo.wishlist.features.users.common.models.UserId(it)
                             }
-                        ) {
-                            Text("${user.username.string} (#${user.id.long})")
+                            viewModel.onOwnerSelected(userId)
+                        }
+                    }) {
+                        Option("") {
+                            Text(AdminPanelStrings.selectOwner.translation())
+                        }
+                        users.forEach { user ->
+                            Option(
+                                user.id.long.toString(),
+                                {
+                                    if (selectedUserId == user.id) {
+                                        attr("selected", "selected")
+                                    }
+                                }
+                            ) {
+                                Text("${user.username.string} (#${user.id.long})")
+                            }
                         }
                     }
                 }
-            }
-            Button({
-                classes("btn", "btn-primary")
-                onClick { viewModel.onSave() }
-                if (loading || title.isBlank() || selectedUserId == null) disabled()
-            }) {
-                Text(AdminPanelStrings.saveButton.translation())
+                Div({ style { property("margin-top", "24px") } }) {
+                    Button({
+                        classes("btn", "primary")
+                        onClick { viewModel.onSave() }
+                        if (loading || title.isBlank() || selectedUserId == null) disabled()
+                    }) {
+                        Text(AdminPanelStrings.saveButton.translation())
+                    }
+                }
             }
         }
     }

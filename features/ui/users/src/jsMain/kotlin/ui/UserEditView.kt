@@ -8,7 +8,6 @@ import dev.inmo.micro_utils.strings.translation
 import dev.inmo.navigation.core.NavigationChain
 import dev.inmo.navigation.mvvm.compose.ComposeView
 import dev.inmo.wishlist.features.common.client.models.ViewConfig
-import dev.inmo.wishlist.features.common.client.ui.components.BackButton
 import dev.inmo.wishlist.features.ui.topBar.ui.TopBarTitleProvider
 import dev.inmo.wishlist.features.ui.users.UsersListStrings
 import dev.inmo.wishlist.features.ui.users.utils.pickImageFile
@@ -18,6 +17,8 @@ import org.jetbrains.compose.web.attributes.disabled
 import org.jetbrains.compose.web.attributes.placeholder
 import org.jetbrains.compose.web.dom.Button
 import org.jetbrains.compose.web.dom.Div
+import org.jetbrains.compose.web.dom.H1
+import org.jetbrains.compose.web.dom.H2
 import org.jetbrains.compose.web.dom.Img
 import org.jetbrains.compose.web.dom.Input
 import org.jetbrains.compose.web.dom.Label
@@ -26,7 +27,7 @@ import org.jetbrains.compose.web.dom.Text
 import org.koin.core.component.inject
 import org.koin.core.parameter.parametersOf
 
-/** JS Compose-HTML view for the user profile edit screen. Uses Bootstrap classes. */
+/** JS Compose-HTML view for the profile / account settings screen (Calm Studio form). */
 class UserEditView(
     chain: NavigationChain<ViewConfig>,
     config: UserEditViewConfig,
@@ -73,117 +74,140 @@ class UserEditView(
             )
         }
 
-        Div({ classes("container", "py-3") }) {
-            Div({ classes("d-flex", "align-items-center", "mb-3", "gap-2") }) {
-                BackButton(UsersListStrings.backButton.translation()) { viewModel.onBack() }
-            }
-
-            // Read-only user id (never editable).
-            Div({ classes("mb-3") }) {
-                Label(null) { Text(UsersListStrings.userIdLabel.translation()) }
-                Input(InputType.Text) {
-                    classes("form-control")
-                    value("#${viewModel.userId.long}")
-                    attr("readonly", "true")
-                    disabled()
+        Div({ classes("content-inner") }) {
+            Div({ classes("pagehead") }) {
+                Div {
+                    H1 { Text(UsersListStrings.editProfileTitle.translation()) }
+                    P({ classes("subline") }) { Text("#${viewModel.userId.long}") }
                 }
             }
 
-            // Avatar section — available to owner and root.
-            Div({ classes("mb-3") }) {
-                Label(null) { Text(UsersListStrings.avatarLabel.translation()) }
-                Div({ classes("mb-2") }) {
-                    val id = avatarId
-                    if (id != null) {
-                        Img(src = viewModel.imageUrl(id), alt = UsersListStrings.avatarLabel.translation()) {
-                            classes("rounded", "border", "d-block")
-                            attr("width", "160")
-                            attr("height", "160")
-                            attr("style", "object-fit: cover;")
+            Div({ classes("form") }) {
+                // Avatar section — available to owner and root.
+                Div({ classes("fieldset") }) {
+                    Label(null) { Text(UsersListStrings.avatarLabel.translation()) }
+                    Div({ style { property("margin-bottom", "8px") } }) {
+                        val id = avatarId
+                        if (id != null) {
+                            Img(src = viewModel.imageUrl(id), alt = UsersListStrings.avatarLabel.translation()) {
+                                style {
+                                    property("width", "160px")
+                                    property("height", "160px")
+                                    property("object-fit", "cover")
+                                    property("border-radius", "12px")
+                                    property("display", "block")
+                                }
+                            }
+                        } else {
+                            UserAvatarPlaceholder(
+                                sizePx = 160,
+                                circle = false,
+                                alt = UsersListStrings.avatarPlaceholderAlt.translation()
+                            )
                         }
-                    } else {
-                        UserAvatarPlaceholder(
-                            sizePx = 160,
-                            circle = false,
-                            alt = UsersListStrings.avatarPlaceholderAlt.translation()
+                    }
+                    Button({
+                        classes("btn")
+                        onClick { scope.launch { pickImageFile()?.let { viewModel.onAvatarPicked(it) } } }
+                        if (loading || uploading) disabled()
+                    }) {
+                        Text(
+                            if (uploading) UsersListStrings.uploadingPhoto.translation()
+                            else UsersListStrings.uploadPhotoButton.translation()
                         )
                     }
                 }
-                Button({
-                    classes("btn", "btn-outline-secondary")
-                    onClick { scope.launch { pickImageFile()?.let { viewModel.onAvatarPicked(it) } } }
-                    if (loading || uploading) disabled()
-                }) {
-                    Text(
-                        if (uploading) UsersListStrings.uploadingPhoto.translation()
-                        else UsersListStrings.uploadPhotoButton.translation()
-                    )
-                }
-            }
 
-            if (isRoot) {
-                Div({ classes("mb-3") }) {
-                    Label(null) { Text(UsersListStrings.usernameLabel.translation()) }
-                    Input(InputType.Text) {
-                        classes("form-control")
-                        value(username)
-                        placeholder(UsersListStrings.usernameLabel.translation())
-                        onInput { viewModel.onUsernameChanged(it.value) }
-                        if (loading) disabled()
-                    }
-                }
-                Div({ classes("mb-3") }) {
-                    Label(null) { Text(UsersListStrings.newPasswordLabel.translation()) }
-                    Input(InputType.Password) {
-                        classes("form-control")
-                        value(password)
-                        placeholder(UsersListStrings.newPasswordLabel.translation())
-                        onInput { viewModel.onPasswordChanged(it.value) }
-                        if (loading) disabled()
-                    }
-                }
-                Div({ classes("mb-3") }) {
-                    Label(null) { Text(UsersListStrings.confirmPasswordLabel.translation()) }
-                    Input(InputType.Password) {
-                        classes("form-control")
-                        value(confirmPassword)
-                        placeholder(UsersListStrings.confirmPasswordLabel.translation())
-                        onInput { viewModel.onConfirmPasswordChanged(it.value) }
-                        if (loading) disabled()
-                    }
-                    if (mismatch) {
-                        Div({ classes("form-text", "text-danger") }) {
-                            Text(UsersListStrings.passwordMismatch.translation())
+                if (isRoot) {
+                    Div({ classes("fieldset") }) {
+                        Label("settings-username") { Text(UsersListStrings.usernameLabel.translation()) }
+                        Input(InputType.Text) {
+                            id("settings-username")
+                            classes("input")
+                            value(username)
+                            placeholder(UsersListStrings.usernameLabel.translation())
+                            onInput { viewModel.onUsernameChanged(it.value) }
+                            if (loading) disabled()
                         }
                     }
-                }
-                Div({ classes("d-flex", "gap-2") }) {
-                    Button({
-                        classes("btn", "btn-primary")
-                        onClick { viewModel.onSave() }
-                        if (!canSave) disabled()
-                    }) { Text(UsersListStrings.saveButton.translation()) }
-                    Button({
-                        classes("btn", "btn-danger")
-                        onClick { viewModel.onDeleteRequest() }
-                        if (loading) disabled()
-                    }) { Text(UsersListStrings.deleteButton.translation()) }
-                }
-            } else {
-                Div({ classes("mb-3") }) {
-                    Label(null) { Text(UsersListStrings.usernameLabel.translation()) }
-                    Input(InputType.Text) {
-                        classes("form-control")
-                        value(username)
-                        attr("readonly", "true")
-                        disabled()
+                    Div({ classes("fieldset") }) {
+                        Label("settings-password") { Text(UsersListStrings.newPasswordLabel.translation()) }
+                        Input(InputType.Password) {
+                            id("settings-password")
+                            classes("input")
+                            value(password)
+                            placeholder(UsersListStrings.newPasswordLabel.translation())
+                            onInput { viewModel.onPasswordChanged(it.value) }
+                            if (loading) disabled()
+                        }
+                    }
+                    Div({ classes("fieldset") }) {
+                        Label("settings-confirm-password") { Text(UsersListStrings.confirmPasswordLabel.translation()) }
+                        Input(InputType.Password) {
+                            id("settings-confirm-password")
+                            classes("input")
+                            value(confirmPassword)
+                            placeholder(UsersListStrings.confirmPasswordLabel.translation())
+                            onInput { viewModel.onConfirmPasswordChanged(it.value) }
+                            if (loading) disabled()
+                        }
+                        if (mismatch) {
+                            P({
+                                classes("hint")
+                                style { property("color", "var(--cs-danger)") }
+                            }) { Text(UsersListStrings.passwordMismatch.translation()) }
+                        }
+                    }
+                    Div({
+                        style {
+                            property("display", "flex")
+                            property("gap", "9px")
+                            property("margin-top", "24px")
+                        }
+                    }) {
+                        Button({
+                            classes("btn", "primary")
+                            onClick { viewModel.onSave() }
+                            if (!canSave) disabled()
+                        }) { Text(UsersListStrings.saveButton.translation()) }
+                        Button({
+                            classes("btn", "ghost")
+                            onClick { viewModel.onBack() }
+                        }) { Text(UsersListStrings.backButton.translation()) }
+                        Div({ style { property("flex", "1") } })
+                        Button({
+                            classes("btn", "danger")
+                            onClick { viewModel.onDeleteRequest() }
+                            if (loading) disabled()
+                        }) { Text(UsersListStrings.deleteButton.translation()) }
+                    }
+                } else {
+                    Div({ classes("fieldset") }) {
+                        Label("settings-username") { Text(UsersListStrings.usernameLabel.translation()) }
+                        Input(InputType.Text) {
+                            id("settings-username")
+                            classes("input")
+                            value(username)
+                            attr("readonly", "true")
+                            disabled()
+                        }
+                    }
+                    P({ classes("hint") }) { Text(UsersListStrings.noEditableFields.translation()) }
+                    Div({ style { property("margin-top", "24px") } }) {
+                        Button({
+                            classes("btn", "ghost")
+                            onClick { viewModel.onBack() }
+                        }) { Text(UsersListStrings.backButton.translation()) }
                     }
                 }
-                P({ classes("text-muted") }) { Text(UsersListStrings.noEditableFields.translation()) }
             }
         }
     }
 
+    /**
+     * One Calm `.scrim` confirmation modal (question title + consequence line, ghost Cancel +
+     * danger confirm).
+     */
     @Composable
     private fun ConfirmModal(
         title: String,
@@ -192,26 +216,27 @@ class UserEditView(
         onConfirm: () -> Unit,
         onCancel: () -> Unit,
     ) {
-        Div({ classes("modal-backdrop", "fade", "show") })
-        Div({ classes("modal", "d-block"); attr("tabindex", "-1") }) {
-            Div({ classes("modal-dialog") }) {
-                Div({ classes("modal-content") }) {
-                    Div({ classes("modal-header") }) {
-                        Div({ classes("modal-title", "h5") }) { Text(title) }
-                    }
-                    Div({ classes("modal-body") }) {
-                        P { Text(message) }
-                    }
-                    Div({ classes("modal-footer") }) {
-                        Button({
-                            classes("btn", "btn-secondary")
-                            onClick { onCancel() }
-                        }) { Text(UsersListStrings.cancelButton.translation()) }
-                        Button({
-                            classes("btn", "btn-danger")
-                            onClick { onConfirm() }
-                        }) { Text(confirmLabel) }
-                    }
+        Div({
+            classes("scrim")
+            onClick { onCancel() }
+        }) {
+            Div({
+                classes("modal")
+                onClick { it.stopPropagation() }
+            }) {
+                Div({ classes("mhead") }) {
+                    H2 { Text(title) }
+                    P { Text(message) }
+                }
+                Div({ classes("mfoot") }) {
+                    Button({
+                        classes("btn", "ghost")
+                        onClick { onCancel() }
+                    }) { Text(UsersListStrings.cancelButton.translation()) }
+                    Button({
+                        classes("btn", "danger")
+                        onClick { onConfirm() }
+                    }) { Text(confirmLabel) }
                 }
             }
         }

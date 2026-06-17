@@ -17,19 +17,21 @@ import org.jetbrains.compose.web.attributes.type
 import org.jetbrains.compose.web.dom.Button
 import org.jetbrains.compose.web.dom.Div
 import org.jetbrains.compose.web.dom.Form
+import org.jetbrains.compose.web.dom.H2
 import org.jetbrains.compose.web.dom.Input
-import org.jetbrains.compose.web.dom.Span
+import org.jetbrains.compose.web.dom.Label
+import org.jetbrains.compose.web.dom.P
 import org.jetbrains.compose.web.dom.Text
 import org.koin.core.component.inject
 import org.koin.core.parameter.parametersOf
 
 /**
- * JS Compose-HTML Bootstrap auth widget embedded in the top navbar.
+ * JS Compose-HTML auth widget for the Calm Studio top bar.
  *
- * - Authenticated: "Log out" button.
- * - Logged-out: "Log in" button (and "Register" when registration is enabled).
- * - Expanded: the credentials form is shown inside a modal dialog (Bootstrap
- *   `modal` overlay + backdrop) rather than inline.
+ * - Authenticated: a ghost "Log out" button.
+ * - Logged-out: ghost "Log in" (and "Register", when registration is enabled) triggers.
+ * - Expanded: the credentials form is shown as a Calm `.scrim` modal with a `.tabs` switch between
+ *   login and registration, mirroring the design skill's `LoginModal` reference.
  */
 class AuthView(
     chain: NavigationChain<ViewConfig>,
@@ -54,24 +56,22 @@ class AuthView(
 
         if (loggedIn) {
             Button(attrs = {
-                classes("btn", "btn-outline-light", "btn-sm")
+                classes("btn", "ghost")
                 onClick { viewModel.onLogout() }
                 if (loading) disabled()
             }) { Text(AuthStrings.logoutButton.translation()) }
             return
         }
 
-        Div({ classes("d-flex", "gap-2") }) {
+        Button(attrs = {
+            classes("btn", "ghost")
+            onClick { viewModel.onToggleForm() }
+        }) { Text(AuthStrings.loginButton.translation()) }
+        if (registrationEnabled) {
             Button(attrs = {
-                classes("btn", "btn-outline-light", "btn-sm")
-                onClick { viewModel.onToggleForm() }
-            }) { Text(AuthStrings.loginButton.translation()) }
-            if (registrationEnabled) {
-                Button(attrs = {
-                    classes("btn", "btn-outline-light", "btn-sm")
-                    onClick { viewModel.onToggleRegisterForm() }
-                }) { Text(AuthStrings.registerButton.translation()) }
-            }
+                classes("btn", "primary")
+                onClick { viewModel.onToggleRegisterForm() }
+            }) { Text(AuthStrings.registerButton.translation()) }
         }
 
         if (!expanded) return
@@ -82,74 +82,91 @@ class AuthView(
             AuthStrings.loginButton.translation()
         }
 
-        // Modal backdrop
-        Div({ classes("modal-backdrop", "fade", "show") })
-        // Modal dialog
         Div({
-            classes("modal", "fade", "show", "d-block")
-            attr("tabindex", "-1")
+            classes("scrim")
+            onClick { if (!loading) viewModel.onCancelForm() }
         }) {
-            Div({ classes("modal-dialog", "modal-dialog-centered") }) {
-                Div({ classes("modal-content") }) {
-                    Div({ classes("modal-header") }) {
-                        Span({ classes("modal-title", "h5") }) { Text(title) }
-                        Button(attrs = {
-                            classes("btn-close")
-                            attr("aria-label", "Close")
-                            onClick { viewModel.onCancelForm() }
-                            if (loading) disabled()
-                        }) {}
+            Div({
+                classes("modal")
+                onClick { it.stopPropagation() }
+            }) {
+                Div({ classes("mhead") }) {
+                    H2 { Text(title) }
+                }
+                Form(attrs = {
+                    onSubmit {
+                        it.preventDefault()
+                        if (registerMode) viewModel.onRegister() else viewModel.onAuthorize()
                     }
-                    Form(attrs = {
-                        onSubmit {
-                            it.preventDefault()
-                            if (registerMode) viewModel.onRegister() else viewModel.onAuthorize()
+                }) {
+                    Div({ classes("mbody") }) {
+                        if (registrationEnabled) {
+                            Div({ classes("tabs") }) {
+                                Button(attrs = {
+                                    type(ButtonType.Button)
+                                    if (!registerMode) classes("on")
+                                    onClick { viewModel.onShowLoginForm() }
+                                }) { Text(AuthStrings.loginButton.translation()) }
+                                Button(attrs = {
+                                    type(ButtonType.Button)
+                                    if (registerMode) classes("on")
+                                    onClick { viewModel.onToggleRegisterForm() }
+                                }) { Text(AuthStrings.registerButton.translation()) }
+                            }
                         }
-                    }) {
-                        Div({ classes("modal-body", "d-flex", "flex-column", "gap-2") }) {
+                        Div({ classes("fieldset") }) {
+                            Label("auth-username") { Text(AuthStrings.usernamePlaceholder.translation()) }
                             Input(type = InputType.Text) {
-                                classes("form-control")
+                                id("auth-username")
+                                classes("input")
                                 value(username)
                                 placeholder(AuthStrings.usernamePlaceholder.translation())
                                 onInput { viewModel.onUsernameChanged(it.value) }
                                 if (loading) disabled()
                             }
+                        }
+                        Div({ classes("fieldset") }) {
+                            Label("auth-password") { Text(AuthStrings.passwordPlaceholder.translation()) }
                             Input(type = InputType.Password) {
-                                classes("form-control")
+                                id("auth-password")
+                                classes("input")
                                 value(password)
                                 placeholder(AuthStrings.passwordPlaceholder.translation())
                                 onInput { viewModel.onPasswordChanged(it.value) }
                                 if (loading) disabled()
                             }
-                            if (error) {
-                                Span({ classes("text-danger", "small") }) {
-                                    val msg = if (registerMode) {
-                                        AuthStrings.errorRegisterFailed.translation()
-                                    } else {
-                                        AuthStrings.errorLoginFailed.translation()
-                                    }
-                                    Text(msg)
+                        }
+                        if (error) {
+                            P({
+                                classes("hint")
+                                style { property("color", "var(--cs-danger)") }
+                            }) {
+                                val msg = if (registerMode) {
+                                    AuthStrings.errorRegisterFailed.translation()
+                                } else {
+                                    AuthStrings.errorLoginFailed.translation()
                                 }
+                                Text(msg)
                             }
                         }
-                        Div({ classes("modal-footer") }) {
-                            Button(attrs = {
-                                type(ButtonType.Button)
-                                classes("btn", "btn-outline-secondary")
-                                onClick { viewModel.onCancelForm() }
-                                if (loading) disabled()
-                            }) { Text(AuthStrings.cancelButton.translation()) }
-                            val submitLabel = if (registerMode) {
-                                AuthStrings.submitRegisterButton.translation()
-                            } else {
-                                AuthStrings.submitButton.translation()
-                            }
-                            Button(attrs = {
-                                type(ButtonType.Submit)
-                                classes("btn", "btn-primary")
-                                if (!loginEnabled) disabled()
-                            }) { Text(submitLabel) }
+                    }
+                    Div({ classes("mfoot") }) {
+                        Button(attrs = {
+                            type(ButtonType.Button)
+                            classes("btn", "ghost")
+                            onClick { viewModel.onCancelForm() }
+                            if (loading) disabled()
+                        }) { Text(AuthStrings.cancelButton.translation()) }
+                        val submitLabel = if (registerMode) {
+                            AuthStrings.submitRegisterButton.translation()
+                        } else {
+                            AuthStrings.submitButton.translation()
                         }
+                        Button(attrs = {
+                            type(ButtonType.Submit)
+                            classes("btn", "primary")
+                            if (!loginEnabled) disabled()
+                        }) { Text(submitLabel) }
                     }
                 }
             }

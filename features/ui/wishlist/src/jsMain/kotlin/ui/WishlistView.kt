@@ -1,6 +1,7 @@
 package dev.inmo.wishlist.features.ui.wishlist.ui
 
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import dev.inmo.micro_utils.strings.translation
@@ -9,6 +10,7 @@ import dev.inmo.navigation.mvvm.compose.ComposeView
 import dev.inmo.wishlist.features.common.client.models.ViewConfig
 import dev.inmo.wishlist.features.common.client.ui.components.CalmIcon
 import dev.inmo.wishlist.features.common.client.ui.components.CalmIcons
+import dev.inmo.wishlist.features.common.client.ui.components.Toaster
 import dev.inmo.wishlist.features.ui.topBar.ui.TopBarTitleProvider
 import dev.inmo.wishlist.features.ui.wishlist.WishlistStrings
 import kotlinx.browser.window
@@ -47,6 +49,7 @@ class WishlistView(
     /** Copies the current page URL to the clipboard, the web client's "Share" behavior. */
     private fun shareLink() {
         runCatching { window.navigator.asDynamic().clipboard?.writeText(window.location.href) }
+        Toaster.show(WishlistStrings.shareLinkCopiedToast.translation())
     }
 
     @Composable
@@ -110,11 +113,12 @@ class WishlistView(
                 }
             }
 
-            if (copyRequested) {
-                P({ classes("hint") }) { Text(WishlistStrings.copyQueued.translation()) }
+            // Async copy result surfaces as a toast (queued / failed), keyed on the view-model state.
+            LaunchedEffect(copyRequested) {
+                if (copyRequested) Toaster.show(WishlistStrings.copyQueued.translation())
             }
-            if (copyFailed) {
-                P({ classes("hint") }) { Text(WishlistStrings.copyFailed.translation()) }
+            LaunchedEffect(copyFailed) {
+                if (copyFailed) Toaster.show(WishlistStrings.copyFailed.translation())
             }
 
             when {

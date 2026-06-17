@@ -34,6 +34,9 @@ object CalmIcons {
 
     /** Reservation / bookmark glyph (Reserved section, empty state). */
     val bookmark = """<path d="M19 21l-7-4-7 4V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z"/>"""
+
+    /** Success checkmark (toast confirmations). */
+    val check = """<path d="M20 6 9 17l-5-5"/>"""
 }
 
 /**

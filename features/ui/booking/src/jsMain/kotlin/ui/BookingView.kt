@@ -8,6 +8,7 @@ import dev.inmo.navigation.core.NavigationChain
 import dev.inmo.navigation.mvvm.compose.ComposeView
 import dev.inmo.wishlist.features.booking.common.models.BookingState
 import dev.inmo.wishlist.features.common.client.models.ViewConfig
+import dev.inmo.wishlist.features.common.client.ui.components.Toaster
 import dev.inmo.wishlist.features.ui.booking.BookingStrings
 import org.jetbrains.compose.web.attributes.disabled
 import org.jetbrains.compose.web.dom.Button
@@ -70,7 +71,10 @@ class BookingView(
                     Button({
                         classes("btn")
                         if (loading) disabled()
-                        onClick { viewModel.onCancelBooking() }
+                        onClick {
+                            viewModel.onCancelBooking()
+                            Toaster.show(BookingStrings.cancelReservationToast.translation())
+                        }
                     }) {
                         Text(BookingStrings.cancelReservationButton.translation())
                     }
@@ -82,7 +86,10 @@ class BookingView(
                     Button({
                         classes("btn", "primary")
                         if (loading) disabled()
-                        onClick { viewModel.onBook() }
+                        onClick {
+                            viewModel.onBook()
+                            Toaster.show(BookingStrings.reserveToast.translation())
+                        }
                     }) {
                         Text(BookingStrings.reserveGiftButton.translation())
                     }

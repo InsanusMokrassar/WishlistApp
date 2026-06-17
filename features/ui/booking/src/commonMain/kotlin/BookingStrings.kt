@@ -88,4 +88,14 @@ object BookingStrings {
     val reservedFlag = buildStringResource("Reserved") {
         IetfLang.Russian("Бронь")
     }
+
+    /** Calm Studio toast shown after reserving a gift. */
+    val reserveToast = buildStringResource("Reserved — only you can see this") {
+        IetfLang.Russian("Забронировано — это видите только вы")
+    }
+
+    /** Calm Studio toast shown after cancelling a reservation. */
+    val cancelReservationToast = buildStringResource("Reservation cancelled") {
+        IetfLang.Russian("Бронь отменена")
+    }
 }

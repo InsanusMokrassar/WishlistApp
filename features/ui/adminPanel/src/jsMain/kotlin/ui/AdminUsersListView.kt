@@ -12,14 +12,14 @@ import dev.inmo.wishlist.features.ui.topBar.ui.TopBarTitleProvider
 import dev.inmo.wishlist.features.ui.adminPanel.AdminPanelStrings
 import org.jetbrains.compose.web.dom.Button
 import org.jetbrains.compose.web.dom.Div
+import org.jetbrains.compose.web.dom.H1
 import org.jetbrains.compose.web.dom.P
 import org.jetbrains.compose.web.dom.Span
 import org.jetbrains.compose.web.dom.Text
-import org.jetbrains.compose.web.dom.Ul
 import org.koin.core.component.inject
 import org.koin.core.parameter.parametersOf
 
-/** JS Compose-HTML view for the admin users list screen. Uses Bootstrap classes. */
+/** JS Compose-HTML view for the admin users list screen (Calm Studio). */
 class AdminUsersListView(
     chain: NavigationChain<ViewConfig>,
     config: AdminUsersListViewConfig,
@@ -37,23 +37,28 @@ class AdminUsersListView(
         val users by viewModel.usersState.collectAsState()
         val loading by viewModel.loadingState.collectAsState()
 
-        Div({ classes("container", "py-3") }) {
-            Div({ classes("d-flex", "justify-content-between", "align-items-center", "mb-3") }) {
-                Button({
-                    classes("btn", "btn-primary")
-                    onClick { viewModel.onCreateUser() }
-                }) {
-                    Text(AdminPanelStrings.addUserButton.translation())
+        Div({ classes("content-inner") }) {
+            Div({ classes("pagehead") }) {
+                Div {
+                    H1 { Text(AdminPanelStrings.usersListTitle.translation()) }
+                }
+                Div({ classes("acts") }) {
+                    Button({
+                        classes("btn", "primary")
+                        onClick { viewModel.onCreateUser() }
+                    }) {
+                        Text(AdminPanelStrings.addUserButton.translation())
+                    }
                 }
             }
             when {
-                loading -> P { Text(AdminPanelStrings.loading.translation()) }
-                users.isEmpty() -> P({ classes("text-muted") }) { Text(AdminPanelStrings.emptyUsers.translation()) }
-                else -> Ul({ classes("list-group") }) {
+                loading -> P({ classes("subline") }) { Text(AdminPanelStrings.loading.translation()) }
+                users.isEmpty() -> P({ classes("subline") }) { Text(AdminPanelStrings.emptyUsers.translation()) }
+                else -> Div({ classes("rows") }) {
                     users.forEach { user ->
                         ListRow(onSelect = { viewModel.onUserSelected(user.id) }) {
                             Span { Text(user.username.string) }
-                            Span({ classes("badge", "bg-secondary") }) { Text("#${user.id.long}") }
+                            Span({ classes("pill") }) { Text("#${user.id.long}") }
                         }
                     }
                 }
