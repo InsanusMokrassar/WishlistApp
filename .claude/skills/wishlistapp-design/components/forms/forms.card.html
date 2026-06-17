@@ -1,0 +1,29 @@
+<!-- @dsCard group="Components" viewport="700x150" name="Form fields" subtitle="Labeled text input & select in the mb-3 field block" -->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<link href="../../styles.css" rel="stylesheet" />
+<style> body { margin: 0; padding: 24px; background: #fff; } .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 0 24px; max-width: 640px; } </style>
+</head>
+<body>
+<div id="root"></div>
+<script src="https://unpkg.com/react@18.3.1/umd/react.development.js" integrity="sha384-hD6/rw4ppMLGNu3tX5cjIb+uRZ7UkRJ6BPkLpg4hAu/6onKUg4lLsHAs9EBPT82L" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.development.js" integrity="sha384-u6aeetuaXnQ38mYT8rp6sbXaQe3NL9t+IBXmnYxwkUI2Hw4bsp2Wvmx4yRQF1uAm" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/@babel/standalone@7.29.0/babel.min.js" integrity="sha384-m08KidiNqLdpJqLq95G/LEi8Qvjl/xUYll3QILypMoQ65QorJ9Lvtp2RXYGBFj1y" crossorigin="anonymous"></script>
+<script src="../../_ds_bundle.js"></script>
+<script type="text/babel">
+  const { Input, Select } = window.WishlistApp_ef9ce8;
+  function Demo() {
+    return (
+      <div className="grid">
+        <Input label="Title" id="t" value="Mechanical keyboard" onChange={()=>{}} />
+        <Select label="Sort" value="Priority" onChange={()=>{}}
+          options={["Default","Cost","Priority","Title"]} />
+      </div>
+    );
+  }
+  ReactDOM.createRoot(document.getElementById("root")).render(<Demo />);
+</script>
+</body>
+</html>

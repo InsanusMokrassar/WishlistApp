@@ -1,0 +1,69 @@
+/* Color tokens — WishlistApp.
+ *
+ * The web client renders with stock Bootstrap 5.3.8 (light theme). These are the
+ * exact Bootstrap palette values, re-declared here so the design system ships a
+ * self-describing color closure, plus WishlistApp semantic aliases (--wl-*).
+ *
+ * Brand stance: the app does NOT recolor Bootstrap. Primary blue #0d6efd is the
+ * single brand accent (it paints the top navbar via .bg-primary). Everything else
+ * is Bootstrap's neutral gray ramp + the standard semantic states. */
+
+:root {
+  /* ---- Base palette (Bootstrap) ---- */
+  --wl-blue: #0d6efd;
+  --wl-indigo: #6610f2;
+  --wl-purple: #6f42c1;
+  --wl-pink: #d63384;
+  --wl-red: #dc3545;
+  --wl-orange: #fd7e14;
+  --wl-yellow: #ffc107;
+  --wl-green: #198754;
+  --wl-teal: #20c997;
+  --wl-cyan: #0dcaf0;
+
+  /* ---- Neutral gray ramp ---- */
+  --wl-white: #ffffff;
+  --wl-gray-100: #f8f9fa;
+  --wl-gray-200: #e9ecef;
+  --wl-gray-300: #dee2e6;
+  --wl-gray-400: #ced4da;
+  --wl-gray-500: #adb5bd;
+  --wl-gray-600: #6c757d;
+  --wl-gray-700: #495057;
+  --wl-gray-800: #343a40;
+  --wl-gray-900: #212529;
+  --wl-black: #000000;
+
+  /* ---- Semantic roles (theme/intent) ---- */
+  --wl-primary: #0d6efd;        /* brand accent — navbar, primary actions, links */
+  --wl-secondary: #6c757d;      /* muted UI — back buttons, secondary actions */
+  --wl-success: #198754;        /* create / copy actions, positive alerts */
+  --wl-danger: #dc3545;         /* destructive actions, error alerts */
+  --wl-warning: #ffc107;
+  --wl-info: #0dcaf0;
+  --wl-light: #f8f9fa;
+  --wl-dark: #212529;
+
+  /* ---- Subtle / emphasis pairs (used by badges & alerts) ---- */
+  --wl-primary-bg-subtle: #cfe2ff;
+  --wl-primary-text-emphasis: #052c65;
+  --wl-secondary-bg-subtle: #e2e3e5;
+  --wl-secondary-text-emphasis: #2b2f32;
+  --wl-success-bg-subtle: #d1e7dd;
+  --wl-success-text-emphasis: #0a3622;
+  --wl-danger-bg-subtle: #f8d7da;
+  --wl-danger-text-emphasis: #58151c;
+
+  /* ---- Surfaces & text (semantic aliases) ---- */
+  --wl-surface-page: #ffffff;       /* body background */
+  --wl-surface-card: #ffffff;       /* cards, list rows, modals */
+  --wl-surface-muted: #f8f9fa;      /* card footers, subtle fills */
+  --wl-surface-placeholder: #eef1f4;/* image-placeholder background */
+  --wl-text-body: #212529;
+  --wl-text-muted: #6c757d;         /* .text-muted — subtitles, prices, helper text */
+  --wl-text-on-primary: #ffffff;    /* text/icons over the blue navbar */
+  --wl-border: #dee2e6;             /* default 1px borders on cards, inputs, rows */
+  --wl-link: #0d6efd;
+  --wl-link-hover: #0a58ca;
+  --wl-focus-ring: rgba(13, 110, 253, 0.25);
+}

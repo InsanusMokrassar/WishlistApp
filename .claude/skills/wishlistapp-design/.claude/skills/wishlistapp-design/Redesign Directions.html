@@ -1,0 +1,322 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>WishlistApp — Redesign Directions</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Newsreader:opsz,wght@6..72,400;6..72,500;6..72,600&family=Hanken+Grotesk:wght@400;500;600;700&family=Manrope:wght@400;500;600;700;800&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
+<style>
+  :root { --canvas:#e9eaee; }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--canvas); color: #1c1b22;
+    font-family: "Manrope", system-ui, sans-serif; -webkit-font-smoothing: antialiased; }
+  .wrap { max-width: 1280px; margin: 0 auto; padding: 56px 32px 120px; }
+
+  /* intro */
+  .intro { max-width: 860px; margin-bottom: 8px; }
+  .kicker { font-size: 13px; font-weight: 700; letter-spacing: .14em; text-transform: uppercase; color: #6b6b76; }
+  .intro h1 { font-family: "Newsreader", serif; font-weight: 500; font-size: 48px; line-height: 1.05; margin: 14px 0 18px; letter-spacing: -.01em; }
+  .intro p { font-size: 16px; line-height: 1.6; color: #44434d; margin: 0 0 14px; }
+  .intro .note { font-size: 14px; color: #6b6b76; }
+  .nav-rethink { display: grid; grid-template-columns: 1fr 1fr; gap: 14px 28px; margin: 26px 0 8px; padding: 22px 24px; background: #fff; border-radius: 18px; box-shadow: 0 1px 0 rgba(0,0,0,.04), 0 18px 40px -28px rgba(0,0,0,.25); }
+  .nav-rethink h3 { grid-column: 1/-1; margin: 0 0 4px; font-size: 14px; font-weight: 800; letter-spacing: .02em; }
+  .nav-rethink .row { display: flex; gap: 12px; font-size: 14px; line-height: 1.5; }
+  .nav-rethink .row b { color: #1c1b22; }
+  .nav-rethink .was { color: #9a3b2f; }
+  .nav-rethink .now { color: #2f7d5b; }
+  .nav-rethink .tag { flex-shrink: 0; width: 54px; font-weight: 700; font-size: 12px; padding-top: 1px; }
+
+  /* section scaffold */
+  .section { margin-top: 64px; }
+  .sec-head { display: flex; align-items: baseline; gap: 16px; margin-bottom: 6px; }
+  .sec-head .idx { font-family: "Newsreader", serif; font-size: 30px; color: #9a99a4; font-weight: 500; }
+  .sec-head h2 { font-size: 26px; font-weight: 800; margin: 0; letter-spacing: -.01em; }
+  .sec-head .pill { font-size: 12px; font-weight: 700; padding: 4px 11px; border-radius: 999px; background: #d7d8df; color: #4a4953; white-space: nowrap; }
+  .sec-desc { max-width: 880px; font-size: 15px; line-height: 1.6; color: #4a4953; margin: 6px 0 20px; }
+  .sec-desc .navline { display: block; margin-top: 8px; font-size: 13.5px; color: #6b6b76; }
+  .sec-desc .navline b { color: #2c2b34; }
+
+  .frame { background: #fff; border-radius: 22px; padding: 14px; box-shadow: 0 2px 2px rgba(0,0,0,.03), 0 40px 80px -50px rgba(0,0,0,.5); overflow: hidden; }
+  .screen { width: 100%; border-radius: 12px; overflow: hidden; }
+
+  /* ============ shared item-photo placeholders (tinted, no real images) ============ */
+  .ph { position: relative; overflow: hidden; }
+  .ph::after { content:""; position:absolute; inset:0; background: linear-gradient(135deg, rgba(255,255,255,.35), rgba(255,255,255,0) 55%); }
+
+  /* =================================================================== */
+  /* DIRECTION A — Cozy Registry                                          */
+  /* =================================================================== */
+  .A { --paper:#FBF7F0; --surface:#fff; --ink:#2B2520; --muted:#8d8273; --line:#ECE3D5;
+       --accent:#C75B39; --accent-soft:#F3E0D7; --sage:#6E7B57; --sage-soft:#E7EADd;
+       font-family:"Hanken Grotesk", sans-serif; background:var(--paper); color:var(--ink); }
+  .A .topbar { display:flex; align-items:center; justify-content:space-between; padding:20px 30px; border-bottom:1px solid var(--line); }
+  .A .brand { font-family:"Newsreader", serif; font-size:24px; font-weight:600; letter-spacing:-.01em; }
+  .A .brand span { color:var(--accent); }
+  .A .nav { display:flex; gap:6px; background:#fff; border:1px solid var(--line); padding:5px; border-radius:999px; }
+  .A .nav a { font-size:14px; font-weight:600; color:var(--muted); text-decoration:none; padding:8px 16px; border-radius:999px; white-space:nowrap; }
+  .A .nav a.on { background:var(--ink); color:#fff; }
+  .A .tr { display:flex; align-items:center; gap:14px; }
+  .A .icbtn { width:40px; height:40px; border-radius:999px; border:1px solid var(--line); background:#fff; display:grid; place-items:center; color:var(--muted); }
+  .A .av { width:40px; height:40px; border-radius:999px; background:linear-gradient(135deg,#C75B39,#E0996F); }
+  .A .body { padding:34px 30px 40px; }
+  .A .hdr { display:flex; justify-content:space-between; align-items:flex-end; gap:24px; margin-bottom:8px; }
+  .A .eyebrow { font-size:13px; font-weight:700; letter-spacing:.08em; text-transform:uppercase; color:var(--accent); }
+  .A h1 { font-family:"Newsreader", serif; font-weight:500; font-size:46px; line-height:1.02; margin:8px 0 10px; letter-spacing:-.015em; }
+  .A .meta { font-size:15px; color:var(--muted); }
+  .A .acts { display:flex; gap:10px; }
+  .A .btn { font-family:inherit; font-size:14.5px; font-weight:700; border-radius:999px; padding:12px 20px; border:1px solid var(--line); background:#fff; color:var(--ink); cursor:pointer; }
+  .A .btn.primary { background:var(--accent); border-color:var(--accent); color:#fff; }
+  .A .filters { display:flex; gap:8px; margin:26px 0 22px; align-items:center; }
+  .A .chip { font-size:13px; font-weight:600; padding:8px 14px; border-radius:999px; border:1px solid var(--line); background:#fff; color:var(--muted); }
+  .A .chip.on { background:var(--sage-soft); border-color:#d6dcc6; color:#4d5640; }
+  .A .grid { display:grid; grid-template-columns:repeat(3,1fr); gap:20px; }
+  .A .card { background:var(--surface); border:1px solid var(--line); border-radius:20px; overflow:hidden; }
+  .A .card .img { height:170px; }
+  .A .card .c { padding:16px 16px 18px; }
+  .A .card .ptag { display:inline-block; font-size:11px; font-weight:700; letter-spacing:.04em; text-transform:uppercase; padding:3px 9px; border-radius:999px; margin-bottom:9px; }
+  .A .pt-high { background:var(--accent-soft); color:#9b3f23; }
+  .A .pt-med { background:#F3ECDD; color:#8a6d2e; }
+  .A .pt-low { background:var(--sage-soft); color:#566048; }
+  .A .card h3 { font-family:"Newsreader", serif; font-weight:500; font-size:20px; margin:0 0 6px; }
+  .A .card .price { font-size:15px; font-weight:700; color:var(--ink); }
+  .A .card .foot { display:flex; justify-content:space-between; align-items:center; margin-top:14px; }
+  .A .reserve { font-size:13px; font-weight:700; color:var(--accent); }
+
+  /* =================================================================== */
+  /* DIRECTION B — Calm Studio                                            */
+  /* =================================================================== */
+  .B { --bg:#FAFAFB; --surface:#fff; --ink:#18181B; --muted:#71717A; --line:#ECECEF;
+       --accent:#5B5BD6; --accent-soft:#EDEDFB;
+       font-family:"Manrope", sans-serif; display:flex; background:var(--bg); color:var(--ink); min-height:620px; }
+  .B .side { width:226px; flex-shrink:0; background:#fff; border-right:1px solid var(--line); padding:20px 16px; display:flex; flex-direction:column; }
+  .B .logo { display:flex; align-items:center; gap:9px; font-weight:800; font-size:17px; letter-spacing:-.01em; padding:6px 8px 18px; }
+  .B .logo .mk { width:22px; height:22px; border-radius:7px; background:var(--accent); }
+  .B .navg { display:flex; flex-direction:column; gap:2px; }
+  .B .navg a { display:flex; align-items:center; gap:11px; font-size:14px; font-weight:600; color:var(--muted); text-decoration:none; padding:9px 11px; border-radius:9px; }
+  .B .navg a.on { background:var(--accent-soft); color:var(--accent); }
+  .B .navg a svg { width:17px; height:17px; }
+  .B .side .lbl { font-size:11px; font-weight:700; letter-spacing:.1em; text-transform:uppercase; color:#a1a1aa; padding:18px 11px 7px; }
+  .B .side .me { margin-top:auto; display:flex; align-items:center; gap:10px; padding:10px 8px; border-top:1px solid var(--line); }
+  .B .side .me .av { width:30px; height:30px; border-radius:999px; background:linear-gradient(135deg,#5B5BD6,#8e8ee9); }
+  .B .side .me .nm { font-size:13.5px; font-weight:700; }
+  .B .side .me .nm s { display:block; font-weight:500; color:var(--muted); text-decoration:none; font-size:12px; }
+  .B .main { flex:1; display:flex; flex-direction:column; }
+  .B .tbar { display:flex; align-items:center; gap:14px; padding:14px 26px; border-bottom:1px solid var(--line); background:#fff; }
+  .B .search { flex:1; max-width:340px; display:flex; align-items:center; gap:9px; background:var(--bg); border:1px solid var(--line); border-radius:9px; padding:8px 12px; color:#a1a1aa; font-size:13.5px; }
+  .B .tbar .sp { flex:1; }
+  .B .tbar .gbtn { font-size:13.5px; font-weight:700; border:1px solid var(--line); background:#fff; border-radius:9px; padding:8px 14px; cursor:pointer; }
+  .B .tbar .gbtn.primary { background:var(--accent); border-color:var(--accent); color:#fff; }
+  .B .content { padding:26px; overflow:auto; }
+  .B .crumb { font-size:13px; color:var(--muted); margin-bottom:14px; }
+  .B .crumb b { color:var(--ink); }
+  .B .htop { display:flex; justify-content:space-between; align-items:center; margin-bottom:4px; }
+  .B h1 { font-size:27px; font-weight:800; letter-spacing:-.02em; margin:0; }
+  .B .sub { font-size:14px; color:var(--muted); margin:6px 0 20px; }
+  .B .seg { display:inline-flex; background:var(--bg); border:1px solid var(--line); border-radius:9px; padding:3px; gap:2px; }
+  .B .seg button { font-family:inherit; font-size:13px; font-weight:600; color:var(--muted); border:0; background:none; padding:6px 13px; border-radius:7px; cursor:pointer; }
+  .B .seg button.on { background:#fff; color:var(--ink); box-shadow:0 1px 2px rgba(0,0,0,.08); }
+  .B .toolbar { display:flex; justify-content:space-between; align-items:center; margin-bottom:16px; }
+  .B .toolbar .right { display:flex; gap:8px; }
+  .B .select { font-size:13px; font-weight:600; color:var(--ink); border:1px solid var(--line); border-radius:8px; padding:7px 12px; background:#fff; }
+  .B .grid { display:grid; grid-template-columns:repeat(3,1fr); gap:14px; }
+  .B .card { background:#fff; border:1px solid var(--line); border-radius:13px; overflow:hidden; transition:.15s; }
+  .B .card .img { height:140px; position:relative; }
+  .B .card .badge { position:absolute; top:9px; right:9px; font-size:10.5px; font-weight:700; padding:3px 8px; border-radius:6px; background:rgba(255,255,255,.92); color:#3f3f46; backdrop-filter:blur(4px); }
+  .B .card .c { padding:13px 14px 15px; }
+  .B .card h3 { font-size:14.5px; font-weight:700; margin:0 0 3px; letter-spacing:-.01em; }
+  .B .card .price { font-size:13px; color:var(--muted); font-weight:600; }
+  .B .dot { display:inline-block; width:6px; height:6px; border-radius:999px; margin-right:6px; vertical-align:middle; }
+
+  /* =================================================================== */
+  /* DIRECTION C — Joy                                                    */
+  /* =================================================================== */
+  .C { --bg:#F3F0FB; --surface:#fff; --ink:#211C35; --muted:#7a738f; --line:#EAE5F6;
+       --violet:#6C5CE7; --coral:#FF6B6B; --mint:#27C8A8; --amber:#FFB23E;
+       font-family:"Plus Jakarta Sans", sans-serif; background:
+       radial-gradient(120% 80% at 100% 0%, #EFE7FF 0%, rgba(243,240,251,0) 50%),
+       radial-gradient(120% 80% at 0% 100%, #E6FBF4 0%, rgba(243,240,251,0) 45%), var(--bg);
+       color:var(--ink); position:relative; min-height:640px; }
+  .C .top { display:flex; align-items:center; justify-content:space-between; padding:22px 30px 8px; }
+  .C .brand { display:flex; align-items:center; gap:10px; font-weight:800; font-size:19px; }
+  .C .brand .blob { width:30px; height:30px; border-radius:11px; background:linear-gradient(135deg,var(--violet),var(--coral)); transform:rotate(-8deg); }
+  .C .top .av { width:42px; height:42px; border-radius:999px; background:linear-gradient(135deg,var(--violet),#a99bff); border:3px solid #fff; box-shadow:0 6px 16px -6px rgba(108,92,231,.6); }
+  .C .body { padding:14px 30px 110px; }
+  .C .hero { background:linear-gradient(120deg,var(--violet),#8b7bff); border-radius:26px; padding:26px 28px; color:#fff; display:flex; justify-content:space-between; align-items:center; box-shadow:0 24px 50px -28px rgba(108,92,231,.8); }
+  .C .hero .ey { font-size:12.5px; font-weight:700; letter-spacing:.08em; text-transform:uppercase; opacity:.85; }
+  .C .hero h1 { font-size:34px; font-weight:800; margin:8px 0 8px; letter-spacing:-.02em; }
+  .C .hero .meta { font-size:14px; opacity:.9; }
+  .C .hero .cta { background:#fff; color:var(--violet); font-family:inherit; font-weight:800; font-size:14.5px; border:0; border-radius:999px; padding:13px 22px; cursor:pointer; box-shadow:0 10px 20px -10px rgba(0,0,0,.4); }
+  .C .filters { display:flex; gap:9px; margin:22px 0 18px; }
+  .C .chip { font-size:13px; font-weight:700; padding:9px 16px; border-radius:999px; background:#fff; color:var(--muted); border:1.5px solid var(--line); }
+  .C .chip.on { background:var(--ink); color:#fff; border-color:var(--ink); }
+  .C .grid { display:grid; grid-template-columns:repeat(3,1fr); gap:16px; }
+  .C .card { background:#fff; border-radius:22px; padding:12px; box-shadow:0 18px 40px -30px rgba(33,28,53,.5); }
+  .C .card .img { height:148px; border-radius:15px; position:relative; }
+  .C .card .ptag { position:absolute; top:10px; left:10px; font-size:11px; font-weight:800; padding:5px 11px; border-radius:999px; color:#fff; }
+  .C .pt-high { background:var(--coral); }
+  .C .pt-med { background:var(--amber); }
+  .C .pt-low { background:var(--mint); }
+  .C .card .c { padding:13px 8px 8px; }
+  .C .card h3 { font-size:16px; font-weight:800; margin:0 0 4px; letter-spacing:-.01em; }
+  .C .card .price { font-size:14px; font-weight:700; color:var(--muted); }
+  .C .card .resv { margin-top:12px; width:100%; font-family:inherit; font-weight:800; font-size:13.5px; color:var(--violet); background:#F1EEFE; border:0; border-radius:13px; padding:11px; cursor:pointer; }
+  .C .dock { position:absolute; left:50%; bottom:20px; transform:translateX(-50%); display:flex; gap:6px; background:rgba(33,28,53,.92); backdrop-filter:blur(8px); padding:8px; border-radius:999px; box-shadow:0 20px 40px -16px rgba(33,28,53,.7); }
+  .C .dock a { display:flex; flex-direction:column; align-items:center; gap:3px; color:rgba(255,255,255,.6); text-decoration:none; font-size:10.5px; font-weight:700; padding:8px 16px; border-radius:999px; }
+  .C .dock a.on { background:rgba(255,255,255,.16); color:#fff; }
+  .C .dock a svg { width:19px; height:19px; }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <!-- INTRO -->
+  <div class="intro">
+    <div class="kicker">WishlistApp · Web redesign</div>
+    <h1>Three directions to make gifting feel good.</h1>
+    <p>Today the web client is stock Bootstrap: a gray, admin-like surface that opens on a global <em>users list</em> and navigates by breadcrumb only. The product is actually warm and social — helping people get gifts they'll love. These three directions each give it a real identity and a clearer navigation model. Same features, same copy voice; very different feel.</p>
+    <p class="note">Assumptions: web client; keep every current capability (public lists, items with price / priority / images, reserving &amp; copying, profiles, admin); free to leave Bootstrap. Tell me what resonates and I'll build the winner into a full clickable prototype.</p>
+  </div>
+
+  <div class="nav-rethink">
+    <h3>Navigation rethink (shared across all three)</h3>
+    <div class="row"><span class="tag was">WAS</span><div><b class="was">Opens on “Users”.</b> First screen is a flat list of everyone — confusing as a home.</div></div>
+    <div class="row"><span class="tag now">NOW</span><div><b class="now">Opens on “My Lists”.</b> Your own wishlists are home; you act before you browse.</div></div>
+    <div class="row"><span class="tag was">WAS</span><div><b class="was">Breadcrumb-only.</b> The top bar title is the only sense of place.</div></div>
+    <div class="row"><span class="tag now">NOW</span><div><b class="now">Persistent sections.</b> My Lists · Discover (people) · Reserved (the booking feature, finally surfaced) + global search.</div></div>
+  </div>
+
+  <!-- ============ DIRECTION A ============ -->
+  <div class="section">
+    <div class="sec-head"><span class="idx">01</span><h2>Cozy Registry</h2><span class="pill">Warm · editorial</span></div>
+    <p class="sec-desc">A thoughtful gift-registry feel: warm paper background, a serif display face (Newsreader) over a clean grotesk, generous whitespace and large product imagery. Terracotta + sage keep it warm without being childish. Best if the brand should feel personal and considered.
+      <span class="navline"><b>Nav:</b> centered pill tabs in a slim top bar (My Lists · Discover · Reserved), search + avatar on the right. Breadcrumb replaced by a big page title.</span>
+    </p>
+    <div class="frame"><div class="screen A">
+      <div class="topbar">
+        <div class="brand">wish<span>ful</span></div>
+        <nav class="nav"><a class="on" href="#">My Lists</a><a href="#">Discover</a><a href="#">Reserved</a></nav>
+        <div class="tr">
+          <div class="icbtn"><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="m20 20-3-3"/></svg></div>
+          <div class="av"></div>
+        </div>
+      </div>
+      <div class="body">
+        <div class="hdr">
+          <div>
+            <div class="eyebrow">Alice's profile</div>
+            <h1>Birthday</h1>
+            <div class="meta">12 items · shared publicly · 3 already reserved</div>
+          </div>
+          <div class="acts"><button class="btn">Share</button><button class="btn primary">Reserve a gift</button></div>
+        </div>
+        <div class="filters">
+          <span class="chip on">All</span><span class="chip">Most wanted</span><span class="chip">Under $50</span><span class="chip">Available</span>
+          <span style="flex:1"></span><span class="chip">Sort: Priority ▾</span>
+        </div>
+        <div class="grid">
+          <div class="card"><div class="img ph" style="background:linear-gradient(135deg,#dfe3d3,#c7cbb2)"></div><div class="c"><span class="ptag pt-high">High</span><h3>Mechanical keyboard</h3><div class="price">≈ $120</div><div class="foot"><span class="reserve">Reserve →</span></div></div></div>
+          <div class="card"><div class="img ph" style="background:linear-gradient(135deg,#e8d8cf,#d6b9a8)"></div><div class="c"><span class="ptag pt-high">High</span><h3>Headphones</h3><div class="price">≈ $240</div><div class="foot"><span class="reserve">Reserve →</span></div></div></div>
+          <div class="card"><div class="img ph" style="background:linear-gradient(135deg,#e7e1d2,#cfc6ad)"></div><div class="c"><span class="ptag pt-med">Medium</span><h3>Floor lamp</h3><div class="price">≈ $85</div><div class="foot"><span class="reserve">Reserve →</span></div></div></div>
+          <div class="card"><div class="img ph" style="background:linear-gradient(135deg,#ded7cb,#bcae99)"></div><div class="c"><span class="ptag pt-med">Medium</span><h3>Linen apron</h3><div class="price">≈ $35</div><div class="foot"><span class="reserve">Reserve →</span></div></div></div>
+          <div class="card"><div class="img ph" style="background:linear-gradient(135deg,#e3ddd0,#cabfa6)"></div><div class="c"><span class="ptag pt-low">Low</span><h3>Espresso cups</h3><div class="price">≈ $28 · ×2</div><div class="foot"><span class="reserve">Reserve →</span></div></div></div>
+          <div class="card"><div class="img ph" style="background:linear-gradient(135deg,#dcdbd4,#b9b3a0)"></div><div class="c"><span class="ptag pt-med">Medium</span><h3>Cast-iron skillet</h3><div class="price">≈ $45</div><div class="foot"><span class="reserve">Reserve →</span></div></div></div>
+        </div>
+      </div>
+    </div></div>
+  </div>
+
+  <!-- ============ DIRECTION B ============ -->
+  <div class="section">
+    <div class="sec-head"><span class="idx">02</span><h2>Calm Studio</h2><span class="pill">Minimal · product</span></div>
+    <p class="sec-desc">A premium, tool-like aesthetic (think Linear / Notion): near-monochrome with a single indigo accent, crisp 1px borders, a geometric sans (Manrope), tight spacing and a persistent left sidebar. Best if you want it to feel like a fast, modern app you live in.
+      <span class="navline"><b>Nav:</b> fixed left sidebar (Home · Discover · Reserved · Settings) with your profile pinned at the bottom; global search in the top bar; segmented Grid/List + sort. Keeps a small breadcrumb for depth.</span>
+    </p>
+    <div class="frame"><div class="screen B">
+      <aside class="side">
+        <div class="logo"><span class="mk"></span> wishlist</div>
+        <nav class="navg">
+          <a class="on" href="#"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 10.5 12 4l9 6.5V20a1 1 0 0 1-1 1h-5v-6H9v6H4a1 1 0 0 1-1-1z"/></svg> My Lists</a>
+          <a href="#"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/><path d="m15 9-4 1-1 4 4-1z"/></svg> Discover</a>
+          <a href="#"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 7H4v13h16zM3 7l2-3h14l2 3M12 7v13"/></svg> Reserved</a>
+          <div class="lbl">Lists</div>
+          <a href="#"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="4" y="4" width="16" height="16" rx="3"/></svg> Birthday</a>
+          <a href="#"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="4" y="4" width="16" height="16" rx="3"/></svg> New apartment</a>
+          <a href="#"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 5v14M5 12h14"/></svg> New list</a>
+        </nav>
+        <div class="me"><span class="av"></span><span class="nm">you<s>View profile</s></span></div>
+      </aside>
+      <div class="main">
+        <div class="tbar">
+          <div class="search"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="m20 20-3-3"/></svg> Search people, lists, items…</div>
+          <div class="sp"></div>
+          <button class="gbtn">Share</button>
+          <button class="gbtn primary">Add item</button>
+        </div>
+        <div class="content">
+          <div class="crumb">Discover · Alice · <b>Birthday</b></div>
+          <div class="htop"><h1>Birthday</h1>
+            <div class="seg"><button class="on">Grid</button><button>List</button></div>
+          </div>
+          <div class="sub">12 items · shared publicly · 3 reserved</div>
+          <div class="toolbar">
+            <div class="seg"><button class="on">All</button><button>Available</button><button>Reserved</button></div>
+            <div class="right"><span class="select">Sort: Priority ▾</span><span class="select">Currency: USD ▾</span></div>
+          </div>
+          <div class="grid">
+            <div class="card"><div class="img ph" style="background:linear-gradient(135deg,#e7e7f6,#d3d3ef)"><span class="badge"><span class="dot" style="background:#5B5BD6"></span>High</span></div><div class="c"><h3>Mechanical keyboard</h3><div class="price">≈ 120 USD</div></div></div>
+            <div class="card"><div class="img ph" style="background:linear-gradient(135deg,#eae7f4,#dcd6ee)"><span class="badge"><span class="dot" style="background:#5B5BD6"></span>High</span></div><div class="c"><h3>Noise-cancelling headphones</h3><div class="price">≈ 240 USD</div></div></div>
+            <div class="card"><div class="img ph" style="background:linear-gradient(135deg,#e9eaf0,#d6d8e6)"><span class="badge"><span class="dot" style="background:#9a9ab0"></span>Medium</span></div><div class="c"><h3>Floor lamp</h3><div class="price">≈ 85 USD</div></div></div>
+            <div class="card"><div class="img ph" style="background:linear-gradient(135deg,#ecebf2,#dbdaea)"><span class="badge"><span class="dot" style="background:#9a9ab0"></span>Medium</span></div><div class="c"><h3>Linen apron</h3><div class="price">≈ 35 USD</div></div></div>
+            <div class="card"><div class="img ph" style="background:linear-gradient(135deg,#e8e9ef,#d5d7e4)"><span class="badge"><span class="dot" style="background:#c3c3d0"></span>Low</span></div><div class="c"><h3>Espresso cups ×2</h3><div class="price">≈ 28 USD</div></div></div>
+            <div class="card"><div class="img ph" style="background:linear-gradient(135deg,#eaeaf1,#d8d9e7)"><span class="badge"><span class="dot" style="background:#9a9ab0"></span>Medium</span></div><div class="c"><h3>Cast-iron skillet</h3><div class="price">≈ 45 USD</div></div></div>
+          </div>
+        </div>
+      </div>
+    </div></div>
+  </div>
+
+  <!-- ============ DIRECTION C ============ -->
+  <div class="section">
+    <div class="sec-head"><span class="idx">03</span><h2>Joy</h2><span class="pill">Playful · social</span></div>
+    <p class="sec-desc">Bright and friendly: soft lavender/mint wash, a rounded geometric sans (Plus Jakarta Sans), big rounded cards, vivid priority chips and a floating bottom dock. Most approachable / consumer-social. Best if the audience skews casual and the joy of gifting is the point.
+      <span class="navline"><b>Nav:</b> a floating bottom dock (My Lists · Discover · Add · Reserved · Profile) — fast, thumb-friendly, works identically on phone &amp; desktop. A gradient hero header anchors each list.</span>
+    </p>
+    <div class="frame"><div class="screen C">
+      <div class="top">
+        <div class="brand"><span class="blob"></span> wishlist</div>
+        <div class="av"></div>
+      </div>
+      <div class="body">
+        <div class="hero">
+          <div>
+            <div class="ey">Alice's list</div>
+            <h1>Birthday</h1>
+            <div class="meta">12 items · 3 reserved · shared publicly</div>
+          </div>
+          <button class="cta">Reserve a gift</button>
+        </div>
+        <div class="filters"><span class="chip on">All</span><span class="chip">Most wanted</span><span class="chip">Available</span><span class="chip">Under $50</span></div>
+        <div class="grid">
+          <div class="card"><div class="img ph" style="background:linear-gradient(135deg,#efe7ff,#d9c9ff)"><span class="ptag pt-high">High</span></div><div class="c"><h3>Mechanical keyboard</h3><div class="price">≈ $120</div><button class="resv">Reserve this gift</button></div></div>
+          <div class="card"><div class="img ph" style="background:linear-gradient(135deg,#ffe7e7,#ffc9c9)"><span class="ptag pt-high">High</span></div><div class="c"><h3>Headphones</h3><div class="price">≈ $240</div><button class="resv">Reserve this gift</button></div></div>
+          <div class="card"><div class="img ph" style="background:linear-gradient(135deg,#e3fbf3,#c2f1e3)"><span class="ptag pt-low">Low</span></div><div class="c"><h3>Espresso cups ×2</h3><div class="price">≈ $28</div><button class="resv">Reserve this gift</button></div></div>
+          <div class="card"><div class="img ph" style="background:linear-gradient(135deg,#fff2dd,#ffe0b0)"><span class="ptag pt-med">Medium</span></div><div class="c"><h3>Floor lamp</h3><div class="price">≈ $85</div><button class="resv">Reserve this gift</button></div></div>
+          <div class="card"><div class="img ph" style="background:linear-gradient(135deg,#ece7ff,#d3c6ff)"><span class="ptag pt-med">Medium</span></div><div class="c"><h3>Linen apron</h3><div class="price">≈ $35</div><button class="resv">Reserve this gift</button></div></div>
+          <div class="card"><div class="img ph" style="background:linear-gradient(135deg,#fff0ef,#ffd2cf)"><span class="ptag pt-med">Medium</span></div><div class="c"><h3>Cast-iron skillet</h3><div class="price">≈ $45</div><button class="resv">Reserve this gift</button></div></div>
+        </div>
+      </div>
+      <nav class="dock">
+        <a class="on" href="#"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 10.5 12 4l9 6.5V20a1 1 0 0 1-1 1h-5v-6H9v6H4a1 1 0 0 1-1-1z"/></svg>My Lists</a>
+        <a href="#"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/><path d="m15 9-4 1-1 4 4-1z"/></svg>Discover</a>
+        <a href="#"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M12 5v14M5 12h14"/></svg>Add</a>
+        <a href="#"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 7H4v13h16zM3 7l2-3h14l2 3M12 7v13"/></svg>Reserved</a>
+        <a href="#"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="8" r="4"/><path d="M4 20a8 8 0 0 1 16 0"/></svg>Profile</a>
+      </nav>
+    </div></div>
+  </div>
+
+</div>
+</body>
+</html>

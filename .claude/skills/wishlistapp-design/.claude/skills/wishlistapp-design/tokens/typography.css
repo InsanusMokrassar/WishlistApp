@@ -1,0 +1,36 @@
+/* Typography tokens — WishlistApp.
+ *
+ * The web client uses Bootstrap's native system font stack — no webfont is loaded,
+ * so there is no @font-face and nothing to download. Type renders in the platform
+ * UI font (San Francisco on macOS/iOS, Segoe UI on Windows, Roboto on Android). */
+
+:root {
+  /* ---- Families ---- */
+  --wl-font-sans: system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue",
+    "Noto Sans", "Liberation Sans", Arial, sans-serif, "Apple Color Emoji",
+    "Segoe UI Emoji", "Segoe UI Symbol", "Noto Color Emoji";
+  --wl-font-mono: SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono",
+    "Courier New", monospace;
+  --wl-font-body: var(--wl-font-sans);
+
+  /* ---- Weights ---- */
+  --wl-weight-normal: 400;
+  --wl-weight-medium: 500;  /* Bootstrap headings */
+  --wl-weight-bold: 700;
+
+  /* ---- Body / line-height ---- */
+  --wl-text-base: 1rem;       /* 16px body */
+  --wl-line-body: 1.5; /* @kind other */
+  --wl-line-heading: 1.2; /* @kind other */
+
+  /* ---- Heading scale (Bootstrap @ >=1200px) ---- */
+  --wl-h1: 2.5rem;    /* page-level, rarely used */
+  --wl-h2: 2rem;
+  --wl-h3: 1.75rem;   /* ScreenTitle — the app's main heading style (.h3) */
+  --wl-h4: 1.5rem;
+  --wl-h5: 1.25rem;   /* card title */
+  --wl-h6: 1rem;      /* card subtitle, detail field labels (with .text-muted) */
+
+  /* ---- Small / utility ---- */
+  --wl-text-small: 0.875em;   /* .small — prices, helper text, badges */
+}
