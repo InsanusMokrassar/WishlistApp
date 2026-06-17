@@ -9,16 +9,32 @@ import org.jetbrains.compose.web.dom.Span
 import org.jetbrains.compose.web.dom.Text
 
 /**
- * Bootstrap pill badge showing an item's [Priority].
+ * Calm Studio CSS custom property holding the dot color for a [Priority].
  *
- * Renders the localized priority label followed by the [Priority.weightSuffix] for custom
- * priorities. Shared by every place that surfaces an item's priority (detail and all-items rows).
+ * @return One of the `--pri-*` design tokens; custom priorities reuse the high-priority accent.
+ */
+fun Priority.dotColorVar(): String = when (this) {
+    Priority.Small -> "var(--pri-low)"
+    Priority.Medium -> "var(--pri-med)"
+    Priority.High -> "var(--pri-high)"
+    is Priority.Custom -> "var(--pri-high)"
+}
+
+/**
+ * Calm Studio priority pill (`.pill`) — a neutral rounded chip with a colored leading dot and the
+ * localized priority label. The dot color encodes the [Priority] via [dotColorVar]; the chip itself
+ * stays deliberately neutral (metadata, not a status alarm). Shared by every place that surfaces an
+ * item's priority (detail and list rows).
  *
  * @param priority Priority to display.
  */
 @Composable
 fun PriorityBadge(priority: Priority) {
-    Span({ classes("badge", "rounded-pill", "bg-secondary-subtle", "text-secondary-emphasis") }) {
+    Span({ classes("pill") }) {
+        Span({
+            classes("dot")
+            style { property("background", priority.dotColorVar()) }
+        })
         Text("${priority.labelResource().translation()}${priority.weightSuffix()}")
     }
 }

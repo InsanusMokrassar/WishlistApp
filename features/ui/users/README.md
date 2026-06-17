@@ -7,13 +7,16 @@
 ## Overview
 
 User-facing screens for browsing and managing user profiles. Three screens share one navigation
-chain (the scaffold main slot):
+chain (the scaffold main slot). On JS the list + profile views render **Calm Studio** markup (the
+Discover people grid `.people`/`.person`, the profile `.pagehead` header; class names mirror the
+design skill's `ui_kits/calm-studio` reference so the phase-1 shell CSS styles them); the profile
+**edit** screen and JVM/Android remain Material/Bootstrap for now.
 
-- **Users list** — main page content; the global list of registered users from the public
-  `UsersFeature.getAll()`. Each row shows the user's avatar (circular thumbnail, placeholder when
-  unset) as leading content alongside the username. Selecting a row pushes that user's
-  `UserWishlistsViewConfig(userId)` (their all-items view). A **My profile** button (visible only
-  when logged in) opens the caller's own profile.
+- **Users list** (Discover) — main page content; the global list of registered users from the public
+  `UsersFeature.getAll()`, shown as a Calm Studio `.people` grid of `.person` cards (avatar circle —
+  the uploaded photo or a deterministic tint when unset — over the username). Selecting a card pushes
+  that user's `UserWishlistsViewConfig(userId)` (their all-items view). A **My profile** button
+  (visible only when logged in) opens the caller's own profile.
 - **User profile view** (`UserViewConfig(userId)`) — public, readable by anyone (anonymous
   included). Shows the username and avatar (when set). Shows an **Edit** button only to the profile
   owner and `root`.

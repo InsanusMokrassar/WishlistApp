@@ -8,7 +8,13 @@
 
 Client-only UI feature implementing four MVVM screens for wishlist management.
 Navigation is chain-based: all screens share one chain. Forward navigation is `push`; the user-facing Back is contextual and goes to the screen's logical parent via `NavigationChain.replaceLastOrBackUntil(parentConfig)` (`features/common/client`, `utils/NavigationPushOrBackUpTo.kt`): if the parent node is already in the chain it pops back up to it, otherwise it replaces the current node. Plain `node.chain.pop()` is still used for modal/root cases.
-JS views use Bootstrap CSS classes via Compose HTML. JVM uses Material v2, Android uses Material3.
+JS views render **Calm Studio** markup via Compose HTML (class names mirror the design skill's
+`ui_kits/calm-studio` reference — `.content-inner`, `.pagehead`, `.toolbar`, `.listgrid`/`.listcard`,
+`.grid`/`.card`, `.rows`/`.row`, `.detail`, `.form`/`.fieldset`/`.priopts`, `.scrim`/`.modal`, `.pill`);
+the shell CSS lives in `client/.../css/calm-studio.css` (phase 1). Per-screen Back buttons were dropped
+on JS — the persistent sidebar + top-bar breadcrumb (the scaffold shell, phase 2) own that navigation;
+the "Share" action on the detail screen copies the page link via the browser clipboard API. JVM uses
+Material v2, Android uses Material3 (both untouched by the redesign).
 
 ## Screens
 

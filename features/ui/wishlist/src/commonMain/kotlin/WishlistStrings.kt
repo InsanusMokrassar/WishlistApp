@@ -18,6 +18,7 @@ object WishlistStrings {
      */
     val usersListBackLabel = buildStringResource("Users") { IetfLang.Russian("Пользователи") }
     val editButton = buildStringResource("Edit") { IetfLang.Russian("Редактировать") }
+    val shareButton = buildStringResource("Share") { IetfLang.Russian("Поделиться") }
     val saveButton = CommonStrings.save
     val addItemButton = buildStringResource("Add Item") { IetfLang.Russian("Добавить товар") }
     val createWishlistButton = buildStringResource("New Wishlist") { IetfLang.Russian("Новый список") }
@@ -72,6 +73,9 @@ object WishlistStrings {
     val priorityHigh = buildStringResource("High") { IetfLang.Russian("Высокий") }
     val priorityCustom = buildStringResource("Custom") { IetfLang.Russian("Свой") }
     val priorityCustomWeightLabel = buildStringResource("Weight") { IetfLang.Russian("Вес") }
+    val priorityHelp = buildStringResource("High-priority items are shown first to gift-givers.") {
+        IetfLang.Russian("Товары с высоким приоритетом показываются дарителям первыми.")
+    }
     val noPrice = buildStringResource("No price") { IetfLang.Russian("Цена не указана") }
     val noLinks = buildStringResource("No links") { IetfLang.Russian("Ссылки не указаны") }
     val imagesLabel = buildStringResource("Images") { IetfLang.Russian("Изображения") }

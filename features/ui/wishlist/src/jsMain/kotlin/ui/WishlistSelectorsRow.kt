@@ -8,14 +8,14 @@ import dev.inmo.wishlist.features.ui.wishlist.WishlistStrings
 import org.jetbrains.compose.web.dom.Div
 
 /**
- * Reusable row of the wishlist items controls — the sort selector, the optional currency selector and
- * the view-mode selector — laid out together. The sort selector is conditionally rendered based on
- * [showSortSelector]; it is hidden while fewer than two items are loaded (PR #31 T1, operator decision).
+ * Calm Studio screen toolbar (`.toolbar`) for the wishlist item collections — the sort selector, the
+ * optional currency selector and the grid/list view-mode toggle, grouped on the right. The sort
+ * selector is rendered only when [showSortSelector] is `true` (hidden while fewer than two items are
+ * loaded — PR #31 T1, operator decision); the currency selector only when [isCurrenciesFeatureEnabled]
+ * is `true` and [currencies] is not empty. Shared by [WishlistView] and [UserWishlistsView].
  *
- * The three selectors sit in a row on wider screens (`flex-md-row` + `flex-wrap`) and gracefully fall
- * back to a vertical column on narrow ones (`flex-column`). The currency selector is only rendered when
- * [isCurrenciesFeatureEnabled] is `true` and [currencies] is not empty. Shared by [WishlistView] and
- * [UserWishlistsView].
+ * The left cell is intentionally empty (the app exposes no item filter backed by the data layer);
+ * keeping it preserves the toolbar's space-between layout so the controls sit flush right.
  *
  * @param sortMode Currently selected sort mode.
  * @param onSortModeSelected Invoked with the sort mode the user picked.
@@ -44,30 +44,28 @@ fun WishlistSelectorsRow(
     onViewModeSelected: (WishlistViewMode) -> Unit,
     noneLabel: StringResource = WishlistStrings.sortNone,
 ) {
-    Div({
-        classes(
-            "d-flex", "flex-column", "flex-md-row", "flex-wrap",
-            "gap-md-3", "align-items-md-start", "mb-3"
-        )
-    }) {
-        if (showSortSelector) {
-            WishlistSortSelector(
-                selected = sortMode,
-                onSortModeSelected = onSortModeSelected,
-                noneLabel = noneLabel,
-                availableModes = sortModesFor(costSortAvailable)
+    Div({ classes("toolbar") }) {
+        Div {}
+        Div({ classes("right") }) {
+            if (showSortSelector) {
+                WishlistSortSelector(
+                    selected = sortMode,
+                    onSortModeSelected = onSortModeSelected,
+                    noneLabel = noneLabel,
+                    availableModes = sortModesFor(costSortAvailable)
+                )
+            }
+            if (isCurrenciesFeatureEnabled && currencies.isNotEmpty()) {
+                CurrencySelector(
+                    currencies = currencies,
+                    selected = selectedCurrency,
+                    onCurrencySelected = onCurrencySelected
+                )
+            }
+            ViewModeSelector(
+                selected = viewMode,
+                onViewModeSelected = onViewModeSelected
             )
         }
-        if (isCurrenciesFeatureEnabled && currencies.isNotEmpty()) {
-            CurrencySelector(
-                currencies = currencies,
-                selected = selectedCurrency,
-                onCurrencySelected = onCurrencySelected
-            )
-        }
-        ViewModeSelector(
-            selected = viewMode,
-            onViewModeSelected = onViewModeSelected
-        )
     }
 }

@@ -7,18 +7,21 @@ import dev.inmo.micro_utils.strings.translation
 import dev.inmo.navigation.core.NavigationChain
 import dev.inmo.navigation.mvvm.compose.ComposeView
 import dev.inmo.wishlist.features.common.client.models.ViewConfig
-import dev.inmo.wishlist.features.common.client.ui.components.BackButton
+import dev.inmo.wishlist.features.common.client.ui.components.CalmIcon
+import dev.inmo.wishlist.features.common.client.ui.components.CalmIcons
+import dev.inmo.wishlist.features.common.client.ui.components.tintClass
 import dev.inmo.wishlist.features.ui.topBar.ui.TopBarTitleProvider
 import dev.inmo.wishlist.features.ui.users.UsersListStrings
 import org.jetbrains.compose.web.dom.Button
 import org.jetbrains.compose.web.dom.Div
-import org.jetbrains.compose.web.dom.Img
+import org.jetbrains.compose.web.dom.H1
 import org.jetbrains.compose.web.dom.P
+import org.jetbrains.compose.web.dom.Span
 import org.jetbrains.compose.web.dom.Text
 import org.koin.core.component.inject
 import org.koin.core.parameter.parametersOf
 
-/** JS Compose-HTML view for the public user profile detail screen. Uses Bootstrap classes. */
+/** JS Compose-HTML view for the public user profile detail screen (Calm Studio header). */
 class UserView(
     chain: NavigationChain<ViewConfig>,
     config: UserViewConfig,
@@ -34,45 +37,51 @@ class UserView(
     override fun onDraw() {
         super.onDraw()
         val user by viewModel.userState.collectAsState()
-        val backLabel by viewModel.backLabelState.collectAsState()
         val avatarId by viewModel.avatarIdState.collectAsState()
         val canEdit by viewModel.canEditState.collectAsState()
         val loading by viewModel.loadingState.collectAsState()
 
-        Div({ classes("container", "py-3") }) {
-            Div({ classes("d-flex", "align-items-center", "mb-3", "gap-2") }) {
-                BackButton(backLabel ?: UsersListStrings.backButton.translation()) { viewModel.onBack() }
-                if (canEdit) {
-                    Button({
-                        classes("btn", "btn-outline-primary", "ms-auto")
-                        onClick { viewModel.onEditUser() }
-                    }) { Text(UsersListStrings.editButton.translation()) }
-                }
-            }
-
-            if (loading) {
-                P { Text(UsersListStrings.loading.translation()) }
-            } else {
-                Div({ classes("mb-3") }) {
-                    val id = avatarId
-                    if (id != null) {
-                        Img(src = viewModel.imageUrl(id), alt = UsersListStrings.avatarLabel.translation()) {
-                            classes("rounded", "border")
-                            attr("width", "160")
-                            attr("height", "160")
-                            attr("style", "object-fit: cover;")
+        Div({ classes("content-inner") }) {
+            when {
+                loading -> P({ classes("subline") }) { Text(UsersListStrings.loading.translation()) }
+                else -> {
+                    Div({ classes("pagehead") }) {
+                        Div({
+                            style {
+                                property("display", "flex")
+                                property("gap", "16px")
+                                property("align-items", "center")
+                            }
+                        }) {
+                            val id = avatarId
+                            Span({
+                                if (id == null) classes(tintClass(config.userId.long))
+                                style {
+                                    property("width", "60px")
+                                    property("height", "60px")
+                                    property("border-radius", "999px")
+                                    property("display", "block")
+                                    property("flex-shrink", "0")
+                                    if (id != null) {
+                                        property("background-image", "url(${viewModel.imageUrl(id)})")
+                                        property("background-size", "cover")
+                                        property("background-position", "center")
+                                    }
+                                }
+                            })
+                            H1 { Text(user?.username?.string ?: "#${config.userId.long}") }
                         }
-                    } else {
-                        UserAvatarPlaceholder(
-                            sizePx = 160,
-                            circle = false,
-                            alt = UsersListStrings.avatarPlaceholderAlt.translation()
-                        )
-                    }
-                }
-                Div({ classes("mb-2") }) {
-                    P({ classes("h5", "mb-0") }) {
-                        Text(user?.username?.string ?: "#${config.userId.long}")
+                        if (canEdit) {
+                            Div({ classes("acts") }) {
+                                Button({
+                                    classes("btn")
+                                    onClick { viewModel.onEditUser() }
+                                }) {
+                                    CalmIcon(CalmIcons.edit)
+                                    Text(UsersListStrings.editButton.translation())
+                                }
+                            }
+                        }
                     }
                 }
             }

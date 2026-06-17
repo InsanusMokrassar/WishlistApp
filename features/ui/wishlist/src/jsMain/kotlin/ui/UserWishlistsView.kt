@@ -7,28 +7,48 @@ import dev.inmo.micro_utils.strings.translation
 import dev.inmo.navigation.core.NavigationChain
 import dev.inmo.navigation.mvvm.compose.ComposeView
 import dev.inmo.wishlist.features.common.client.models.ViewConfig
-import dev.inmo.wishlist.features.common.client.ui.components.BackButton
-import dev.inmo.wishlist.features.common.client.ui.components.ListRow
 import dev.inmo.wishlist.features.currency.common.models.CurrencyCode
 import dev.inmo.wishlist.features.currency.common.models.CurrencyRates
-import dev.inmo.wishlist.features.currency.common.utils.formatItemPrice
 import dev.inmo.wishlist.features.ui.topBar.ui.TopBarTitleProvider
 import dev.inmo.wishlist.features.ui.wishlist.WishlistStrings
-import org.jetbrains.compose.web.css.height
-import org.jetbrains.compose.web.css.px
-import org.jetbrains.compose.web.css.width
+import dev.inmo.wishlist.features.wishlist.common.models.RegisteredWishlistItem
+import org.jetbrains.compose.web.css.Style
+import org.jetbrains.compose.web.css.StyleSheet
 import org.jetbrains.compose.web.dom.Button
 import org.jetbrains.compose.web.dom.Div
-import org.jetbrains.compose.web.dom.H6
-import org.jetbrains.compose.web.dom.Img
+import org.jetbrains.compose.web.dom.H1
+import org.jetbrains.compose.web.dom.H3
 import org.jetbrains.compose.web.dom.P
-import org.jetbrains.compose.web.dom.Span
 import org.jetbrains.compose.web.dom.Text
-import org.jetbrains.compose.web.dom.Ul
 import org.koin.core.component.inject
 import org.koin.core.parameter.parametersOf
 
-/** JS Compose-HTML list of every item across a user's wishlists. Uses the shared Bootstrap [ListRow]. */
+/**
+ * Dedicated stylesheet for [UserWishlistsView] — the only custom CSS the Calm Studio shell does not
+ * already provide: the grouped-section header row (`Grouped` sort) carrying a wishlist title beside
+ * its Open / Add actions.
+ */
+object UserWishlistsViewStylesheet : StyleSheet() {
+    /** Flex header row above each grouped section: title on the left, actions on the right. */
+    val sectionHead by style {
+        property("display", "flex")
+        property("align-items", "center")
+        property("justify-content", "space-between")
+        property("gap", "12px")
+        property("margin", "26px 0 12px")
+        property("padding-bottom", "8px")
+        property("border-bottom", "1px solid var(--cs-line, #ECECEF)")
+    }
+}
+
+/**
+ * JS Compose-HTML list of every item across a user's wishlists (Calm Studio all-items view).
+ *
+ * Renders the items inside the standard `.content-inner` + `.pagehead` shell with a `.toolbar` of sort
+ * + grid/list controls, then either grouped sections (each with its own header) under the `Grouped`
+ * sort or a single flat `.grid` / `.rows`. Reuses [WishlistItemCard] and [WishlistItemRow]; class names
+ * mirror the design skill's `app.jsx` so the Calm Studio shell CSS styles the screen directly.
+ */
 class UserWishlistsView(
     chain: NavigationChain<ViewConfig>,
     config: UserWishlistsViewConfig,
@@ -48,8 +68,9 @@ class UserWishlistsView(
     @Composable
     override fun onDraw() {
         super.onDraw()
+        Style(UserWishlistsViewStylesheet)
         val sections by viewModel.sectionsState.collectAsState()
-        val backLabel by viewModel.backLabelState.collectAsState()
+        val userName by viewModel.userNameState.collectAsState()
         val sortMode by viewModel.sortModeState.collectAsState()
         val sortedItems by viewModel.sortedItemsState.collectAsState()
         val viewMode by viewModel.viewModeState.collectAsState()
@@ -62,26 +83,29 @@ class UserWishlistsView(
         val isOwner by viewModel.isOwnerState.collectAsState()
         val sortSelectorVisible by viewModel.sortSelectorVisibleState.collectAsState()
 
-        Div({ classes("container", "py-3") }) {
-            Div({ classes("d-flex", "align-items-center", "mb-3", "gap-2") }) {
-                BackButton(backLabel ?: WishlistStrings.usersListBackLabel.translation()) { viewModel.onBack() }
-                Div({ classes("d-flex", "align-items-center", "gap-2", "ms-auto") }) {
+        Div({ classes("content-inner") }) {
+            Div({ classes("pagehead") }) {
+                Div {
+                    H1 {
+                        Text(
+                            userName?.let { WishlistStrings.userWishesTitleFormat.translation().replace("{name}", it) }
+                                ?: WishlistStrings.allItemsTitle.translation()
+                        )
+                    }
+                }
+                Div({ classes("acts") }) {
                     CreateWishlistButton(isOwner) { viewModel.onCreateWishlist() }
                     Button({
-                        classes("btn", "btn-outline-primary")
+                        classes("btn")
                         onClick { viewModel.onOpenProfile() }
-                    }) {
-                        Text(WishlistStrings.profileButton.translation())
-                    }
+                    }) { Text(WishlistStrings.profileButton.translation()) }
                 }
             }
 
             when {
-                loading -> {
-                    P { Text(WishlistStrings.loading.translation()) }
-                }
-                sections.isEmpty() -> {
-                    P({ classes("text-muted") }) { Text(WishlistStrings.emptyItems.translation()) }
+                loading -> P({ classes("subline") }) { Text(WishlistStrings.loading.translation()) }
+                sections.isEmpty() -> Div({ classes("empty") }) {
+                    H3 { Text(WishlistStrings.emptyItems.translation()) }
                 }
                 else -> {
                     WishlistSelectorsRow(
@@ -99,57 +123,32 @@ class UserWishlistsView(
 
                     if (sortMode == WishlistSortMode.None) {
                         sections.forEach { section ->
-                            Div({
-                                classes(
-                                    "d-flex",
-                                    "align-items-center",
-                                    "justify-content-between",
-                                    "mt-3",
-                                    "mb-1",
-                                    "border-bottom",
-                                    "pb-1"
-                                )
-                            }) {
-                                H6({ classes("mb-0", "text-muted") }) { Text(section.wishlist.title) }
-                                Div({ classes("d-flex", "align-items-center", "gap-2") }) {
+                            Div({ classes(UserWishlistsViewStylesheet.sectionHead) }) {
+                                H3 { Text(section.wishlist.title) }
+                                Div({ classes("acts") }) {
                                     if (isOwner) {
                                         Button({
-                                            classes("btn", "btn-sm", "btn-primary")
+                                            classes("btn", "primary", "sm")
                                             onClick { viewModel.onCreateItem(section.wishlist) }
-                                        }) {
-                                            Text(WishlistStrings.addItemButton.translation())
-                                        }
+                                        }) { Text(WishlistStrings.addItemButton.translation()) }
                                     }
                                     Button({
-                                        classes("btn", "btn-sm", "btn-outline-primary")
+                                        classes("btn", "sm")
                                         onClick { viewModel.onWishlistSelected(section.wishlist) }
-                                    }) {
-                                        Text(WishlistStrings.openWishlistButton.translation())
-                                    }
+                                    }) { Text(WishlistStrings.openWishlistButton.translation()) }
                                 }
                             }
                             when {
-                                section.items.isEmpty() -> P({ classes("text-muted") }) { Text(WishlistStrings.emptyItems.translation()) }
-                                viewMode == WishlistViewMode.Grid -> ItemsGrid(section.items.map { it to section.wishlist.title })
-                                else -> Ul({ classes("list-group") }) {
-                                    section.items.forEach { item -> ItemRow(item, null, selectedCurrency, rates) }
-                                }
+                                section.items.isEmpty() -> P({ classes("subline") }) { Text(WishlistStrings.emptyItems.translation()) }
+                                viewMode == WishlistViewMode.Grid -> ItemsGrid(section.items.map { it to null })
+                                else -> ItemRows(section.items.map { it to null }, selectedCurrency, rates)
                             }
                         }
                     } else {
                         if (viewMode == WishlistViewMode.Grid) {
                             ItemsGrid(sortedItems.map { it.item to it.wishlistTitle })
                         } else {
-                            Ul({ classes("list-group") }) {
-                                sortedItems.forEach { sorted ->
-                                    ItemRow(
-                                        sorted.item,
-                                        sorted.wishlistTitle,
-                                        selectedCurrency,
-                                        rates
-                                    )
-                                }
-                            }
+                            ItemRows(sortedItems.map { it.item to it.wishlistTitle }, selectedCurrency, rates)
                         }
                     }
                 }
@@ -158,97 +157,49 @@ class UserWishlistsView(
     }
 
     /**
-     * Renders a single item row reusing the shared Bootstrap [ListRow].
+     * Renders a Calm Studio `.grid` of item cards.
      *
-     * @param item Item to display.
-     * @param wishlistTitle When non-null (custom sorting active), appended after the item title in
-     * brackets so the originating wishlist stays visible without the grouping headers.
-     * @param selectedCurrency Shared conversion target, or `null` for original prices.
-     * @param rates Latest rates snapshot used to convert the price, or `null` when unavailable.
+     * @param entries Items paired with the originating wishlist title (used as the card's secondary
+     * line when sorting across lists); `null` shows the item alone.
      */
     @Composable
-    private fun ItemRow(
-        item: dev.inmo.wishlist.features.wishlist.common.models.RegisteredWishlistItem,
-        wishlistTitle: String?,
-        selectedCurrency: CurrencyCode?,
-        rates: CurrencyRates?
-    ) {
-        ListRow(
-            onSelect = { viewModel.onItemSelected(item) },
-            leading = {
-                val firstImage = item.imageIds.firstOrNull()
-                if (firstImage != null) {
-                    Img(src = viewModel.imageUrl(firstImage), alt = "") {
-                        classes("rounded", "flex-shrink-0")
-                        style {
-                            width(48.px)
-                            height(48.px)
-                            property("object-fit", "cover")
-                        }
-                    }
-                } else {
-                    WishlistItemImagePlaceholder(
-                        alt = WishlistStrings.itemImagePlaceholderAlt.translation()
-                    ) {
-                        classes("rounded", "flex-shrink-0")
-                        style {
-                            width(48.px)
-                            height(48.px)
-                        }
-                    }
-                }
-            }
-        ) {
-            Div({ classes("flex-grow-1") }) {
-                Div({ classes("d-flex", "justify-content-between", "align-items-center") }) {
-                    Div({ classes("d-flex", "align-items-center", "gap-2") }) {
-                        Span {
-                            Text(wishlistTitle?.let { "${item.title} ($it)" } ?: item.title)
-                        }
-                        PriorityBadge(item.priority)
-                    }
-                    if (item.approximatePrice != null) {
-                        Span({ classes("text-muted", "small") }) {
-                            Text(
-                                formatItemPrice(
-                                    item.approximatePrice,
-                                    item.priceUnits,
-                                    selectedCurrency,
-                                    rates
-                                )
-                            )
-                        }
-                    }
-                }
-                if (item.description.isNotBlank()) {
-                    P({ classes("mb-0", "text-muted", "small", "mt-1") }) {
-                        Text(item.description)
-                    }
-                }
-            }
-        }
-    }
-
-    /**
-     * Renders a responsive Bootstrap card grid of items.
-     *
-     * @param entries Items paired with the title of the wishlist each one belongs to (used as the
-     * card subtitle).
-     */
-    @Composable
-    private fun ItemsGrid(
-        entries: List<Pair<dev.inmo.wishlist.features.wishlist.common.models.RegisteredWishlistItem, String?>>
-    ) {
-        Div({ classes("row", "row-cols-1", "row-cols-sm-2", "row-cols-md-3", "g-3", "mt-1") }) {
+    private fun ItemsGrid(entries: List<Pair<RegisteredWishlistItem, String?>>) {
+        Div({ classes("grid") }) {
             entries.forEach { (item, wishlistTitle) ->
-                Div({ classes("col") }) {
-                    WishlistItemCard(
-                        item = item,
-                        wishlistTitle = wishlistTitle,
-                        imageUrl = viewModel::imageUrl,
-                        onSelect = { viewModel.onItemSelected(item) }
-                    )
-                }
+                WishlistItemCard(
+                    item = item,
+                    wishlistTitle = wishlistTitle,
+                    imageUrl = viewModel::imageUrl,
+                    onSelect = { viewModel.onItemSelected(item) }
+                )
+            }
+        }
+    }
+
+    /**
+     * Renders a Calm Studio `.rows` list of items.
+     *
+     * @param entries Items paired with the originating wishlist title (appended after the title when
+     * sorting across lists); `null` shows the item alone.
+     * @param selectedCurrency Shared conversion target, or `null` for original prices.
+     * @param rates Latest rates snapshot used to convert prices, or `null` when unavailable.
+     */
+    @Composable
+    private fun ItemRows(
+        entries: List<Pair<RegisteredWishlistItem, String?>>,
+        selectedCurrency: CurrencyCode?,
+        rates: CurrencyRates?,
+    ) {
+        Div({ classes("rows") }) {
+            entries.forEach { (item, wishlistTitle) ->
+                WishlistItemRow(
+                    item = item,
+                    secondaryTitle = wishlistTitle,
+                    selectedCurrency = selectedCurrency,
+                    rates = rates,
+                    imageUrl = viewModel::imageUrl,
+                    onSelect = { viewModel.onItemSelected(item) }
+                )
             }
         }
     }

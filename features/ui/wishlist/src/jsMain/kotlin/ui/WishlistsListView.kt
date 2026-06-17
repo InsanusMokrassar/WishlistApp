@@ -7,22 +7,28 @@ import dev.inmo.micro_utils.strings.translation
 import dev.inmo.navigation.core.NavigationChain
 import dev.inmo.navigation.mvvm.compose.ComposeView
 import dev.inmo.wishlist.features.common.client.models.ViewConfig
-import dev.inmo.wishlist.features.common.client.ui.components.BackButton
-import dev.inmo.wishlist.features.common.client.ui.components.ListRow
+import dev.inmo.wishlist.features.common.client.ui.components.CalmIcon
+import dev.inmo.wishlist.features.common.client.ui.components.CalmIcons
+import dev.inmo.wishlist.features.common.client.ui.components.tintClass
 import dev.inmo.wishlist.features.ui.topBar.ui.TopBarTitleProvider
 import dev.inmo.wishlist.features.ui.wishlist.WishlistStrings
-import org.jetbrains.compose.web.css.height
-import org.jetbrains.compose.web.css.px
-import org.jetbrains.compose.web.css.width
 import org.jetbrains.compose.web.dom.Button
 import org.jetbrains.compose.web.dom.Div
+import org.jetbrains.compose.web.dom.H1
+import org.jetbrains.compose.web.dom.H3
 import org.jetbrains.compose.web.dom.P
 import org.jetbrains.compose.web.dom.Text
-import org.jetbrains.compose.web.dom.Ul
 import org.koin.core.component.inject
 import org.koin.core.parameter.parametersOf
 
-/** JS Compose-HTML view for the wishlists list screen. Uses Bootstrap classes. */
+/**
+ * JS Compose-HTML view for the wishlists list screen (Calm Studio "My Lists" / a user's profile).
+ *
+ * Renders a `.listgrid` of `.listcard`s — each a deterministic gradient cover over the list title —
+ * inside the standard `.content-inner` + `.pagehead` shell. Owners get a primary "New Wishlist" action
+ * and a trailing dashed "new" card; visitors get the "All items" and "Profile" affordances. Class names
+ * mirror the design skill's `app.jsx` so the Calm Studio shell CSS styles the screen directly.
+ */
 class WishlistsListView(
     chain: NavigationChain<ViewConfig>,
     config: WishlistsListViewConfig,
@@ -44,59 +50,72 @@ class WishlistsListView(
         super.onDraw()
         val wishlists by viewModel.wishlistsState.collectAsState()
         val loading by viewModel.loadingState.collectAsState()
+        val userName by viewModel.userNameState.collectAsState()
         val profileUserId by viewModel.profileUserIdState.collectAsState()
         val isOwner by viewModel.isOwnerState.collectAsState()
-        val stack by chain.stackFlow.collectAsState()
 
-        Div({ classes("container", "py-3") }) {
-            Div({ classes("d-flex", "justify-content-between", "align-items-center", "mb-3") }) {
-                Div({ classes("d-flex", "align-items-center", "gap-2") }) {
-                    if (stack.size > 1) {
-                        BackButton(WishlistStrings.backButton.translation()) { viewModel.onBack() }
+        Div({ classes("content-inner") }) {
+            Div({ classes("pagehead") }) {
+                Div {
+                    H1 {
+                        Text(
+                            userName?.let { WishlistStrings.userWishlistsTitleFormat.translation().replace("{name}", it) }
+                                ?: WishlistStrings.wishlistsTitle.translation()
+                        )
                     }
                 }
-                Div({ classes("d-flex", "gap-2") }) {
-                    if (profileUserId != null) {
-                        Button({
-                            classes("btn", "btn-outline-secondary")
-                            onClick { viewModel.onShowProfile() }
-                        }) {
-                            Text(WishlistStrings.profileButton.translation())
-                        }
-                    }
+                Div({ classes("acts") }) {
                     if (viewModel.targetUserId != null) {
                         Button({
-                            classes("btn", "btn-outline-secondary")
+                            classes("btn")
                             onClick { viewModel.onShowUserWishlists() }
-                        }) {
-                            Text(WishlistStrings.allItemsButton.translation())
-                        }
+                        }) { Text(WishlistStrings.allItemsButton.translation()) }
+                    }
+                    if (profileUserId != null) {
+                        Button({
+                            classes("btn")
+                            onClick { viewModel.onShowProfile() }
+                        }) { Text(WishlistStrings.profileButton.translation()) }
                     }
                     CreateWishlistButton(isOwner) { viewModel.onCreateWishlist() }
                 }
             }
+
             when {
-                loading -> P { Text(WishlistStrings.loading.translation()) }
-                wishlists.isEmpty() -> P({ classes("text-muted") }) {
-                    Text(WishlistStrings.emptyWishlists.translation())
+                loading -> P({ classes("subline") }) { Text(WishlistStrings.loading.translation()) }
+                wishlists.isEmpty() -> Div({ classes("empty") }) {
+                    Div({ classes("ic") }) { CalmIcon(CalmIcons.gift) }
+                    H3 { Text(WishlistStrings.emptyWishlists.translation()) }
+                    if (isOwner) {
+                        Button({
+                            classes("btn", "primary")
+                            onClick { viewModel.onCreateWishlist() }
+                        }) {
+                            CalmIcon(CalmIcons.plus)
+                            Text(WishlistStrings.createWishlistButton.translation())
+                        }
+                    }
                 }
-                else -> Ul({ classes("list-group") }) {
+                else -> Div({ classes("listgrid") }) {
                     wishlists.forEach { wishlist ->
-                        ListRow(
-                            text = wishlist.title,
-                            onSelect = { viewModel.onWishlistSelected(wishlist.id) },
-                            leading = {
-                                WishlistImagePlaceholder(
-                                    alt = WishlistStrings.wishlistImagePlaceholderAlt.translation()
-                                ) {
-                                    classes("rounded", "flex-shrink-0")
-                                    style {
-                                        width(48.px)
-                                        height(48.px)
-                                    }
-                                }
+                        Div({
+                            classes("listcard")
+                            onClick { viewModel.onWishlistSelected(wishlist.id) }
+                        }) {
+                            Div({ classes("cover", tintClass(wishlist.id.long)) })
+                            Div({ classes("c") }) {
+                                H3 { Text(wishlist.title) }
                             }
-                        )
+                        }
+                    }
+                    if (isOwner) {
+                        Div({
+                            classes("listcard", "new")
+                            onClick { viewModel.onCreateWishlist() }
+                        }) {
+                            CalmIcon(CalmIcons.plus)
+                            Text(WishlistStrings.createWishlistButton.translation())
+                        }
                     }
                 }
             }
