@@ -12,6 +12,7 @@ import dev.inmo.navigation.mvvm.compose.ComposeView
 import dev.inmo.wishlist.features.common.client.models.ViewConfig
 import dev.inmo.wishlist.features.ui.auth.ui.AuthViewConfig
 import dev.inmo.wishlist.features.ui.sidebar.SidebarStrings
+import org.jetbrains.compose.web.attributes.disabled
 import org.jetbrains.compose.web.dom.Button
 import org.jetbrains.compose.web.dom.Div
 import org.jetbrains.compose.web.dom.Nav
@@ -43,13 +44,16 @@ class SidebarView(
      * @param icon Inner SVG markup from [LucideIcons].
      * @param label Visible item label.
      * @param active Whether this item owns the current content; toggles the `on` highlight.
+     * @param enabled Whether the row is interactive; `false` renders it `:disabled` (dimmed, non-clickable),
+     * used to gate caller-only destinations behind authentication.
      * @param count Optional live badge value; rendered only when greater than zero.
      * @param onSelect Invoked when the row is clicked.
      */
     @Composable
-    private fun NavItem(icon: String, label: String, active: Boolean, count: Int = 0, onSelect: () -> Unit) {
+    private fun NavItem(icon: String, label: String, active: Boolean, enabled: Boolean = true, count: Int = 0, onSelect: () -> Unit) {
         Button(attrs = {
             if (active) classes(CalmStudioStyleSheet.navitem, CalmStudioStyleSheet.on) else classes(CalmStudioStyleSheet.navitem)
+            if (!enabled) disabled()
             onClick { onSelect() }
         }) {
             LucideIcon(icon)
@@ -69,6 +73,10 @@ class SidebarView(
         val reservedCount by viewModel.reservedCountState.collectAsState()
         val activeSection by viewModel.activeSectionState.collectAsState()
 
+        // Caller-only destinations (own lists, reserved gifts, account settings) are unavailable while
+        // anonymous; render them disabled until signed in. Discover stays public.
+        val signedIn = currentUserId != null
+
         Div(attrs = { classes(CalmStudioStyleSheet.sidebar) }) {
             Div(attrs = { classes(CalmStudioStyleSheet.logo) }) {
                 Span(attrs = { classes(CalmStudioStyleSheet.mk) }) { LucideIcon(LucideIcons.gift) }
@@ -79,7 +87,8 @@ class SidebarView(
                 NavItem(
                     icon = LucideIcons.home,
                     label = SidebarStrings.myLists.translation(),
-                    active = activeSection == SidebarSection.MyLists
+                    active = activeSection == SidebarSection.MyLists,
+                    enabled = signedIn
                 ) { viewModel.onSelectMyLists() }
                 NavItem(
                     icon = LucideIcons.compass,
@@ -90,12 +99,14 @@ class SidebarView(
                     icon = LucideIcons.bookmark,
                     label = SidebarStrings.reserved.translation(),
                     active = activeSection == SidebarSection.Reserved,
+                    enabled = signedIn,
                     count = reservedCount
                 ) { viewModel.onSelectReserved() }
                 NavItem(
                     icon = LucideIcons.settings,
                     label = SidebarStrings.settings.translation(),
-                    active = activeSection == SidebarSection.Settings
+                    active = activeSection == SidebarSection.Settings,
+                    enabled = signedIn
                 ) { viewModel.onSelectSettings() }
             }
 

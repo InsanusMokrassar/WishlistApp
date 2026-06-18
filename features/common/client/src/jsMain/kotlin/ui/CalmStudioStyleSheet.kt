@@ -219,7 +219,7 @@ object CalmStudioStyleSheet : StyleSheet(usePrefix = false) {
         property("color", "var(--cs-faint)"); property("padding", "16px 10px 7px")
     }
 
-    /** `.navitem` — one navigation row (hover, active `.on`, trailing `.count`, leading `.swatch`). */
+    /** `.navitem` — one navigation row (hover, active `.on`, disabled, trailing `.count`, leading `.swatch`). */
     val navitem by style {
         property("display", "flex"); property("align-items", "center"); property("gap", "11px"); property("font-size", "13.5px"); property("font-weight", "600")
         property("color", "var(--cs-muted)"); property("text-decoration", "none"); property("padding", "9px 10px"); property("border-radius", "8px")
@@ -234,6 +234,10 @@ object CalmStudioStyleSheet : StyleSheet(usePrefix = false) {
         self + className(on) style {
             property("background", "var(--cs-accent-soft)"); property("color", "var(--cs-accent)")
             className(count) style { property("background", "#fff"); property("color", "var(--cs-accent)") }
+        }
+        self + disabled style {
+            property("opacity", ".5"); property("cursor", "default")
+            self + hover style { property("background", "none"); property("color", "var(--cs-muted)") }
         }
     }
 

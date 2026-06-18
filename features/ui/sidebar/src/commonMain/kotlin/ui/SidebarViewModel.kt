@@ -115,8 +115,9 @@ class SidebarViewModel(
         return SidebarSection.None
     }
 
-    /** Delegates to [SidebarViewInteractor.onSelectMyLists]. */
+    /** Switches to the caller's own wishlists; no-op when anonymous. */
     fun onSelectMyLists() {
+        if (model.currentUserIdFlow.value == null) return
         scope.launchLoggingDropExceptions { interactor.onSelectMyLists(node) }
     }
 
@@ -125,8 +126,9 @@ class SidebarViewModel(
         scope.launchLoggingDropExceptions { interactor.onSelectDiscover(node) }
     }
 
-    /** Delegates to [SidebarViewInteractor.onSelectReserved]. */
+    /** Switches to the caller's reserved gifts; no-op when anonymous. */
     fun onSelectReserved() {
+        if (model.currentUserIdFlow.value == null) return
         scope.launchLoggingDropExceptions { interactor.onSelectReserved(node) }
     }
 
