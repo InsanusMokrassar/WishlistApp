@@ -41,6 +41,51 @@ object WishlistItemEditStyleSheet : StyleSheet() {
         property("margin-top", "6px")
     }
 
+    /** Top spacing for the custom-priority weight input shown under the priority options. */
+    val customWeight by style {
+        property("margin-top", "8px")
+    }
+
+    /** Wrapping flex grid of attached-image thumbnails. */
+    val imageGrid by style {
+        property("display", "flex")
+        property("flex-wrap", "wrap")
+        property("gap", "8px")
+        property("margin-bottom", "8px")
+    }
+
+    /** One image cell — positioning context for its overlaid remove button. */
+    val imageCell by style {
+        property("position", "relative")
+    }
+
+    /** Attached-image thumbnail (fixed square, cropped to cover). */
+    val imageThumb by style {
+        property("width", "96px")
+        property("height", "96px")
+        property("object-fit", "cover")
+        property("border-radius", "10px")
+    }
+
+    /** Remove button overlaid in the top-right corner of an [imageCell]. */
+    val imageRemove by style {
+        property("position", "absolute")
+        property("top", "4px")
+        property("right", "4px")
+    }
+
+    /** The bottom action bar (Save / Cancel / spacer / Delete). */
+    val actions by style {
+        property("display", "flex")
+        property("gap", "9px")
+        property("margin-top", "24px")
+    }
+
+    /** Flexible spacer pushing the Delete button to the right of the [actions] bar. */
+    val actionsSpacer by style {
+        property("flex", "1")
+    }
+
     init {
         StyleSheetsAggregator.addStyleSheet(this)
     }

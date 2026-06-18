@@ -222,8 +222,7 @@ class WishlistItemEditView(
                     }
                     if (priority is Priority.Custom) {
                         Input(InputType.Text) {
-                            classes(CalmStudioStyleSheet.input)
-                            style { property("margin-top", "8px") }
+                            classes(CalmStudioStyleSheet.input, WishlistItemEditStyleSheet.customWeight)
                             value((priority as Priority.Custom).weight.toString())
                             placeholder(WishlistStrings.priorityCustomWeightLabel.translation())
                             onInput { viewModel.onCustomWeightChanged(it.value) }
@@ -275,31 +274,14 @@ class WishlistItemEditView(
                 Div({ classes(CalmStudioStyleSheet.fieldset) }) {
                     Label { Text(WishlistStrings.imagesLabel.translation()) }
                     if (imageIds.isNotEmpty()) {
-                        Div({
-                            style {
-                                property("display", "flex")
-                                property("flex-wrap", "wrap")
-                                property("gap", "8px")
-                                property("margin-bottom", "8px")
-                            }
-                        }) {
+                        Div({ classes(WishlistItemEditStyleSheet.imageGrid) }) {
                             imageIds.forEachIndexed { index, id ->
-                                Div({ style { property("position", "relative") } }) {
+                                Div({ classes(WishlistItemEditStyleSheet.imageCell) }) {
                                     Img(src = viewModel.imageUrl(id), alt = "") {
-                                        style {
-                                            property("width", "96px")
-                                            property("height", "96px")
-                                            property("object-fit", "cover")
-                                            property("border-radius", "10px")
-                                        }
+                                        classes(WishlistItemEditStyleSheet.imageThumb)
                                     }
                                     Button({
-                                        classes(CalmStudioStyleSheet.btn, CalmStudioStyleSheet.danger, CalmStudioStyleSheet.sm)
-                                        style {
-                                            property("position", "absolute")
-                                            property("top", "4px")
-                                            property("right", "4px")
-                                        }
+                                        classes(CalmStudioStyleSheet.btn, CalmStudioStyleSheet.danger, CalmStudioStyleSheet.sm, WishlistItemEditStyleSheet.imageRemove)
                                         onClick { viewModel.onRemoveImage(index) }
                                         if (loading) disabled()
                                     }) { Text("×") }
@@ -319,13 +301,7 @@ class WishlistItemEditView(
                     }
                 }
 
-                Div({
-                    style {
-                        property("display", "flex")
-                        property("gap", "9px")
-                        property("margin-top", "24px")
-                    }
-                }) {
+                Div({ classes(WishlistItemEditStyleSheet.actions) }) {
                     Button({
                         classes(CalmStudioStyleSheet.btn, CalmStudioStyleSheet.primary)
                         onClick { viewModel.onSave() }
@@ -335,7 +311,7 @@ class WishlistItemEditView(
                         classes(CalmStudioStyleSheet.btn, CalmStudioStyleSheet.ghost)
                         onClick { viewModel.onBack() }
                     }) { Text(WishlistStrings.cancelButton.translation()) }
-                    Div({ style { property("flex", "1") } })
+                    Div({ classes(WishlistItemEditStyleSheet.actionsSpacer) })
                     if (viewModel.canDelete) {
                         Button({
                             classes(CalmStudioStyleSheet.btn, CalmStudioStyleSheet.danger)
