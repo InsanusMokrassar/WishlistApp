@@ -32,6 +32,9 @@ object WishlistStrings {
     val addLinkButton = buildStringResource("Add link") { IetfLang.Russian("Добавить ссылку") }
     val newLinkPlaceholder = buildStringResource("https://...") { IetfLang.Russian("https://...") }
     val linkTitlePlaceholder = buildStringResource("Title (optional)") { IetfLang.Russian("Название (необязательно)") }
+    val duplicateLinksHint = buildStringResource("Remove duplicate links to save") {
+        IetfLang.Russian("Удалите повторяющиеся ссылки, чтобы сохранить")
+    }
     val confirmDiscardTitle = buildStringResource("Discard changes?") { IetfLang.Russian("Отменить изменения?") }
     val confirmDiscardMessage = buildStringResource("You have unsaved changes. Discard and go back?") {
         IetfLang.Russian("Есть несохранённые изменения. Отменить и вернуться?")

@@ -109,6 +109,8 @@ class WishlistItemEditView(
         val showDialog by viewModel.showConfirmDialogState.collectAsState()
         val showDeleteDialog by viewModel.showDeleteDialogState.collectAsState()
         val scope = rememberCoroutineScope()
+        // Two links with the same url count as a repeat; saving is blocked until duplicates are removed.
+        val hasDuplicateLinks = links.size != links.distinctBy { it.url.trim() }.size
 
         if (showDeleteDialog) {
             ConfirmModal(
@@ -234,34 +236,15 @@ class WishlistItemEditView(
                 Div({ classes(CalmStudioStyleSheet.fieldset) }) {
                     Label { Text(WishlistStrings.linksLabel.translation()) }
                     links.forEachIndexed { index, link ->
-                        Div({
-                            style {
-                                property("display", "flex")
-                                property("align-items", "center")
-                                property("gap", "8px")
-                                property("margin-bottom", "6px")
-                            }
-                        }) {
-                            Span({ style { property("flex", "1"); property("min-width", "0") } }) { Text(link.displayText) }
+                        Div({ classes(WishlistItemEditStyleSheet.linkRow) }) {
+                            Span({ classes(WishlistItemEditStyleSheet.linkText) }) { Text(link.displayText) }
                             Button({
                                 classes(CalmStudioStyleSheet.btn, CalmStudioStyleSheet.ghost, CalmStudioStyleSheet.sm)
                                 onClick { viewModel.onRemoveLink(index) }
                             }) { Text("×") }
                         }
                     }
-                    Div({
-                        style {
-                            property("display", "flex")
-                            property("gap", "8px")
-                        }
-                    }) {
-                        Input(InputType.Text) {
-                            classes(CalmStudioStyleSheet.input)
-                            value(newLink)
-                            placeholder(WishlistStrings.newLinkPlaceholder.translation())
-                            onInput { viewModel.onNewLinkChanged(it.value) }
-                            if (loading) disabled()
-                        }
+                    Div({ classes(WishlistItemEditStyleSheet.addLinkRow) }) {
                         Input(InputType.Text) {
                             classes(CalmStudioStyleSheet.input)
                             value(newLinkTitle)
@@ -269,11 +252,23 @@ class WishlistItemEditView(
                             onInput { viewModel.onNewLinkTitleChanged(it.value) }
                             if (loading) disabled()
                         }
+                        Input(InputType.Text) {
+                            classes(CalmStudioStyleSheet.input)
+                            value(newLink)
+                            placeholder(WishlistStrings.newLinkPlaceholder.translation())
+                            onInput { viewModel.onNewLinkChanged(it.value) }
+                            if (loading) disabled()
+                        }
                         Button({
                             classes(CalmStudioStyleSheet.btn)
                             onClick { viewModel.onAddLink() }
                             if (newLink.isBlank()) disabled()
                         }) { Text(WishlistStrings.addLinkButton.translation()) }
+                    }
+                    if (hasDuplicateLinks) {
+                        P({ classes(WishlistItemEditStyleSheet.dupError) }) {
+                            Text(WishlistStrings.duplicateLinksHint.translation())
+                        }
                     }
                 }
 
@@ -334,7 +329,7 @@ class WishlistItemEditView(
                     Button({
                         classes(CalmStudioStyleSheet.btn, CalmStudioStyleSheet.primary)
                         onClick { viewModel.onSave() }
-                        if (loading || title.isBlank()) disabled()
+                        if (loading || title.isBlank() || hasDuplicateLinks) disabled()
                     }) { Text(WishlistStrings.saveButton.translation()) }
                     Button({
                         classes(CalmStudioStyleSheet.btn, CalmStudioStyleSheet.ghost)
