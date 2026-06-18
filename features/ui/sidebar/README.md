@@ -34,8 +34,10 @@ None — client-only UI feature.
 ## Architecture Notes
 
 - The sidebar lives in its own navigation chain (the scaffold left slot) but every action
-  navigates the **main** chain, located by `MainNavigationChainId`. Section switches use
-  `pushOrBackUntil` so a primary item is reused if already on the stack.
+  navigates the **main** chain, located by `MainNavigationChainId`. Every sidebar action
+  **replaces** the current top node instead of pushing (via `replaceLastOrBackUntil`) so it does
+  not grow the main chain / top-bar breadcrumb; if the target is already on the stack the chain
+  backs up to it.
 - `SidebarViewInteractor` is implemented in the top-level `client/ClientPlugin` (it needs the
   configs of destinations the feature itself cannot see). Section destinations:
   My Lists → `WishlistsListViewConfig()`, Discover → `UsersListViewConfig()`,
