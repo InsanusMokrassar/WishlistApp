@@ -22,6 +22,7 @@ import dev.inmo.wishlist.features.common.client.models.MainNavigationChainId
 import dev.inmo.wishlist.features.common.client.models.RootNodeFactoryGetter
 import dev.inmo.wishlist.features.common.client.models.ViewConfig
 import dev.inmo.wishlist.features.common.client.utils.replaceLastOrBackUntil
+import dev.inmo.wishlist.features.common.client.utils.resetToSingleNode
 import dev.inmo.wishlist.features.ui.adminPanel.ui.AdminPanelViewConfig
 import dev.inmo.wishlist.features.ui.adminPanel.ui.AdminPanelViewInteractor
 import dev.inmo.wishlist.features.ui.adminPanel.ui.AdminUserEditViewConfig
@@ -185,15 +186,15 @@ object ClientPlugin : StartPlugin {
                 private fun mainChain(): NavigationChain<ViewConfig>? =
                     rootChain.findInSubTree(MainNavigationChainId)
 
-                // Sidebar navigation replaces the current top node instead of pushing, so switching
-                // sections does not grow the main chain (and therefore the top-bar breadcrumb). When the
-                // target is already on the stack we back up to it instead of replacing.
+                // Sidebar navigation resets the main chain to a single node (the target), so however
+                // deep the user had navigated, a sidebar click leaves exactly one node — and therefore a
+                // single top-bar breadcrumb crumb. Clicking the already-active section is a no-op.
                 private suspend fun navigateSection(
                     target: ViewConfig,
                     isSection: (ViewConfig) -> Boolean
                 ) {
                     val mainChain = mainChain() ?: return
-                    mainChain.replaceLastOrBackUntil(target) { node, _ -> isSection(node.config) }
+                    mainChain.resetToSingleNode(target) { node, _ -> isSection(node.config) }
                 }
 
                 override suspend fun onSelectMyLists(node: NavigationNode<SidebarViewConfig, ViewConfig>) {
@@ -219,18 +220,18 @@ object ClientPlugin : StartPlugin {
                     node: NavigationNode<SidebarViewConfig, ViewConfig>,
                     wishlistId: WishlistId
                 ) {
-                    mainChain()?.replaceLastOrBackUntil(WishlistViewConfig(wishlistId))
+                    mainChain()?.resetToSingleNode(WishlistViewConfig(wishlistId))
                 }
 
                 override suspend fun onCreateList(node: NavigationNode<SidebarViewConfig, ViewConfig>) {
-                    mainChain()?.replaceLastOrBackUntil(WishlistEditViewConfig(null))
+                    mainChain()?.resetToSingleNode(WishlistEditViewConfig(null))
                 }
 
                 override suspend fun onOpenProfile(
                     node: NavigationNode<SidebarViewConfig, ViewConfig>,
                     userId: UserId
                 ) {
-                    mainChain()?.replaceLastOrBackUntil(UserViewConfig(userId))
+                    mainChain()?.resetToSingleNode(UserViewConfig(userId))
                 }
             }
         }

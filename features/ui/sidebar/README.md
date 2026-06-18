@@ -35,9 +35,9 @@ None — client-only UI feature.
 
 - The sidebar lives in its own navigation chain (the scaffold left slot) but every action
   navigates the **main** chain, located by `MainNavigationChainId`. Every sidebar action
-  **replaces** the current top node instead of pushing (via `replaceLastOrBackUntil`) so it does
-  not grow the main chain / top-bar breadcrumb; if the target is already on the stack the chain
-  backs up to it.
+  **resets** the main chain to a single node holding the target (via `resetToSingleNode`), so
+  however deep the user had navigated a click leaves exactly one node — a single top-bar
+  breadcrumb crumb. Clicking the already-active section is a no-op.
 - `SidebarViewInteractor` is implemented in the top-level `client/ClientPlugin` (it needs the
   configs of destinations the feature itself cannot see). Section destinations:
   My Lists → `WishlistsListViewConfig()`, Discover → `UsersListViewConfig()`,
