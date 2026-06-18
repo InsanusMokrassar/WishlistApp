@@ -1,5 +1,6 @@
 package dev.inmo.wishlist.features.ui.wishlist.ui
 
+import dev.inmo.wishlist.features.common.client.ui.CalmStudioStyleSheet
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
@@ -37,34 +38,34 @@ class WishlistItemCopyView(
         val loading by viewModel.loadingState.collectAsState()
         val error by viewModel.errorState.collectAsState()
 
-        Div({ classes("content-inner") }) {
-            Div({ classes("pagehead") }) {
+        Div({ classes(CalmStudioStyleSheet.`content-inner`) }) {
+            Div({ classes(CalmStudioStyleSheet.pagehead) }) {
                 Div {
                     H1 { Text(WishlistStrings.copyTargetTitle.translation()) }
-                    P({ classes("subline") }) { Text(WishlistStrings.copySelectTargetPrompt.translation()) }
+                    P({ classes(CalmStudioStyleSheet.subline) }) { Text(WishlistStrings.copySelectTargetPrompt.translation()) }
                 }
-                Div({ classes("acts") }) {
+                Div({ classes(CalmStudioStyleSheet.acts) }) {
                     CreateWishlistButton(isOwner = true) { viewModel.onCreateWishlist() }
                 }
             }
 
             if (error) {
-                P({ classes("hint") }) { Text(WishlistStrings.copyFailed.translation()) }
+                P({ classes(CalmStudioStyleSheet.hint) }) { Text(WishlistStrings.copyFailed.translation()) }
             }
 
             when {
-                loading -> P({ classes("subline") }) { Text(WishlistStrings.loading.translation()) }
+                loading -> P({ classes(CalmStudioStyleSheet.subline) }) { Text(WishlistStrings.loading.translation()) }
                 targets.isEmpty() -> Div({ classes("empty") }) {
                     H3 { Text(WishlistStrings.copyNoTargets.translation()) }
                 }
-                else -> Div({ classes("listgrid") }) {
+                else -> Div({ classes(CalmStudioStyleSheet.listgrid) }) {
                     targets.forEach { wishlist ->
                         Div({
-                            classes("listcard")
+                            classes(CalmStudioStyleSheet.listcard)
                             onClick { viewModel.onSelectTarget(wishlist.id) }
                         }) {
-                            Div({ classes("cover", tintClass(wishlist.id.long)) })
-                            Div({ classes("c") }) { H3 { Text(wishlist.title) } }
+                            Div({ classes(CalmStudioStyleSheet.cover, tintClass(wishlist.id.long)) })
+                            Div({ classes(CalmStudioStyleSheet.c) }) { H3 { Text(wishlist.title) } }
                         }
                     }
                 }

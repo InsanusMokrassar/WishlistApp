@@ -1,6 +1,7 @@
 package dev.inmo.wishlist.features.common.client.ui.components
 
 import androidx.compose.runtime.Composable
+import dev.inmo.wishlist.features.common.client.ui.CalmStudioStyleSheet
 import org.jetbrains.compose.web.dom.Span
 
 /**
@@ -37,6 +38,27 @@ object CalmIcons {
 
     /** Success checkmark (toast confirmations). */
     val check = """<path d="M20 6 9 17l-5-5"/>"""
+
+    /** "My Lists" / home navigation glyph. */
+    val home = """<path d="M3 10.5 12 4l9 6.5V20a1 1 0 0 1-1 1h-5v-6H9v6H4a1 1 0 0 1-1-1z"/>"""
+
+    /** Settings navigation glyph (gear). */
+    val settings = """<circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.6 1.6 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.6 1.6 0 0 0-2.7 1.1V21a2 2 0 0 1-4 0v-.1A1.6 1.6 0 0 0 7 19.4a1.6 1.6 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.6 1.6 0 0 0-1.1-2.7H1a2 2 0 0 1 0-4h.1A1.6 1.6 0 0 0 2.6 7a1.6 1.6 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.6 1.6 0 0 0 1.8.3H7a1.6 1.6 0 0 0 1-1.5V1a2 2 0 0 1 4 0v.1a1.6 1.6 0 0 0 1 1.5 1.6 1.6 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.6 1.6 0 0 0-.3 1.8V7a1.6 1.6 0 0 0 1.5 1H23a2 2 0 0 1 0 4h-.1a1.6 1.6 0 0 0-1.5 1z"/>"""
+
+    /** Magnifying-glass search glyph (top bar). */
+    val search = """<circle cx="11" cy="11" r="7"/><path d="m20 20-3-3"/>"""
+
+    /** Generic list glyph. */
+    val list = """<rect x="4" y="4" width="16" height="16" rx="3"/>"""
+
+    /** Back-navigation arrow. */
+    val back = """<path d="M19 12H5M12 19l-7-7 7-7"/>"""
+
+    /** User / profile glyph. */
+    val user = """<circle cx="12" cy="8" r="4"/><path d="M4 21a8 8 0 0 1 16 0"/>"""
+
+    /** Lock glyph (signed-out / private states). */
+    val lock = """<rect x="5" y="11" width="14" height="10" rx="2"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/>"""
 }
 
 /**
@@ -67,4 +89,13 @@ fun CalmIcon(inner: String) {
  * @param seed Stable numeric id (wishlist, item, or user).
  * @return One of the `t0`..`t7` media-tint classes.
  */
-fun tintClass(seed: Long): String = "t${((seed % 8 + 8) % 8)}"
+fun tintClass(seed: Long): String = when (((seed % 8 + 8) % 8).toInt()) {
+    0 -> CalmStudioStyleSheet.t0
+    1 -> CalmStudioStyleSheet.t1
+    2 -> CalmStudioStyleSheet.t2
+    3 -> CalmStudioStyleSheet.t3
+    4 -> CalmStudioStyleSheet.t4
+    5 -> CalmStudioStyleSheet.t5
+    6 -> CalmStudioStyleSheet.t6
+    else -> CalmStudioStyleSheet.t7
+}

@@ -1,5 +1,6 @@
 package dev.inmo.wishlist.features.ui.wishlist.ui
 
+import dev.inmo.wishlist.features.common.client.ui.CalmStudioStyleSheet
 import androidx.compose.runtime.Composable
 import dev.inmo.wishlist.features.currency.common.utils.PriceUnitsResolver
 import org.jetbrains.compose.web.attributes.InputType
@@ -34,7 +35,7 @@ fun PriceUnitsSelector(
     id: String = "price-units",
 ) {
     val entries = PriceUnitsResolver.entries
-    Div({ classes("fieldset") }) {
+    Div({ classes(CalmStudioStyleSheet.fieldset) }) {
         Label(id) { Text(label) }
         Div({
             style {
@@ -44,14 +45,14 @@ fun PriceUnitsSelector(
         }) {
             Input(InputType.Text) {
                 id(id)
-                classes("input")
+                classes(CalmStudioStyleSheet.input)
                 value(value)
                 placeholder("$, €, USD...")
                 onInput { onValueChange(it.value) }
                 if (!enabled) disabled()
             }
             Select({
-                classes("select")
+                classes(CalmStudioStyleSheet.select)
                 onChange { event ->
                     val picked = event.value
                     if (!picked.isNullOrEmpty()) onValueChange(picked)

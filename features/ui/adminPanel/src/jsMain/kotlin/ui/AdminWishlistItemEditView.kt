@@ -1,5 +1,6 @@
 package dev.inmo.wishlist.features.ui.adminPanel.ui
 
+import dev.inmo.wishlist.features.common.client.ui.CalmStudioStyleSheet
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
@@ -53,8 +54,8 @@ class AdminWishlistItemEditView(
             )
         }
 
-        Div({ classes("content-inner") }) {
-            Div({ classes("pagehead") }) {
+        Div({ classes(CalmStudioStyleSheet.`content-inner`) }) {
+            Div({ classes(CalmStudioStyleSheet.pagehead) }) {
                 Div {
                     H1 {
                         Text(
@@ -63,40 +64,40 @@ class AdminWishlistItemEditView(
                         )
                     }
                 }
-                Div({ classes("acts") }) {
+                Div({ classes(CalmStudioStyleSheet.acts) }) {
                     BackButton(AdminPanelStrings.backButton.translation()) { viewModel.onBack() }
                 }
             }
 
-            Div({ classes("form") }) {
-                Div({ classes("fieldset") }) {
+            Div({ classes(CalmStudioStyleSheet.form) }) {
+                Div({ classes(CalmStudioStyleSheet.fieldset) }) {
                     Label("item-title") { Text(AdminPanelStrings.itemTitleLabel.translation()) }
                     Input(InputType.Text) {
                         id("item-title")
-                        classes("input")
+                        classes(CalmStudioStyleSheet.input)
                         value(title)
                         placeholder(AdminPanelStrings.itemTitleLabel.translation())
                         onInput { viewModel.onTitleChanged(it.value) }
                         if (loading) disabled()
                     }
                 }
-                Div({ classes("form-row") }) {
-                    Div({ classes("fieldset") }) {
+                Div({ classes(CalmStudioStyleSheet.`form-row`) }) {
+                    Div({ classes(CalmStudioStyleSheet.fieldset) }) {
                         Label("item-price") { Text(AdminPanelStrings.itemPriceLabel.translation()) }
                         Input(InputType.Text) {
                             id("item-price")
-                            classes("input")
+                            classes(CalmStudioStyleSheet.input)
                             value(price)
                             placeholder("0.00")
                             onInput { viewModel.onPriceChanged(it.value) }
                             if (loading) disabled()
                         }
                     }
-                    Div({ classes("fieldset") }) {
+                    Div({ classes(CalmStudioStyleSheet.fieldset) }) {
                         Label("item-units") { Text(AdminPanelStrings.itemPriceUnitsLabel.translation()) }
                         Input(InputType.Text) {
                             id("item-units")
-                            classes("input")
+                            classes(CalmStudioStyleSheet.input)
                             value(priceUnits)
                             placeholder("$, €, ...")
                             onInput { viewModel.onPriceUnitsChanged(it.value) }
@@ -104,11 +105,11 @@ class AdminWishlistItemEditView(
                         }
                     }
                 }
-                Div({ classes("fieldset") }) {
+                Div({ classes(CalmStudioStyleSheet.fieldset) }) {
                     Label("item-description") { Text(AdminPanelStrings.itemDescriptionLabel.translation()) }
                     TextArea(description) {
                         id("item-description")
-                        classes("textarea")
+                        classes(CalmStudioStyleSheet.textarea)
                         value(description)
                         placeholder(AdminPanelStrings.itemDescriptionLabel.translation())
                         onInput { viewModel.onDescriptionChanged(it.value) }
@@ -117,7 +118,7 @@ class AdminWishlistItemEditView(
                 }
                 Div({ style { property("margin-top", "24px") } }) {
                     Button({
-                        classes("btn", "primary")
+                        classes(CalmStudioStyleSheet.btn, CalmStudioStyleSheet.primary)
                         onClick { viewModel.onSave() }
                         if (loading || title.isBlank()) disabled()
                     }) {

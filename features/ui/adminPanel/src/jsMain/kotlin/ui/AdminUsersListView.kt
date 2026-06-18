@@ -1,5 +1,6 @@
 package dev.inmo.wishlist.features.ui.adminPanel.ui
 
+import dev.inmo.wishlist.features.common.client.ui.CalmStudioStyleSheet
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
@@ -37,14 +38,14 @@ class AdminUsersListView(
         val users by viewModel.usersState.collectAsState()
         val loading by viewModel.loadingState.collectAsState()
 
-        Div({ classes("content-inner") }) {
-            Div({ classes("pagehead") }) {
+        Div({ classes(CalmStudioStyleSheet.`content-inner`) }) {
+            Div({ classes(CalmStudioStyleSheet.pagehead) }) {
                 Div {
                     H1 { Text(AdminPanelStrings.usersListTitle.translation()) }
                 }
-                Div({ classes("acts") }) {
+                Div({ classes(CalmStudioStyleSheet.acts) }) {
                     Button({
-                        classes("btn", "primary")
+                        classes(CalmStudioStyleSheet.btn, CalmStudioStyleSheet.primary)
                         onClick { viewModel.onCreateUser() }
                     }) {
                         Text(AdminPanelStrings.addUserButton.translation())
@@ -52,13 +53,13 @@ class AdminUsersListView(
                 }
             }
             when {
-                loading -> P({ classes("subline") }) { Text(AdminPanelStrings.loading.translation()) }
-                users.isEmpty() -> P({ classes("subline") }) { Text(AdminPanelStrings.emptyUsers.translation()) }
-                else -> Div({ classes("rows") }) {
+                loading -> P({ classes(CalmStudioStyleSheet.subline) }) { Text(AdminPanelStrings.loading.translation()) }
+                users.isEmpty() -> P({ classes(CalmStudioStyleSheet.subline) }) { Text(AdminPanelStrings.emptyUsers.translation()) }
+                else -> Div({ classes(CalmStudioStyleSheet.rows) }) {
                     users.forEach { user ->
                         ListRow(onSelect = { viewModel.onUserSelected(user.id) }) {
                             Span { Text(user.username.string) }
-                            Span({ classes("pill") }) { Text("#${user.id.long}") }
+                            Span({ classes(CalmStudioStyleSheet.pill) }) { Text("#${user.id.long}") }
                         }
                     }
                 }

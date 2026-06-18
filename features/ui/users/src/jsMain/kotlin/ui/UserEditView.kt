@@ -1,5 +1,6 @@
 package dev.inmo.wishlist.features.ui.users.ui
 
+import dev.inmo.wishlist.features.common.client.ui.CalmStudioStyleSheet
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
@@ -74,17 +75,17 @@ class UserEditView(
             )
         }
 
-        Div({ classes("content-inner") }) {
-            Div({ classes("pagehead") }) {
+        Div({ classes(CalmStudioStyleSheet.`content-inner`) }) {
+            Div({ classes(CalmStudioStyleSheet.pagehead) }) {
                 Div {
                     H1 { Text(UsersListStrings.editProfileTitle.translation()) }
-                    P({ classes("subline") }) { Text("#${viewModel.userId.long}") }
+                    P({ classes(CalmStudioStyleSheet.subline) }) { Text("#${viewModel.userId.long}") }
                 }
             }
 
-            Div({ classes("form") }) {
+            Div({ classes(CalmStudioStyleSheet.form) }) {
                 // Avatar section — available to owner and root.
-                Div({ classes("fieldset") }) {
+                Div({ classes(CalmStudioStyleSheet.fieldset) }) {
                     Label(null) { Text(UsersListStrings.avatarLabel.translation()) }
                     Div({ style { property("margin-bottom", "8px") } }) {
                         val id = avatarId
@@ -107,7 +108,7 @@ class UserEditView(
                         }
                     }
                     Button({
-                        classes("btn")
+                        classes(CalmStudioStyleSheet.btn)
                         onClick { scope.launch { pickImageFile()?.let { viewModel.onAvatarPicked(it) } } }
                         if (loading || uploading) disabled()
                     }) {
@@ -119,33 +120,33 @@ class UserEditView(
                 }
 
                 if (isRoot) {
-                    Div({ classes("fieldset") }) {
+                    Div({ classes(CalmStudioStyleSheet.fieldset) }) {
                         Label("settings-username") { Text(UsersListStrings.usernameLabel.translation()) }
                         Input(InputType.Text) {
                             id("settings-username")
-                            classes("input")
+                            classes(CalmStudioStyleSheet.input)
                             value(username)
                             placeholder(UsersListStrings.usernameLabel.translation())
                             onInput { viewModel.onUsernameChanged(it.value) }
                             if (loading) disabled()
                         }
                     }
-                    Div({ classes("fieldset") }) {
+                    Div({ classes(CalmStudioStyleSheet.fieldset) }) {
                         Label("settings-password") { Text(UsersListStrings.newPasswordLabel.translation()) }
                         Input(InputType.Password) {
                             id("settings-password")
-                            classes("input")
+                            classes(CalmStudioStyleSheet.input)
                             value(password)
                             placeholder(UsersListStrings.newPasswordLabel.translation())
                             onInput { viewModel.onPasswordChanged(it.value) }
                             if (loading) disabled()
                         }
                     }
-                    Div({ classes("fieldset") }) {
+                    Div({ classes(CalmStudioStyleSheet.fieldset) }) {
                         Label("settings-confirm-password") { Text(UsersListStrings.confirmPasswordLabel.translation()) }
                         Input(InputType.Password) {
                             id("settings-confirm-password")
-                            classes("input")
+                            classes(CalmStudioStyleSheet.input)
                             value(confirmPassword)
                             placeholder(UsersListStrings.confirmPasswordLabel.translation())
                             onInput { viewModel.onConfirmPasswordChanged(it.value) }
@@ -153,7 +154,7 @@ class UserEditView(
                         }
                         if (mismatch) {
                             P({
-                                classes("hint")
+                                classes(CalmStudioStyleSheet.hint)
                                 style { property("color", "var(--cs-danger)") }
                             }) { Text(UsersListStrings.passwordMismatch.translation()) }
                         }
@@ -166,36 +167,36 @@ class UserEditView(
                         }
                     }) {
                         Button({
-                            classes("btn", "primary")
+                            classes(CalmStudioStyleSheet.btn, CalmStudioStyleSheet.primary)
                             onClick { viewModel.onSave() }
                             if (!canSave) disabled()
                         }) { Text(UsersListStrings.saveButton.translation()) }
                         Button({
-                            classes("btn", "ghost")
+                            classes(CalmStudioStyleSheet.btn, CalmStudioStyleSheet.ghost)
                             onClick { viewModel.onBack() }
                         }) { Text(UsersListStrings.backButton.translation()) }
                         Div({ style { property("flex", "1") } })
                         Button({
-                            classes("btn", "danger")
+                            classes(CalmStudioStyleSheet.btn, CalmStudioStyleSheet.danger)
                             onClick { viewModel.onDeleteRequest() }
                             if (loading) disabled()
                         }) { Text(UsersListStrings.deleteButton.translation()) }
                     }
                 } else {
-                    Div({ classes("fieldset") }) {
+                    Div({ classes(CalmStudioStyleSheet.fieldset) }) {
                         Label("settings-username") { Text(UsersListStrings.usernameLabel.translation()) }
                         Input(InputType.Text) {
                             id("settings-username")
-                            classes("input")
+                            classes(CalmStudioStyleSheet.input)
                             value(username)
                             attr("readonly", "true")
                             disabled()
                         }
                     }
-                    P({ classes("hint") }) { Text(UsersListStrings.noEditableFields.translation()) }
+                    P({ classes(CalmStudioStyleSheet.hint) }) { Text(UsersListStrings.noEditableFields.translation()) }
                     Div({ style { property("margin-top", "24px") } }) {
                         Button({
-                            classes("btn", "ghost")
+                            classes(CalmStudioStyleSheet.btn, CalmStudioStyleSheet.ghost)
                             onClick { viewModel.onBack() }
                         }) { Text(UsersListStrings.backButton.translation()) }
                     }
@@ -217,24 +218,24 @@ class UserEditView(
         onCancel: () -> Unit,
     ) {
         Div({
-            classes("scrim")
+            classes(CalmStudioStyleSheet.scrim)
             onClick { onCancel() }
         }) {
             Div({
-                classes("modal")
+                classes(CalmStudioStyleSheet.modal)
                 onClick { it.stopPropagation() }
             }) {
-                Div({ classes("mhead") }) {
+                Div({ classes(CalmStudioStyleSheet.mhead) }) {
                     H2 { Text(title) }
                     P { Text(message) }
                 }
-                Div({ classes("mfoot") }) {
+                Div({ classes(CalmStudioStyleSheet.mfoot) }) {
                     Button({
-                        classes("btn", "ghost")
+                        classes(CalmStudioStyleSheet.btn, CalmStudioStyleSheet.ghost)
                         onClick { onCancel() }
                     }) { Text(UsersListStrings.cancelButton.translation()) }
                     Button({
-                        classes("btn", "danger")
+                        classes(CalmStudioStyleSheet.btn, CalmStudioStyleSheet.danger)
                         onClick { onConfirm() }
                     }) { Text(confirmLabel) }
                 }

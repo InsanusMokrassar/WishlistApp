@@ -1,5 +1,6 @@
 package dev.inmo.wishlist.features.common.client.ui.components
 
+import dev.inmo.wishlist.features.common.client.ui.CalmStudioStyleSheet
 import androidx.compose.runtime.Composable
 import org.jetbrains.compose.web.dom.Button
 import org.jetbrains.compose.web.dom.Div
@@ -30,7 +31,7 @@ fun ScreenTitle(text: String, vararg extraClasses: String) {
 @Composable
 fun BackButton(text: String, onClick: () -> Unit) {
     Button({
-        classes("btn", "ghost")
+        classes(CalmStudioStyleSheet.btn, CalmStudioStyleSheet.ghost)
         onClick { onClick() }
     }) {
         Text(text)
@@ -82,7 +83,7 @@ fun ListRow(
     content: @Composable () -> Unit,
 ) {
     Div({
-        classes("row")
+        classes(CalmStudioStyleSheet.row)
         if (onSelect != null) {
             onClick { onSelect() }
         } else {
@@ -90,7 +91,7 @@ fun ListRow(
         }
     }) {
         leading?.invoke()
-        Div({ classes("rmain") }) { content() }
+        Div({ classes(CalmStudioStyleSheet.rmain) }) { content() }
         trailing?.invoke()
     }
 }

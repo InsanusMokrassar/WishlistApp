@@ -1,5 +1,6 @@
 package dev.inmo.wishlist.features.ui.wishlist.ui
 
+import dev.inmo.wishlist.features.common.client.ui.CalmStudioStyleSheet
 import androidx.compose.runtime.Composable
 import dev.inmo.micro_utils.strings.StringResource
 import dev.inmo.wishlist.features.currency.common.models.CurrencyCode
@@ -44,7 +45,7 @@ fun WishlistSelectorsRow(
     onViewModeSelected: (WishlistViewMode) -> Unit,
     noneLabel: StringResource = WishlistStrings.sortNone,
 ) {
-    Div({ classes("toolbar") }) {
+    Div({ classes(CalmStudioStyleSheet.toolbar) }) {
         Div {}
         Div({ classes("right") }) {
             if (showSortSelector) {

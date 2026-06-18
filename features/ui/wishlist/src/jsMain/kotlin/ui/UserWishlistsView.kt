@@ -1,5 +1,6 @@
 package dev.inmo.wishlist.features.ui.wishlist.ui
 
+import dev.inmo.wishlist.features.common.client.ui.CalmStudioStyleSheet
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
@@ -83,8 +84,8 @@ class UserWishlistsView(
         val isOwner by viewModel.isOwnerState.collectAsState()
         val sortSelectorVisible by viewModel.sortSelectorVisibleState.collectAsState()
 
-        Div({ classes("content-inner") }) {
-            Div({ classes("pagehead") }) {
+        Div({ classes(CalmStudioStyleSheet.`content-inner`) }) {
+            Div({ classes(CalmStudioStyleSheet.pagehead) }) {
                 Div {
                     H1 {
                         Text(
@@ -93,17 +94,17 @@ class UserWishlistsView(
                         )
                     }
                 }
-                Div({ classes("acts") }) {
+                Div({ classes(CalmStudioStyleSheet.acts) }) {
                     CreateWishlistButton(isOwner) { viewModel.onCreateWishlist() }
                     Button({
-                        classes("btn")
+                        classes(CalmStudioStyleSheet.btn)
                         onClick { viewModel.onOpenProfile() }
                     }) { Text(WishlistStrings.profileButton.translation()) }
                 }
             }
 
             when {
-                loading -> P({ classes("subline") }) { Text(WishlistStrings.loading.translation()) }
+                loading -> P({ classes(CalmStudioStyleSheet.subline) }) { Text(WishlistStrings.loading.translation()) }
                 sections.isEmpty() -> Div({ classes("empty") }) {
                     H3 { Text(WishlistStrings.emptyItems.translation()) }
                 }
@@ -125,21 +126,21 @@ class UserWishlistsView(
                         sections.forEach { section ->
                             Div({ classes(UserWishlistsViewStylesheet.sectionHead) }) {
                                 H3 { Text(section.wishlist.title) }
-                                Div({ classes("acts") }) {
+                                Div({ classes(CalmStudioStyleSheet.acts) }) {
                                     if (isOwner) {
                                         Button({
-                                            classes("btn", "primary", "sm")
+                                            classes(CalmStudioStyleSheet.btn, CalmStudioStyleSheet.primary, CalmStudioStyleSheet.sm)
                                             onClick { viewModel.onCreateItem(section.wishlist) }
                                         }) { Text(WishlistStrings.addItemButton.translation()) }
                                     }
                                     Button({
-                                        classes("btn", "sm")
+                                        classes(CalmStudioStyleSheet.btn, CalmStudioStyleSheet.sm)
                                         onClick { viewModel.onWishlistSelected(section.wishlist) }
                                     }) { Text(WishlistStrings.openWishlistButton.translation()) }
                                 }
                             }
                             when {
-                                section.items.isEmpty() -> P({ classes("subline") }) { Text(WishlistStrings.emptyItems.translation()) }
+                                section.items.isEmpty() -> P({ classes(CalmStudioStyleSheet.subline) }) { Text(WishlistStrings.emptyItems.translation()) }
                                 viewMode == WishlistViewMode.Grid -> ItemsGrid(section.items.map { it to null })
                                 else -> ItemRows(section.items.map { it to null }, selectedCurrency, rates)
                             }
@@ -164,7 +165,7 @@ class UserWishlistsView(
      */
     @Composable
     private fun ItemsGrid(entries: List<Pair<RegisteredWishlistItem, String?>>) {
-        Div({ classes("grid") }) {
+        Div({ classes(CalmStudioStyleSheet.grid) }) {
             entries.forEach { (item, wishlistTitle) ->
                 WishlistItemCard(
                     item = item,
@@ -190,7 +191,7 @@ class UserWishlistsView(
         selectedCurrency: CurrencyCode?,
         rates: CurrencyRates?,
     ) {
-        Div({ classes("rows") }) {
+        Div({ classes(CalmStudioStyleSheet.rows) }) {
             entries.forEach { (item, wishlistTitle) ->
                 WishlistItemRow(
                     item = item,

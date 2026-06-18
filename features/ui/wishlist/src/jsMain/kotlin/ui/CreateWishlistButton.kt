@@ -1,5 +1,6 @@
 package dev.inmo.wishlist.features.ui.wishlist.ui
 
+import dev.inmo.wishlist.features.common.client.ui.CalmStudioStyleSheet
 import androidx.compose.runtime.Composable
 import dev.inmo.micro_utils.strings.translation
 import dev.inmo.wishlist.features.common.client.ui.components.CalmIcon
@@ -23,7 +24,7 @@ import org.jetbrains.compose.web.dom.Text
 fun CreateWishlistButton(isOwner: Boolean, onClick: () -> Unit) {
     if (!isOwner) return
     Button({
-        classes("btn", "primary")
+        classes(CalmStudioStyleSheet.btn, CalmStudioStyleSheet.primary)
         onClick { onClick() }
     }) {
         CalmIcon(CalmIcons.plus)

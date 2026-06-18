@@ -1,5 +1,6 @@
 package dev.inmo.wishlist.features.ui.wishlist.ui
 
+import dev.inmo.wishlist.features.common.client.ui.CalmStudioStyleSheet
 import androidx.compose.runtime.Composable
 import dev.inmo.micro_utils.strings.translation
 import dev.inmo.wishlist.features.ui.wishlist.labelResource
@@ -30,9 +31,9 @@ fun Priority.dotColorVar(): String = when (this) {
  */
 @Composable
 fun PriorityBadge(priority: Priority) {
-    Span({ classes("pill") }) {
+    Span({ classes(CalmStudioStyleSheet.pill) }) {
         Span({
-            classes("dot")
+            classes(CalmStudioStyleSheet.dot)
             style { property("background", priority.dotColorVar()) }
         })
         Text("${priority.labelResource().translation()}${priority.weightSuffix()}")

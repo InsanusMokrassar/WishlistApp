@@ -1,5 +1,6 @@
 package dev.inmo.wishlist.features.ui.adminPanel.ui
 
+import dev.inmo.wishlist.features.common.client.ui.CalmStudioStyleSheet
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
@@ -53,8 +54,8 @@ class AdminWishlistEditView(
             )
         }
 
-        Div({ classes("content-inner") }) {
-            Div({ classes("pagehead") }) {
+        Div({ classes(CalmStudioStyleSheet.`content-inner`) }) {
+            Div({ classes(CalmStudioStyleSheet.pagehead) }) {
                 Div {
                     H1 {
                         Text(
@@ -63,28 +64,28 @@ class AdminWishlistEditView(
                         )
                     }
                 }
-                Div({ classes("acts") }) {
+                Div({ classes(CalmStudioStyleSheet.acts) }) {
                     BackButton(AdminPanelStrings.backButton.translation()) { viewModel.onBack() }
                 }
             }
 
-            Div({ classes("form") }) {
-                Div({ classes("fieldset") }) {
+            Div({ classes(CalmStudioStyleSheet.form) }) {
+                Div({ classes(CalmStudioStyleSheet.fieldset) }) {
                     Label("wl-title") { Text(AdminPanelStrings.wishlistTitleLabel.translation()) }
                     Input(InputType.Text) {
                         id("wl-title")
-                        classes("input")
+                        classes(CalmStudioStyleSheet.input)
                         value(title)
                         placeholder(AdminPanelStrings.wishlistTitleLabel.translation())
                         onInput { viewModel.onTitleChanged(it.value) }
                         if (loading) disabled()
                     }
                 }
-                Div({ classes("fieldset") }) {
+                Div({ classes(CalmStudioStyleSheet.fieldset) }) {
                     Label("wl-owner") { Text(AdminPanelStrings.ownerLabel.translation()) }
                     Select({
                         id("wl-owner")
-                        classes("select")
+                        classes(CalmStudioStyleSheet.select)
                         if (loading) disabled()
                         onChange { event ->
                             val value = event.value
@@ -113,7 +114,7 @@ class AdminWishlistEditView(
                 }
                 Div({ style { property("margin-top", "24px") } }) {
                     Button({
-                        classes("btn", "primary")
+                        classes(CalmStudioStyleSheet.btn, CalmStudioStyleSheet.primary)
                         onClick { viewModel.onSave() }
                         if (loading || title.isBlank() || selectedUserId == null) disabled()
                     }) {

@@ -1,5 +1,6 @@
 package dev.inmo.wishlist.features.ui.adminPanel.ui
 
+import dev.inmo.wishlist.features.common.client.ui.CalmStudioStyleSheet
 import androidx.compose.runtime.Composable
 import dev.inmo.micro_utils.strings.translation
 import dev.inmo.navigation.core.NavigationChain
@@ -26,20 +27,20 @@ class AdminPanelView(
     override fun onDraw() {
         super.onDraw()
 
-        Div({ classes("content-inner") }) {
-            Div({ classes("pagehead") }) {
+        Div({ classes(CalmStudioStyleSheet.`content-inner`) }) {
+            Div({ classes(CalmStudioStyleSheet.pagehead) }) {
                 Div {
                     H1 { Text(AdminPanelStrings.title.translation()) }
                 }
-                Div({ classes("acts") }) {
+                Div({ classes(CalmStudioStyleSheet.acts) }) {
                     Button({
-                        classes("btn", "primary")
+                        classes(CalmStudioStyleSheet.btn, CalmStudioStyleSheet.primary)
                         onClick { viewModel.onOpenUsers() }
                     }) {
                         Text(AdminPanelStrings.usersSection.translation())
                     }
                     Button({
-                        classes("btn")
+                        classes(CalmStudioStyleSheet.btn)
                         onClick { viewModel.onOpenWishlists() }
                     }) {
                         Text(AdminPanelStrings.wishlistsSection.translation())

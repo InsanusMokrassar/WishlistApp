@@ -50,6 +50,66 @@ Every JS (`jsMain`) view that needs custom CSS **MUST** define its styles in a d
 
 ---
 
+## Design System Rule (web — Calm Studio)
+
+The web client's design is the **Calm Studio** language. It is delivered as Kotlin, **never as a `.css`
+file**. Three hard rules govern every web design change:
+
+1. **Styles live in a Compose `StyleSheet`, not in CSS.** The single design stylesheet is
+   `features/common/client/src/jsMain/kotlin/ui/CalmStudioStyleSheet.kt`
+   (`object CalmStudioStyleSheet : StyleSheet(usePrefix = false)`). It self-registers in its `init` block
+   with `StyleSheetsAggregator.addStyleSheet(this)`, and is force-loaded once at JS startup via
+   `CalmStudioStyleSheet.ensureRegistered()` in `client/.../ClientJSPlugin.startPlugin`.
+   - Each class is a **root-level `val name by style { }` delegate**. Because the sheet uses
+     `usePrefix = false`, a delegate's property name **is** its emitted class name verbatim (`val btn` →
+     `.btn`, `` val `content-inner` `` → `.content-inner`).
+   - A class that is styled only *in context* (e.g. `.count` is styled by `.navitem .count`) still gets a
+     root **token delegate with an empty body** (`val count by style {}`), declared **before** the
+     components that use it, so it can be referenced typed from both the call site and the owning rule.
+   - **Compound / state / descendant rules nest inside the base delegate** (the Style DSL "inheritance"):
+     inside a `style { }` block `self` is the current selector, `className(count) style { }` is the
+     descendant `self .count`, and `self + className(primary)` / `self + hover` build compound/pseudo
+     selectors. Element children (`"svg"`, `"h3"`, …) stay raw — they are not classes.
+   - Selectors that are **not a single class** — the `:root` `--cs-*` token block, the element reset,
+     `::selection`, and the grouped input rule (built with `group(className(input), …)`) — stay raw in
+     `init`.
+   - **Do NOT create or ship `.css` files for the web client.** There is no `<link rel="stylesheet">`
+     to a project stylesheet in `index.html` (only the Manrope web font remains).
+
+2. **No raw class-name strings — reference `CalmStudioStyleSheet.<name>` everywhere.** Both at HTML call
+   sites (`classes(CalmStudioStyleSheet.btn)`, never `classes("btn")`) and inside the stylesheet's nested
+   rules (`className(count)`, `self + className(on)`).
+   - Hyphenated names and the keyword `val` use backticks: `` CalmStudioStyleSheet.`content-inner` ``,
+     `` CalmStudioStyleSheet.`reserved-flag` ``, `` CalmStudioStyleSheet.`val` ``.
+   - **Exceptions that MUST stay raw strings:** `empty` and `right` — a `val empty` / `val right` clashes
+     with the `SelectorsScope.empty` / `:right` members and the compiler demands an impossible `override`,
+     so they stay `classes("empty")` / `classes("right")` and raw `".empty…"` / `".right"` rules. Dead
+     Bootstrap utility classes still on a couple of avatar views (`rounded`, `rounded-circle`,
+     `flex-shrink-0`) are not Calm Studio classes and keep their raw strings.
+
+3. **Every design component is a `@Composable`.** For each component in the Calm Studio design
+   (`local.new_design/ui_kits/calm-studio/`), there is a matching `@Composable` in
+   `features/common/client/src/jsMain/kotlin/ui/components/`. Views compose screens from these
+   components instead of hand-writing the design's DOM/classes inline.
+
+   - Existing components: buttons (`CalmButton`, `IconButton`), data display (`ItemCard`, `ItemRow`,
+     `ListCard`, `NewListCard`, `PersonCard`, `CalmPill`, `PriorityPill`, `CardBadge`, `ReservedFlag`,
+     and the `ItemGrid`/`RowsList`/`ListCardsGrid`/`PeopleGrid` containers), layout/nav (`ContentColumn`,
+     `PageHead`, `Subline`, `Breadcrumb`, `Toolbar`, `SegmentedControl`), forms (`CalmForm`, `FieldSet`,
+     `CalmTextField`, `CalmTextArea`, `FormRow`, `FormHint`, `PriorityOptions`), detail (`DetailLayout`,
+     `DetailMedia`, `DetailField`, `PriceTag`, `LinkRow`, `ActionBar`), feedback (`EmptyState`,
+     `CalmModal` + `ModalHeader`/`ModalBody`/`ModalFooter`/`ModalTabs`, `ConfirmModal`), toast
+     (`ToastHost`/`Toaster`), and icons (`CalmIcon`/`CalmIcons`).
+   - When the design gains or changes a component: add/update its `@Composable` here (mirroring the
+     reference markup and class names) and the corresponding rules in `CalmStudioStyleSheet`.
+   - Components take already-translated strings and primitive props / slots; they must not depend on
+     feature domain types, so they stay reusable across every UI feature.
+
+> **Stale rule note:** `agents/local.CODING.md` ("JS UI MUST use Bootstrap") predates the redesign and is
+> **obsolete** — the web client dropped Bootstrap and uses Calm Studio only. Do not follow it.
+
+---
+
 ## KDoc Requirements
 
 Priority of selecting model for KDocs fills: `haiku` / `sonnet` / `opus`

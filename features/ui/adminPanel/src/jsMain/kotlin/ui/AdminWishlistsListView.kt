@@ -1,5 +1,6 @@
 package dev.inmo.wishlist.features.ui.adminPanel.ui
 
+import dev.inmo.wishlist.features.common.client.ui.CalmStudioStyleSheet
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
@@ -37,14 +38,14 @@ class AdminWishlistsListView(
         val wishlists by viewModel.wishlistsState.collectAsState()
         val loading by viewModel.loadingState.collectAsState()
 
-        Div({ classes("content-inner") }) {
-            Div({ classes("pagehead") }) {
+        Div({ classes(CalmStudioStyleSheet.`content-inner`) }) {
+            Div({ classes(CalmStudioStyleSheet.pagehead) }) {
                 Div {
                     H1 { Text(AdminPanelStrings.wishlistsListTitle.translation()) }
                 }
-                Div({ classes("acts") }) {
+                Div({ classes(CalmStudioStyleSheet.acts) }) {
                     Button({
-                        classes("btn", "primary")
+                        classes(CalmStudioStyleSheet.btn, CalmStudioStyleSheet.primary)
                         onClick { viewModel.onCreateWishlist() }
                     }) {
                         Text(AdminPanelStrings.addWishlistButton.translation())
@@ -52,13 +53,13 @@ class AdminWishlistsListView(
                 }
             }
             when {
-                loading -> P({ classes("subline") }) { Text(AdminPanelStrings.loading.translation()) }
-                wishlists.isEmpty() -> P({ classes("subline") }) { Text(AdminPanelStrings.emptyWishlists.translation()) }
-                else -> Div({ classes("rows") }) {
+                loading -> P({ classes(CalmStudioStyleSheet.subline) }) { Text(AdminPanelStrings.loading.translation()) }
+                wishlists.isEmpty() -> P({ classes(CalmStudioStyleSheet.subline) }) { Text(AdminPanelStrings.emptyWishlists.translation()) }
+                else -> Div({ classes(CalmStudioStyleSheet.rows) }) {
                     wishlists.forEach { wishlist ->
                         ListRow(onSelect = { viewModel.onWishlistSelected(wishlist.id) }) {
                             Span { Text(wishlist.title) }
-                            Span({ classes("pill") }) {
+                            Span({ classes(CalmStudioStyleSheet.pill) }) {
                                 Text("user #${wishlist.userId.long}")
                             }
                         }

@@ -1,5 +1,6 @@
 package dev.inmo.wishlist.features.ui.wishlist.ui
 
+import dev.inmo.wishlist.features.common.client.ui.CalmStudioStyleSheet
 import androidx.compose.runtime.Composable
 import dev.inmo.wishlist.features.common.client.ui.components.tintClass
 import dev.inmo.wishlist.features.currency.common.models.CurrencyCode
@@ -38,19 +39,19 @@ fun WishlistItemRow(
     onSelect: () -> Unit,
 ) {
     Div({
-        classes("row")
+        classes(CalmStudioStyleSheet.row)
         onClick { onSelect() }
     }) {
         val firstImage = item.imageIds.firstOrNull()
         if (firstImage != null) {
             Img(src = imageUrl(firstImage), alt = "") {
-                classes("thumb")
+                classes(CalmStudioStyleSheet.thumb)
                 style { property("object-fit", "cover") }
             }
         } else {
-            Span({ classes("thumb", tintClass(item.id.long)) })
+            Span({ classes(CalmStudioStyleSheet.thumb, tintClass(item.id.long)) })
         }
-        Div({ classes("rmain") }) {
+        Div({ classes(CalmStudioStyleSheet.rmain) }) {
             Div({
                 style {
                     property("display", "flex")
@@ -62,12 +63,12 @@ fun WishlistItemRow(
                 PriorityBadge(item.priority)
             }
             if (item.description.isNotBlank()) {
-                P({ classes("desc") }) { Text(item.description) }
+                P({ classes(CalmStudioStyleSheet.desc) }) { Text(item.description) }
             }
         }
         val priceText = formatItemPriceWithAmount(item.approximatePrice, item.priceUnits, item.amount, selectedCurrency, rates)
         if (priceText.isNotEmpty()) {
-            Span({ classes("rprice") }) { Text(priceText) }
+            Span({ classes(CalmStudioStyleSheet.rprice) }) { Text(priceText) }
         }
     }
 }

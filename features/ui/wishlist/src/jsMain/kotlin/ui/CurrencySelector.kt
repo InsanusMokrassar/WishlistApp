@@ -1,5 +1,6 @@
 package dev.inmo.wishlist.features.ui.wishlist.ui
 
+import dev.inmo.wishlist.features.common.client.ui.CalmStudioStyleSheet
 import androidx.compose.runtime.Composable
 import dev.inmo.micro_utils.strings.translation
 import dev.inmo.wishlist.features.currency.common.models.CurrencyCode
@@ -27,7 +28,7 @@ fun CurrencySelector(
     onCurrencySelected: (CurrencyCode?) -> Unit,
 ) {
     Select({
-        classes("select")
+        classes(CalmStudioStyleSheet.select)
         onChange { event ->
             val value = event.value
             onCurrencySelected(if (value.isNullOrEmpty()) null else CurrencyCode(value))

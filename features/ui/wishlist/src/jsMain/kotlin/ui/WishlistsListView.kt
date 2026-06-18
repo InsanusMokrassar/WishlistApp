@@ -1,5 +1,6 @@
 package dev.inmo.wishlist.features.ui.wishlist.ui
 
+import dev.inmo.wishlist.features.common.client.ui.CalmStudioStyleSheet
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
@@ -54,8 +55,8 @@ class WishlistsListView(
         val profileUserId by viewModel.profileUserIdState.collectAsState()
         val isOwner by viewModel.isOwnerState.collectAsState()
 
-        Div({ classes("content-inner") }) {
-            Div({ classes("pagehead") }) {
+        Div({ classes(CalmStudioStyleSheet.`content-inner`) }) {
+            Div({ classes(CalmStudioStyleSheet.pagehead) }) {
                 Div {
                     H1 {
                         Text(
@@ -64,16 +65,16 @@ class WishlistsListView(
                         )
                     }
                 }
-                Div({ classes("acts") }) {
+                Div({ classes(CalmStudioStyleSheet.acts) }) {
                     if (viewModel.targetUserId != null) {
                         Button({
-                            classes("btn")
+                            classes(CalmStudioStyleSheet.btn)
                             onClick { viewModel.onShowUserWishlists() }
                         }) { Text(WishlistStrings.allItemsButton.translation()) }
                     }
                     if (profileUserId != null) {
                         Button({
-                            classes("btn")
+                            classes(CalmStudioStyleSheet.btn)
                             onClick { viewModel.onShowProfile() }
                         }) { Text(WishlistStrings.profileButton.translation()) }
                     }
@@ -82,13 +83,13 @@ class WishlistsListView(
             }
 
             when {
-                loading -> P({ classes("subline") }) { Text(WishlistStrings.loading.translation()) }
+                loading -> P({ classes(CalmStudioStyleSheet.subline) }) { Text(WishlistStrings.loading.translation()) }
                 wishlists.isEmpty() -> Div({ classes("empty") }) {
-                    Div({ classes("ic") }) { CalmIcon(CalmIcons.gift) }
+                    Div({ classes(CalmStudioStyleSheet.ic) }) { CalmIcon(CalmIcons.gift) }
                     H3 { Text(WishlistStrings.emptyWishlists.translation()) }
                     if (isOwner) {
                         Button({
-                            classes("btn", "primary")
+                            classes(CalmStudioStyleSheet.btn, CalmStudioStyleSheet.primary)
                             onClick { viewModel.onCreateWishlist() }
                         }) {
                             CalmIcon(CalmIcons.plus)
@@ -96,21 +97,21 @@ class WishlistsListView(
                         }
                     }
                 }
-                else -> Div({ classes("listgrid") }) {
+                else -> Div({ classes(CalmStudioStyleSheet.listgrid) }) {
                     wishlists.forEach { wishlist ->
                         Div({
-                            classes("listcard")
+                            classes(CalmStudioStyleSheet.listcard)
                             onClick { viewModel.onWishlistSelected(wishlist.id) }
                         }) {
-                            Div({ classes("cover", tintClass(wishlist.id.long)) })
-                            Div({ classes("c") }) {
+                            Div({ classes(CalmStudioStyleSheet.cover, tintClass(wishlist.id.long)) })
+                            Div({ classes(CalmStudioStyleSheet.c) }) {
                                 H3 { Text(wishlist.title) }
                             }
                         }
                     }
                     if (isOwner) {
                         Div({
-                            classes("listcard", "new")
+                            classes(CalmStudioStyleSheet.listcard, CalmStudioStyleSheet.new)
                             onClick { viewModel.onCreateWishlist() }
                         }) {
                             CalmIcon(CalmIcons.plus)

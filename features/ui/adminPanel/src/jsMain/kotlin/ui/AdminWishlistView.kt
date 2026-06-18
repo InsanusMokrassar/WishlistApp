@@ -1,5 +1,6 @@
 package dev.inmo.wishlist.features.ui.adminPanel.ui
 
+import dev.inmo.wishlist.features.common.client.ui.CalmStudioStyleSheet
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
@@ -43,25 +44,25 @@ class AdminWishlistView(
         val items by viewModel.itemsState.collectAsState()
         val loading by viewModel.loadingState.collectAsState()
 
-        Div({ classes("content-inner") }) {
-            Div({ classes("pagehead") }) {
+        Div({ classes(CalmStudioStyleSheet.`content-inner`) }) {
+            Div({ classes(CalmStudioStyleSheet.pagehead) }) {
                 Div {
                     H1 { Text(wishlist?.title ?: "#${config.wishlistId.long}") }
                     if (wishlist != null) {
-                        P({ classes("subline") }) { Text("user #${wishlist!!.userId.long}") }
+                        P({ classes(CalmStudioStyleSheet.subline) }) { Text("user #${wishlist!!.userId.long}") }
                     }
                 }
-                Div({ classes("acts") }) {
+                Div({ classes(CalmStudioStyleSheet.acts) }) {
                     BackButton(AdminPanelStrings.backButton.translation()) { viewModel.onBack() }
                     Button({
-                        classes("btn", "primary")
+                        classes(CalmStudioStyleSheet.btn, CalmStudioStyleSheet.primary)
                         onClick { viewModel.onEditWishlist() }
                     }) { Text(AdminPanelStrings.editButton.translation()) }
                 }
             }
 
             if (loading) {
-                P({ classes("subline") }) { Text(AdminPanelStrings.loading.translation()) }
+                P({ classes(CalmStudioStyleSheet.subline) }) { Text(AdminPanelStrings.loading.translation()) }
             } else {
                 Div({
                     style {
@@ -73,14 +74,14 @@ class AdminWishlistView(
                 }) {
                     H2 { Text(AdminPanelStrings.itemsSection.translation()) }
                     Button({
-                        classes("btn")
+                        classes(CalmStudioStyleSheet.btn)
                         onClick { viewModel.onAddItem() }
                     }) { Text(AdminPanelStrings.addItemButton.translation()) }
                 }
                 if (items.isEmpty()) {
-                    P({ classes("subline") }) { Text(AdminPanelStrings.emptyItems.translation()) }
+                    P({ classes(CalmStudioStyleSheet.subline) }) { Text(AdminPanelStrings.emptyItems.translation()) }
                 } else {
-                    Div({ classes("rows") }) {
+                    Div({ classes(CalmStudioStyleSheet.rows) }) {
                         items.forEach { item ->
                             ListRow(
                                 trailing = {
@@ -91,11 +92,11 @@ class AdminWishlistView(
                                         }
                                     }) {
                                         Button({
-                                            classes("btn", "sm")
+                                            classes(CalmStudioStyleSheet.btn, CalmStudioStyleSheet.sm)
                                             onClick { viewModel.onEditItem(item.id) }
                                         }) { Text(AdminPanelStrings.editButton.translation()) }
                                         Button({
-                                            classes("btn", "danger", "sm")
+                                            classes(CalmStudioStyleSheet.btn, CalmStudioStyleSheet.danger, CalmStudioStyleSheet.sm)
                                             onClick { viewModel.onDeleteItem(item.id) }
                                         }) { Text(AdminPanelStrings.deleteButton.translation()) }
                                     }
@@ -103,7 +104,7 @@ class AdminWishlistView(
                             ) {
                                 Span { Text(item.title) }
                                 if (item.approximatePrice != null) {
-                                    Span({ classes("pill") }) {
+                                    Span({ classes(CalmStudioStyleSheet.pill) }) {
                                         Text("${item.approximatePrice} ${item.priceUnits}".trim())
                                     }
                                 }

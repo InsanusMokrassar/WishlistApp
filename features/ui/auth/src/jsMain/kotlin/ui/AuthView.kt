@@ -1,5 +1,6 @@
 package dev.inmo.wishlist.features.ui.auth.ui
 
+import dev.inmo.wishlist.features.common.client.ui.CalmStudioStyleSheet
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
@@ -56,7 +57,7 @@ class AuthView(
 
         if (loggedIn) {
             Button(attrs = {
-                classes("btn", "ghost")
+                classes(CalmStudioStyleSheet.btn, CalmStudioStyleSheet.ghost)
                 onClick { viewModel.onLogout() }
                 if (loading) disabled()
             }) { Text(AuthStrings.logoutButton.translation()) }
@@ -64,12 +65,12 @@ class AuthView(
         }
 
         Button(attrs = {
-            classes("btn", "ghost")
+            classes(CalmStudioStyleSheet.btn, CalmStudioStyleSheet.ghost)
             onClick { viewModel.onToggleForm() }
         }) { Text(AuthStrings.loginButton.translation()) }
         if (registrationEnabled) {
             Button(attrs = {
-                classes("btn", "primary")
+                classes(CalmStudioStyleSheet.btn, CalmStudioStyleSheet.primary)
                 onClick { viewModel.onToggleRegisterForm() }
             }) { Text(AuthStrings.registerButton.translation()) }
         }
@@ -83,14 +84,14 @@ class AuthView(
         }
 
         Div({
-            classes("scrim")
+            classes(CalmStudioStyleSheet.scrim)
             onClick { if (!loading) viewModel.onCancelForm() }
         }) {
             Div({
-                classes("modal")
+                classes(CalmStudioStyleSheet.modal)
                 onClick { it.stopPropagation() }
             }) {
-                Div({ classes("mhead") }) {
+                Div({ classes(CalmStudioStyleSheet.mhead) }) {
                     H2 { Text(title) }
                 }
                 Form(attrs = {
@@ -99,37 +100,37 @@ class AuthView(
                         if (registerMode) viewModel.onRegister() else viewModel.onAuthorize()
                     }
                 }) {
-                    Div({ classes("mbody") }) {
+                    Div({ classes(CalmStudioStyleSheet.mbody) }) {
                         if (registrationEnabled) {
-                            Div({ classes("tabs") }) {
+                            Div({ classes(CalmStudioStyleSheet.tabs) }) {
                                 Button(attrs = {
                                     type(ButtonType.Button)
-                                    if (!registerMode) classes("on")
+                                    if (!registerMode) classes(CalmStudioStyleSheet.on)
                                     onClick { viewModel.onShowLoginForm() }
                                 }) { Text(AuthStrings.loginButton.translation()) }
                                 Button(attrs = {
                                     type(ButtonType.Button)
-                                    if (registerMode) classes("on")
+                                    if (registerMode) classes(CalmStudioStyleSheet.on)
                                     onClick { viewModel.onToggleRegisterForm() }
                                 }) { Text(AuthStrings.registerButton.translation()) }
                             }
                         }
-                        Div({ classes("fieldset") }) {
+                        Div({ classes(CalmStudioStyleSheet.fieldset) }) {
                             Label("auth-username") { Text(AuthStrings.usernamePlaceholder.translation()) }
                             Input(type = InputType.Text) {
                                 id("auth-username")
-                                classes("input")
+                                classes(CalmStudioStyleSheet.input)
                                 value(username)
                                 placeholder(AuthStrings.usernamePlaceholder.translation())
                                 onInput { viewModel.onUsernameChanged(it.value) }
                                 if (loading) disabled()
                             }
                         }
-                        Div({ classes("fieldset") }) {
+                        Div({ classes(CalmStudioStyleSheet.fieldset) }) {
                             Label("auth-password") { Text(AuthStrings.passwordPlaceholder.translation()) }
                             Input(type = InputType.Password) {
                                 id("auth-password")
-                                classes("input")
+                                classes(CalmStudioStyleSheet.input)
                                 value(password)
                                 placeholder(AuthStrings.passwordPlaceholder.translation())
                                 onInput { viewModel.onPasswordChanged(it.value) }
@@ -138,7 +139,7 @@ class AuthView(
                         }
                         if (error) {
                             P({
-                                classes("hint")
+                                classes(CalmStudioStyleSheet.hint)
                                 style { property("color", "var(--cs-danger)") }
                             }) {
                                 val msg = if (registerMode) {
@@ -150,10 +151,10 @@ class AuthView(
                             }
                         }
                     }
-                    Div({ classes("mfoot") }) {
+                    Div({ classes(CalmStudioStyleSheet.mfoot) }) {
                         Button(attrs = {
                             type(ButtonType.Button)
-                            classes("btn", "ghost")
+                            classes(CalmStudioStyleSheet.btn, CalmStudioStyleSheet.ghost)
                             onClick { viewModel.onCancelForm() }
                             if (loading) disabled()
                         }) { Text(AuthStrings.cancelButton.translation()) }
@@ -164,7 +165,7 @@ class AuthView(
                         }
                         Button(attrs = {
                             type(ButtonType.Submit)
-                            classes("btn", "primary")
+                            classes(CalmStudioStyleSheet.btn, CalmStudioStyleSheet.primary)
                             if (!loginEnabled) disabled()
                         }) { Text(submitLabel) }
                     }

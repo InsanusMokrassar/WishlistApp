@@ -1,5 +1,6 @@
 package dev.inmo.wishlist.features.ui.scaffold.ui
 
+import dev.inmo.wishlist.features.common.client.ui.CalmStudioStyleSheet
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.remember
@@ -76,17 +77,17 @@ class ScaffoldView(
 
         // Calm Studio shell: a full-height left sidebar next to a main column that stacks the top
         // bar over a scrolling content area. Class names (`app`, `main`, `content`) come from the
-        // shell CSS in `client/.../css/calm-studio.css`; each slot view owns its own block class
-        // (the sidebar renders `.sidebar`, the top bar renders `.topbar`).
-        Div({ classes("app") }) {
+        // Calm Studio stylesheet (`CalmStudioStyleSheet` in `features/common/client`); each slot view
+        // owns its own block class (the sidebar renders `.sidebar`, the top bar renders `.topbar`).
+        Div({ classes(CalmStudioStyleSheet.app) }) {
             cfg.leftConfig?.let { leftConfig ->
                 ScaffoldSlot(LeftNavigationChainId, leftConfig)
             }
-            Div({ classes("main") }) {
+            Div({ classes(CalmStudioStyleSheet.main) }) {
                 cfg.topConfig?.let { topConfig ->
                     ScaffoldSlot(TopNavigationChainId, topConfig)
                 }
-                Div({ classes("content") }) {
+                Div({ classes(CalmStudioStyleSheet.content) }) {
                     cfg.mainConfig?.let { mainConfig ->
                         ScaffoldSlot(MainNavigationChainId, mainConfig)
                     }

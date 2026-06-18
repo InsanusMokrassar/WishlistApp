@@ -1,5 +1,6 @@
 package dev.inmo.wishlist.features.ui.users.ui
 
+import dev.inmo.wishlist.features.common.client.ui.CalmStudioStyleSheet
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
@@ -42,13 +43,13 @@ class UsersListView(
         val loading by viewModel.loadingState.collectAsState()
         val currentUserId by viewModel.currentUserIdState.collectAsState()
 
-        Div({ classes("content-inner") }) {
-            Div({ classes("pagehead") }) {
+        Div({ classes(CalmStudioStyleSheet.`content-inner`) }) {
+            Div({ classes(CalmStudioStyleSheet.pagehead) }) {
                 Div { H1 { Text(UsersListStrings.title.translation()) } }
-                Div({ classes("acts") }) {
+                Div({ classes(CalmStudioStyleSheet.acts) }) {
                     if (currentUserId != null) {
                         Button({
-                            classes("btn")
+                            classes(CalmStudioStyleSheet.btn)
                             onClick { viewModel.onMyProfile() }
                         }) { Text(UsersListStrings.myProfileButton.translation()) }
                     }
@@ -56,23 +57,23 @@ class UsersListView(
             }
 
             when {
-                loading -> P({ classes("subline") }) { Text(UsersListStrings.loading.translation()) }
+                loading -> P({ classes(CalmStudioStyleSheet.subline) }) { Text(UsersListStrings.loading.translation()) }
                 users.isEmpty() -> Div({ classes("empty") }) {
-                    Div({ classes("ic") }) { CalmIcon(CalmIcons.compass) }
+                    Div({ classes(CalmStudioStyleSheet.ic) }) { CalmIcon(CalmIcons.compass) }
                     H3 { Text(UsersListStrings.empty.translation()) }
                 }
-                else -> Div({ classes("people") }) {
+                else -> Div({ classes(CalmStudioStyleSheet.people) }) {
                     users.forEach { user ->
                         Div({
-                            classes("person")
+                            classes(CalmStudioStyleSheet.person)
                             onClick { viewModel.onUserSelected(user.id) }
                         }) {
                             val avatarId = avatars[user.id]
                             Span({
                                 if (avatarId == null) {
-                                    classes("av", tintClass(user.id.long))
+                                    classes(CalmStudioStyleSheet.av, tintClass(user.id.long))
                                 } else {
-                                    classes("av")
+                                    classes(CalmStudioStyleSheet.av)
                                     style {
                                         property("background-image", "url(${viewModel.imageUrl(avatarId)})")
                                         property("background-size", "cover")

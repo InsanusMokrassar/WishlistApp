@@ -1,5 +1,6 @@
 package dev.inmo.wishlist.features.common.client.ui.components
 
+import dev.inmo.wishlist.features.common.client.ui.CalmStudioStyleSheet
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
@@ -59,8 +60,8 @@ fun ToastHost() {
         }
     }
 
-    Div({ if (message != null) classes("toast", "show") else classes("toast") }) {
-        Span({ classes("ok") }) { CalmIcon(CalmIcons.check) }
+    Div({ if (message != null) classes(CalmStudioStyleSheet.toast, CalmStudioStyleSheet.show) else classes(CalmStudioStyleSheet.toast) }) {
+        Span({ classes(CalmStudioStyleSheet.ok) }) { CalmIcon(CalmIcons.check) }
         Text(message ?: "")
     }
 }

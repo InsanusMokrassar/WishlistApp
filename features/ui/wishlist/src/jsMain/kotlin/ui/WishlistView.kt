@@ -1,5 +1,6 @@
 package dev.inmo.wishlist.features.ui.wishlist.ui
 
+import dev.inmo.wishlist.features.common.client.ui.CalmStudioStyleSheet
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
@@ -72,14 +73,14 @@ class WishlistView(
         val costSortAvailable by viewModel.costSortAvailableState.collectAsState()
         val sortSelectorVisible by viewModel.sortSelectorVisibleState.collectAsState()
 
-        Div({ classes("content-inner") }) {
-            Div({ classes("pagehead") }) {
+        Div({ classes(CalmStudioStyleSheet.`content-inner`) }) {
+            Div({ classes(CalmStudioStyleSheet.pagehead) }) {
                 Div {
                     H1 { Text(wishlist?.title ?: "") }
                 }
-                Div({ classes("acts") }) {
+                Div({ classes(CalmStudioStyleSheet.acts) }) {
                     Button({
-                        classes("btn")
+                        classes(CalmStudioStyleSheet.btn)
                         onClick { shareLink() }
                     }) {
                         CalmIcon(CalmIcons.share)
@@ -87,7 +88,7 @@ class WishlistView(
                     }
                     if (isOwner) {
                         Button({
-                            classes("btn")
+                            classes(CalmStudioStyleSheet.btn)
                             onClick { viewModel.onEditWishlist() }
                         }) {
                             CalmIcon(CalmIcons.edit)
@@ -96,14 +97,14 @@ class WishlistView(
                     }
                     when {
                         isOwner -> Button({
-                            classes("btn", "primary")
+                            classes(CalmStudioStyleSheet.btn, CalmStudioStyleSheet.primary)
                             onClick { viewModel.onAddItem() }
                         }) {
                             CalmIcon(CalmIcons.plus)
                             Text(WishlistStrings.addItemButton.translation())
                         }
                         canCopy -> Button({
-                            classes("btn", "primary")
+                            classes(CalmStudioStyleSheet.btn, CalmStudioStyleSheet.primary)
                             if (copyRequested) disabled()
                             onClick { viewModel.onCopyWishlist() }
                         }) {
@@ -122,13 +123,13 @@ class WishlistView(
             }
 
             when {
-                loading -> P({ classes("subline") }) { Text(WishlistStrings.loading.translation()) }
+                loading -> P({ classes(CalmStudioStyleSheet.subline) }) { Text(WishlistStrings.loading.translation()) }
                 items.isEmpty() -> Div({ classes("empty") }) {
-                    Div({ classes("ic") }) { CalmIcon(CalmIcons.gift) }
+                    Div({ classes(CalmStudioStyleSheet.ic) }) { CalmIcon(CalmIcons.gift) }
                     H3 { Text(WishlistStrings.emptyItems.translation()) }
                     if (isOwner) {
                         Button({
-                            classes("btn", "primary")
+                            classes(CalmStudioStyleSheet.btn, CalmStudioStyleSheet.primary)
                             onClick { viewModel.onAddItem() }
                         }) {
                             CalmIcon(CalmIcons.plus)
@@ -151,7 +152,7 @@ class WishlistView(
                         onViewModeSelected = viewModel::onViewModeSelected
                     )
                     if (viewMode == WishlistViewMode.Grid) {
-                        Div({ classes("grid") }) {
+                        Div({ classes(CalmStudioStyleSheet.grid) }) {
                             sortedItems.forEach { item ->
                                 WishlistItemCard(
                                     item = item,
@@ -162,7 +163,7 @@ class WishlistView(
                             }
                         }
                     } else {
-                        Div({ classes("rows") }) {
+                        Div({ classes(CalmStudioStyleSheet.rows) }) {
                             sortedItems.forEach { item ->
                                 WishlistItemRow(
                                     item = item,

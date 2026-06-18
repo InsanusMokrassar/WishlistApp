@@ -1,5 +1,6 @@
 package dev.inmo.wishlist.features.ui.adminPanel.ui
 
+import dev.inmo.wishlist.features.common.client.ui.CalmStudioStyleSheet
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
@@ -50,8 +51,8 @@ class AdminUserEditView(
             )
         }
 
-        Div({ classes("content-inner") }) {
-            Div({ classes("pagehead") }) {
+        Div({ classes(CalmStudioStyleSheet.`content-inner`) }) {
+            Div({ classes(CalmStudioStyleSheet.pagehead) }) {
                 Div {
                     H1 {
                         Text(
@@ -60,17 +61,17 @@ class AdminUserEditView(
                         )
                     }
                 }
-                Div({ classes("acts") }) {
+                Div({ classes(CalmStudioStyleSheet.acts) }) {
                     BackButton(AdminPanelStrings.backButton.translation()) { viewModel.onBack() }
                 }
             }
 
-            Div({ classes("form") }) {
-                Div({ classes("fieldset") }) {
+            Div({ classes(CalmStudioStyleSheet.form) }) {
+                Div({ classes(CalmStudioStyleSheet.fieldset) }) {
                     Label("user-username") { Text(AdminPanelStrings.usernameLabel.translation()) }
                     Input(InputType.Text) {
                         id("user-username")
-                        classes("input")
+                        classes(CalmStudioStyleSheet.input)
                         value(username)
                         placeholder(AdminPanelStrings.usernameLabel.translation())
                         onInput { viewModel.onUsernameChanged(it.value) }
@@ -78,11 +79,11 @@ class AdminUserEditView(
                     }
                 }
                 if (viewModel.isCreating) {
-                    Div({ classes("fieldset") }) {
+                    Div({ classes(CalmStudioStyleSheet.fieldset) }) {
                         Label("user-password") { Text(AdminPanelStrings.passwordLabel.translation()) }
                         Input(InputType.Password) {
                             id("user-password")
-                            classes("input")
+                            classes(CalmStudioStyleSheet.input)
                             value(password)
                             placeholder(AdminPanelStrings.passwordLabel.translation())
                             onInput { viewModel.onPasswordChanged(it.value) }
@@ -92,7 +93,7 @@ class AdminUserEditView(
                 }
                 Div({ style { property("margin-top", "24px") } }) {
                     Button({
-                        classes("btn", "primary")
+                        classes(CalmStudioStyleSheet.btn, CalmStudioStyleSheet.primary)
                         onClick { viewModel.onSave() }
                         if (loading || username.isBlank() || (viewModel.isCreating && password.isBlank())) disabled()
                     }) {

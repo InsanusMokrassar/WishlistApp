@@ -1,5 +1,6 @@
 package dev.inmo.wishlist.features.ui.topBar.ui
 
+import dev.inmo.wishlist.features.common.client.ui.CalmStudioStyleSheet
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
@@ -57,17 +58,17 @@ class TopBarView(
         val searchQuery by viewModel.searchQueryState.collectAsState()
 
         Div {
-            Div({ classes("topbar") }) {
-                Label(attrs = { classes("search") }) {
+            Div({ classes(CalmStudioStyleSheet.topbar) }) {
+                Label(attrs = { classes(CalmStudioStyleSheet.search) }) {
                     SearchIcon()
                     Input(type = InputType.Text) {
                         value(searchQuery)
                         placeholder(TopBarStrings.searchPlaceholder.translation())
                         onInput { viewModel.onSearchQueryChanged(it.value) }
                     }
-                    Span({ classes("kbd") }) { Text("⌘K") }
+                    Span({ classes(CalmStudioStyleSheet.kbd) }) { Text("⌘K") }
                 }
-                Div({ classes("sp") })
+                Div({ classes(CalmStudioStyleSheet.sp) })
                 Div({
                     style {
                         property("display", "flex")
@@ -80,11 +81,11 @@ class TopBarView(
             }
             val crumbTitles = titleProviders.map { it.title }.filter { it.isNotBlank() }
             if (crumbTitles.isNotEmpty()) {
-                Div({ classes("crumbbar") }) {
-                    Div({ classes("crumb") }) {
+                Div({ classes(CalmStudioStyleSheet.crumbbar) }) {
+                    Div({ classes(CalmStudioStyleSheet.crumb) }) {
                         crumbTitles.forEachIndexed { index, title ->
                             if (index > 0) {
-                                Span({ classes("sep") }) { Text("/") }
+                                Span({ classes(CalmStudioStyleSheet.sep) }) { Text("/") }
                             }
                             if (index == crumbTitles.lastIndex) {
                                 B { Text(title) }

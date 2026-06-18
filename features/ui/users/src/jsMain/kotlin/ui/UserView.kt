@@ -1,5 +1,6 @@
 package dev.inmo.wishlist.features.ui.users.ui
 
+import dev.inmo.wishlist.features.common.client.ui.CalmStudioStyleSheet
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
@@ -41,11 +42,11 @@ class UserView(
         val canEdit by viewModel.canEditState.collectAsState()
         val loading by viewModel.loadingState.collectAsState()
 
-        Div({ classes("content-inner") }) {
+        Div({ classes(CalmStudioStyleSheet.`content-inner`) }) {
             when {
-                loading -> P({ classes("subline") }) { Text(UsersListStrings.loading.translation()) }
+                loading -> P({ classes(CalmStudioStyleSheet.subline) }) { Text(UsersListStrings.loading.translation()) }
                 else -> {
-                    Div({ classes("pagehead") }) {
+                    Div({ classes(CalmStudioStyleSheet.pagehead) }) {
                         Div({
                             style {
                                 property("display", "flex")
@@ -72,9 +73,9 @@ class UserView(
                             H1 { Text(user?.username?.string ?: "#${config.userId.long}") }
                         }
                         if (canEdit) {
-                            Div({ classes("acts") }) {
+                            Div({ classes(CalmStudioStyleSheet.acts) }) {
                                 Button({
-                                    classes("btn")
+                                    classes(CalmStudioStyleSheet.btn)
                                     onClick { viewModel.onEditUser() }
                                 }) {
                                     CalmIcon(CalmIcons.edit)

@@ -1,5 +1,6 @@
 package dev.inmo.wishlist.features.ui.adminPanel.ui
 
+import dev.inmo.wishlist.features.common.client.ui.CalmStudioStyleSheet
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
@@ -43,22 +44,22 @@ class AdminUserView(
         val wishlists by viewModel.wishlistsState.collectAsState()
         val loading by viewModel.loadingState.collectAsState()
 
-        Div({ classes("content-inner") }) {
-            Div({ classes("pagehead") }) {
+        Div({ classes(CalmStudioStyleSheet.`content-inner`) }) {
+            Div({ classes(CalmStudioStyleSheet.pagehead) }) {
                 Div {
                     H1 { Text(user?.username?.string ?: "#${config.userId.long}") }
                 }
-                Div({ classes("acts") }) {
+                Div({ classes(CalmStudioStyleSheet.acts) }) {
                     BackButton(AdminPanelStrings.backButton.translation()) { viewModel.onBack() }
                     Button({
-                        classes("btn", "primary")
+                        classes(CalmStudioStyleSheet.btn, CalmStudioStyleSheet.primary)
                         onClick { viewModel.onEditUser() }
                     }) { Text(AdminPanelStrings.editButton.translation()) }
                 }
             }
 
             if (loading) {
-                P({ classes("subline") }) { Text(AdminPanelStrings.loading.translation()) }
+                P({ classes(CalmStudioStyleSheet.subline) }) { Text(AdminPanelStrings.loading.translation()) }
             } else {
                 Div({
                     style {
@@ -70,20 +71,20 @@ class AdminUserView(
                 }) {
                     H2 { Text(AdminPanelStrings.userWishlistsSection.translation()) }
                     Button({
-                        classes("btn")
+                        classes(CalmStudioStyleSheet.btn)
                         onClick { viewModel.onAddWishlist() }
                     }) { Text(AdminPanelStrings.addWishlistForUserButton.translation()) }
                 }
                 if (wishlists.isEmpty()) {
-                    P({ classes("subline") }) {
+                    P({ classes(CalmStudioStyleSheet.subline) }) {
                         Text(AdminPanelStrings.noWishlistsForUser.translation())
                     }
                 } else {
-                    Div({ classes("rows") }) {
+                    Div({ classes(CalmStudioStyleSheet.rows) }) {
                         wishlists.forEach { wishlist ->
                             ListRow(onSelect = { viewModel.onOpenWishlist(wishlist.id) }) {
                                 Span { Text(wishlist.title) }
-                                Span({ classes("pill") }) { Text("#${wishlist.id.long}") }
+                                Span({ classes(CalmStudioStyleSheet.pill) }) { Text("#${wishlist.id.long}") }
                             }
                         }
                     }

@@ -1,5 +1,6 @@
 package dev.inmo.wishlist.features.ui.booking.ui
 
+import dev.inmo.wishlist.features.common.client.ui.CalmStudioStyleSheet
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
@@ -44,14 +45,14 @@ class BookingView(
     @Composable
     private fun ReservedPill(label: String) {
         Span({
-            classes("pill")
+            classes(CalmStudioStyleSheet.pill)
             style {
                 property("background", "var(--cs-ok-soft)")
                 property("color", "var(--cs-ok)")
             }
         }) {
             Span({
-                classes("dot")
+                classes(CalmStudioStyleSheet.dot)
                 style { property("background", "var(--cs-ok)") }
             })
             Text(label)
@@ -69,7 +70,7 @@ class BookingView(
                 BookingState.BookedByMe -> {
                     ReservedPill(BookingStrings.reservedByYouLabel.translation())
                     Button({
-                        classes("btn")
+                        classes(CalmStudioStyleSheet.btn)
                         if (loading) disabled()
                         onClick {
                             viewModel.onCancelBooking()
@@ -84,7 +85,7 @@ class BookingView(
                 }
                 BookingState.Free -> {
                     Button({
-                        classes("btn", "primary")
+                        classes(CalmStudioStyleSheet.btn, CalmStudioStyleSheet.primary)
                         if (loading) disabled()
                         onClick {
                             viewModel.onBook()

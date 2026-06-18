@@ -1,5 +1,6 @@
 package dev.inmo.wishlist.features.ui.wishlist.ui
 
+import dev.inmo.wishlist.features.common.client.ui.CalmStudioStyleSheet
 import androidx.compose.runtime.Composable
 import dev.inmo.micro_utils.strings.translation
 import dev.inmo.wishlist.features.ui.wishlist.labelResource
@@ -20,10 +21,10 @@ fun ViewModeSelector(
     selected: WishlistViewMode,
     onViewModeSelected: (WishlistViewMode) -> Unit,
 ) {
-    Div({ classes("seg") }) {
+    Div({ classes(CalmStudioStyleSheet.seg) }) {
         listOf(WishlistViewMode.Grid, WishlistViewMode.List).forEach { mode ->
             Button({
-                if (mode == selected) classes("on")
+                if (mode == selected) classes(CalmStudioStyleSheet.on)
                 onClick { onViewModeSelected(mode) }
             }) {
                 Text(mode.labelResource().translation())

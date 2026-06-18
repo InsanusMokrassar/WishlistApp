@@ -1,5 +1,6 @@
 package dev.inmo.wishlist.features.ui.booking.ui
 
+import dev.inmo.wishlist.features.common.client.ui.CalmStudioStyleSheet
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
@@ -51,21 +52,21 @@ class MyPresentsBooksView(
      */
     @Composable
     private fun ReservedCard(item: RegisteredWishlistItem) {
-        Div({ classes("card") }) {
-            Div({ classes("media", tintClass(item.id.long)) }) {
-                Span({ classes("reserved-flag") }) { Text(BookingStrings.reservedFlag.translation()) }
+        Div({ classes(CalmStudioStyleSheet.card) }) {
+            Div({ classes(CalmStudioStyleSheet.media, tintClass(item.id.long)) }) {
+                Span({ classes(CalmStudioStyleSheet.`reserved-flag`) }) { Text(BookingStrings.reservedFlag.translation()) }
             }
-            Div({ classes("c") }) {
+            Div({ classes(CalmStudioStyleSheet.c) }) {
                 H3 { Text(item.title) }
                 if (item.description.isNotBlank()) {
-                    P({ classes("desc") }) { Text(item.description) }
+                    P({ classes(CalmStudioStyleSheet.desc) }) { Text(item.description) }
                 }
                 val price = item.approximatePrice
                 if (price != null) {
                     val units = item.priceUnits.takeIf { it.isNotBlank() }?.let { " $it" } ?: ""
                     val base = "≈ $price$units"
                     val priceText = if (item.amount > 1u) "$base · ×${item.amount}" else base
-                    Div({ classes("price") }) { Text(priceText) }
+                    Div({ classes(CalmStudioStyleSheet.price) }) { Text(priceText) }
                 }
             }
         }
@@ -77,22 +78,22 @@ class MyPresentsBooksView(
         val presents by viewModel.presentsState.collectAsState()
         val loading by viewModel.loadingState.collectAsState()
 
-        Div({ classes("content-inner") }) {
-            Div({ classes("pagehead") }) {
+        Div({ classes(CalmStudioStyleSheet.`content-inner`) }) {
+            Div({ classes(CalmStudioStyleSheet.pagehead) }) {
                 Div {
                     H1 { Text(BookingStrings.reservedTitle.translation()) }
-                    P({ classes("subline") }) { Text(BookingStrings.reservedSubline.translation()) }
+                    P({ classes(CalmStudioStyleSheet.subline) }) { Text(BookingStrings.reservedSubline.translation()) }
                 }
             }
 
             when {
-                loading -> P({ classes("subline") }) { Text(BookingStrings.loading.translation()) }
+                loading -> P({ classes(CalmStudioStyleSheet.subline) }) { Text(BookingStrings.loading.translation()) }
                 presents.isEmpty() -> Div({ classes("empty") }) {
-                    Div({ classes("ic") }) { CalmIcon(CalmIcons.bookmark) }
+                    Div({ classes(CalmStudioStyleSheet.ic) }) { CalmIcon(CalmIcons.bookmark) }
                     H3 { Text(BookingStrings.reservedEmptyTitle.translation()) }
                     P { Text(BookingStrings.reservedEmptyBody.translation()) }
                 }
-                else -> Div({ classes("grid") }) {
+                else -> Div({ classes(CalmStudioStyleSheet.grid) }) {
                     presents.forEach { item -> ReservedCard(item) }
                 }
             }

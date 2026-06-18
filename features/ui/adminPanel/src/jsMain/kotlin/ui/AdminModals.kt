@@ -1,5 +1,6 @@
 package dev.inmo.wishlist.features.ui.adminPanel.ui
 
+import dev.inmo.wishlist.features.common.client.ui.CalmStudioStyleSheet
 import androidx.compose.runtime.Composable
 import dev.inmo.micro_utils.strings.translation
 import dev.inmo.wishlist.features.ui.adminPanel.AdminPanelStrings
@@ -20,24 +21,24 @@ import org.jetbrains.compose.web.dom.Text
 @Composable
 fun DiscardModal(onCancel: () -> Unit, onConfirm: () -> Unit) {
     Div({
-        classes("scrim")
+        classes(CalmStudioStyleSheet.scrim)
         onClick { onCancel() }
     }) {
         Div({
-            classes("modal")
+            classes(CalmStudioStyleSheet.modal)
             onClick { it.stopPropagation() }
         }) {
-            Div({ classes("mhead") }) {
+            Div({ classes(CalmStudioStyleSheet.mhead) }) {
                 H2 { Text(AdminPanelStrings.confirmDiscardTitle.translation()) }
                 P { Text(AdminPanelStrings.confirmDiscardMessage.translation()) }
             }
-            Div({ classes("mfoot") }) {
+            Div({ classes(CalmStudioStyleSheet.mfoot) }) {
                 Button({
-                    classes("btn", "ghost")
+                    classes(CalmStudioStyleSheet.btn, CalmStudioStyleSheet.ghost)
                     onClick { onCancel() }
                 }) { Text(AdminPanelStrings.cancelButton.translation()) }
                 Button({
-                    classes("btn", "danger")
+                    classes(CalmStudioStyleSheet.btn, CalmStudioStyleSheet.danger)
                     onClick { onConfirm() }
                 }) { Text(AdminPanelStrings.confirmButton.translation()) }
             }

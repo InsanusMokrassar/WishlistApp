@@ -1,5 +1,6 @@
 package dev.inmo.wishlist.features.ui.wishlist.ui
 
+import dev.inmo.wishlist.features.common.client.ui.CalmStudioStyleSheet
 import androidx.compose.runtime.Composable
 import dev.inmo.micro_utils.strings.StringResource
 import dev.inmo.micro_utils.strings.translation
@@ -33,7 +34,7 @@ fun WishlistSortSelector(
         if (mode == WishlistSortMode.None) noneLabel.translation() else mode.labelResource().translation()
 
     Select({
-        classes("select")
+        classes(CalmStudioStyleSheet.select)
         onChange { event ->
             val picked = event.value?.let { value -> availableModes.firstOrNull { it.name == value } }
             if (picked != null) onSortModeSelected(picked)

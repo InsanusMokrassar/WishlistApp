@@ -1,5 +1,6 @@
 package dev.inmo.wishlist.features.ui.wishlist.ui
 
+import dev.inmo.wishlist.features.common.client.ui.CalmStudioStyleSheet
 import androidx.compose.runtime.Composable
 import dev.inmo.micro_utils.strings.translation
 import dev.inmo.wishlist.features.common.client.ui.components.tintClass
@@ -37,12 +38,12 @@ fun WishlistItemCard(
     onSelect: () -> Unit,
 ) {
     Div({
-        classes("card")
+        classes(CalmStudioStyleSheet.card)
         onClick { onSelect() }
     }) {
         val firstImage = item.imageIds.firstOrNull()
         Div({
-            if (firstImage == null) classes("media", tintClass(item.id.long)) else classes("media")
+            if (firstImage == null) classes(CalmStudioStyleSheet.media, tintClass(item.id.long)) else classes(CalmStudioStyleSheet.media)
         }) {
             if (firstImage != null) {
                 Img(src = imageUrl(firstImage), alt = "") {
@@ -54,23 +55,23 @@ fun WishlistItemCard(
                     }
                 }
             }
-            Span({ classes("badge") }) {
+            Span({ classes(CalmStudioStyleSheet.badge) }) {
                 Span({
-                    classes("dot")
+                    classes(CalmStudioStyleSheet.dot)
                     style { property("background", item.priority.dotColorVar()) }
                 })
                 Text(item.priority.labelResource().translation())
             }
         }
-        Div({ classes("c") }) {
+        Div({ classes(CalmStudioStyleSheet.c) }) {
             H3 { Text(item.title) }
             val secondary = item.description.takeIf { it.isNotBlank() } ?: wishlistTitle
             if (secondary != null) {
-                P({ classes("desc") }) { Text(secondary) }
+                P({ classes(CalmStudioStyleSheet.desc) }) { Text(secondary) }
             }
             val priceText = formatItemPriceWithAmount(item.approximatePrice, item.priceUnits, item.amount, null, null)
             if (priceText.isNotEmpty()) {
-                Div({ classes("price") }) { Text(priceText) }
+                Div({ classes(CalmStudioStyleSheet.price) }) { Text(priceText) }
             }
         }
     }

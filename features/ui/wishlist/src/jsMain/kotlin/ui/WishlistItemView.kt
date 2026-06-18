@@ -1,5 +1,6 @@
 package dev.inmo.wishlist.features.ui.wishlist.ui
 
+import dev.inmo.wishlist.features.common.client.ui.CalmStudioStyleSheet
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
@@ -58,17 +59,17 @@ class WishlistItemView(
         val selectedCurrency by viewModel.selectedCurrencyState.collectAsState()
         val rates by viewModel.ratesState.collectAsState()
 
-        Div({ classes("content-inner") }) {
+        Div({ classes(CalmStudioStyleSheet.`content-inner`) }) {
             when {
-                loading || item == null -> P({ classes("subline") }) { Text(WishlistStrings.loading.translation()) }
+                loading || item == null -> P({ classes(CalmStudioStyleSheet.subline) }) { Text(WishlistStrings.loading.translation()) }
                 else -> {
                     val it = item!!
-                    Div({ classes("detail") }) {
-                        Div({ classes("gallery") }) {
+                    Div({ classes(CalmStudioStyleSheet.detail) }) {
+                        Div({ classes(CalmStudioStyleSheet.gallery) }) {
                             val firstImage = it.imageIds.firstOrNull()
                             if (firstImage != null) {
                                 Img(src = viewModel.imageUrl(firstImage), alt = "") {
-                                    classes("main-img")
+                                    classes(CalmStudioStyleSheet.`main-img`)
                                     style { property("object-fit", "cover") }
                                 }
                                 if (it.imageIds.size > 1) {
@@ -93,7 +94,7 @@ class WishlistItemView(
                                     }
                                 }
                             } else {
-                                Div({ classes("main-img", tintClass(it.id.long)) })
+                                Div({ classes(CalmStudioStyleSheet.`main-img`, tintClass(it.id.long)) })
                             }
                         }
 
@@ -112,10 +113,10 @@ class WishlistItemView(
                             }
 
                             if (isOwner || canCopy) {
-                                Div({ classes("actbar") }) {
+                                Div({ classes(CalmStudioStyleSheet.actbar) }) {
                                     if (isOwner) {
                                         Button({
-                                            classes("btn")
+                                            classes(CalmStudioStyleSheet.btn)
                                             onClick { viewModel.onEditItem() }
                                         }) {
                                             CalmIcon(CalmIcons.edit)
@@ -124,7 +125,7 @@ class WishlistItemView(
                                     }
                                     if (canCopy) {
                                         Button({
-                                            classes("btn", "primary")
+                                            classes(CalmStudioStyleSheet.btn, CalmStudioStyleSheet.primary)
                                             onClick { viewModel.onCopyItem() }
                                         }) {
                                             Text(WishlistStrings.copyItemButton.translation())
@@ -136,7 +137,7 @@ class WishlistItemView(
                             // Each registered WishlistAdditionalConfigsProvider (e.g. booking/reserve)
                             // is drawn inline through the shared WishlistItemAdditionalConfigView.
                             if (viewModel.additionalConfigsProviders.isNotEmpty()) {
-                                Div({ classes("actbar") }) {
+                                Div({ classes(CalmStudioStyleSheet.actbar) }) {
                                     viewModel.additionalConfigsProviders.forEach { provider ->
                                         WishlistItemAdditionalConfigView(provider, it, this@WishlistItemView)
                                     }
@@ -144,14 +145,14 @@ class WishlistItemView(
                             }
 
                             if (it.description.isNotBlank()) {
-                                Div({ classes("field") }) {
-                                    Div({ classes("lbl") }) { Text(WishlistStrings.descriptionLabel.translation()) }
-                                    Div({ classes("val") }) { Text(it.description) }
+                                Div({ classes(CalmStudioStyleSheet.field) }) {
+                                    Div({ classes(CalmStudioStyleSheet.lbl) }) { Text(WishlistStrings.descriptionLabel.translation()) }
+                                    Div({ classes(CalmStudioStyleSheet.`val`) }) { Text(it.description) }
                                 }
                             }
 
-                            Div({ classes("field") }) {
-                                Div({ classes("lbl") }) { Text(WishlistStrings.priceLabel.translation()) }
+                            Div({ classes(CalmStudioStyleSheet.field) }) {
+                                Div({ classes(CalmStudioStyleSheet.lbl) }) { Text(WishlistStrings.priceLabel.translation()) }
                                 if (currencyEnabled && currencies.isNotEmpty()) {
                                     CurrencySelector(
                                         currencies = currencies,
@@ -162,19 +163,19 @@ class WishlistItemView(
                                 val priceText = formatItemPriceWithAmount(
                                     it.approximatePrice, it.priceUnits, it.amount, selectedCurrency, rates
                                 )
-                                Div({ classes("pricetag") }) {
+                                Div({ classes(CalmStudioStyleSheet.pricetag) }) {
                                     Text(priceText.ifEmpty { WishlistStrings.noPrice.translation() })
                                 }
                             }
 
-                            Div({ classes("field") }) {
-                                Div({ classes("lbl") }) { Text(WishlistStrings.linksLabel.translation()) }
+                            Div({ classes(CalmStudioStyleSheet.field) }) {
+                                Div({ classes(CalmStudioStyleSheet.lbl) }) { Text(WishlistStrings.linksLabel.translation()) }
                                 if (it.links.isEmpty()) {
-                                    Div({ classes("val") }) { Text(WishlistStrings.noLinks.translation()) }
+                                    Div({ classes(CalmStudioStyleSheet.`val`) }) { Text(WishlistStrings.noLinks.translation()) }
                                 } else {
                                     it.links.forEach { link ->
                                         A(href = link.url, attrs = {
-                                            classes("linkrow")
+                                            classes(CalmStudioStyleSheet.linkrow)
                                             attr("target", "_blank")
                                             attr("rel", "noreferrer")
                                         }) {

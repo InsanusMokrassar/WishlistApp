@@ -1,5 +1,6 @@
 package dev.inmo.wishlist.features.ui.sidebar.ui
 
+import dev.inmo.wishlist.features.common.client.ui.CalmStudioStyleSheet
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
@@ -26,7 +27,7 @@ import org.koin.core.parameter.parametersOf
  * Renders, top to bottom: the brand word-mark, the primary navigation (My Lists / Discover /
  * Reserved with a live count / Settings), the caller's pinned lists with a "New list" affordance,
  * and a bottom profile row (or the inline login widget when anonymous). Class names mirror the
- * Calm Studio reference so the shell CSS in `client/.../css/calm-studio.css` styles it directly.
+ * Calm Studio reference so `CalmStudioStyleSheet` (in `features/common/client`) styles it directly.
  */
 class SidebarView(
     chain: NavigationChain<ViewConfig>,
@@ -48,13 +49,13 @@ class SidebarView(
     @Composable
     private fun NavItem(icon: String, label: String, active: Boolean, count: Int = 0, onSelect: () -> Unit) {
         Button(attrs = {
-            if (active) classes("navitem", "on") else classes("navitem")
+            if (active) classes(CalmStudioStyleSheet.navitem, CalmStudioStyleSheet.on) else classes(CalmStudioStyleSheet.navitem)
             onClick { onSelect() }
         }) {
             LucideIcon(icon)
             Text(label)
             if (count > 0) {
-                Span(attrs = { classes("count") }) { Text(count.toString()) }
+                Span(attrs = { classes(CalmStudioStyleSheet.count) }) { Text(count.toString()) }
             }
         }
     }
@@ -68,13 +69,13 @@ class SidebarView(
         val reservedCount by viewModel.reservedCountState.collectAsState()
         val activeSection by viewModel.activeSectionState.collectAsState()
 
-        Div(attrs = { classes("sidebar") }) {
-            Div(attrs = { classes("logo") }) {
-                Span(attrs = { classes("mk") }) { LucideIcon(LucideIcons.gift) }
+        Div(attrs = { classes(CalmStudioStyleSheet.sidebar) }) {
+            Div(attrs = { classes(CalmStudioStyleSheet.logo) }) {
+                Span(attrs = { classes(CalmStudioStyleSheet.mk) }) { LucideIcon(LucideIcons.gift) }
                 Text(SidebarStrings.brand.translation())
             }
 
-            Nav(attrs = { classes("navsec") }) {
+            Nav(attrs = { classes(CalmStudioStyleSheet.navsec) }) {
                 NavItem(
                     icon = LucideIcons.home,
                     label = SidebarStrings.myLists.translation(),
@@ -99,19 +100,19 @@ class SidebarView(
             }
 
             if (currentUserId != null && myLists.isNotEmpty()) {
-                Nav(attrs = { classes("navsec") }) {
-                    Div(attrs = { classes("navlabel") }) { Text(SidebarStrings.yourLists.translation()) }
+                Nav(attrs = { classes(CalmStudioStyleSheet.navsec) }) {
+                    Div(attrs = { classes(CalmStudioStyleSheet.navlabel) }) { Text(SidebarStrings.yourLists.translation()) }
                     myLists.forEach { wishlist ->
                         Button(attrs = {
-                            classes("navitem")
+                            classes(CalmStudioStyleSheet.navitem)
                             onClick { viewModel.onSelectWishlist(wishlist.id) }
                         }) {
-                            Span(attrs = { classes("swatch", tintClass(wishlist.id.long)) })
+                            Span(attrs = { classes(CalmStudioStyleSheet.swatch, tintClass(wishlist.id.long)) })
                             Text(wishlist.title)
                         }
                     }
                     Button(attrs = {
-                        classes("navitem")
+                        classes(CalmStudioStyleSheet.navitem)
                         onClick { viewModel.onCreateList() }
                     }) {
                         LucideIcon(LucideIcons.plus)
@@ -120,16 +121,16 @@ class SidebarView(
                 }
             }
 
-            Div(attrs = { classes("spacer") })
+            Div(attrs = { classes(CalmStudioStyleSheet.spacer) })
 
             val resolvedUserId = currentUserId
             if (resolvedUserId != null) {
                 Div(attrs = {
-                    classes("me")
+                    classes(CalmStudioStyleSheet.me)
                     onClick { viewModel.onOpenProfile() }
                 }) {
-                    Span(attrs = { classes("av", tintClass(resolvedUserId.long)) })
-                    Span(attrs = { classes("nm") }) {
+                    Span(attrs = { classes(CalmStudioStyleSheet.av, tintClass(resolvedUserId.long)) })
+                    Span(attrs = { classes(CalmStudioStyleSheet.nm) }) {
                         Text(userName ?: "")
                         Small { Text(SidebarStrings.viewProfile.translation()) }
                     }
@@ -145,7 +146,16 @@ class SidebarView(
      * user keeps the same color across renders.
      *
      * @param seed Stable numeric id (wishlist or user).
-     * @return One of the `t0`..`t7` media-tint classes defined in the shell CSS.
+     * @return One of the `t0`..`t7` media-tint classes defined in [CalmStudioStyleSheet].
      */
-    private fun tintClass(seed: Long): String = "t${((seed % 8 + 8) % 8)}"
+    private fun tintClass(seed: Long): String = when (((seed % 8 + 8) % 8).toInt()) {
+        0 -> CalmStudioStyleSheet.t0
+        1 -> CalmStudioStyleSheet.t1
+        2 -> CalmStudioStyleSheet.t2
+        3 -> CalmStudioStyleSheet.t3
+        4 -> CalmStudioStyleSheet.t4
+        5 -> CalmStudioStyleSheet.t5
+        6 -> CalmStudioStyleSheet.t6
+        else -> CalmStudioStyleSheet.t7
+    }
 }
