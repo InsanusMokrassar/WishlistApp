@@ -8,19 +8,25 @@ import dev.inmo.micro_utils.strings.translation
 import dev.inmo.navigation.core.NavigationChain
 import dev.inmo.navigation.mvvm.compose.ComposeView
 import dev.inmo.wishlist.features.common.client.models.ViewConfig
-import dev.inmo.wishlist.features.common.client.ui.components.CalmIcon
+import dev.inmo.wishlist.features.common.client.ui.components.ActionBar
+import dev.inmo.wishlist.features.common.client.ui.components.CalmButton
+import dev.inmo.wishlist.features.common.client.ui.components.CalmButtonVariant
 import dev.inmo.wishlist.features.common.client.ui.components.CalmIcons
+import dev.inmo.wishlist.features.common.client.ui.components.ContentColumn
+import dev.inmo.wishlist.features.common.client.ui.components.DetailField
+import dev.inmo.wishlist.features.common.client.ui.components.DetailLayout
+import dev.inmo.wishlist.features.common.client.ui.components.DetailMedia
+import dev.inmo.wishlist.features.common.client.ui.components.LinkRow
+import dev.inmo.wishlist.features.common.client.ui.components.PriceTag
+import dev.inmo.wishlist.features.common.client.ui.components.Subline
 import dev.inmo.wishlist.features.common.client.ui.components.tintClass
 import dev.inmo.wishlist.features.currency.common.utils.formatItemPriceWithAmount
 import dev.inmo.wishlist.features.ui.topBar.ui.TopBarTitleProvider
 import dev.inmo.wishlist.features.ui.wishlist.WishlistStrings
 import dev.inmo.wishlist.features.wishlist.common.models.displayText
-import org.jetbrains.compose.web.dom.A
-import org.jetbrains.compose.web.dom.Button
 import org.jetbrains.compose.web.dom.Div
 import org.jetbrains.compose.web.dom.H1
 import org.jetbrains.compose.web.dom.Img
-import org.jetbrains.compose.web.dom.P
 import org.jetbrains.compose.web.dom.Text
 import org.koin.core.component.inject
 import org.koin.core.parameter.parametersOf
@@ -31,7 +37,8 @@ import org.koin.core.parameter.parametersOf
  * Renders a two-column `.detail`: a `.gallery` (the item's images, or a gradient placeholder) beside a
  * column with the title, priority pill, owner Edit / visitor Copy actions, any registered
  * item-scoped extra views (e.g. booking/reserve), and the description / approximate price / links
- * fields. Class names mirror the design skill's `app.jsx` so the Calm Studio shell CSS styles it.
+ * fields. Composed from the shared Calm Studio components ([DetailLayout], [DetailMedia],
+ * [DetailField], [PriceTag], [LinkRow], [ActionBar], [CalmButton]) so the Calm Studio shell CSS styles it.
  */
 class WishlistItemView(
     chain: NavigationChain<ViewConfig>,
@@ -59,77 +66,53 @@ class WishlistItemView(
         val selectedCurrency by viewModel.selectedCurrencyState.collectAsState()
         val rates by viewModel.ratesState.collectAsState()
 
-        Div({ classes(CalmStudioStyleSheet.`content-inner`) }) {
+        ContentColumn {
             when {
-                loading || item == null -> P({ classes(CalmStudioStyleSheet.subline) }) { Text(WishlistStrings.loading.translation()) }
+                loading || item == null -> Subline(WishlistStrings.loading.translation())
                 else -> {
                     val it = item!!
-                    Div({ classes(CalmStudioStyleSheet.detail) }) {
-                        Div({ classes(CalmStudioStyleSheet.gallery) }) {
+                    DetailLayout(
+                        gallery = {
                             val firstImage = it.imageIds.firstOrNull()
                             if (firstImage != null) {
                                 Img(src = viewModel.imageUrl(firstImage), alt = "") {
                                     classes(CalmStudioStyleSheet.`main-img`)
-                                    style { property("object-fit", "cover") }
                                 }
                                 if (it.imageIds.size > 1) {
-                                    Div({
-                                        style {
-                                            property("display", "flex")
-                                            property("flex-wrap", "wrap")
-                                            property("gap", "8px")
-                                            property("margin-top", "12px")
-                                        }
-                                    }) {
+                                    Div({ classes(WishlistItemViewStylesheet.thumbStrip) }) {
                                         it.imageIds.drop(1).forEach { id ->
                                             Img(src = viewModel.imageUrl(id), alt = "") {
-                                                style {
-                                                    property("width", "72px")
-                                                    property("height", "72px")
-                                                    property("object-fit", "cover")
-                                                    property("border-radius", "10px")
-                                                }
+                                                classes(WishlistItemViewStylesheet.thumbImg)
                                             }
                                         }
                                     }
                                 }
                             } else {
-                                Div({ classes(CalmStudioStyleSheet.`main-img`, tintClass(it.id.long)) })
+                                DetailMedia(tintClass(it.id.long))
                             }
-                        }
-
-                        Div {
+                        },
+                        body = {
                             H1 { Text(it.title) }
 
-                            Div({
-                                style {
-                                    property("display", "flex")
-                                    property("align-items", "center")
-                                    property("gap", "10px")
-                                    property("margin-bottom", "18px")
-                                }
-                            }) {
+                            Div({ classes(WishlistItemViewStylesheet.priorityRow) }) {
                                 PriorityBadge(it.priority)
                             }
 
                             if (isOwner || canCopy) {
-                                Div({ classes(CalmStudioStyleSheet.actbar) }) {
+                                ActionBar {
                                     if (isOwner) {
-                                        Button({
-                                            classes(CalmStudioStyleSheet.btn)
-                                            onClick { viewModel.onEditItem() }
-                                        }) {
-                                            CalmIcon(CalmIcons.edit)
-                                            Text(WishlistStrings.editButton.translation())
-                                        }
+                                        CalmButton(
+                                            text = WishlistStrings.editButton.translation(),
+                                            onClick = { viewModel.onEditItem() },
+                                            leadingIcon = CalmIcons.edit,
+                                        )
                                     }
                                     if (canCopy) {
-                                        Button({
-                                            classes(CalmStudioStyleSheet.btn, CalmStudioStyleSheet.primary)
-                                            onClick { viewModel.onCopyItem() }
-                                        }) {
-                                            Text(WishlistStrings.copyItemButton.translation())
-                                        }
+                                        CalmButton(
+                                            text = WishlistStrings.copyItemButton.translation(),
+                                            onClick = { viewModel.onCopyItem() },
+                                            variant = CalmButtonVariant.Primary,
+                                        )
                                     }
                                 }
                             }
@@ -137,7 +120,7 @@ class WishlistItemView(
                             // Each registered WishlistAdditionalConfigsProvider (e.g. booking/reserve)
                             // is drawn inline through the shared WishlistItemAdditionalConfigView.
                             if (viewModel.additionalConfigsProviders.isNotEmpty()) {
-                                Div({ classes(CalmStudioStyleSheet.actbar) }) {
+                                ActionBar {
                                     viewModel.additionalConfigsProviders.forEach { provider ->
                                         WishlistItemAdditionalConfigView(provider, it, this@WishlistItemView)
                                     }
@@ -145,14 +128,10 @@ class WishlistItemView(
                             }
 
                             if (it.description.isNotBlank()) {
-                                Div({ classes(CalmStudioStyleSheet.field) }) {
-                                    Div({ classes(CalmStudioStyleSheet.lbl) }) { Text(WishlistStrings.descriptionLabel.translation()) }
-                                    Div({ classes(CalmStudioStyleSheet.`val`) }) { Text(it.description) }
-                                }
+                                DetailField(WishlistStrings.descriptionLabel.translation(), it.description)
                             }
 
-                            Div({ classes(CalmStudioStyleSheet.field) }) {
-                                Div({ classes(CalmStudioStyleSheet.lbl) }) { Text(WishlistStrings.priceLabel.translation()) }
+                            DetailField(WishlistStrings.priceLabel.translation()) {
                                 if (currencyEnabled && currencies.isNotEmpty()) {
                                     CurrencySelector(
                                         currencies = currencies,
@@ -163,30 +142,20 @@ class WishlistItemView(
                                 val priceText = formatItemPriceWithAmount(
                                     it.approximatePrice, it.priceUnits, it.amount, selectedCurrency, rates
                                 )
-                                Div({ classes(CalmStudioStyleSheet.pricetag) }) {
-                                    Text(priceText.ifEmpty { WishlistStrings.noPrice.translation() })
-                                }
+                                PriceTag(priceText.ifEmpty { WishlistStrings.noPrice.translation() })
                             }
 
-                            Div({ classes(CalmStudioStyleSheet.field) }) {
-                                Div({ classes(CalmStudioStyleSheet.lbl) }) { Text(WishlistStrings.linksLabel.translation()) }
+                            DetailField(WishlistStrings.linksLabel.translation()) {
                                 if (it.links.isEmpty()) {
                                     Div({ classes(CalmStudioStyleSheet.`val`) }) { Text(WishlistStrings.noLinks.translation()) }
                                 } else {
                                     it.links.forEach { link ->
-                                        A(href = link.url, attrs = {
-                                            classes(CalmStudioStyleSheet.linkrow)
-                                            attr("target", "_blank")
-                                            attr("rel", "noreferrer")
-                                        }) {
-                                            Text(link.displayText)
-                                            CalmIcon(CalmIcons.ext)
-                                        }
+                                        LinkRow(text = link.displayText, href = link.url)
                                     }
                                 }
                             }
-                        }
-                    }
+                        },
+                    )
                 }
             }
         }

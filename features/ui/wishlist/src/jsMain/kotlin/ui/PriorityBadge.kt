@@ -12,13 +12,13 @@ import org.jetbrains.compose.web.dom.Text
 /**
  * Calm Studio CSS custom property holding the dot color for a [Priority].
  *
- * @return One of the `--pri-*` design tokens; custom priorities reuse the high-priority accent.
+ * @return One of the `--cs-pri-*` design tokens; custom priorities reuse the high-priority accent.
  */
 fun Priority.dotColorVar(): String = when (this) {
-    Priority.Small -> "var(--pri-low)"
-    Priority.Medium -> "var(--pri-med)"
-    Priority.High -> "var(--pri-high)"
-    is Priority.Custom -> "var(--pri-high)"
+    Priority.Small -> "var(--cs-pri-low)"
+    Priority.Medium -> "var(--cs-pri-med)"
+    Priority.High -> "var(--cs-pri-high)"
+    is Priority.Custom -> "var(--cs-pri-high)"
 }
 
 /**

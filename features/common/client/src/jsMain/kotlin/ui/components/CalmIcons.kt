@@ -2,7 +2,9 @@ package dev.inmo.wishlist.features.common.client.ui.components
 
 import androidx.compose.runtime.Composable
 import dev.inmo.wishlist.features.common.client.ui.CalmStudioStyleSheet
+import org.jetbrains.compose.web.dom.AttrBuilderContext
 import org.jetbrains.compose.web.dom.Span
+import org.w3c.dom.HTMLSpanElement
 
 /**
  * Inline [Lucide](https://lucide.dev)-style glyphs (2px stroke, round caps/joins, 24×24 viewBox) used
@@ -62,22 +64,26 @@ object CalmIcons {
 }
 
 /**
- * Renders a single Calm Studio glyph by injecting [inner] into a shared `<svg>` envelope.
- *
- * Compose-HTML has no SVG DOM builder, so the markup is written through a `ref` once on attach. Mirrors
- * the sidebar feature's `LucideIcon`, kept here so the wishlist/users content views share one icon set
- * without depending on the sidebar module.
+ * Renders a single Calm Studio glyph by injecting [inner] into a shared `<svg>` envelope hosted in a
+ * `.icon` span. Compose-HTML has no SVG DOM builder for these raw path strings, so the markup is written
+ * through a `ref` once on attach; the `.icon` class makes the span an inline-flex box so the glyph stays
+ * vertically centred against adjacent text. The Calm Studio shell CSS sizes/colors the `<svg>` through
+ * descendant selectors (`.btn svg`, `.linkrow svg`, …).
  *
  * @param inner Inner SVG markup, e.g. one of the [CalmIcons] constants.
+ * @param attrs Extra attribute builder applied to the host span (added classes, sizing, data-attrs);
+ * applied last so callers can extend or override the defaults.
  */
 @Composable
-fun CalmIcon(inner: String) {
+fun CalmIcon(inner: String, attrs: AttrBuilderContext<HTMLSpanElement> = {}) {
     Span(attrs = {
+        classes(CalmStudioStyleSheet.icon)
         ref { element ->
             element.innerHTML =
                 """<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">$inner</svg>"""
             onDispose { }
         }
+        attrs()
     })
 }
 

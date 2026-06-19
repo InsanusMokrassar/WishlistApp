@@ -46,14 +46,7 @@ fun WishlistItemCard(
             if (firstImage == null) classes(CalmStudioStyleSheet.media, tintClass(item.id.long)) else classes(CalmStudioStyleSheet.media)
         }) {
             if (firstImage != null) {
-                Img(src = imageUrl(firstImage), alt = "") {
-                    style {
-                        property("width", "100%")
-                        property("height", "100%")
-                        property("object-fit", "cover")
-                        property("display", "block")
-                    }
-                }
+                Img(src = imageUrl(firstImage), alt = "")
             }
             Span({ classes(CalmStudioStyleSheet.badge) }) {
                 Span({

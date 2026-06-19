@@ -46,7 +46,6 @@ fun WishlistItemRow(
         if (firstImage != null) {
             Img(src = imageUrl(firstImage), alt = "") {
                 classes(CalmStudioStyleSheet.thumb)
-                style { property("object-fit", "cover") }
             }
         } else {
             Span({ classes(CalmStudioStyleSheet.thumb, tintClass(item.id.long)) })

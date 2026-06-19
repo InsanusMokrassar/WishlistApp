@@ -9,11 +9,11 @@ import dev.inmo.navigation.core.NavigationChain
 import dev.inmo.navigation.mvvm.compose.ComposeView
 import dev.inmo.wishlist.features.booking.common.models.BookingState
 import dev.inmo.wishlist.features.common.client.models.ViewConfig
+import dev.inmo.wishlist.features.common.client.ui.components.CalmPill
 import dev.inmo.wishlist.features.common.client.ui.components.Toaster
 import dev.inmo.wishlist.features.ui.booking.BookingStrings
 import org.jetbrains.compose.web.attributes.disabled
 import org.jetbrains.compose.web.dom.Button
-import org.jetbrains.compose.web.dom.Span
 import org.jetbrains.compose.web.dom.Text
 import org.koin.core.component.inject
 import org.koin.core.parameter.parametersOf
@@ -38,25 +38,19 @@ class BookingView(
     }
 
     /**
-     * A green "reserved" status pill mirroring the design skill's reserved indicator.
+     * A green "reserved" status pill mirroring the design skill's reserved indicator, rendered through
+     * the shared [CalmPill] with the `--cs-ok` success tokens.
      *
      * @param label Visible pill text.
      */
     @Composable
     private fun ReservedPill(label: String) {
-        Span({
-            classes(CalmStudioStyleSheet.pill)
-            style {
-                property("background", "var(--cs-ok-soft)")
-                property("color", "var(--cs-ok)")
-            }
-        }) {
-            Span({
-                classes(CalmStudioStyleSheet.dot)
-                style { property("background", "var(--cs-ok)") }
-            })
-            Text(label)
-        }
+        CalmPill(
+            text = label,
+            dotColor = "var(--cs-ok)",
+            backgroundColor = "var(--cs-ok-soft)",
+            textColor = "var(--cs-ok)",
+        )
     }
 
     @Composable

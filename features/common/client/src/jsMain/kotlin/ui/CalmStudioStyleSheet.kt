@@ -335,6 +335,11 @@ object CalmStudioStyleSheet : StyleSheet(usePrefix = false) {
         "svg" style { property("width", "17px"); property("height", "17px") }
     }
 
+    /** `.icon` — inline-flex envelope that centers a [CalmIcon] `<svg>` glyph (kills inline baseline drift). */
+    val icon by style {
+        property("display", "inline-flex"); property("align-items", "center"); property("justify-content", "center")
+    }
+
     /** `.pagehead` — screen header: title `h1` on the left, `.acts` cluster on the right. */
     val pagehead by style {
         property("display", "flex"); property("justify-content", "space-between"); property("align-items", "flex-start"); property("gap", "20px"); property("margin-bottom", "4px")
@@ -380,7 +385,10 @@ object CalmStudioStyleSheet : StyleSheet(usePrefix = false) {
         property("background", "var(--cs-surface)"); property("border", "1px solid var(--cs-line)"); property("border-radius", "var(--cs-radius-lg)")
         property("overflow", "hidden"); property("cursor", "pointer"); property("transition", ".14s"); property("display", "flex"); property("flex-direction", "column")
         self + hover style { property("border-color", "var(--cs-line-2)"); property("box-shadow", "var(--cs-shadow)"); property("transform", "translateY(-2px)") }
-        className(media) style { property("height", "150px"); property("position", "relative") }
+        className(media) style {
+            property("height", "150px"); property("position", "relative")
+            "img" style { property("width", "100%"); property("height", "100%"); property("object-fit", "cover"); property("display", "block") }
+        }
         className(badge) style {
             property("position", "absolute"); property("top", "9px"); property("right", "9px"); property("font-size", "10.5px"); property("font-weight", "700")
             property("padding", "3px 9px"); property("border-radius", "6px"); property("background", "rgba(255,255,255,.92)"); property("color", "var(--cs-ink-2)")
@@ -412,7 +420,7 @@ object CalmStudioStyleSheet : StyleSheet(usePrefix = false) {
         property("border-bottom", "1px solid var(--cs-line)"); property("transition", ".1s")
         self + lastChild style { property("border-bottom", "none") }
         self + hover style { property("background", "var(--cs-surface-2)") }
-        className(thumb) style { property("width", "46px"); property("height", "46px"); property("border-radius", "8px"); property("flex-shrink", "0") }
+        className(thumb) style { property("width", "46px"); property("height", "46px"); property("border-radius", "8px"); property("flex-shrink", "0"); property("object-fit", "cover") }
         className(rmain) style {
             property("flex", "1"); property("min-width", "0")
             "h3" style { property("font-size", "14px"); property("font-weight", "700"); property("margin", "0"); property("letter-spacing", "-.01em") }
@@ -484,7 +492,7 @@ object CalmStudioStyleSheet : StyleSheet(usePrefix = false) {
     val detail by style {
         property("display", "grid"); property("grid-template-columns", "minmax(0, 420px) 1fr"); property("gap", "34px"); property("align-items", "start")
         className(gallery) style {
-            className(`main-img`) style { property("width", "100%"); property("aspect-ratio", "1"); property("border-radius", "var(--cs-radius-xl)") }
+            className(`main-img`) style { property("width", "100%"); property("aspect-ratio", "1"); property("border-radius", "var(--cs-radius-xl)"); property("object-fit", "cover") }
         }
         className(field) style {
             property("margin-bottom", "20px")
@@ -501,7 +509,7 @@ object CalmStudioStyleSheet : StyleSheet(usePrefix = false) {
             property("color", "var(--cs-accent)"); property("text-decoration", "none"); property("padding", "9px 0"); property("border-bottom", "1px solid var(--cs-line)")
             self + lastChild style { property("border-bottom", "none") }
         }
-        className(actbar) style { property("display", "flex"); property("gap", "9px"); property("margin", "22px 0 26px") }
+        className(actbar) style { property("display", "flex"); property("align-items", "center"); property("gap", "9px"); property("margin", "22px 0 26px") }
         cssMedia(mediaMaxWidth(760.px)) {
             self style { property("grid-template-columns", "1fr"); property("gap", "20px") }
         }

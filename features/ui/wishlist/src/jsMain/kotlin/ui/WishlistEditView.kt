@@ -137,13 +137,7 @@ class WishlistEditView(
                     id = "wl-default-units"
                 )
 
-                Div({
-                    style {
-                        property("display", "flex")
-                        property("gap", "9px")
-                        property("margin-top", "24px")
-                    }
-                }) {
+                Div({ classes(WishlistItemEditStyleSheet.actions) }) {
                     Button({
                         classes(CalmStudioStyleSheet.btn, CalmStudioStyleSheet.primary)
                         onClick { viewModel.onSave() }
@@ -153,7 +147,7 @@ class WishlistEditView(
                         classes(CalmStudioStyleSheet.btn, CalmStudioStyleSheet.ghost)
                         onClick { viewModel.onBack() }
                     }) { Text(WishlistStrings.cancelButton.translation()) }
-                    Div({ style { property("flex", "1") } })
+                    Div({ classes(WishlistItemEditStyleSheet.actionsSpacer) })
                     if (viewModel.canDelete) {
                         Button({
                             classes(CalmStudioStyleSheet.btn, CalmStudioStyleSheet.danger)
