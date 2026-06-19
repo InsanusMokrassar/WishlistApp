@@ -1,6 +1,8 @@
 package dev.inmo.wishlist.features.ui.users.ui
 
 import androidx.compose.runtime.Composable
+import dev.inmo.micro_utils.coroutines.compose.StyleSheetsAggregator
+import org.jetbrains.compose.web.css.StyleSheet
 import org.jetbrains.compose.web.dom.Img
 
 /**
@@ -21,6 +23,19 @@ private val userSilhouetteSvg: String =
 private val userSilhouetteDataUri: String = "data:image/svg+xml;charset=UTF-8,$userSilhouetteSvg"
 
 /**
+ * Per-view stylesheet for [UserAvatarPlaceholder]. Self-registers into the [StyleSheetsAggregator] so
+ * referencing [avatar] renders it without a per-call `Style(...)`.
+ */
+object UserAvatarPlaceholderStylesheet : StyleSheet() {
+    /** Crops the silhouette to fill its square box without distortion. */
+    val avatar by style {
+        property("object-fit", "cover")
+    }
+
+    init { StyleSheetsAggregator.addStyleSheet(this) }
+}
+
+/**
  * Renders the default gray user-avatar placeholder shown whenever a user has no uploaded photo.
  *
  * @param sizePx Width and height of the rendered square in CSS pixels.
@@ -31,9 +46,8 @@ private val userSilhouetteDataUri: String = "data:image/svg+xml;charset=UTF-8,$u
 @Composable
 fun UserAvatarPlaceholder(sizePx: Int, circle: Boolean, alt: String) {
     Img(src = userSilhouetteDataUri, alt = alt) {
-        classes(if (circle) "rounded-circle" else "rounded", "flex-shrink-0")
+        classes(if (circle) "rounded-circle" else "rounded", "flex-shrink-0", UserAvatarPlaceholderStylesheet.avatar)
         attr("width", sizePx.toString())
         attr("height", sizePx.toString())
-        attr("style", "object-fit: cover;")
     }
 }

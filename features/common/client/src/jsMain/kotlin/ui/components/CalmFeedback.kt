@@ -15,14 +15,14 @@ import org.jetbrains.compose.web.dom.Text
  * Calm Studio empty state (`.empty`) — a centered glyph, heading, optional body line, and optional
  * call-to-action used when a screen has nothing to show.
  *
- * @param icon Inner SVG markup (one of [CalmIcons]) for the glyph.
+ * @param icon Inner SVG content (one of [CalmIcons]) for the glyph.
  * @param title Already-translated heading.
  * @param text Optional already-translated explanatory line.
  * @param action Optional call-to-action (typically a primary [CalmButton]).
  */
 @Composable
 fun EmptyState(
-    icon: String,
+    icon: CalmIconContent,
     title: String,
     text: String? = null,
     action: (@Composable () -> Unit)? = null,

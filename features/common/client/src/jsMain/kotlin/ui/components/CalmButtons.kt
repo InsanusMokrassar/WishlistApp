@@ -50,7 +50,7 @@ enum class CalmButtonSize(internal val cssClass: String?) {
  * @param size Size modifier; defaults to [CalmButtonSize.Normal].
  * @param block Whether the button stretches full width (`.btn.block`).
  * @param disabled Whether the button is non-interactive (`:disabled`).
- * @param leadingIcon Optional inner SVG markup (one of [CalmIcons]) rendered before [text].
+ * @param leadingIcon Optional inner SVG content (one of [CalmIcons]) rendered before [text].
  * @param type Native button type; defaults to [ButtonType.Button] so the button never submits a form
  * unless the caller opts in.
  */
@@ -62,7 +62,7 @@ fun CalmButton(
     size: CalmButtonSize = CalmButtonSize.Normal,
     block: Boolean = false,
     disabled: Boolean = false,
-    leadingIcon: String? = null,
+    leadingIcon: CalmIconContent? = null,
     type: ButtonType = ButtonType.Button,
 ) {
     val classNames = mutableListOf(CalmStudioStyleSheet.btn)
@@ -83,13 +83,13 @@ fun CalmButton(
 /**
  * Calm Studio square icon button (`.iconbtn`) — a single [CalmIcons] glyph with no label.
  *
- * @param icon Inner SVG markup (one of [CalmIcons]) to render.
+ * @param icon Inner SVG content (one of [CalmIcons]) to render.
  * @param onClick Invoked when the user activates the button.
  * @param disabled Whether the button is non-interactive.
  */
 @Composable
 fun IconButton(
-    icon: String,
+    icon: CalmIconContent,
     onClick: () -> Unit,
     disabled: Boolean = false,
 ) {
