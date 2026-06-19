@@ -35,6 +35,7 @@ kotlin {
                 api project(":wishlist.features.ui.topBar")
                 api project(":wishlist.features.ui.serverUrl")
                 api project(":wishlist.features.ui.booking")
+                api project(":wishlist.features.ui.sidebar")
             }
         }
     }

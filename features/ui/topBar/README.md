@@ -12,6 +12,10 @@ sub-navigation chain, plus a "Change server URL" affordance on platforms where
 the server URL is user-configurable (JVM + Android).
 
 JS does not show the URL change button because the browser controls the origin.
+On JS the bar follows the Calm Studio shell: a global search field
+(people / lists / items) on the left and the auth action on the right, with a
+slim breadcrumb (`.crumb`) rendered under the bar for content depth. The
+breadcrumb is still fed by the main chain's `TopBarTitleProvider`s.
 
 ## Routes
 
@@ -22,7 +26,7 @@ None — client-only UI feature.
 | Type | Description |
 |------|-------------|
 | `TopBarViewConfig` | Empty `@Serializable class` |
-| `TopBarViewModel` | Stateless except for `onChangeServerUrl()` event |
+| `TopBarViewModel` | Tracks `titleProviders` (breadcrumb) and `searchQueryState`; `onChangeServerUrl()` / `onSearchQueryChanged()` events |
 | `TopBarViewInteractor` | `onChangeServerUrl(node)` — pushes `ServerUrlViewConfig` on the root chain |
 
 ## Architecture Notes

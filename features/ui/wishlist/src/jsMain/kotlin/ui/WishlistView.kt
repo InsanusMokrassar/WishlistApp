@@ -1,27 +1,36 @@
 package dev.inmo.wishlist.features.ui.wishlist.ui
 
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import dev.inmo.micro_utils.strings.translation
 import dev.inmo.navigation.core.NavigationChain
 import dev.inmo.navigation.mvvm.compose.ComposeView
 import dev.inmo.wishlist.features.common.client.models.ViewConfig
-import dev.inmo.wishlist.features.common.client.ui.components.BackButton
-import dev.inmo.wishlist.features.common.client.ui.components.ListRow
-import dev.inmo.wishlist.features.currency.common.utils.formatItemPriceWithAmount
+import dev.inmo.wishlist.features.common.client.ui.components.CalmButton
+import dev.inmo.wishlist.features.common.client.ui.components.CalmButtonVariant
+import dev.inmo.wishlist.features.common.client.ui.components.CalmIcons
+import dev.inmo.wishlist.features.common.client.ui.components.ContentColumn
+import dev.inmo.wishlist.features.common.client.ui.components.EmptyState
+import dev.inmo.wishlist.features.common.client.ui.components.ItemGrid
+import dev.inmo.wishlist.features.common.client.ui.components.PageHead
+import dev.inmo.wishlist.features.common.client.ui.components.RowsList
+import dev.inmo.wishlist.features.common.client.ui.components.Subline
+import dev.inmo.wishlist.features.common.client.ui.components.Toaster
 import dev.inmo.wishlist.features.ui.topBar.ui.TopBarTitleProvider
 import dev.inmo.wishlist.features.ui.wishlist.WishlistStrings
-import org.jetbrains.compose.web.dom.Button
-import org.jetbrains.compose.web.dom.Div
-import org.jetbrains.compose.web.dom.P
-import org.jetbrains.compose.web.dom.Span
-import org.jetbrains.compose.web.dom.Text
-import org.jetbrains.compose.web.dom.Ul
+import kotlinx.browser.window
 import org.koin.core.component.inject
 import org.koin.core.parameter.parametersOf
 
-/** JS Compose-HTML view for the wishlist detail screen. Uses Bootstrap classes. */
+/**
+ * JS Compose-HTML view for the wishlist detail screen (Calm Studio list view).
+ *
+ * Composed from the shared Calm Studio components ([ContentColumn] + [PageHead] shell, [EmptyState], and
+ * an [ItemGrid] of cards or [RowsList] of rows). The header carries a Share action (copies the page
+ * link), an owner "Add item" / visitor "Copy to my profile" primary action, and the sort + view controls.
+ */
 class WishlistView(
     chain: NavigationChain<ViewConfig>,
     config: WishlistViewConfig,
@@ -36,11 +45,16 @@ class WishlistView(
             return wishlist?.title ?: ""
         }
 
+    /** Copies the current page URL to the clipboard, the web client's "Share" behavior. */
+    private fun shareLink() {
+        runCatching { window.navigator.asDynamic().clipboard?.writeText(window.location.href) }
+        Toaster.show(WishlistStrings.shareLinkCopiedToast.translation())
+    }
+
     @Composable
     override fun onDraw() {
         super.onDraw()
         val wishlist by viewModel.wishlistState.collectAsState()
-        val backLabel by viewModel.backLabelState.collectAsState()
         val items by viewModel.itemsState.collectAsState()
         val sortMode by viewModel.sortModeState.collectAsState()
         val sortedItems by viewModel.sortedItemsState.collectAsState()
@@ -57,114 +71,102 @@ class WishlistView(
         val costSortAvailable by viewModel.costSortAvailableState.collectAsState()
         val sortSelectorVisible by viewModel.sortSelectorVisibleState.collectAsState()
 
-        Div({ classes("container", "py-3") }) {
-            Div({ classes("d-flex", "align-items-center", "mb-3", "gap-2") }) {
-                BackButton(backLabel ?: WishlistStrings.backButton.translation()) { viewModel.onBack() }
-                Div({ classes("flex-grow-1") }) {}
-                if (canCopy) {
-                    Button({
-                        classes("btn", "btn-outline-success")
-                        if (copyRequested) attr("disabled", "true")
-                        onClick { viewModel.onCopyWishlist() }
-                    }) {
-                        Text(WishlistStrings.copyWishlistButton.translation())
+        ContentColumn {
+            PageHead(
+                title = wishlist?.title ?: "",
+                actions = {
+                    CalmButton(
+                        text = WishlistStrings.shareButton.translation(),
+                        onClick = { shareLink() },
+                        leadingIcon = CalmIcons.share,
+                    )
+                    if (isOwner) {
+                        CalmButton(
+                            text = WishlistStrings.editButton.translation(),
+                            onClick = { viewModel.onEditWishlist() },
+                            leadingIcon = CalmIcons.edit,
+                        )
                     }
-                }
-                if (isOwner) {
-                    Button({
-                        classes("btn", "btn-outline-primary")
-                        onClick { viewModel.onEditWishlist() }
-                    }) {
-                        Text(WishlistStrings.editButton.translation())
+                    when {
+                        isOwner -> CalmButton(
+                            text = WishlistStrings.addItemButton.translation(),
+                            onClick = { viewModel.onAddItem() },
+                            variant = CalmButtonVariant.Primary,
+                            leadingIcon = CalmIcons.plus,
+                        )
+                        canCopy -> CalmButton(
+                            text = WishlistStrings.copyWishlistButton.translation(),
+                            onClick = { viewModel.onCopyWishlist() },
+                            variant = CalmButtonVariant.Primary,
+                            disabled = copyRequested,
+                        )
                     }
-                }
-            }
+                },
+            )
 
-            if (copyRequested) {
-                Div({ classes("alert", "alert-success", "py-2") }) {
-                    Text(WishlistStrings.copyQueued.translation())
-                }
+            // Async copy result surfaces as a toast (queued / failed), keyed on the view-model state.
+            LaunchedEffect(copyRequested) {
+                if (copyRequested) Toaster.show(WishlistStrings.copyQueued.translation())
             }
-            if (copyFailed) {
-                Div({ classes("alert", "alert-danger", "py-2") }) {
-                    Text(WishlistStrings.copyFailed.translation())
-                }
+            LaunchedEffect(copyFailed) {
+                if (copyFailed) Toaster.show(WishlistStrings.copyFailed.translation())
             }
 
             when {
-                loading -> P { Text(WishlistStrings.loading.translation()) }
-                items.isEmpty() -> P({ classes("text-muted") }) {
-                    Text(WishlistStrings.emptyItems.translation())
-                }
-                else -> {
-                WishlistSelectorsRow(
-                    sortMode = sortMode,
-                    onSortModeSelected = viewModel::onSortModeSelected,
-                    costSortAvailable = costSortAvailable,
-                    showSortSelector = sortSelectorVisible,
-                    noneLabel = WishlistStrings.sortDefault,
-                    isCurrenciesFeatureEnabled = currencyEnabled,
-                    currencies = currencies,
-                    selectedCurrency = selectedCurrency,
-                    onCurrencySelected = viewModel::onCurrencySelected,
-                    viewMode = viewMode,
-                    onViewModeSelected = viewModel::onViewModeSelected
+                loading -> Subline(WishlistStrings.loading.translation())
+                items.isEmpty() -> EmptyState(
+                    icon = CalmIcons.gift,
+                    title = WishlistStrings.emptyItems.translation(),
+                    action = {
+                        if (isOwner) {
+                            CalmButton(
+                                text = WishlistStrings.addItemButton.translation(),
+                                onClick = { viewModel.onAddItem() },
+                                variant = CalmButtonVariant.Primary,
+                                leadingIcon = CalmIcons.plus,
+                            )
+                        }
+                    },
                 )
-                if (viewMode == WishlistViewMode.Grid) {
-                    Div({ classes("row", "row-cols-1", "row-cols-sm-2", "row-cols-md-3", "g-3", "mb-3") }) {
-                        sortedItems.forEach { item ->
-                            Div({ classes("col") }) {
+                else -> {
+                    WishlistSelectorsRow(
+                        sortMode = sortMode,
+                        onSortModeSelected = viewModel::onSortModeSelected,
+                        costSortAvailable = costSortAvailable,
+                        showSortSelector = sortSelectorVisible,
+                        noneLabel = WishlistStrings.sortDefault,
+                        isCurrenciesFeatureEnabled = currencyEnabled,
+                        currencies = currencies,
+                        selectedCurrency = selectedCurrency,
+                        onCurrencySelected = viewModel::onCurrencySelected,
+                        viewMode = viewMode,
+                        onViewModeSelected = viewModel::onViewModeSelected
+                    )
+                    if (viewMode == WishlistViewMode.Grid) {
+                        ItemGrid {
+                            sortedItems.forEach { item ->
                                 WishlistItemCard(
                                     item = item,
-                                    wishlistTitle = wishlist?.title,
+                                    wishlistTitle = null,
+                                    imageUrl = viewModel::imageUrl,
+                                    onSelect = { viewModel.onViewItem(item.id) }
+                                )
+                            }
+                        }
+                    } else {
+                        RowsList {
+                            sortedItems.forEach { item ->
+                                WishlistItemRow(
+                                    item = item,
+                                    secondaryTitle = null,
+                                    selectedCurrency = selectedCurrency,
+                                    rates = rates,
                                     imageUrl = viewModel::imageUrl,
                                     onSelect = { viewModel.onViewItem(item.id) }
                                 )
                             }
                         }
                     }
-                } else {
-                    Ul({ classes("list-group", "mb-3") }) {
-                        sortedItems.forEach { item ->
-                            ListRow(onSelect = { viewModel.onViewItem(item.id) }) {
-                                Div({ classes("flex-grow-1") }) {
-                                    Div({ classes("d-flex", "justify-content-between", "align-items-center") }) {
-                                        Div({ classes("d-flex", "align-items-center", "gap-2") }) {
-                                            Span { Text(item.title) }
-                                            PriorityBadge(item.priority)
-                                        }
-                                        val priceText = formatItemPriceWithAmount(
-                                            item.approximatePrice,
-                                            item.priceUnits,
-                                            item.amount,
-                                            selectedCurrency,
-                                            rates
-                                        )
-                                        if (priceText.isNotEmpty()) {
-                                            Span({ classes("text-muted", "small") }) {
-                                                Text(priceText)
-                                            }
-                                        }
-                                    }
-                                    if (item.description.isNotBlank()) {
-                                        P({ classes("mb-0", "text-muted", "small", "mt-1") }) {
-                                            Text(item.description)
-                                        }
-                                    }
-                                }
-                            }
-                        }
-                    }
-                }
-                }
-            }
-
-            if (isOwner) {
-                Button({
-                    classes("btn", "btn-success")
-                    onClick { viewModel.onAddItem() }
-                }) {
-                    Text(WishlistStrings.addItemButton.translation())
                 }
             }
         }

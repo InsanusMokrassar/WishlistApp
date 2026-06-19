@@ -46,6 +46,7 @@ String[] includes = [
     ":features:ui:topBar",
     ":features:ui:serverUrl",
     ":features:ui:booking",
+    ":features:ui:sidebar",
 
     ":client",
     ":client:android",

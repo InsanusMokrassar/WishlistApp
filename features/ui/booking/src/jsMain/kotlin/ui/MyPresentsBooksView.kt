@@ -7,22 +7,28 @@ import dev.inmo.micro_utils.strings.translation
 import dev.inmo.navigation.core.NavigationChain
 import dev.inmo.navigation.mvvm.compose.ComposeView
 import dev.inmo.wishlist.features.common.client.models.ViewConfig
-import dev.inmo.wishlist.features.common.client.ui.components.BackButton
-import dev.inmo.wishlist.features.common.client.ui.components.ListRow
-import dev.inmo.wishlist.features.common.client.ui.components.ScreenTitle
+import dev.inmo.wishlist.features.common.client.ui.components.CalmIcons
+import dev.inmo.wishlist.features.common.client.ui.components.ContentColumn
+import dev.inmo.wishlist.features.common.client.ui.components.EmptyState
+import dev.inmo.wishlist.features.common.client.ui.components.ItemCard
+import dev.inmo.wishlist.features.common.client.ui.components.ItemGrid
+import dev.inmo.wishlist.features.common.client.ui.components.PageHead
+import dev.inmo.wishlist.features.common.client.ui.components.Subline
+import dev.inmo.wishlist.features.common.client.ui.components.tintClass
 import dev.inmo.wishlist.features.ui.booking.BookingStrings
 import dev.inmo.wishlist.features.ui.topBar.ui.TopBarTitleProvider
-import org.jetbrains.compose.web.dom.Div
-import org.jetbrains.compose.web.dom.P
-import org.jetbrains.compose.web.dom.Text
-import org.jetbrains.compose.web.dom.Ul
+import dev.inmo.wishlist.features.wishlist.common.models.RegisteredWishlistItem
 import org.koin.core.component.inject
 import org.koin.core.parameter.parametersOf
 
 /**
- * JS Compose-HTML view for the my-presents screen (scenario view B). Uses Bootstrap classes.
+ * JS Compose-HTML view for the Calm Studio "Reserved" section (scenario view B).
  *
- * Lists every item the caller has booked. Per issue #29 point #6 nothing navigates here yet.
+ * Reached as a primary section from the sidebar (no back button), so it renders the standard
+ * [ContentColumn] + [PageHead] shell over an [ItemGrid] of reserved-gift [ItemCard]s (each carrying the
+ * green reserved flag). This is the caller's OWN reservation list, so it exposes no other user's
+ * identity; a list owner never sees this screen and never learns who reserved their items (the server
+ * only returns the caller's own bookings).
  */
 class MyPresentsBooksView(
     chain: NavigationChain<ViewConfig>,
@@ -33,7 +39,32 @@ class MyPresentsBooksView(
     }
 
     override val title: String
-        @Composable get() = BookingStrings.myPresentsBooksTitle.translation()
+        @Composable get() = BookingStrings.reservedTitle.translation()
+
+    /**
+     * One reserved-gift card — an [ItemCard] with the green reserved flag over the item title and
+     * approximate price.
+     *
+     * @param item Reserved item to render.
+     */
+    @Composable
+    private fun ReservedCard(item: RegisteredWishlistItem) {
+        val price = item.approximatePrice
+        val priceText = if (price != null) {
+            val units = item.priceUnits.takeIf { it.isNotBlank() }?.let { " $it" } ?: ""
+            val base = "≈ $price$units"
+            if (item.amount > 1u) "$base · ×${item.amount}" else base
+        } else {
+            null
+        }
+        ItemCard(
+            title = item.title,
+            tintClass = tintClass(item.id.long),
+            description = item.description.takeIf { it.isNotBlank() },
+            priceText = priceText,
+            reservedFlag = BookingStrings.reservedFlag.translation(),
+        )
+    }
 
     @Composable
     override fun onDraw() {
@@ -41,19 +72,21 @@ class MyPresentsBooksView(
         val presents by viewModel.presentsState.collectAsState()
         val loading by viewModel.loadingState.collectAsState()
 
-        Div({ classes("container", "py-3") }) {
-            Div({ classes("d-flex", "align-items-center", "mb-3", "gap-2") }) {
-                BackButton(BookingStrings.backButton.translation()) { viewModel.onBack() }
-            }
-            ScreenTitle(BookingStrings.myPresentsBooksTitle.translation())
+        ContentColumn {
+            PageHead(
+                title = BookingStrings.reservedTitle.translation(),
+                subline = BookingStrings.reservedSubline.translation(),
+            )
 
             when {
-                loading -> P { Text(BookingStrings.loading.translation()) }
-                presents.isEmpty() -> P({ classes("text-muted") }) { Text(BookingStrings.emptyPresents.translation()) }
-                else -> Ul({ classes("list-group") }) {
-                    presents.forEach { item ->
-                        ListRow(text = item.title)
-                    }
+                loading -> Subline(BookingStrings.loading.translation())
+                presents.isEmpty() -> EmptyState(
+                    icon = CalmIcons.bookmark,
+                    title = BookingStrings.reservedEmptyTitle.translation(),
+                    text = BookingStrings.reservedEmptyBody.translation(),
+                )
+                else -> ItemGrid {
+                    presents.forEach { item -> ReservedCard(item) }
                 }
             }
         }

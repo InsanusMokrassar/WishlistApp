@@ -360,6 +360,8 @@ class WishlistItemEditViewModel(
         scope.launchLoggingDropExceptions {
             val title = _titleState.value.trim()
             if (title.isBlank()) return@launchLoggingDropExceptions
+            val links = _linksState.value
+            if (links.size != links.distinctBy { it.url.trim() }.size) return@launchLoggingDropExceptions
             _loadingState.value = true
             try {
                 val price = _priceState.value.trim().toDoubleOrNull()?.let { Amount(it) }

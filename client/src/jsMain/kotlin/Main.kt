@@ -33,6 +33,7 @@ fun main() {
                         dev.inmo.wishlist.features.ui.users.JSPlugin,
                         dev.inmo.wishlist.features.ui.topBar.JSPlugin,
                         dev.inmo.wishlist.features.ui.booking.JSPlugin,
+                        dev.inmo.wishlist.features.ui.sidebar.JSPlugin,
                     )
                 )
             )

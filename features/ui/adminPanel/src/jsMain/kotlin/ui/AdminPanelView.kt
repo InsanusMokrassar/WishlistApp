@@ -5,15 +5,15 @@ import dev.inmo.micro_utils.strings.translation
 import dev.inmo.navigation.core.NavigationChain
 import dev.inmo.navigation.mvvm.compose.ComposeView
 import dev.inmo.wishlist.features.common.client.models.ViewConfig
+import dev.inmo.wishlist.features.common.client.ui.components.CalmButton
+import dev.inmo.wishlist.features.common.client.ui.components.CalmButtonVariant
+import dev.inmo.wishlist.features.common.client.ui.components.ContentColumn
+import dev.inmo.wishlist.features.common.client.ui.components.PageHead
 import dev.inmo.wishlist.features.ui.adminPanel.AdminPanelStrings
-import org.jetbrains.compose.web.dom.Button
-import org.jetbrains.compose.web.dom.Div
-import org.jetbrains.compose.web.dom.H1
-import org.jetbrains.compose.web.dom.Text
 import org.koin.core.component.inject
 import org.koin.core.parameter.parametersOf
 
-/** JS Compose-HTML view for the admin panel dashboard screen. Uses Bootstrap classes. */
+/** JS Compose-HTML view for the admin panel dashboard screen (Calm Studio). */
 class AdminPanelView(
     chain: NavigationChain<ViewConfig>,
     config: AdminPanelViewConfig,
@@ -26,24 +26,21 @@ class AdminPanelView(
     override fun onDraw() {
         super.onDraw()
 
-        Div({ classes("container", "py-4") }) {
-            H1({ classes("h2", "mb-4") }) {
-                Text(AdminPanelStrings.title.translation())
-            }
-            Div({ classes("d-flex", "gap-3") }) {
-                Button({
-                    classes("btn", "btn-primary", "btn-lg")
-                    onClick { viewModel.onOpenUsers() }
-                }) {
-                    Text(AdminPanelStrings.usersSection.translation())
-                }
-                Button({
-                    classes("btn", "btn-secondary", "btn-lg")
-                    onClick { viewModel.onOpenWishlists() }
-                }) {
-                    Text(AdminPanelStrings.wishlistsSection.translation())
-                }
-            }
+        ContentColumn {
+            PageHead(
+                title = AdminPanelStrings.title.translation(),
+                actions = {
+                    CalmButton(
+                        text = AdminPanelStrings.usersSection.translation(),
+                        onClick = { viewModel.onOpenUsers() },
+                        variant = CalmButtonVariant.Primary,
+                    )
+                    CalmButton(
+                        text = AdminPanelStrings.wishlistsSection.translation(),
+                        onClick = { viewModel.onOpenWishlists() },
+                    )
+                },
+            )
         }
     }
 }

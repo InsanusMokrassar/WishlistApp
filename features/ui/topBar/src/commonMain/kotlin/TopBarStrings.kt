@@ -14,4 +14,9 @@ object TopBarStrings {
     val changeServerUrlButton = buildStringResource("Server") {
         IetfLang.Russian("Сервер")
     }
+
+    /** Placeholder for the global search field (people / lists / items). */
+    val searchPlaceholder = buildStringResource("Search people, lists, items…") {
+        IetfLang.Russian("Поиск людей, списков, товаров…")
+    }
 }

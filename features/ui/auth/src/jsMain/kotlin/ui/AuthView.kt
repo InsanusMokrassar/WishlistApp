@@ -7,29 +7,30 @@ import dev.inmo.micro_utils.strings.translation
 import dev.inmo.navigation.core.NavigationChain
 import dev.inmo.navigation.mvvm.compose.ComposeView
 import dev.inmo.wishlist.features.common.client.models.ViewConfig
+import dev.inmo.wishlist.features.common.client.ui.components.CalmButton
+import dev.inmo.wishlist.features.common.client.ui.components.CalmButtonVariant
+import dev.inmo.wishlist.features.common.client.ui.components.CalmModal
+import dev.inmo.wishlist.features.common.client.ui.components.CalmTextField
+import dev.inmo.wishlist.features.common.client.ui.components.FormHint
+import dev.inmo.wishlist.features.common.client.ui.components.ModalBody
+import dev.inmo.wishlist.features.common.client.ui.components.ModalFooter
+import dev.inmo.wishlist.features.common.client.ui.components.ModalHeader
+import dev.inmo.wishlist.features.common.client.ui.components.ModalTabs
 import dev.inmo.wishlist.features.ui.auth.AuthStrings
 import org.jetbrains.compose.web.attributes.ButtonType
 import org.jetbrains.compose.web.attributes.InputType
-import org.jetbrains.compose.web.attributes.disabled
 import org.jetbrains.compose.web.attributes.onSubmit
-import org.jetbrains.compose.web.attributes.placeholder
-import org.jetbrains.compose.web.attributes.type
-import org.jetbrains.compose.web.dom.Button
-import org.jetbrains.compose.web.dom.Div
 import org.jetbrains.compose.web.dom.Form
-import org.jetbrains.compose.web.dom.Input
-import org.jetbrains.compose.web.dom.Span
-import org.jetbrains.compose.web.dom.Text
 import org.koin.core.component.inject
 import org.koin.core.parameter.parametersOf
 
 /**
- * JS Compose-HTML Bootstrap auth widget embedded in the top navbar.
+ * JS Compose-HTML auth widget for the Calm Studio top bar.
  *
- * - Authenticated: "Log out" button.
- * - Logged-out: "Log in" button (and "Register" when registration is enabled).
- * - Expanded: the credentials form is shown inside a modal dialog (Bootstrap
- *   `modal` overlay + backdrop) rather than inline.
+ * - Authenticated: a ghost "Log out" button.
+ * - Logged-out: ghost "Log in" (and "Register", when registration is enabled) triggers.
+ * - Expanded: the credentials form is shown as a [CalmModal] with a [ModalTabs] switch between login and
+ *   registration, composed from the shared Calm Studio modal/form components.
  */
 class AuthView(
     chain: NavigationChain<ViewConfig>,
@@ -53,25 +54,26 @@ class AuthView(
         val loginEnabled by viewModel.loginEnabledState.collectAsState()
 
         if (loggedIn) {
-            Button(attrs = {
-                classes("btn", "btn-outline-light", "btn-sm")
-                onClick { viewModel.onLogout() }
-                if (loading) disabled()
-            }) { Text(AuthStrings.logoutButton.translation()) }
+            CalmButton(
+                text = AuthStrings.logoutButton.translation(),
+                onClick = { viewModel.onLogout() },
+                variant = CalmButtonVariant.Ghost,
+                disabled = loading,
+            )
             return
         }
 
-        Div({ classes("d-flex", "gap-2") }) {
-            Button(attrs = {
-                classes("btn", "btn-outline-light", "btn-sm")
-                onClick { viewModel.onToggleForm() }
-            }) { Text(AuthStrings.loginButton.translation()) }
-            if (registrationEnabled) {
-                Button(attrs = {
-                    classes("btn", "btn-outline-light", "btn-sm")
-                    onClick { viewModel.onToggleRegisterForm() }
-                }) { Text(AuthStrings.registerButton.translation()) }
-            }
+        CalmButton(
+            text = AuthStrings.loginButton.translation(),
+            onClick = { viewModel.onToggleForm() },
+            variant = CalmButtonVariant.Ghost,
+        )
+        if (registrationEnabled) {
+            CalmButton(
+                text = AuthStrings.registerButton.translation(),
+                onClick = { viewModel.onToggleRegisterForm() },
+                variant = CalmButtonVariant.Primary,
+            )
         }
 
         if (!expanded) return
@@ -82,75 +84,73 @@ class AuthView(
             AuthStrings.loginButton.translation()
         }
 
-        // Modal backdrop
-        Div({ classes("modal-backdrop", "fade", "show") })
-        // Modal dialog
-        Div({
-            classes("modal", "fade", "show", "d-block")
-            attr("tabindex", "-1")
-        }) {
-            Div({ classes("modal-dialog", "modal-dialog-centered") }) {
-                Div({ classes("modal-content") }) {
-                    Div({ classes("modal-header") }) {
-                        Span({ classes("modal-title", "h5") }) { Text(title) }
-                        Button(attrs = {
-                            classes("btn-close")
-                            attr("aria-label", "Close")
-                            onClick { viewModel.onCancelForm() }
-                            if (loading) disabled()
-                        }) {}
+        CalmModal(onDismiss = { if (!loading) viewModel.onCancelForm() }) {
+            ModalHeader(title)
+            Form(attrs = {
+                onSubmit {
+                    it.preventDefault()
+                    // Enter mirrors the submit button: ignore the submit when that button is disabled
+                    // (request in flight or blank fields), so loginEnabled gates Enter and the click alike.
+                    if (!loginEnabled) return@onSubmit
+                    if (registerMode) viewModel.onRegister() else viewModel.onAuthorize()
+                }
+            }) {
+                ModalBody {
+                    if (registrationEnabled) {
+                        ModalTabs(
+                            tabs = listOf(false, true),
+                            selected = registerMode,
+                            label = { isRegister ->
+                                if (isRegister) AuthStrings.registerButton.translation()
+                                else AuthStrings.loginButton.translation()
+                            },
+                            onSelect = { isRegister ->
+                                if (isRegister) viewModel.onToggleRegisterForm() else viewModel.onShowLoginForm()
+                            },
+                        )
                     }
-                    Form(attrs = {
-                        onSubmit {
-                            it.preventDefault()
-                            if (registerMode) viewModel.onRegister() else viewModel.onAuthorize()
-                        }
-                    }) {
-                        Div({ classes("modal-body", "d-flex", "flex-column", "gap-2") }) {
-                            Input(type = InputType.Text) {
-                                classes("form-control")
-                                value(username)
-                                placeholder(AuthStrings.usernamePlaceholder.translation())
-                                onInput { viewModel.onUsernameChanged(it.value) }
-                                if (loading) disabled()
-                            }
-                            Input(type = InputType.Password) {
-                                classes("form-control")
-                                value(password)
-                                placeholder(AuthStrings.passwordPlaceholder.translation())
-                                onInput { viewModel.onPasswordChanged(it.value) }
-                                if (loading) disabled()
-                            }
-                            if (error) {
-                                Span({ classes("text-danger", "small") }) {
-                                    val msg = if (registerMode) {
-                                        AuthStrings.errorRegisterFailed.translation()
-                                    } else {
-                                        AuthStrings.errorLoginFailed.translation()
-                                    }
-                                    Text(msg)
-                                }
-                            }
-                        }
-                        Div({ classes("modal-footer") }) {
-                            Button(attrs = {
-                                type(ButtonType.Button)
-                                classes("btn", "btn-outline-secondary")
-                                onClick { viewModel.onCancelForm() }
-                                if (loading) disabled()
-                            }) { Text(AuthStrings.cancelButton.translation()) }
-                            val submitLabel = if (registerMode) {
-                                AuthStrings.submitRegisterButton.translation()
-                            } else {
-                                AuthStrings.submitButton.translation()
-                            }
-                            Button(attrs = {
-                                type(ButtonType.Submit)
-                                classes("btn", "btn-primary")
-                                if (!loginEnabled) disabled()
-                            }) { Text(submitLabel) }
-                        }
+                    CalmTextField(
+                        value = username,
+                        onValueChange = { viewModel.onUsernameChanged(it) },
+                        label = AuthStrings.usernamePlaceholder.translation(),
+                        placeholder = AuthStrings.usernamePlaceholder.translation(),
+                        disabled = loading,
+                        id = "auth-username",
+                    )
+                    CalmTextField(
+                        value = password,
+                        onValueChange = { viewModel.onPasswordChanged(it) },
+                        label = AuthStrings.passwordPlaceholder.translation(),
+                        placeholder = AuthStrings.passwordPlaceholder.translation(),
+                        type = InputType.Password,
+                        disabled = loading,
+                        id = "auth-password",
+                    )
+                    if (error) {
+                        FormHint(
+                            text = if (registerMode) AuthStrings.errorRegisterFailed.translation()
+                                else AuthStrings.errorLoginFailed.translation(),
+                            error = true,
+                        )
                     }
+                }
+                ModalFooter {
+                    CalmButton(
+                        text = AuthStrings.cancelButton.translation(),
+                        onClick = { viewModel.onCancelForm() },
+                        variant = CalmButtonVariant.Ghost,
+                        disabled = loading,
+                    )
+                    CalmButton(
+                        text = if (registerMode) AuthStrings.submitRegisterButton.translation()
+                            else AuthStrings.submitButton.translation(),
+                        // type=Submit: the native form submit fires Form.onSubmit above (which calls
+                        // onRegister()/onAuthorize()), so this button needs no onClick of its own.
+                        onClick = { },
+                        variant = CalmButtonVariant.Primary,
+                        disabled = !loginEnabled,
+                        type = ButtonType.Submit,
+                    )
                 }
             }
         }

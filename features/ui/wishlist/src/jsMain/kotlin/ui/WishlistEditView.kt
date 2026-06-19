@@ -1,5 +1,6 @@
 package dev.inmo.wishlist.features.ui.wishlist.ui
 
+import dev.inmo.wishlist.features.common.client.ui.CalmStudioStyleSheet
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
@@ -7,22 +8,21 @@ import dev.inmo.micro_utils.strings.translation
 import dev.inmo.navigation.core.NavigationChain
 import dev.inmo.navigation.mvvm.compose.ComposeView
 import dev.inmo.wishlist.features.common.client.models.ViewConfig
-import dev.inmo.wishlist.features.ui.wishlist.WishlistStrings
-import dev.inmo.wishlist.features.common.client.ui.components.BackButton
+import dev.inmo.wishlist.features.common.client.ui.components.CalmButton
+import dev.inmo.wishlist.features.common.client.ui.components.CalmButtonVariant
+import dev.inmo.wishlist.features.common.client.ui.components.CalmForm
+import dev.inmo.wishlist.features.common.client.ui.components.CalmIcons
+import dev.inmo.wishlist.features.common.client.ui.components.CalmTextField
+import dev.inmo.wishlist.features.common.client.ui.components.ConfirmModal
+import dev.inmo.wishlist.features.common.client.ui.components.ContentColumn
+import dev.inmo.wishlist.features.common.client.ui.components.PageHead
 import dev.inmo.wishlist.features.ui.topBar.ui.TopBarTitleProvider
-import org.jetbrains.compose.web.attributes.InputType
-import org.jetbrains.compose.web.attributes.disabled
-import org.jetbrains.compose.web.attributes.placeholder
-import org.jetbrains.compose.web.dom.Button
+import dev.inmo.wishlist.features.ui.wishlist.WishlistStrings
 import org.jetbrains.compose.web.dom.Div
-import org.jetbrains.compose.web.dom.Input
-import org.jetbrains.compose.web.dom.Label
-import org.jetbrains.compose.web.dom.P
-import org.jetbrains.compose.web.dom.Text
 import org.koin.core.component.inject
 import org.koin.core.parameter.parametersOf
 
-/** JS Compose-HTML view for the wishlist create/edit screen. Uses Bootstrap classes. */
+/** JS Compose-HTML view for the wishlist create/edit screen (Calm Studio form). */
 class WishlistEditView(
     chain: NavigationChain<ViewConfig>,
     config: WishlistEditViewConfig,
@@ -39,86 +39,50 @@ class WishlistEditView(
     override fun onDraw() {
         super.onDraw()
         val title by viewModel.titleState.collectAsState()
-        val backLabel by viewModel.backLabelState.collectAsState()
         val defaultPriceUnits by viewModel.defaultPriceUnitsState.collectAsState()
         val loading by viewModel.loadingState.collectAsState()
         val showDialog by viewModel.showConfirmDialogState.collectAsState()
         val showDeleteDialog by viewModel.showDeleteDialogState.collectAsState()
 
         if (showDeleteDialog) {
-            Div({ classes("modal-backdrop", "fade", "show") })
-            Div({ classes("modal", "d-block"); attr("tabindex", "-1") }) {
-                Div({ classes("modal-dialog") }) {
-                    Div({ classes("modal-content") }) {
-                        Div({ classes("modal-header") }) {
-                            Div({ classes("modal-title", "h5") }) {
-                                Text(WishlistStrings.confirmDeleteWishlistTitle.translation())
-                            }
-                        }
-                        Div({ classes("modal-body") }) {
-                            P { Text(WishlistStrings.confirmDeleteWishlistMessage.translation()) }
-                        }
-                        Div({ classes("modal-footer") }) {
-                            Button({
-                                classes("btn", "btn-secondary")
-                                onClick { viewModel.onCancelDelete() }
-                            }) { Text(WishlistStrings.cancelButton.translation()) }
-                            Button({
-                                classes("btn", "btn-danger")
-                                onClick { viewModel.onConfirmDelete() }
-                            }) { Text(WishlistStrings.confirmDeleteButton.translation()) }
-                        }
-                    }
-                }
-            }
+            ConfirmModal(
+                title = WishlistStrings.confirmDeleteWishlistTitle.translation(),
+                body = WishlistStrings.confirmDeleteWishlistMessage.translation(),
+                confirmLabel = WishlistStrings.confirmDeleteButton.translation(),
+                cancelLabel = WishlistStrings.cancelButton.translation(),
+                danger = true,
+                onCancel = { viewModel.onCancelDelete() },
+                onConfirm = { viewModel.onConfirmDelete() },
+            )
         }
-
         if (showDialog) {
-            Div({ classes("modal-backdrop", "fade", "show") })
-            Div({ classes("modal", "d-block"); attr("tabindex", "-1") }) {
-                Div({ classes("modal-dialog") }) {
-                    Div({ classes("modal-content") }) {
-                        Div({ classes("modal-header") }) {
-                            Div({ classes("modal-title", "h5") }) {
-                                Text(WishlistStrings.confirmDiscardTitle.translation())
-                            }
-                        }
-                        Div({ classes("modal-body") }) {
-                            P { Text(WishlistStrings.confirmDiscardMessage.translation()) }
-                        }
-                        Div({ classes("modal-footer") }) {
-                            Button({
-                                classes("btn", "btn-secondary")
-                                onClick { viewModel.onCancelBack() }
-                            }) { Text(WishlistStrings.cancelButton.translation()) }
-                            Button({
-                                classes("btn", "btn-danger")
-                                onClick { viewModel.onConfirmBack() }
-                            }) { Text(WishlistStrings.confirmButton.translation()) }
-                        }
-                    }
-                }
-            }
+            ConfirmModal(
+                title = WishlistStrings.confirmDiscardTitle.translation(),
+                body = WishlistStrings.confirmDiscardMessage.translation(),
+                confirmLabel = WishlistStrings.confirmButton.translation(),
+                cancelLabel = WishlistStrings.cancelButton.translation(),
+                danger = true,
+                onCancel = { viewModel.onCancelBack() },
+                onConfirm = { viewModel.onConfirmBack() },
+            )
         }
 
-        Div({ classes("container", "py-3") }) {
-            Div({ classes("d-flex", "align-items-center", "mb-3", "gap-2") }) {
-                BackButton(backLabel ?: WishlistStrings.backButton.translation()) { viewModel.onBack() }
-            }
-            Div({ classes("mb-3") }) {
-                Label("wl-title") {
-                    Text(WishlistStrings.titleLabel.translation())
-                }
-                Input(InputType.Text) {
-                    id("wl-title")
-                    classes("form-control")
-                    value(title)
-                    placeholder(WishlistStrings.titleLabel.translation())
-                    onInput { viewModel.onTitleChanged(it.value) }
-                    if (loading) disabled()
-                }
-            }
-            Div({ classes("mb-3") }) {
+        ContentColumn {
+            PageHead(
+                title = if (viewModel.isCreating) WishlistStrings.createWishlistButton.translation()
+                    else WishlistStrings.editWishlistTitle.translation(),
+            )
+
+            CalmForm {
+                CalmTextField(
+                    value = title,
+                    onValueChange = { viewModel.onTitleChanged(it) },
+                    label = WishlistStrings.titleLabel.translation(),
+                    placeholder = WishlistStrings.titleLabel.translation(),
+                    disabled = loading,
+                    id = "wl-title",
+                )
+
                 PriceUnitsSelector(
                     label = WishlistStrings.defaultCurrencyLabel.translation(),
                     value = defaultPriceUnits,
@@ -126,22 +90,27 @@ class WishlistEditView(
                     onValueChange = { viewModel.onDefaultPriceUnitsChanged(it) },
                     id = "wl-default-units"
                 )
-            }
-            Div({ classes("d-flex", "gap-2") }) {
-                Button({
-                    classes("btn", "btn-primary")
-                    onClick { viewModel.onSave() }
-                    if (loading || title.isBlank()) disabled()
-                }) {
-                    Text(WishlistStrings.saveButton.translation())
-                }
-                if (viewModel.canDelete) {
-                    Button({
-                        classes("btn", "btn-danger")
-                        onClick { viewModel.onDelete() }
-                        if (loading) disabled()
-                    }) {
-                        Text(WishlistStrings.deleteButton.translation())
+
+                Div({ classes(CalmStudioStyleSheet.formactions) }) {
+                    CalmButton(
+                        text = WishlistStrings.saveButton.translation(),
+                        onClick = { viewModel.onSave() },
+                        variant = CalmButtonVariant.Primary,
+                        disabled = loading || title.isBlank(),
+                    )
+                    CalmButton(
+                        text = WishlistStrings.cancelButton.translation(),
+                        onClick = { viewModel.onBack() },
+                        variant = CalmButtonVariant.Ghost,
+                    )
+                    if (viewModel.canDelete) {
+                        CalmButton(
+                            text = WishlistStrings.deleteButton.translation(),
+                            onClick = { viewModel.onDelete() },
+                            variant = CalmButtonVariant.Danger,
+                            leadingIcon = CalmIcons.trash,
+                            disabled = loading,
+                        )
                     }
                 }
             }

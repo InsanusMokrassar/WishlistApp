@@ -38,4 +38,64 @@ object BookingStrings {
     val emptyPresents = buildStringResource("You have not booked anything yet") {
         IetfLang.Russian("Вы пока ничего не забронировали")
     }
+
+    // --- Calm Studio web copy ---
+    // First-class "reserve a gift" voice used by the JS (Calm Studio) views only; the JVM/Android
+    // booking views keep the strings above. Kept separate so the redesign copy does not change the
+    // text rendered by the untouched Material clients.
+
+    /** Calm Studio button that reserves the visited item as a gift. */
+    val reserveGiftButton = buildStringResource("Reserve this gift") {
+        IetfLang.Russian("Забронировать подарок")
+    }
+
+    /** Calm Studio button that cancels the caller's own reservation. */
+    val cancelReservationButton = buildStringResource("Cancel reservation") {
+        IetfLang.Russian("Отменить бронь")
+    }
+
+    /** Calm Studio status pill: the caller has reserved this item. */
+    val reservedByYouLabel = buildStringResource("Reserved by you") {
+        IetfLang.Russian("Забронировано вами")
+    }
+
+    /** Calm Studio status pill: another (anonymous) user has reserved this item. */
+    val reservedBySomeoneLabel = buildStringResource("Reserved by someone") {
+        IetfLang.Russian("Кто-то уже забронировал")
+    }
+
+    /** Title of the Calm Studio "Reserved" section (the caller's reserved gifts). */
+    val reservedTitle = buildStringResource("Reserved") {
+        IetfLang.Russian("Брони")
+    }
+
+    /** Subtitle of the Calm Studio "Reserved" section. */
+    val reservedSubline = buildStringResource("Gifts you've committed to give. Only you can see these.") {
+        IetfLang.Russian("Подарки, которые вы вызвались подарить. Их видите только вы.")
+    }
+
+    /** Calm Studio empty-state heading for the "Reserved" section. */
+    val reservedEmptyTitle = buildStringResource("No reservations yet") {
+        IetfLang.Russian("Пока нет броней")
+    }
+
+    /** Calm Studio empty-state body for the "Reserved" section. */
+    val reservedEmptyBody = buildStringResource("When you reserve a gift on someone's list, it shows up here.") {
+        IetfLang.Russian("Когда вы забронируете подарок в чьём-то списке, он появится здесь.")
+    }
+
+    /** Calm Studio corner flag marking a card on the "Reserved" section. */
+    val reservedFlag = buildStringResource("Reserved") {
+        IetfLang.Russian("Бронь")
+    }
+
+    /** Calm Studio toast shown after reserving a gift. */
+    val reserveToast = buildStringResource("Reserved — only you can see this") {
+        IetfLang.Russian("Забронировано — это видите только вы")
+    }
+
+    /** Calm Studio toast shown after cancelling a reservation. */
+    val cancelReservationToast = buildStringResource("Reservation cancelled") {
+        IetfLang.Russian("Бронь отменена")
+    }
 }

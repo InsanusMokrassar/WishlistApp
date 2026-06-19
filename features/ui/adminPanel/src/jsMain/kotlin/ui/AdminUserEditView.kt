@@ -1,5 +1,6 @@
 package dev.inmo.wishlist.features.ui.adminPanel.ui
 
+import dev.inmo.wishlist.features.common.client.ui.CalmStudioStyleSheet
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
@@ -8,22 +9,20 @@ import dev.inmo.navigation.core.NavigationChain
 import dev.inmo.navigation.mvvm.compose.ComposeView
 import dev.inmo.wishlist.features.common.client.models.ViewConfig
 import dev.inmo.wishlist.features.common.client.ui.components.BackButton
+import dev.inmo.wishlist.features.common.client.ui.components.CalmButton
+import dev.inmo.wishlist.features.common.client.ui.components.CalmButtonVariant
+import dev.inmo.wishlist.features.common.client.ui.components.CalmForm
+import dev.inmo.wishlist.features.common.client.ui.components.CalmTextField
+import dev.inmo.wishlist.features.common.client.ui.components.ContentColumn
+import dev.inmo.wishlist.features.common.client.ui.components.PageHead
 import dev.inmo.wishlist.features.ui.topBar.ui.TopBarTitleProvider
 import dev.inmo.wishlist.features.ui.adminPanel.AdminPanelStrings
 import org.jetbrains.compose.web.attributes.InputType
-import org.jetbrains.compose.web.attributes.disabled
-import org.jetbrains.compose.web.attributes.forId
-import org.jetbrains.compose.web.attributes.placeholder
-import org.jetbrains.compose.web.dom.Button
 import org.jetbrains.compose.web.dom.Div
-import org.jetbrains.compose.web.dom.Input
-import org.jetbrains.compose.web.dom.Label
-import org.jetbrains.compose.web.dom.P
-import org.jetbrains.compose.web.dom.Text
 import org.koin.core.component.inject
 import org.koin.core.parameter.parametersOf
 
-/** JS Compose-HTML view for the admin user create/edit screen. Uses Bootstrap classes. */
+/** JS Compose-HTML view for the admin user create/edit screen (Calm Studio form). */
 class AdminUserEditView(
     chain: NavigationChain<ViewConfig>,
     config: AdminUserEditViewConfig,
@@ -45,67 +44,47 @@ class AdminUserEditView(
         val showDialog by viewModel.showConfirmDialogState.collectAsState()
 
         if (showDialog) {
-            Div({ classes("modal-backdrop", "fade", "show") })
-            Div({ classes("modal", "d-block"); attr("tabindex", "-1") }) {
-                Div({ classes("modal-dialog") }) {
-                    Div({ classes("modal-content") }) {
-                        Div({ classes("modal-header") }) {
-                            Div({ classes("modal-title", "h5") }) {
-                                Text(AdminPanelStrings.confirmDiscardTitle.translation())
-                            }
-                        }
-                        Div({ classes("modal-body") }) {
-                            P { Text(AdminPanelStrings.confirmDiscardMessage.translation()) }
-                        }
-                        Div({ classes("modal-footer") }) {
-                            Button({
-                                classes("btn", "btn-secondary")
-                                onClick { viewModel.onCancelBack() }
-                            }) { Text(AdminPanelStrings.cancelButton.translation()) }
-                            Button({
-                                classes("btn", "btn-danger")
-                                onClick { viewModel.onConfirmBack() }
-                            }) { Text(AdminPanelStrings.confirmButton.translation()) }
-                        }
-                    }
-                }
-            }
+            DiscardModal(
+                onCancel = { viewModel.onCancelBack() },
+                onConfirm = { viewModel.onConfirmBack() },
+            )
         }
 
-        Div({ classes("container", "py-3") }) {
-            Div({ classes("d-flex", "align-items-center", "mb-3", "gap-2") }) {
-                BackButton(AdminPanelStrings.backButton.translation()) { viewModel.onBack() }
-            }
-            Div({ classes("mb-3") }) {
-                Label("user-username") { Text(AdminPanelStrings.usernameLabel.translation()) }
-                Input(InputType.Text) {
-                    id("user-username")
-                    classes("form-control")
-                    value(username)
-                    placeholder(AdminPanelStrings.usernameLabel.translation())
-                    onInput { viewModel.onUsernameChanged(it.value) }
-                    if (loading) disabled()
+        ContentColumn {
+            PageHead(
+                title = if (viewModel.isCreating) AdminPanelStrings.newUserTitle.translation()
+                    else AdminPanelStrings.editUserTitle.translation(),
+                actions = { BackButton(AdminPanelStrings.backButton.translation()) { viewModel.onBack() } },
+            )
+
+            CalmForm {
+                CalmTextField(
+                    value = username,
+                    onValueChange = { viewModel.onUsernameChanged(it) },
+                    label = AdminPanelStrings.usernameLabel.translation(),
+                    placeholder = AdminPanelStrings.usernameLabel.translation(),
+                    disabled = loading,
+                    id = "user-username",
+                )
+                if (viewModel.isCreating) {
+                    CalmTextField(
+                        value = password,
+                        onValueChange = { viewModel.onPasswordChanged(it) },
+                        label = AdminPanelStrings.passwordLabel.translation(),
+                        placeholder = AdminPanelStrings.passwordLabel.translation(),
+                        type = InputType.Password,
+                        disabled = loading,
+                        id = "user-password",
+                    )
                 }
-            }
-            if (viewModel.isCreating) {
-                Div({ classes("mb-3") }) {
-                    Label("user-password") { Text(AdminPanelStrings.passwordLabel.translation()) }
-                    Input(InputType.Password) {
-                        id("user-password")
-                        classes("form-control")
-                        value(password)
-                        placeholder(AdminPanelStrings.passwordLabel.translation())
-                        onInput { viewModel.onPasswordChanged(it.value) }
-                        if (loading) disabled()
-                    }
+                Div({ classes(CalmStudioStyleSheet.formactions) }) {
+                    CalmButton(
+                        text = AdminPanelStrings.saveButton.translation(),
+                        onClick = { viewModel.onSave() },
+                        variant = CalmButtonVariant.Primary,
+                        disabled = loading || username.isBlank() || (viewModel.isCreating && password.isBlank()),
+                    )
                 }
-            }
-            Button({
-                classes("btn", "btn-primary")
-                onClick { viewModel.onSave() }
-                if (loading || username.isBlank() || (viewModel.isCreating && password.isBlank())) disabled()
-            }) {
-                Text(AdminPanelStrings.saveButton.translation())
             }
         }
     }

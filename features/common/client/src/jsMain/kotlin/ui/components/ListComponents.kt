@@ -1,29 +1,29 @@
 package dev.inmo.wishlist.features.common.client.ui.components
 
+import dev.inmo.wishlist.features.common.client.ui.CalmStudioStyleSheet
 import androidx.compose.runtime.Composable
 import org.jetbrains.compose.web.dom.Button
 import org.jetbrains.compose.web.dom.Div
 import org.jetbrains.compose.web.dom.H1
-import org.jetbrains.compose.web.dom.Li
 import org.jetbrains.compose.web.dom.Span
 import org.jetbrains.compose.web.dom.Text
 
 /**
- * Screen heading rendered as a Bootstrap `h3` headline.
+ * Screen heading rendered as the Calm Studio page title (`<h1>`, styled by `.content-inner h1` /
+ * `.pagehead h1`).
  *
  * @param text Already-translated heading text.
- * @param bottomMarginClass Bootstrap margin-bottom utility class controlling spacing under the title.
- * @param extraClasses Additional Bootstrap utility classes (e.g. `flex-grow-1`) applied to the headline.
+ * @param extraClasses Optional extra classes applied to the headline (e.g. layout helpers).
  */
 @Composable
-fun ScreenTitle(text: String, bottomMarginClass: String = "mb-0", vararg extraClasses: String) {
-    H1({ classes("h3", bottomMarginClass, *extraClasses) }) {
+fun ScreenTitle(text: String, vararg extraClasses: String) {
+    H1({ if (extraClasses.isNotEmpty()) classes(*extraClasses) }) {
         Text(text)
     }
 }
 
 /**
- * Back-navigation button styled as a Bootstrap outline-secondary button.
+ * Back-navigation button styled as a Calm Studio ghost button (`.btn.ghost`).
  *
  * @param text Already-translated button label.
  * @param onClick Invoked when the user activates the button.
@@ -31,7 +31,7 @@ fun ScreenTitle(text: String, bottomMarginClass: String = "mb-0", vararg extraCl
 @Composable
 fun BackButton(text: String, onClick: () -> Unit) {
     Button({
-        classes("btn", "btn-outline-secondary")
+        classes(CalmStudioStyleSheet.btn, CalmStudioStyleSheet.ghost)
         onClick { onClick() }
     }) {
         Text(text)
@@ -39,12 +39,12 @@ fun BackButton(text: String, onClick: () -> Unit) {
 }
 
 /**
- * Single Bootstrap `list-group-item` row carrying a primary label and optional leading/trailing content.
+ * Single Calm Studio list row (`.row`) carrying a primary label and optional leading/trailing content.
  *
- * Must be rendered inside a `Ul` with the `list-group` class.
+ * Must be rendered inside a `Div` with the `rows` class.
  *
  * @param text Already-translated primary label of the row.
- * @param onSelect Invoked when the user clicks the row label; `null` makes the label non-interactive.
+ * @param onSelect Invoked when the user clicks the row; `null` makes the row non-interactive.
  * @param leading Optional leading content (e.g. an avatar/thumbnail) rendered at the row's start.
  * @param trailing Optional trailing content (e.g. action buttons) rendered at the row's end.
  */
@@ -64,12 +64,13 @@ fun ListRow(
 }
 
 /**
- * Single Bootstrap `list-group-item` row with a caller-provided primary content slot and optional leading/trailing content.
+ * Single Calm Studio list row (`.row`) with a caller-provided primary content slot and optional
+ * leading/trailing content.
  *
- * Must be rendered inside a `Ul` with the `list-group` class. Use this overload when the primary cell needs more
- * than a single label (badges, secondary text, etc.).
+ * Must be rendered inside a `Div` with the `rows` class. Use this overload when the primary cell needs
+ * more than a single label (badges, secondary text, etc.).
  *
- * @param onSelect Invoked when the user clicks the primary content; `null` makes the content non-interactive.
+ * @param onSelect Invoked when the user clicks the primary content; `null` makes the row non-interactive.
  * @param leading Optional leading content (e.g. an avatar/thumbnail) rendered at the row's start.
  * @param trailing Optional trailing content (e.g. action buttons) rendered at the row's end.
  * @param content Primary content of the row.
@@ -81,27 +82,16 @@ fun ListRow(
     trailing: (@Composable () -> Unit)? = null,
     content: @Composable () -> Unit,
 ) {
-    Li({
-        classes("list-group-item", "list-group-item-action", "d-flex", "justify-content-between", "align-items-center")
-        if (leading == null && trailing == null && onSelect != null) {
-            style { property("cursor", "pointer") }
+    Div({
+        classes(CalmStudioStyleSheet.row)
+        if (onSelect != null) {
             onClick { onSelect() }
+        } else {
+            classes(CalmStudioStyleSheet.nonclickable)
         }
     }) {
-        if (leading == null && trailing == null) {
-            content()
-        } else {
-            Div({
-                classes("d-flex", "align-items-center", "gap-3", "flex-grow-1")
-                if (onSelect != null) {
-                    style { property("cursor", "pointer") }
-                    onClick { onSelect() }
-                }
-            }) {
-                leading?.invoke()
-                Div({ classes("flex-grow-1") }) { content() }
-            }
-            trailing?.invoke()
-        }
+        leading?.invoke()
+        Div({ classes(CalmStudioStyleSheet.rmain) }) { content() }
+        trailing?.invoke()
     }
 }

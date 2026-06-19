@@ -1,5 +1,6 @@
 package dev.inmo.wishlist.features.ui.scaffold.ui
 
+import dev.inmo.wishlist.features.common.client.ui.CalmStudioStyleSheet
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.remember
@@ -12,6 +13,7 @@ import dev.inmo.wishlist.features.common.client.models.LeftNavigationChainId
 import dev.inmo.wishlist.features.common.client.models.MainNavigationChainId
 import dev.inmo.wishlist.features.common.client.models.TopNavigationChainId
 import dev.inmo.wishlist.features.common.client.models.ViewConfig
+import dev.inmo.wishlist.features.common.client.ui.components.ToastHost
 import org.jetbrains.compose.web.dom.Div
 import org.koin.core.component.inject
 import org.koin.core.parameter.parametersOf
@@ -73,24 +75,26 @@ class ScaffoldView(
         super.onDraw()
         val cfg = viewModel.config
 
-        Div({ classes(ScaffoldViewStylesheet.scaffoldContainer) }) {
-            cfg.topConfig?.let { topConfig ->
-                Div {
+        // Calm Studio shell: a full-height left sidebar next to a main column that stacks the top
+        // bar over a scrolling content area. Class names (`app`, `main`, `content`) come from the
+        // Calm Studio stylesheet (`CalmStudioStyleSheet` in `features/common/client`); each slot view
+        // owns its own block class (the sidebar renders `.sidebar`, the top bar renders `.topbar`).
+        Div({ classes(CalmStudioStyleSheet.app) }) {
+            cfg.leftConfig?.let { leftConfig ->
+                ScaffoldSlot(LeftNavigationChainId, leftConfig)
+            }
+            Div({ classes(CalmStudioStyleSheet.main) }) {
+                cfg.topConfig?.let { topConfig ->
                     ScaffoldSlot(TopNavigationChainId, topConfig)
                 }
-            }
-            Div({ classes(ScaffoldViewStylesheet.scaffoldBody) }) {
-                cfg.leftConfig?.let { leftConfig ->
-                    Div({ classes(ScaffoldViewStylesheet.scaffoldLeft) }) {
-                        ScaffoldSlot(LeftNavigationChainId, leftConfig)
-                    }
-                }
-                cfg.mainConfig?.let { mainConfig ->
-                    Div({ classes(ScaffoldViewStylesheet.scaffoldMain) }) {
+                Div({ classes(CalmStudioStyleSheet.content) }) {
+                    cfg.mainConfig?.let { mainConfig ->
                         ScaffoldSlot(MainNavigationChainId, mainConfig)
                     }
                 }
             }
+            // Single app-wide toast host (position: fixed, so DOM placement is cosmetic).
+            ToastHost()
         }
     }
 }

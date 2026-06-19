@@ -18,6 +18,7 @@ object WishlistStrings {
      */
     val usersListBackLabel = buildStringResource("Users") { IetfLang.Russian("Пользователи") }
     val editButton = buildStringResource("Edit") { IetfLang.Russian("Редактировать") }
+    val shareButton = buildStringResource("Share") { IetfLang.Russian("Поделиться") }
     val saveButton = CommonStrings.save
     val addItemButton = buildStringResource("Add Item") { IetfLang.Russian("Добавить товар") }
     val createWishlistButton = buildStringResource("New Wishlist") { IetfLang.Russian("Новый список") }
@@ -31,6 +32,9 @@ object WishlistStrings {
     val addLinkButton = buildStringResource("Add link") { IetfLang.Russian("Добавить ссылку") }
     val newLinkPlaceholder = buildStringResource("https://...") { IetfLang.Russian("https://...") }
     val linkTitlePlaceholder = buildStringResource("Title (optional)") { IetfLang.Russian("Название (необязательно)") }
+    val duplicateLinksHint = buildStringResource("Remove duplicate links to save") {
+        IetfLang.Russian("Удалите повторяющиеся ссылки, чтобы сохранить")
+    }
     val confirmDiscardTitle = buildStringResource("Discard changes?") { IetfLang.Russian("Отменить изменения?") }
     val confirmDiscardMessage = buildStringResource("You have unsaved changes. Discard and go back?") {
         IetfLang.Russian("Есть несохранённые изменения. Отменить и вернуться?")
@@ -72,6 +76,9 @@ object WishlistStrings {
     val priorityHigh = buildStringResource("High") { IetfLang.Russian("Высокий") }
     val priorityCustom = buildStringResource("Custom") { IetfLang.Russian("Свой") }
     val priorityCustomWeightLabel = buildStringResource("Weight") { IetfLang.Russian("Вес") }
+    val priorityHelp = buildStringResource("High-priority items are shown first to gift-givers.") {
+        IetfLang.Russian("Товары с высоким приоритетом показываются дарителям первыми.")
+    }
     val noPrice = buildStringResource("No price") { IetfLang.Russian("Цена не указана") }
     val noLinks = buildStringResource("No links") { IetfLang.Russian("Ссылки не указаны") }
     val imagesLabel = buildStringResource("Images") { IetfLang.Russian("Изображения") }
@@ -101,6 +108,11 @@ object WishlistStrings {
     }
     val copyFailed = buildStringResource("Copy failed. Please try again.") {
         IetfLang.Russian("Не удалось скопировать. Попробуйте ещё раз.")
+    }
+
+    /** Calm Studio toast shown after the Share action copies the list link to the clipboard. */
+    val shareLinkCopiedToast = buildStringResource("Link copied to clipboard") {
+        IetfLang.Russian("Ссылка скопирована в буфер обмена")
     }
 
     /** Accessibility text for the default gift-box placeholder shown when an item has no image. */

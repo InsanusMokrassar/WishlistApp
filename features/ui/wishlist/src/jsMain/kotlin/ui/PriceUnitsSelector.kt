@@ -1,5 +1,6 @@
 package dev.inmo.wishlist.features.ui.wishlist.ui
 
+import dev.inmo.wishlist.features.common.client.ui.CalmStudioStyleSheet
 import androidx.compose.runtime.Composable
 import dev.inmo.wishlist.features.currency.common.utils.PriceUnitsResolver
 import org.jetbrains.compose.web.attributes.InputType
@@ -13,11 +14,11 @@ import org.jetbrains.compose.web.dom.Select
 import org.jetbrains.compose.web.dom.Text
 
 /**
- * Bootstrap currency/units input: a free-text field (custom currency) next to a `<select>` of preset
- * currencies taken from [PriceUnitsResolver]. Each option is labelled `CODE symbol` and ordered by
- * code, so the native type-ahead of the `<select>` lets the user find a symbol by typing its code
- * (e.g. `USD` → `$`); picking an option overwrites the text with its symbol. The user may also type any
- * custom value into the field.
+ * Calm Studio currency/units input rendered as a `.fieldset`: a free-text `.input` (custom currency)
+ * next to a `.select` of preset currencies from [PriceUnitsResolver]. Each option is labelled
+ * `CODE symbol` and ordered by code, so the native type-ahead lets the user find a symbol by typing
+ * its code (e.g. `USD` → `$`); picking an option overwrites the text with its symbol. The user may also
+ * type any custom value into the field.
  *
  * @param label Localized caption for the input.
  * @param value Current units string.
@@ -34,27 +35,29 @@ fun PriceUnitsSelector(
     id: String = "price-units",
 ) {
     val entries = PriceUnitsResolver.entries
-    Label(id) { Text(label) }
-    Div({ classes("input-group") }) {
-        Input(InputType.Text) {
-            id(id)
-            classes("form-control")
-            value(value)
-            placeholder("$, €, USD...")
-            onInput { onValueChange(it.value) }
-            if (!enabled) disabled()
-        }
-        Select({
-            classes("form-select", "flex-grow-0", "w-auto")
-            onChange { event ->
-                val picked = event.value
-                if (!picked.isNullOrEmpty()) onValueChange(picked)
+    Div({ classes(CalmStudioStyleSheet.fieldset) }) {
+        Label(id) { Text(label) }
+        Div({ classes(CalmStudioStyleSheet.hstack) }) {
+            Input(InputType.Text) {
+                id(id)
+                classes(CalmStudioStyleSheet.input)
+                value(value)
+                placeholder("$, €, USD...")
+                onInput { onValueChange(it.value) }
+                if (!enabled) disabled()
             }
-            if (!enabled) disabled()
-        }) {
-            Option("") { Text("▾") }
-            entries.forEach { (code, symbol) ->
-                Option(symbol) { Text("${code.code}  $symbol") }
+            Select({
+                classes(CalmStudioStyleSheet.select)
+                onChange { event ->
+                    val picked = event.value
+                    if (!picked.isNullOrEmpty()) onValueChange(picked)
+                }
+                if (!enabled) disabled()
+            }) {
+                Option("") { Text("▾") }
+                entries.forEach { (code, symbol) ->
+                    Option(symbol) { Text("${code.code}  $symbol") }
+                }
             }
         }
     }

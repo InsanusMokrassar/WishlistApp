@@ -26,6 +26,7 @@ kotlin {
         jsMain {
             dependencies {
                 implementation compose.web.core
+                implementation compose.web.svg
                 api libs.ktor.client.js
             }
         }

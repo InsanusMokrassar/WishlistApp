@@ -109,6 +109,16 @@ class AuthViewModel(
         _errorState.value = false
     }
 
+    /**
+     * Switches the (open) form to login mode without collapsing it. Used by the tabbed
+     * login/register modal so the "Log in" tab is idempotent when already expanded.
+     */
+    fun onShowLoginForm() {
+        _registerModeState.value = false
+        _formExpandedState.value = true
+        _errorState.value = false
+    }
+
     /** Collapses the form and resets error state. */
     fun onCancelForm() {
         _formExpandedState.value = false

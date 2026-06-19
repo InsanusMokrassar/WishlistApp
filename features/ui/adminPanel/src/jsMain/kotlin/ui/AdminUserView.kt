@@ -1,5 +1,6 @@
 package dev.inmo.wishlist.features.ui.adminPanel.ui
 
+import dev.inmo.wishlist.features.common.client.ui.CalmStudioStyleSheet
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
@@ -8,20 +9,23 @@ import dev.inmo.navigation.core.NavigationChain
 import dev.inmo.navigation.mvvm.compose.ComposeView
 import dev.inmo.wishlist.features.common.client.models.ViewConfig
 import dev.inmo.wishlist.features.common.client.ui.components.BackButton
+import dev.inmo.wishlist.features.common.client.ui.components.CalmButton
+import dev.inmo.wishlist.features.common.client.ui.components.CalmButtonVariant
+import dev.inmo.wishlist.features.common.client.ui.components.ContentColumn
 import dev.inmo.wishlist.features.common.client.ui.components.ListRow
+import dev.inmo.wishlist.features.common.client.ui.components.PageHead
+import dev.inmo.wishlist.features.common.client.ui.components.RowsList
+import dev.inmo.wishlist.features.common.client.ui.components.Subline
 import dev.inmo.wishlist.features.ui.topBar.ui.TopBarTitleProvider
 import dev.inmo.wishlist.features.ui.adminPanel.AdminPanelStrings
-import org.jetbrains.compose.web.dom.Button
 import org.jetbrains.compose.web.dom.Div
 import org.jetbrains.compose.web.dom.H2
-import org.jetbrains.compose.web.dom.P
 import org.jetbrains.compose.web.dom.Span
 import org.jetbrains.compose.web.dom.Text
-import org.jetbrains.compose.web.dom.Ul
 import org.koin.core.component.inject
 import org.koin.core.parameter.parametersOf
 
-/** JS Compose-HTML view for the admin user detail screen. Displays user info and wishlists inline. */
+/** JS Compose-HTML view for the admin user detail screen (Calm Studio). Displays user info and wishlists inline. */
 class AdminUserView(
     chain: NavigationChain<ViewConfig>,
     config: AdminUserViewConfig,
@@ -43,39 +47,37 @@ class AdminUserView(
         val wishlists by viewModel.wishlistsState.collectAsState()
         val loading by viewModel.loadingState.collectAsState()
 
-        Div({ classes("container", "py-3") }) {
-            Div({ classes("d-flex", "align-items-center", "mb-3", "gap-2") }) {
-                BackButton(AdminPanelStrings.backButton.translation()) { viewModel.onBack() }
-                Button({
-                    classes("btn", "btn-outline-primary", "ms-auto")
-                    onClick { viewModel.onEditUser() }
-                }) { Text(AdminPanelStrings.editButton.translation()) }
-            }
+        ContentColumn {
+            PageHead(
+                title = user?.username?.string ?: "#${config.userId.long}",
+                actions = {
+                    BackButton(AdminPanelStrings.backButton.translation()) { viewModel.onBack() }
+                    CalmButton(
+                        text = AdminPanelStrings.editButton.translation(),
+                        onClick = { viewModel.onEditUser() },
+                        variant = CalmButtonVariant.Primary,
+                    )
+                },
+            )
 
             if (loading) {
-                P { Text(AdminPanelStrings.loading.translation()) }
+                Subline(AdminPanelStrings.loading.translation())
             } else {
-                Div({ classes("mb-4") }) {
-                    Div({ classes("d-flex", "justify-content-between", "align-items-center", "mb-2") }) {
-                        H2({ classes("h5", "mb-0") }) {
-                            Text(AdminPanelStrings.userWishlistsSection.translation())
-                        }
-                        Button({
-                            classes("btn", "btn-sm", "btn-primary")
-                            onClick { viewModel.onAddWishlist() }
-                        }) { Text(AdminPanelStrings.addWishlistForUserButton.translation()) }
-                    }
-                    if (wishlists.isEmpty()) {
-                        P({ classes("text-muted") }) {
-                            Text(AdminPanelStrings.noWishlistsForUser.translation())
-                        }
-                    } else {
-                        Ul({ classes("list-group") }) {
-                            wishlists.forEach { wishlist ->
-                                ListRow(onSelect = { viewModel.onOpenWishlist(wishlist.id) }) {
-                                    Span { Text(wishlist.title) }
-                                    Span({ classes("badge", "bg-secondary") }) { Text("#${wishlist.id.long}") }
-                                }
+                Div({ classes(CalmStudioStyleSheet.sectionhead) }) {
+                    H2 { Text(AdminPanelStrings.userWishlistsSection.translation()) }
+                    CalmButton(
+                        text = AdminPanelStrings.addWishlistForUserButton.translation(),
+                        onClick = { viewModel.onAddWishlist() },
+                    )
+                }
+                if (wishlists.isEmpty()) {
+                    Subline(AdminPanelStrings.noWishlistsForUser.translation())
+                } else {
+                    RowsList {
+                        wishlists.forEach { wishlist ->
+                            ListRow(onSelect = { viewModel.onOpenWishlist(wishlist.id) }) {
+                                Span { Text(wishlist.title) }
+                                Span({ classes(CalmStudioStyleSheet.pill) }) { Text("#${wishlist.id.long}") }
                             }
                         }
                     }
