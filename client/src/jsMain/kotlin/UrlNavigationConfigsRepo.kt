@@ -7,6 +7,7 @@ import dev.inmo.navigation.core.repo.ConfigHolder
 import dev.inmo.navigation.core.repo.NavigationConfigsRepo
 import dev.inmo.navigation.core.urls.UrlParametersNavigationConfigsRepo
 import dev.inmo.navigation.core.urls.UrlParametersNavigationConfigsRepo.LocationData
+import dev.inmo.wishlist.features.common.client.models.LeftNavigationChainId
 import dev.inmo.wishlist.features.common.client.models.MainNavigationChainId
 import dev.inmo.wishlist.features.common.client.models.TopNavigationChainId
 import dev.inmo.wishlist.features.common.client.models.ViewConfig
@@ -213,9 +214,11 @@ private fun parseItemStack(
  * Rebuilds the navigation hierarchy from the URL path produced by [buildPath].
  *
  * The [appBasePathSegments] prefix is stripped, then the remaining segments are decoded into the
- * main-chain stack via [parseMainStack]. The scaffold skeleton (empty root → scaffold → top + main
- * chains) is recreated around that stack so [ScaffoldView] can reattach each restored chain to its
- * slot.
+ * main-chain stack via [parseMainStack]. The scaffold skeleton (empty root → scaffold → top + left +
+ * main chains) is recreated around that stack so [ScaffoldView] can reattach each restored chain to
+ * its slot. The left slot (the Calm Studio sidebar) carries no deep state, so it is restored as a
+ * single node seeded from the scaffold's `leftConfig`; without it a reloaded deep link would come back
+ * with no sidebar.
  *
  * @return the restored root [ConfigHolder.Chain], or `null` when the path holds no deep-linkable
  * screen (so the default scaffold is created by the standard navigation init path instead).
@@ -228,16 +231,27 @@ private fun parsePath(data: LocationData): ConfigHolder.Chain<ViewConfig>? {
 
     val mainStack = parseMainStack(appSegments) ?: return null
 
+    val scaffoldConfig = ClientPlugin.mainScaffoldConfig
     val scaffoldNode = ConfigHolder.Node<ViewConfig>(
-        config = ClientPlugin.mainScaffoldConfig,
+        config = scaffoldConfig,
         subnode = null,
-        subchains = listOf(
-            ConfigHolder.Chain(
-                ConfigHolder.Node<ViewConfig>(TopBarViewConfig(), null, emptyList()),
-                TopNavigationChainId
-            ),
-            ConfigHolder.Chain(mainStack.toNodeChain(), MainNavigationChainId)
-        )
+        subchains = buildList {
+            add(
+                ConfigHolder.Chain(
+                    ConfigHolder.Node<ViewConfig>(TopBarViewConfig(), null, emptyList()),
+                    TopNavigationChainId
+                )
+            )
+            scaffoldConfig.leftConfig?.let { leftConfig ->
+                add(
+                    ConfigHolder.Chain(
+                        ConfigHolder.Node<ViewConfig>(leftConfig, null, emptyList()),
+                        LeftNavigationChainId
+                    )
+                )
+            }
+            add(ConfigHolder.Chain(mainStack.toNodeChain(), MainNavigationChainId))
+        }
     )
 
     return ConfigHolder.Chain(
