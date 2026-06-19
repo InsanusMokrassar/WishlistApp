@@ -51,13 +51,7 @@ fun WishlistItemRow(
             Span({ classes(CalmStudioStyleSheet.thumb, tintClass(item.id.long)) })
         }
         Div({ classes(CalmStudioStyleSheet.rmain) }) {
-            Div({
-                style {
-                    property("display", "flex")
-                    property("align-items", "center")
-                    property("gap", "9px")
-                }
-            }) {
+            Div({ classes(CalmStudioStyleSheet.titlepill) }) {
                 H3 { Text(secondaryTitle?.let { "${item.title} ($it)" } ?: item.title) }
                 PriorityBadge(item.priority)
             }

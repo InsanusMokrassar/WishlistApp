@@ -1,6 +1,5 @@
 package dev.inmo.wishlist.features.ui.auth.ui
 
-import dev.inmo.wishlist.features.common.client.ui.CalmStudioStyleSheet
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
@@ -8,21 +7,20 @@ import dev.inmo.micro_utils.strings.translation
 import dev.inmo.navigation.core.NavigationChain
 import dev.inmo.navigation.mvvm.compose.ComposeView
 import dev.inmo.wishlist.features.common.client.models.ViewConfig
+import dev.inmo.wishlist.features.common.client.ui.components.CalmButton
+import dev.inmo.wishlist.features.common.client.ui.components.CalmButtonVariant
+import dev.inmo.wishlist.features.common.client.ui.components.CalmModal
+import dev.inmo.wishlist.features.common.client.ui.components.CalmTextField
+import dev.inmo.wishlist.features.common.client.ui.components.FormHint
+import dev.inmo.wishlist.features.common.client.ui.components.ModalBody
+import dev.inmo.wishlist.features.common.client.ui.components.ModalFooter
+import dev.inmo.wishlist.features.common.client.ui.components.ModalHeader
+import dev.inmo.wishlist.features.common.client.ui.components.ModalTabs
 import dev.inmo.wishlist.features.ui.auth.AuthStrings
 import org.jetbrains.compose.web.attributes.ButtonType
 import org.jetbrains.compose.web.attributes.InputType
-import org.jetbrains.compose.web.attributes.disabled
 import org.jetbrains.compose.web.attributes.onSubmit
-import org.jetbrains.compose.web.attributes.placeholder
-import org.jetbrains.compose.web.attributes.type
-import org.jetbrains.compose.web.dom.Button
-import org.jetbrains.compose.web.dom.Div
 import org.jetbrains.compose.web.dom.Form
-import org.jetbrains.compose.web.dom.H2
-import org.jetbrains.compose.web.dom.Input
-import org.jetbrains.compose.web.dom.Label
-import org.jetbrains.compose.web.dom.P
-import org.jetbrains.compose.web.dom.Text
 import org.koin.core.component.inject
 import org.koin.core.parameter.parametersOf
 
@@ -31,8 +29,8 @@ import org.koin.core.parameter.parametersOf
  *
  * - Authenticated: a ghost "Log out" button.
  * - Logged-out: ghost "Log in" (and "Register", when registration is enabled) triggers.
- * - Expanded: the credentials form is shown as a Calm `.scrim` modal with a `.tabs` switch between
- *   login and registration, mirroring the design skill's `LoginModal` reference.
+ * - Expanded: the credentials form is shown as a [CalmModal] with a [ModalTabs] switch between login and
+ *   registration, composed from the shared Calm Studio modal/form components.
  */
 class AuthView(
     chain: NavigationChain<ViewConfig>,
@@ -56,23 +54,26 @@ class AuthView(
         val loginEnabled by viewModel.loginEnabledState.collectAsState()
 
         if (loggedIn) {
-            Button(attrs = {
-                classes(CalmStudioStyleSheet.btn, CalmStudioStyleSheet.ghost)
-                onClick { viewModel.onLogout() }
-                if (loading) disabled()
-            }) { Text(AuthStrings.logoutButton.translation()) }
+            CalmButton(
+                text = AuthStrings.logoutButton.translation(),
+                onClick = { viewModel.onLogout() },
+                variant = CalmButtonVariant.Ghost,
+                disabled = loading,
+            )
             return
         }
 
-        Button(attrs = {
-            classes(CalmStudioStyleSheet.btn, CalmStudioStyleSheet.ghost)
-            onClick { viewModel.onToggleForm() }
-        }) { Text(AuthStrings.loginButton.translation()) }
+        CalmButton(
+            text = AuthStrings.loginButton.translation(),
+            onClick = { viewModel.onToggleForm() },
+            variant = CalmButtonVariant.Ghost,
+        )
         if (registrationEnabled) {
-            Button(attrs = {
-                classes(CalmStudioStyleSheet.btn, CalmStudioStyleSheet.primary)
-                onClick { viewModel.onToggleRegisterForm() }
-            }) { Text(AuthStrings.registerButton.translation()) }
+            CalmButton(
+                text = AuthStrings.registerButton.translation(),
+                onClick = { viewModel.onToggleRegisterForm() },
+                variant = CalmButtonVariant.Primary,
+            )
         }
 
         if (!expanded) return
@@ -83,92 +84,68 @@ class AuthView(
             AuthStrings.loginButton.translation()
         }
 
-        Div({
-            classes(CalmStudioStyleSheet.scrim)
-            onClick { if (!loading) viewModel.onCancelForm() }
-        }) {
-            Div({
-                classes(CalmStudioStyleSheet.modal)
-                onClick { it.stopPropagation() }
-            }) {
-                Div({ classes(CalmStudioStyleSheet.mhead) }) {
-                    H2 { Text(title) }
+        CalmModal(onDismiss = { if (!loading) viewModel.onCancelForm() }) {
+            ModalHeader(title)
+            Form(attrs = {
+                onSubmit {
+                    it.preventDefault()
+                    if (registerMode) viewModel.onRegister() else viewModel.onAuthorize()
                 }
-                Form(attrs = {
-                    onSubmit {
-                        it.preventDefault()
-                        if (registerMode) viewModel.onRegister() else viewModel.onAuthorize()
+            }) {
+                ModalBody {
+                    if (registrationEnabled) {
+                        ModalTabs(
+                            tabs = listOf(false, true),
+                            selected = registerMode,
+                            label = { isRegister ->
+                                if (isRegister) AuthStrings.registerButton.translation()
+                                else AuthStrings.loginButton.translation()
+                            },
+                            onSelect = { isRegister ->
+                                if (isRegister) viewModel.onToggleRegisterForm() else viewModel.onShowLoginForm()
+                            },
+                        )
                     }
-                }) {
-                    Div({ classes(CalmStudioStyleSheet.mbody) }) {
-                        if (registrationEnabled) {
-                            Div({ classes(CalmStudioStyleSheet.tabs) }) {
-                                Button(attrs = {
-                                    type(ButtonType.Button)
-                                    if (!registerMode) classes(CalmStudioStyleSheet.on)
-                                    onClick { viewModel.onShowLoginForm() }
-                                }) { Text(AuthStrings.loginButton.translation()) }
-                                Button(attrs = {
-                                    type(ButtonType.Button)
-                                    if (registerMode) classes(CalmStudioStyleSheet.on)
-                                    onClick { viewModel.onToggleRegisterForm() }
-                                }) { Text(AuthStrings.registerButton.translation()) }
-                            }
-                        }
-                        Div({ classes(CalmStudioStyleSheet.fieldset) }) {
-                            Label("auth-username") { Text(AuthStrings.usernamePlaceholder.translation()) }
-                            Input(type = InputType.Text) {
-                                id("auth-username")
-                                classes(CalmStudioStyleSheet.input)
-                                value(username)
-                                placeholder(AuthStrings.usernamePlaceholder.translation())
-                                onInput { viewModel.onUsernameChanged(it.value) }
-                                if (loading) disabled()
-                            }
-                        }
-                        Div({ classes(CalmStudioStyleSheet.fieldset) }) {
-                            Label("auth-password") { Text(AuthStrings.passwordPlaceholder.translation()) }
-                            Input(type = InputType.Password) {
-                                id("auth-password")
-                                classes(CalmStudioStyleSheet.input)
-                                value(password)
-                                placeholder(AuthStrings.passwordPlaceholder.translation())
-                                onInput { viewModel.onPasswordChanged(it.value) }
-                                if (loading) disabled()
-                            }
-                        }
-                        if (error) {
-                            P({
-                                classes(CalmStudioStyleSheet.hint)
-                                style { property("color", "var(--cs-danger)") }
-                            }) {
-                                val msg = if (registerMode) {
-                                    AuthStrings.errorRegisterFailed.translation()
-                                } else {
-                                    AuthStrings.errorLoginFailed.translation()
-                                }
-                                Text(msg)
-                            }
-                        }
+                    CalmTextField(
+                        value = username,
+                        onValueChange = { viewModel.onUsernameChanged(it) },
+                        label = AuthStrings.usernamePlaceholder.translation(),
+                        placeholder = AuthStrings.usernamePlaceholder.translation(),
+                        disabled = loading,
+                        id = "auth-username",
+                    )
+                    CalmTextField(
+                        value = password,
+                        onValueChange = { viewModel.onPasswordChanged(it) },
+                        label = AuthStrings.passwordPlaceholder.translation(),
+                        placeholder = AuthStrings.passwordPlaceholder.translation(),
+                        type = InputType.Password,
+                        disabled = loading,
+                        id = "auth-password",
+                    )
+                    if (error) {
+                        FormHint(
+                            text = if (registerMode) AuthStrings.errorRegisterFailed.translation()
+                                else AuthStrings.errorLoginFailed.translation(),
+                            error = true,
+                        )
                     }
-                    Div({ classes(CalmStudioStyleSheet.mfoot) }) {
-                        Button(attrs = {
-                            type(ButtonType.Button)
-                            classes(CalmStudioStyleSheet.btn, CalmStudioStyleSheet.ghost)
-                            onClick { viewModel.onCancelForm() }
-                            if (loading) disabled()
-                        }) { Text(AuthStrings.cancelButton.translation()) }
-                        val submitLabel = if (registerMode) {
-                            AuthStrings.submitRegisterButton.translation()
-                        } else {
-                            AuthStrings.submitButton.translation()
-                        }
-                        Button(attrs = {
-                            type(ButtonType.Submit)
-                            classes(CalmStudioStyleSheet.btn, CalmStudioStyleSheet.primary)
-                            if (!loginEnabled) disabled()
-                        }) { Text(submitLabel) }
-                    }
+                }
+                ModalFooter {
+                    CalmButton(
+                        text = AuthStrings.cancelButton.translation(),
+                        onClick = { viewModel.onCancelForm() },
+                        variant = CalmButtonVariant.Ghost,
+                        disabled = loading,
+                    )
+                    CalmButton(
+                        text = if (registerMode) AuthStrings.submitRegisterButton.translation()
+                            else AuthStrings.submitButton.translation(),
+                        onClick = { },
+                        variant = CalmButtonVariant.Primary,
+                        disabled = !loginEnabled,
+                        type = ButtonType.Submit,
+                    )
                 }
             }
         }

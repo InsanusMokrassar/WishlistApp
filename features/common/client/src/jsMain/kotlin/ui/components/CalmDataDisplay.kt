@@ -12,31 +12,25 @@ import org.jetbrains.compose.web.dom.Text
  * Calm Studio inline pill (`.pill`) — a small rounded label with an optional colored leading dot.
  *
  * Used for item priority and the "Reserved" marker. Priority pills track the neutral default surface;
- * the reserved variant overrides the fill/text via [backgroundColor]/[textColor] with the `--cs-ok*`
- * tokens, mirroring the reference design's inline styling.
+ * the reserved variant overrides the fill/text via a [pillClass] modifier (e.g. `.pill-ok`), keeping all
+ * coloring in the stylesheet instead of inline styles.
  *
  * @param text Already-translated pill label.
- * @param dotColor CSS color for the leading dot (e.g. `var(--cs-pri-high)`); `null` hides the dot.
- * @param backgroundColor Optional CSS background override for the pill.
- * @param textColor Optional CSS text-color override for the pill.
+ * @param dotClass Optional stylesheet class setting the leading dot's fill (e.g. `.dot-pri-high`);
+ * `null` hides the dot.
+ * @param pillClass Optional stylesheet class overriding the pill fill/text (e.g. `.pill-ok`).
  */
 @Composable
 fun CalmPill(
     text: String,
-    dotColor: String? = null,
-    backgroundColor: String? = null,
-    textColor: String? = null,
+    dotClass: String? = null,
+    pillClass: String? = null,
 ) {
     Span(attrs = {
         classes(CalmStudioStyleSheet.pill)
-        if (backgroundColor != null || textColor != null) {
-            style {
-                backgroundColor?.let { property("background", it) }
-                textColor?.let { property("color", it) }
-            }
-        }
+        pillClass?.let { classes(it) }
     }) {
-        dotColor?.let { color -> Span(attrs = { classes(CalmStudioStyleSheet.dot); style { property("background", color) } }) }
+        dotClass?.let { dot -> Span(attrs = { classes(CalmStudioStyleSheet.dot, dot) }) }
         Text(text)
     }
 }
@@ -45,11 +39,11 @@ fun CalmPill(
  * Calm Studio item-priority pill — a [CalmPill] whose dot is colored by the item's priority.
  *
  * @param label Already-translated priority label (e.g. "High").
- * @param dotColor CSS color for the priority dot (e.g. `var(--cs-pri-high)`).
+ * @param dotClass Stylesheet class setting the priority dot's fill (e.g. `.dot-pri-high`).
  */
 @Composable
-fun PriorityPill(label: String, dotColor: String) {
-    CalmPill(text = label, dotColor = dotColor)
+fun PriorityPill(label: String, dotClass: String) {
+    CalmPill(text = label, dotClass = dotClass)
 }
 
 /**
@@ -57,12 +51,12 @@ fun PriorityPill(label: String, dotColor: String) {
  * top-right corner.
  *
  * @param label Already-translated badge label.
- * @param dotColor CSS color for the leading dot.
+ * @param dotClass Stylesheet class setting the leading dot's fill (e.g. `.dot-pri-high`).
  */
 @Composable
-fun CardBadge(label: String, dotColor: String) {
+fun CardBadge(label: String, dotClass: String) {
     Span(attrs = { classes(CalmStudioStyleSheet.badge) }) {
-        Span(attrs = { classes(CalmStudioStyleSheet.dot); style { property("background", dotColor) } })
+        Span(attrs = { classes(CalmStudioStyleSheet.dot, dotClass) })
         Text(label)
     }
 }
@@ -115,7 +109,7 @@ fun ItemCard(
 ) {
     Div({
         classes(CalmStudioStyleSheet.card)
-        if (onOpen != null) onClick { onOpen() } else style { property("cursor", "default") }
+        if (onOpen != null) onClick { onOpen() } else classes(CalmStudioStyleSheet.nonclickable)
     }) {
         Div({ classes(CalmStudioStyleSheet.media, tintClass) }) {
             when {
@@ -164,11 +158,11 @@ fun ItemRow(
 ) {
     Div({
         classes(CalmStudioStyleSheet.row)
-        if (onOpen != null) onClick { onOpen() } else style { property("cursor", "default") }
+        if (onOpen != null) onClick { onOpen() } else classes(CalmStudioStyleSheet.nonclickable)
     }) {
         Span({ classes(CalmStudioStyleSheet.thumb, tintClass) })
         Div({ classes(CalmStudioStyleSheet.rmain) }) {
-            Div({ style { property("display", "flex"); property("align-items", "center"); property("gap", "9px") } }) {
+            Div({ classes(CalmStudioStyleSheet.titlepill) }) {
                 H3 { Text(title) }
                 pill?.invoke()
             }
@@ -209,7 +203,7 @@ fun ListCard(
 ) {
     Div({
         classes(CalmStudioStyleSheet.listcard)
-        if (onOpen != null) onClick { onOpen() } else style { property("cursor", "default") }
+        if (onOpen != null) onClick { onOpen() } else classes(CalmStudioStyleSheet.nonclickable)
     }) {
         Div({ classes(CalmStudioStyleSheet.cover, tintClass) }) {
             visibility?.let { Span({ classes(CalmStudioStyleSheet.vis) }) { Text(it) } }
@@ -268,7 +262,7 @@ fun PersonCard(
 ) {
     Div({
         classes(CalmStudioStyleSheet.person)
-        if (onOpen != null) onClick { onOpen() } else style { property("cursor", "default") }
+        if (onOpen != null) onClick { onOpen() } else classes(CalmStudioStyleSheet.nonclickable)
     }) {
         Span({ classes(CalmStudioStyleSheet.av, tintClass) })
         H3 { Text(name) }

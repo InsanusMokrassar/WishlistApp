@@ -126,13 +126,18 @@ fun FormRow(content: @Composable () -> Unit) {
 }
 
 /**
- * Calm Studio form hint (`.hint`) — the muted helper line shown under a field.
+ * Calm Studio form hint (`.hint`) — the muted helper line shown under a field; the [error] variant tints
+ * it with the danger color (`.hint.danger`) for inline validation messages.
  *
  * @param text Already-translated helper text.
+ * @param error When `true`, renders the hint in the destructive/error color.
  */
 @Composable
-fun FormHint(text: String) {
-    Div({ classes(CalmStudioStyleSheet.hint) }) { Text(text) }
+fun FormHint(text: String, error: Boolean = false) {
+    Div({
+        classes(CalmStudioStyleSheet.hint)
+        if (error) classes(CalmStudioStyleSheet.danger)
+    }) { Text(text) }
 }
 
 /**

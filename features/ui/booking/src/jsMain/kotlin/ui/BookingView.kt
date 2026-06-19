@@ -9,22 +9,21 @@ import dev.inmo.navigation.core.NavigationChain
 import dev.inmo.navigation.mvvm.compose.ComposeView
 import dev.inmo.wishlist.features.booking.common.models.BookingState
 import dev.inmo.wishlist.features.common.client.models.ViewConfig
+import dev.inmo.wishlist.features.common.client.ui.components.CalmButton
+import dev.inmo.wishlist.features.common.client.ui.components.CalmButtonVariant
 import dev.inmo.wishlist.features.common.client.ui.components.CalmPill
 import dev.inmo.wishlist.features.common.client.ui.components.Toaster
 import dev.inmo.wishlist.features.ui.booking.BookingStrings
-import org.jetbrains.compose.web.attributes.disabled
-import org.jetbrains.compose.web.dom.Button
-import org.jetbrains.compose.web.dom.Text
 import org.koin.core.component.inject
 import org.koin.core.parameter.parametersOf
 
 /**
  * JS Compose-HTML compact view for gift reservation (scenario view A), rendered in Calm Studio markup.
  *
- * Embedded inline inside the wishlist item screen's `.actbar`, so it emits its `.btn` / `.pill` controls
- * as direct flex siblings (no wrapper). Shows nothing when [BookingViewModel.bookingState] is `null`
- * (owner / anonymous — the server hides the state, so a list owner never learns an item is reserved
- * through this control, and never who reserved it). States:
+ * Embedded inline inside the wishlist item screen's action bar, so it emits its [CalmButton] / [CalmPill]
+ * controls as direct flex siblings (no wrapper). Shows nothing when [BookingViewModel.bookingState] is
+ * `null` (owner / anonymous — the server hides the state, so a list owner never learns an item is
+ * reserved through this control, and never who reserved it). States:
  * - [BookingState.Free] → primary "Reserve this gift" button.
  * - [BookingState.BookedByMe] → "Reserved by you" pill + "Cancel reservation" button.
  * - [BookingState.Booked] → "Reserved by someone" pill only (the booker's identity is never exposed).
@@ -47,9 +46,8 @@ class BookingView(
     private fun ReservedPill(label: String) {
         CalmPill(
             text = label,
-            dotColor = "var(--cs-ok)",
-            backgroundColor = "var(--cs-ok-soft)",
-            textColor = "var(--cs-ok)",
+            dotClass = CalmStudioStyleSheet.`dot-ok`,
+            pillClass = CalmStudioStyleSheet.`pill-ok`,
         )
     }
 
@@ -63,31 +61,28 @@ class BookingView(
             when (state) {
                 BookingState.BookedByMe -> {
                     ReservedPill(BookingStrings.reservedByYouLabel.translation())
-                    Button({
-                        classes(CalmStudioStyleSheet.btn)
-                        if (loading) disabled()
-                        onClick {
+                    CalmButton(
+                        text = BookingStrings.cancelReservationButton.translation(),
+                        onClick = {
                             viewModel.onCancelBooking()
                             Toaster.show(BookingStrings.cancelReservationToast.translation())
-                        }
-                    }) {
-                        Text(BookingStrings.cancelReservationButton.translation())
-                    }
+                        },
+                        disabled = loading,
+                    )
                 }
                 BookingState.Booked -> {
                     ReservedPill(BookingStrings.reservedBySomeoneLabel.translation())
                 }
                 BookingState.Free -> {
-                    Button({
-                        classes(CalmStudioStyleSheet.btn, CalmStudioStyleSheet.primary)
-                        if (loading) disabled()
-                        onClick {
+                    CalmButton(
+                        text = BookingStrings.reserveGiftButton.translation(),
+                        onClick = {
                             viewModel.onBook()
                             Toaster.show(BookingStrings.reserveToast.translation())
-                        }
-                    }) {
-                        Text(BookingStrings.reserveGiftButton.translation())
-                    }
+                        },
+                        variant = CalmButtonVariant.Primary,
+                        disabled = loading,
+                    )
                 }
             }
         }

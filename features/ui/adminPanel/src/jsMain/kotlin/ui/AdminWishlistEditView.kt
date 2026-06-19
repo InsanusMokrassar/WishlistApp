@@ -9,16 +9,18 @@ import dev.inmo.navigation.core.NavigationChain
 import dev.inmo.navigation.mvvm.compose.ComposeView
 import dev.inmo.wishlist.features.common.client.models.ViewConfig
 import dev.inmo.wishlist.features.common.client.ui.components.BackButton
+import dev.inmo.wishlist.features.common.client.ui.components.CalmButton
+import dev.inmo.wishlist.features.common.client.ui.components.CalmButtonVariant
+import dev.inmo.wishlist.features.common.client.ui.components.CalmForm
+import dev.inmo.wishlist.features.common.client.ui.components.CalmTextField
+import dev.inmo.wishlist.features.common.client.ui.components.ContentColumn
+import dev.inmo.wishlist.features.common.client.ui.components.FieldSet
+import dev.inmo.wishlist.features.common.client.ui.components.PageHead
+import dev.inmo.wishlist.features.users.common.models.UserId
 import dev.inmo.wishlist.features.ui.topBar.ui.TopBarTitleProvider
 import dev.inmo.wishlist.features.ui.adminPanel.AdminPanelStrings
-import org.jetbrains.compose.web.attributes.InputType
 import org.jetbrains.compose.web.attributes.disabled
-import org.jetbrains.compose.web.attributes.placeholder
-import org.jetbrains.compose.web.dom.Button
 import org.jetbrains.compose.web.dom.Div
-import org.jetbrains.compose.web.dom.H1
-import org.jetbrains.compose.web.dom.Input
-import org.jetbrains.compose.web.dom.Label
 import org.jetbrains.compose.web.dom.Option
 import org.jetbrains.compose.web.dom.Select
 import org.jetbrains.compose.web.dom.Text
@@ -54,44 +56,30 @@ class AdminWishlistEditView(
             )
         }
 
-        Div({ classes(CalmStudioStyleSheet.`content-inner`) }) {
-            Div({ classes(CalmStudioStyleSheet.pagehead) }) {
-                Div {
-                    H1 {
-                        Text(
-                            if (viewModel.isCreating) AdminPanelStrings.newWishlistTitle.translation()
-                            else AdminPanelStrings.editWishlistTitle.translation()
-                        )
-                    }
-                }
-                Div({ classes(CalmStudioStyleSheet.acts) }) {
-                    BackButton(AdminPanelStrings.backButton.translation()) { viewModel.onBack() }
-                }
-            }
+        ContentColumn {
+            PageHead(
+                title = if (viewModel.isCreating) AdminPanelStrings.newWishlistTitle.translation()
+                    else AdminPanelStrings.editWishlistTitle.translation(),
+                actions = { BackButton(AdminPanelStrings.backButton.translation()) { viewModel.onBack() } },
+            )
 
-            Div({ classes(CalmStudioStyleSheet.form) }) {
-                Div({ classes(CalmStudioStyleSheet.fieldset) }) {
-                    Label("wl-title") { Text(AdminPanelStrings.wishlistTitleLabel.translation()) }
-                    Input(InputType.Text) {
-                        id("wl-title")
-                        classes(CalmStudioStyleSheet.input)
-                        value(title)
-                        placeholder(AdminPanelStrings.wishlistTitleLabel.translation())
-                        onInput { viewModel.onTitleChanged(it.value) }
-                        if (loading) disabled()
-                    }
-                }
-                Div({ classes(CalmStudioStyleSheet.fieldset) }) {
-                    Label("wl-owner") { Text(AdminPanelStrings.ownerLabel.translation()) }
+            CalmForm {
+                CalmTextField(
+                    value = title,
+                    onValueChange = { viewModel.onTitleChanged(it) },
+                    label = AdminPanelStrings.wishlistTitleLabel.translation(),
+                    placeholder = AdminPanelStrings.wishlistTitleLabel.translation(),
+                    disabled = loading,
+                    id = "wl-title",
+                )
+                FieldSet(label = AdminPanelStrings.ownerLabel.translation()) {
                     Select({
                         id("wl-owner")
                         classes(CalmStudioStyleSheet.select)
                         if (loading) disabled()
                         onChange { event ->
                             val value = event.value
-                            val userId = value?.toLongOrNull()?.let {
-                                dev.inmo.wishlist.features.users.common.models.UserId(it)
-                            }
+                            val userId = value?.toLongOrNull()?.let { UserId(it) }
                             viewModel.onOwnerSelected(userId)
                         }
                     }) {
@@ -112,14 +100,13 @@ class AdminWishlistEditView(
                         }
                     }
                 }
-                Div({ style { property("margin-top", "24px") } }) {
-                    Button({
-                        classes(CalmStudioStyleSheet.btn, CalmStudioStyleSheet.primary)
-                        onClick { viewModel.onSave() }
-                        if (loading || title.isBlank() || selectedUserId == null) disabled()
-                    }) {
-                        Text(AdminPanelStrings.saveButton.translation())
-                    }
+                Div({ classes(CalmStudioStyleSheet.formactions) }) {
+                    CalmButton(
+                        text = AdminPanelStrings.saveButton.translation(),
+                        onClick = { viewModel.onSave() },
+                        variant = CalmButtonVariant.Primary,
+                        disabled = loading || title.isBlank() || selectedUserId == null,
+                    )
                 }
             }
         }

@@ -69,13 +69,7 @@ class TopBarView(
                     Span({ classes(CalmStudioStyleSheet.kbd) }) { Text("⌘K") }
                 }
                 Div({ classes(CalmStudioStyleSheet.sp) })
-                Div({
-                    style {
-                        property("display", "flex")
-                        property("align-items", "center")
-                        property("gap", "8px")
-                    }
-                }) {
+                Div({ classes(CalmStudioStyleSheet.hstack) }) {
                     InjectNavigationChain<ViewConfig> { InjectNavigationNode(AuthViewConfig()) }
                 }
             }

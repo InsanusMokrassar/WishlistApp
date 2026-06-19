@@ -9,14 +9,17 @@ import dev.inmo.navigation.core.NavigationChain
 import dev.inmo.navigation.mvvm.compose.ComposeView
 import dev.inmo.wishlist.features.common.client.models.ViewConfig
 import dev.inmo.wishlist.features.common.client.ui.components.BackButton
+import dev.inmo.wishlist.features.common.client.ui.components.CalmButton
+import dev.inmo.wishlist.features.common.client.ui.components.CalmButtonVariant
+import dev.inmo.wishlist.features.common.client.ui.components.ContentColumn
 import dev.inmo.wishlist.features.common.client.ui.components.ListRow
+import dev.inmo.wishlist.features.common.client.ui.components.PageHead
+import dev.inmo.wishlist.features.common.client.ui.components.RowsList
+import dev.inmo.wishlist.features.common.client.ui.components.Subline
 import dev.inmo.wishlist.features.ui.topBar.ui.TopBarTitleProvider
 import dev.inmo.wishlist.features.ui.adminPanel.AdminPanelStrings
-import org.jetbrains.compose.web.dom.Button
 import org.jetbrains.compose.web.dom.Div
-import org.jetbrains.compose.web.dom.H1
 import org.jetbrains.compose.web.dom.H2
-import org.jetbrains.compose.web.dom.P
 import org.jetbrains.compose.web.dom.Span
 import org.jetbrains.compose.web.dom.Text
 import org.koin.core.component.inject
@@ -44,43 +47,33 @@ class AdminUserView(
         val wishlists by viewModel.wishlistsState.collectAsState()
         val loading by viewModel.loadingState.collectAsState()
 
-        Div({ classes(CalmStudioStyleSheet.`content-inner`) }) {
-            Div({ classes(CalmStudioStyleSheet.pagehead) }) {
-                Div {
-                    H1 { Text(user?.username?.string ?: "#${config.userId.long}") }
-                }
-                Div({ classes(CalmStudioStyleSheet.acts) }) {
+        ContentColumn {
+            PageHead(
+                title = user?.username?.string ?: "#${config.userId.long}",
+                actions = {
                     BackButton(AdminPanelStrings.backButton.translation()) { viewModel.onBack() }
-                    Button({
-                        classes(CalmStudioStyleSheet.btn, CalmStudioStyleSheet.primary)
-                        onClick { viewModel.onEditUser() }
-                    }) { Text(AdminPanelStrings.editButton.translation()) }
-                }
-            }
+                    CalmButton(
+                        text = AdminPanelStrings.editButton.translation(),
+                        onClick = { viewModel.onEditUser() },
+                        variant = CalmButtonVariant.Primary,
+                    )
+                },
+            )
 
             if (loading) {
-                P({ classes(CalmStudioStyleSheet.subline) }) { Text(AdminPanelStrings.loading.translation()) }
+                Subline(AdminPanelStrings.loading.translation())
             } else {
-                Div({
-                    style {
-                        property("display", "flex")
-                        property("justify-content", "space-between")
-                        property("align-items", "center")
-                        property("margin", "18px 0 12px")
-                    }
-                }) {
+                Div({ classes(CalmStudioStyleSheet.sectionhead) }) {
                     H2 { Text(AdminPanelStrings.userWishlistsSection.translation()) }
-                    Button({
-                        classes(CalmStudioStyleSheet.btn)
-                        onClick { viewModel.onAddWishlist() }
-                    }) { Text(AdminPanelStrings.addWishlistForUserButton.translation()) }
+                    CalmButton(
+                        text = AdminPanelStrings.addWishlistForUserButton.translation(),
+                        onClick = { viewModel.onAddWishlist() },
+                    )
                 }
                 if (wishlists.isEmpty()) {
-                    P({ classes(CalmStudioStyleSheet.subline) }) {
-                        Text(AdminPanelStrings.noWishlistsForUser.translation())
-                    }
+                    Subline(AdminPanelStrings.noWishlistsForUser.translation())
                 } else {
-                    Div({ classes(CalmStudioStyleSheet.rows) }) {
+                    RowsList {
                         wishlists.forEach { wishlist ->
                             ListRow(onSelect = { viewModel.onOpenWishlist(wishlist.id) }) {
                                 Span { Text(wishlist.title) }

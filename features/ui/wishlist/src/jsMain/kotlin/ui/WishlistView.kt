@@ -1,6 +1,5 @@
 package dev.inmo.wishlist.features.ui.wishlist.ui
 
-import dev.inmo.wishlist.features.common.client.ui.CalmStudioStyleSheet
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
@@ -9,29 +8,28 @@ import dev.inmo.micro_utils.strings.translation
 import dev.inmo.navigation.core.NavigationChain
 import dev.inmo.navigation.mvvm.compose.ComposeView
 import dev.inmo.wishlist.features.common.client.models.ViewConfig
-import dev.inmo.wishlist.features.common.client.ui.components.CalmIcon
+import dev.inmo.wishlist.features.common.client.ui.components.CalmButton
+import dev.inmo.wishlist.features.common.client.ui.components.CalmButtonVariant
 import dev.inmo.wishlist.features.common.client.ui.components.CalmIcons
+import dev.inmo.wishlist.features.common.client.ui.components.ContentColumn
+import dev.inmo.wishlist.features.common.client.ui.components.EmptyState
+import dev.inmo.wishlist.features.common.client.ui.components.ItemGrid
+import dev.inmo.wishlist.features.common.client.ui.components.PageHead
+import dev.inmo.wishlist.features.common.client.ui.components.RowsList
+import dev.inmo.wishlist.features.common.client.ui.components.Subline
 import dev.inmo.wishlist.features.common.client.ui.components.Toaster
 import dev.inmo.wishlist.features.ui.topBar.ui.TopBarTitleProvider
 import dev.inmo.wishlist.features.ui.wishlist.WishlistStrings
 import kotlinx.browser.window
-import org.jetbrains.compose.web.attributes.disabled
-import org.jetbrains.compose.web.dom.Button
-import org.jetbrains.compose.web.dom.Div
-import org.jetbrains.compose.web.dom.H1
-import org.jetbrains.compose.web.dom.H3
-import org.jetbrains.compose.web.dom.P
-import org.jetbrains.compose.web.dom.Text
 import org.koin.core.component.inject
 import org.koin.core.parameter.parametersOf
 
 /**
  * JS Compose-HTML view for the wishlist detail screen (Calm Studio list view).
  *
- * Renders the list inside the standard `.content-inner` + `.pagehead` shell: a Share action (copies the
- * page link), an owner "Add item" / visitor "Copy to my profile" primary action, a `.toolbar` carrying
- * the sort + grid/list controls, and the items as a `.grid` of cards or `.rows` of list rows. Class
- * names mirror the design skill's `app.jsx` so the Calm Studio shell CSS styles the screen directly.
+ * Composed from the shared Calm Studio components ([ContentColumn] + [PageHead] shell, [EmptyState], and
+ * an [ItemGrid] of cards or [RowsList] of rows). The header carries a Share action (copies the page
+ * link), an owner "Add item" / visitor "Copy to my profile" primary action, and the sort + view controls.
  */
 class WishlistView(
     chain: NavigationChain<ViewConfig>,
@@ -73,46 +71,38 @@ class WishlistView(
         val costSortAvailable by viewModel.costSortAvailableState.collectAsState()
         val sortSelectorVisible by viewModel.sortSelectorVisibleState.collectAsState()
 
-        Div({ classes(CalmStudioStyleSheet.`content-inner`) }) {
-            Div({ classes(CalmStudioStyleSheet.pagehead) }) {
-                Div {
-                    H1 { Text(wishlist?.title ?: "") }
-                }
-                Div({ classes(CalmStudioStyleSheet.acts) }) {
-                    Button({
-                        classes(CalmStudioStyleSheet.btn)
-                        onClick { shareLink() }
-                    }) {
-                        CalmIcon(CalmIcons.share)
-                        Text(WishlistStrings.shareButton.translation())
-                    }
+        ContentColumn {
+            PageHead(
+                title = wishlist?.title ?: "",
+                actions = {
+                    CalmButton(
+                        text = WishlistStrings.shareButton.translation(),
+                        onClick = { shareLink() },
+                        leadingIcon = CalmIcons.share,
+                    )
                     if (isOwner) {
-                        Button({
-                            classes(CalmStudioStyleSheet.btn)
-                            onClick { viewModel.onEditWishlist() }
-                        }) {
-                            CalmIcon(CalmIcons.edit)
-                            Text(WishlistStrings.editButton.translation())
-                        }
+                        CalmButton(
+                            text = WishlistStrings.editButton.translation(),
+                            onClick = { viewModel.onEditWishlist() },
+                            leadingIcon = CalmIcons.edit,
+                        )
                     }
                     when {
-                        isOwner -> Button({
-                            classes(CalmStudioStyleSheet.btn, CalmStudioStyleSheet.primary)
-                            onClick { viewModel.onAddItem() }
-                        }) {
-                            CalmIcon(CalmIcons.plus)
-                            Text(WishlistStrings.addItemButton.translation())
-                        }
-                        canCopy -> Button({
-                            classes(CalmStudioStyleSheet.btn, CalmStudioStyleSheet.primary)
-                            if (copyRequested) disabled()
-                            onClick { viewModel.onCopyWishlist() }
-                        }) {
-                            Text(WishlistStrings.copyWishlistButton.translation())
-                        }
+                        isOwner -> CalmButton(
+                            text = WishlistStrings.addItemButton.translation(),
+                            onClick = { viewModel.onAddItem() },
+                            variant = CalmButtonVariant.Primary,
+                            leadingIcon = CalmIcons.plus,
+                        )
+                        canCopy -> CalmButton(
+                            text = WishlistStrings.copyWishlistButton.translation(),
+                            onClick = { viewModel.onCopyWishlist() },
+                            variant = CalmButtonVariant.Primary,
+                            disabled = copyRequested,
+                        )
                     }
-                }
-            }
+                },
+            )
 
             // Async copy result surfaces as a toast (queued / failed), keyed on the view-model state.
             LaunchedEffect(copyRequested) {
@@ -123,20 +113,21 @@ class WishlistView(
             }
 
             when {
-                loading -> P({ classes(CalmStudioStyleSheet.subline) }) { Text(WishlistStrings.loading.translation()) }
-                items.isEmpty() -> Div({ classes("empty") }) {
-                    Div({ classes(CalmStudioStyleSheet.ic) }) { CalmIcon(CalmIcons.gift) }
-                    H3 { Text(WishlistStrings.emptyItems.translation()) }
-                    if (isOwner) {
-                        Button({
-                            classes(CalmStudioStyleSheet.btn, CalmStudioStyleSheet.primary)
-                            onClick { viewModel.onAddItem() }
-                        }) {
-                            CalmIcon(CalmIcons.plus)
-                            Text(WishlistStrings.addItemButton.translation())
+                loading -> Subline(WishlistStrings.loading.translation())
+                items.isEmpty() -> EmptyState(
+                    icon = CalmIcons.gift,
+                    title = WishlistStrings.emptyItems.translation(),
+                    action = {
+                        if (isOwner) {
+                            CalmButton(
+                                text = WishlistStrings.addItemButton.translation(),
+                                onClick = { viewModel.onAddItem() },
+                                variant = CalmButtonVariant.Primary,
+                                leadingIcon = CalmIcons.plus,
+                            )
                         }
-                    }
-                }
+                    },
+                )
                 else -> {
                     WishlistSelectorsRow(
                         sortMode = sortMode,
@@ -152,7 +143,7 @@ class WishlistView(
                         onViewModeSelected = viewModel::onViewModeSelected
                     )
                     if (viewMode == WishlistViewMode.Grid) {
-                        Div({ classes(CalmStudioStyleSheet.grid) }) {
+                        ItemGrid {
                             sortedItems.forEach { item ->
                                 WishlistItemCard(
                                     item = item,
@@ -163,7 +154,7 @@ class WishlistView(
                             }
                         }
                     } else {
-                        Div({ classes(CalmStudioStyleSheet.rows) }) {
+                        RowsList {
                             sortedItems.forEach { item ->
                                 WishlistItemRow(
                                     item = item,

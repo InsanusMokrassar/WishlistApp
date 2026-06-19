@@ -8,22 +8,31 @@ import dev.inmo.micro_utils.strings.translation
 import dev.inmo.navigation.core.NavigationChain
 import dev.inmo.navigation.mvvm.compose.ComposeView
 import dev.inmo.wishlist.features.common.client.models.ViewConfig
-import dev.inmo.wishlist.features.common.client.ui.components.CalmIcon
+import dev.inmo.wishlist.features.common.client.ui.components.CalmButton
 import dev.inmo.wishlist.features.common.client.ui.components.CalmIcons
+import dev.inmo.wishlist.features.common.client.ui.components.ContentColumn
+import dev.inmo.wishlist.features.common.client.ui.components.EmptyState
+import dev.inmo.wishlist.features.common.client.ui.components.PageHead
+import dev.inmo.wishlist.features.common.client.ui.components.PeopleGrid
+import dev.inmo.wishlist.features.common.client.ui.components.Subline
 import dev.inmo.wishlist.features.common.client.ui.components.tintClass
 import dev.inmo.wishlist.features.ui.topBar.ui.TopBarTitleProvider
 import dev.inmo.wishlist.features.ui.users.UsersListStrings
-import org.jetbrains.compose.web.dom.Button
 import org.jetbrains.compose.web.dom.Div
-import org.jetbrains.compose.web.dom.H1
 import org.jetbrains.compose.web.dom.H3
-import org.jetbrains.compose.web.dom.P
+import org.jetbrains.compose.web.dom.Img
 import org.jetbrains.compose.web.dom.Span
 import org.jetbrains.compose.web.dom.Text
 import org.koin.core.component.inject
 import org.koin.core.parameter.parametersOf
 
-/** JS Compose-HTML view for the Discover screen — a people grid (Calm Studio `.people` / `.person`). */
+/**
+ * JS Compose-HTML view for the Discover screen — a [PeopleGrid] of person tiles (Calm Studio).
+ *
+ * The person tiles stay hand-written (`.person` / `.av`) because they render a real avatar `<img>` when
+ * the user has one, which the [dev.inmo.wishlist.features.common.client.ui.components.PersonCard]
+ * component does not support.
+ */
 class UsersListView(
     chain: NavigationChain<ViewConfig>,
     config: UsersListViewConfig,
@@ -43,44 +52,37 @@ class UsersListView(
         val loading by viewModel.loadingState.collectAsState()
         val currentUserId by viewModel.currentUserIdState.collectAsState()
 
-        Div({ classes(CalmStudioStyleSheet.`content-inner`) }) {
-            Div({ classes(CalmStudioStyleSheet.pagehead) }) {
-                Div { H1 { Text(UsersListStrings.title.translation()) } }
-                Div({ classes(CalmStudioStyleSheet.acts) }) {
+        ContentColumn {
+            PageHead(
+                title = UsersListStrings.title.translation(),
+                actions = {
                     if (currentUserId != null) {
-                        Button({
-                            classes(CalmStudioStyleSheet.btn)
-                            onClick { viewModel.onMyProfile() }
-                        }) { Text(UsersListStrings.myProfileButton.translation()) }
+                        CalmButton(
+                            text = UsersListStrings.myProfileButton.translation(),
+                            onClick = { viewModel.onMyProfile() },
+                        )
                     }
-                }
-            }
+                },
+            )
 
             when {
-                loading -> P({ classes(CalmStudioStyleSheet.subline) }) { Text(UsersListStrings.loading.translation()) }
-                users.isEmpty() -> Div({ classes("empty") }) {
-                    Div({ classes(CalmStudioStyleSheet.ic) }) { CalmIcon(CalmIcons.compass) }
-                    H3 { Text(UsersListStrings.empty.translation()) }
-                }
-                else -> Div({ classes(CalmStudioStyleSheet.people) }) {
+                loading -> Subline(UsersListStrings.loading.translation())
+                users.isEmpty() -> EmptyState(
+                    icon = CalmIcons.compass,
+                    title = UsersListStrings.empty.translation(),
+                )
+                else -> PeopleGrid {
                     users.forEach { user ->
                         Div({
                             classes(CalmStudioStyleSheet.person)
                             onClick { viewModel.onUserSelected(user.id) }
                         }) {
                             val avatarId = avatars[user.id]
-                            Span({
-                                if (avatarId == null) {
-                                    classes(CalmStudioStyleSheet.av, tintClass(user.id.long))
-                                } else {
-                                    classes(CalmStudioStyleSheet.av)
-                                    style {
-                                        property("background-image", "url(${viewModel.imageUrl(avatarId)})")
-                                        property("background-size", "cover")
-                                        property("background-position", "center")
-                                    }
-                                }
-                            })
+                            if (avatarId == null) {
+                                Span({ classes(CalmStudioStyleSheet.av, tintClass(user.id.long)) })
+                            } else {
+                                Img(src = viewModel.imageUrl(avatarId), alt = "") { classes(CalmStudioStyleSheet.av) }
+                            }
                             H3 { Text(user.username.string) }
                         }
                     }

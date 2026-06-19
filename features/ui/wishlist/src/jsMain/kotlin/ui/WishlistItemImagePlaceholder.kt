@@ -1,6 +1,8 @@
 package dev.inmo.wishlist.features.ui.wishlist.ui
 
 import androidx.compose.runtime.Composable
+import dev.inmo.micro_utils.coroutines.compose.StyleSheetsAggregator
+import org.jetbrains.compose.web.css.StyleSheet
 import org.jetbrains.compose.web.dom.AttrBuilderContext
 import org.jetbrains.compose.web.dom.Img
 import org.w3c.dom.HTMLImageElement
@@ -25,6 +27,21 @@ private val giftBoxSvg: String =
 private val giftBoxDataUri: String = "data:image/svg+xml;charset=UTF-8,$giftBoxSvg"
 
 /**
+ * Per-view stylesheet for [WishlistItemImagePlaceholder]: the gift glyph stays fully visible
+ * (`object-fit: contain`) on its neutral fill instead of being cropped. Self-registers into the
+ * [StyleSheetsAggregator] so referencing [placeholder] renders it without a per-call `Style(...)`.
+ */
+object WishlistItemImagePlaceholderStylesheet : StyleSheet() {
+    /** Default placeholder image styling: contain the glyph over the gift's neutral background. */
+    val placeholder by style {
+        property("object-fit", "contain")
+        property("background-color", "#eef1f4")
+    }
+
+    init { StyleSheetsAggregator.addStyleSheet(this) }
+}
+
+/**
  * Renders the default gift-box placeholder shown whenever a wishlist item has no attached image.
  *
  * @param alt Already-translated accessibility text for the image.
@@ -38,10 +55,7 @@ private val giftBoxDataUri: String = "data:image/svg+xml;charset=UTF-8,$giftBoxS
 @Composable
 fun WishlistItemImagePlaceholder(alt: String, attrs: AttrBuilderContext<HTMLImageElement> = {}) {
     Img(src = giftBoxDataUri, alt = alt) {
-        style {
-            property("object-fit", "contain")
-            property("background-color", "#eef1f4")
-        }
+        classes(WishlistItemImagePlaceholderStylesheet.placeholder)
         attrs()
     }
 }

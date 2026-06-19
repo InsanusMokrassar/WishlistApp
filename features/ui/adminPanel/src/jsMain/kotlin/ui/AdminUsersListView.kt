@@ -8,13 +8,15 @@ import dev.inmo.micro_utils.strings.translation
 import dev.inmo.navigation.core.NavigationChain
 import dev.inmo.navigation.mvvm.compose.ComposeView
 import dev.inmo.wishlist.features.common.client.models.ViewConfig
+import dev.inmo.wishlist.features.common.client.ui.components.CalmButton
+import dev.inmo.wishlist.features.common.client.ui.components.CalmButtonVariant
+import dev.inmo.wishlist.features.common.client.ui.components.ContentColumn
 import dev.inmo.wishlist.features.common.client.ui.components.ListRow
+import dev.inmo.wishlist.features.common.client.ui.components.PageHead
+import dev.inmo.wishlist.features.common.client.ui.components.RowsList
+import dev.inmo.wishlist.features.common.client.ui.components.Subline
 import dev.inmo.wishlist.features.ui.topBar.ui.TopBarTitleProvider
 import dev.inmo.wishlist.features.ui.adminPanel.AdminPanelStrings
-import org.jetbrains.compose.web.dom.Button
-import org.jetbrains.compose.web.dom.Div
-import org.jetbrains.compose.web.dom.H1
-import org.jetbrains.compose.web.dom.P
 import org.jetbrains.compose.web.dom.Span
 import org.jetbrains.compose.web.dom.Text
 import org.koin.core.component.inject
@@ -38,24 +40,21 @@ class AdminUsersListView(
         val users by viewModel.usersState.collectAsState()
         val loading by viewModel.loadingState.collectAsState()
 
-        Div({ classes(CalmStudioStyleSheet.`content-inner`) }) {
-            Div({ classes(CalmStudioStyleSheet.pagehead) }) {
-                Div {
-                    H1 { Text(AdminPanelStrings.usersListTitle.translation()) }
-                }
-                Div({ classes(CalmStudioStyleSheet.acts) }) {
-                    Button({
-                        classes(CalmStudioStyleSheet.btn, CalmStudioStyleSheet.primary)
-                        onClick { viewModel.onCreateUser() }
-                    }) {
-                        Text(AdminPanelStrings.addUserButton.translation())
-                    }
-                }
-            }
+        ContentColumn {
+            PageHead(
+                title = AdminPanelStrings.usersListTitle.translation(),
+                actions = {
+                    CalmButton(
+                        text = AdminPanelStrings.addUserButton.translation(),
+                        onClick = { viewModel.onCreateUser() },
+                        variant = CalmButtonVariant.Primary,
+                    )
+                },
+            )
             when {
-                loading -> P({ classes(CalmStudioStyleSheet.subline) }) { Text(AdminPanelStrings.loading.translation()) }
-                users.isEmpty() -> P({ classes(CalmStudioStyleSheet.subline) }) { Text(AdminPanelStrings.emptyUsers.translation()) }
-                else -> Div({ classes(CalmStudioStyleSheet.rows) }) {
+                loading -> Subline(AdminPanelStrings.loading.translation())
+                users.isEmpty() -> Subline(AdminPanelStrings.emptyUsers.translation())
+                else -> RowsList {
                     users.forEach { user ->
                         ListRow(onSelect = { viewModel.onUserSelected(user.id) }) {
                             Span { Text(user.username.string) }

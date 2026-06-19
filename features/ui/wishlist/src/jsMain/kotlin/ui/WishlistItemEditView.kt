@@ -9,8 +9,20 @@ import dev.inmo.micro_utils.strings.translation
 import dev.inmo.navigation.core.NavigationChain
 import dev.inmo.navigation.mvvm.compose.ComposeView
 import dev.inmo.wishlist.features.common.client.models.ViewConfig
-import dev.inmo.wishlist.features.common.client.ui.components.CalmIcon
+import dev.inmo.wishlist.features.common.client.ui.components.CalmButton
+import dev.inmo.wishlist.features.common.client.ui.components.CalmButtonSize
+import dev.inmo.wishlist.features.common.client.ui.components.CalmButtonVariant
+import dev.inmo.wishlist.features.common.client.ui.components.CalmForm
 import dev.inmo.wishlist.features.common.client.ui.components.CalmIcons
+import dev.inmo.wishlist.features.common.client.ui.components.CalmTextArea
+import dev.inmo.wishlist.features.common.client.ui.components.CalmTextField
+import dev.inmo.wishlist.features.common.client.ui.components.ConfirmModal
+import dev.inmo.wishlist.features.common.client.ui.components.ContentColumn
+import dev.inmo.wishlist.features.common.client.ui.components.FieldSet
+import dev.inmo.wishlist.features.common.client.ui.components.FormHint
+import dev.inmo.wishlist.features.common.client.ui.components.FormRow
+import dev.inmo.wishlist.features.common.client.ui.components.PageHead
+import dev.inmo.wishlist.features.common.client.ui.components.PriorityOptions
 import dev.inmo.wishlist.features.ui.topBar.ui.TopBarTitleProvider
 import dev.inmo.wishlist.features.ui.wishlist.WishlistStrings
 import dev.inmo.wishlist.features.ui.wishlist.utils.pickImageFile
@@ -22,25 +34,22 @@ import org.jetbrains.compose.web.attributes.disabled
 import org.jetbrains.compose.web.attributes.placeholder
 import org.jetbrains.compose.web.dom.Button
 import org.jetbrains.compose.web.dom.Div
-import org.jetbrains.compose.web.dom.H1
-import org.jetbrains.compose.web.dom.H2
 import org.jetbrains.compose.web.dom.Img
 import org.jetbrains.compose.web.dom.Input
-import org.jetbrains.compose.web.dom.Label
 import org.jetbrains.compose.web.dom.P
 import org.jetbrains.compose.web.dom.Span
 import org.jetbrains.compose.web.dom.Text
-import org.jetbrains.compose.web.dom.TextArea
 import org.koin.core.component.inject
 import org.koin.core.parameter.parametersOf
 
 /**
  * JS Compose-HTML view for the wishlist item create/edit screen (Calm Studio form).
  *
- * Renders a `.form` of `.fieldset`s — title, description, price + amount + units, a `.priopts`
- * segmented priority control, links and images — with Save / Cancel / Delete actions, plus the
- * "Delete item?" and "Discard changes?" confirmations as Calm `.scrim` modals. Class names mirror the
- * design skill's `app.jsx` so the Calm Studio shell CSS styles the screen directly.
+ * Composed from the shared Calm Studio form components ([ContentColumn] + [PageHead] shell, [CalmForm]
+ * with [CalmTextField] / [CalmTextArea] / [FieldSet] / [FormRow] / [PriorityOptions] / [FormHint]), plus
+ * the "Delete item?" and "Discard changes?" confirmations via [ConfirmModal]. The amount (number),
+ * custom-priority weight and link inputs, and the positioned image-remove button keep raw `.input` /
+ * `.btn` classes as no component covers them.
  */
 class WishlistItemEditView(
     chain: NavigationChain<ViewConfig>,
@@ -53,43 +62,6 @@ class WishlistItemEditView(
     override val title: String
         @Composable get() = if (viewModel.isCreating) WishlistStrings.newItemTitle.translation()
             else WishlistStrings.editItemTitle.translation()
-
-    /**
-     * One Calm `.scrim` confirmation modal.
-     *
-     * @param title Question-style heading.
-     * @param body Plain-language consequence line.
-     * @param confirmLabel Label restating the destructive/confirming verb.
-     * @param onCancel Invoked when the user dismisses the modal.
-     * @param onConfirm Invoked when the user confirms the action.
-     */
-    @Composable
-    private fun ConfirmModal(title: String, body: String, confirmLabel: String, onCancel: () -> Unit, onConfirm: () -> Unit) {
-        Div({
-            classes(CalmStudioStyleSheet.scrim)
-            onClick { onCancel() }
-        }) {
-            Div({
-                classes(CalmStudioStyleSheet.modal)
-                onClick { it.stopPropagation() }
-            }) {
-                Div({ classes(CalmStudioStyleSheet.mhead) }) {
-                    H2 { Text(title) }
-                    P { Text(body) }
-                }
-                Div({ classes(CalmStudioStyleSheet.mfoot) }) {
-                    Button({
-                        classes(CalmStudioStyleSheet.btn, CalmStudioStyleSheet.ghost)
-                        onClick { onCancel() }
-                    }) { Text(WishlistStrings.cancelButton.translation()) }
-                    Button({
-                        classes(CalmStudioStyleSheet.btn, CalmStudioStyleSheet.danger)
-                        onClick { onConfirm() }
-                    }) { Text(confirmLabel) }
-                }
-            }
-        }
-    }
 
     @Composable
     override fun onDraw() {
@@ -117,8 +89,10 @@ class WishlistItemEditView(
                 title = WishlistStrings.confirmDeleteItemTitle.translation(),
                 body = WishlistStrings.confirmDeleteItemMessage.translation(),
                 confirmLabel = WishlistStrings.confirmDeleteButton.translation(),
+                cancelLabel = WishlistStrings.cancelButton.translation(),
+                danger = true,
                 onCancel = { viewModel.onCancelDelete() },
-                onConfirm = { viewModel.onConfirmDelete() }
+                onConfirm = { viewModel.onConfirmDelete() },
             )
         }
         if (showDialog) {
@@ -126,61 +100,47 @@ class WishlistItemEditView(
                 title = WishlistStrings.confirmDiscardTitle.translation(),
                 body = WishlistStrings.confirmDiscardMessage.translation(),
                 confirmLabel = WishlistStrings.confirmButton.translation(),
+                cancelLabel = WishlistStrings.cancelButton.translation(),
+                danger = true,
                 onCancel = { viewModel.onCancelBack() },
-                onConfirm = { viewModel.onConfirmBack() }
+                onConfirm = { viewModel.onConfirmBack() },
             )
         }
 
-        Div({ classes(CalmStudioStyleSheet.`content-inner`) }) {
-            Div({ classes(CalmStudioStyleSheet.pagehead) }) {
-                Div {
-                    H1 {
-                        Text(
-                            if (viewModel.isCreating) WishlistStrings.newItemTitle.translation()
-                            else WishlistStrings.editItemTitle.translation()
-                        )
-                    }
-                }
-            }
+        ContentColumn {
+            PageHead(
+                title = if (viewModel.isCreating) WishlistStrings.newItemTitle.translation()
+                    else WishlistStrings.editItemTitle.translation(),
+            )
 
-            Div({ classes(CalmStudioStyleSheet.form) }) {
-                Div({ classes(CalmStudioStyleSheet.fieldset) }) {
-                    Label("item-title") { Text(WishlistStrings.titleLabel.translation()) }
-                    Input(InputType.Text) {
-                        id("item-title")
-                        classes(CalmStudioStyleSheet.input)
-                        value(title)
-                        placeholder(WishlistStrings.titleLabel.translation())
-                        onInput { viewModel.onTitleChanged(it.value) }
-                        if (loading) disabled()
-                    }
-                }
+            CalmForm {
+                CalmTextField(
+                    value = title,
+                    onValueChange = { viewModel.onTitleChanged(it) },
+                    label = WishlistStrings.titleLabel.translation(),
+                    placeholder = WishlistStrings.titleLabel.translation(),
+                    disabled = loading,
+                    id = "item-title",
+                )
 
-                Div({ classes(CalmStudioStyleSheet.fieldset) }) {
-                    Label("item-desc") { Text(WishlistStrings.descriptionLabel.translation()) }
-                    TextArea {
-                        id("item-desc")
-                        classes(CalmStudioStyleSheet.textarea)
-                        value(description)
-                        onInput { viewModel.onDescriptionChanged(it.value) }
-                        if (loading) disabled()
-                    }
-                }
+                CalmTextArea(
+                    value = description,
+                    onValueChange = { viewModel.onDescriptionChanged(it) },
+                    label = WishlistStrings.descriptionLabel.translation(),
+                    disabled = loading,
+                    id = "item-desc",
+                )
 
-                Div({ classes(CalmStudioStyleSheet.`form-row`) }) {
-                    Div({ classes(CalmStudioStyleSheet.fieldset) }) {
-                        Label("item-price") { Text(WishlistStrings.priceLabel.translation()) }
-                        Input(InputType.Text) {
-                            id("item-price")
-                            classes(CalmStudioStyleSheet.input)
-                            value(price)
-                            placeholder("0.00")
-                            onInput { viewModel.onPriceChanged(it.value) }
-                            if (loading) disabled()
-                        }
-                    }
-                    Div({ classes(CalmStudioStyleSheet.fieldset) }) {
-                        Label("item-amount") { Text(WishlistStrings.amountLabel.translation()) }
+                FormRow {
+                    CalmTextField(
+                        value = price,
+                        onValueChange = { viewModel.onPriceChanged(it) },
+                        label = WishlistStrings.priceLabel.translation(),
+                        placeholder = "0.00",
+                        disabled = loading,
+                        id = "item-price",
+                    )
+                    FieldSet(label = WishlistStrings.amountLabel.translation()) {
                         Input(InputType.Text) {
                             id("item-amount")
                             classes(CalmStudioStyleSheet.input)
@@ -204,22 +164,22 @@ class WishlistItemEditView(
                     id = "item-units"
                 )
 
-                Div({ classes(CalmStudioStyleSheet.fieldset) }) {
-                    Label { Text(WishlistStrings.priorityLabel.translation()) }
-                    Div({ classes(CalmStudioStyleSheet.priopts) }) {
-                        PriorityOption(WishlistStrings.prioritySmall.translation(), priority == Priority.Small, loading) {
-                            viewModel.onPrioritySelected(Priority.Small)
-                        }
-                        PriorityOption(WishlistStrings.priorityMedium.translation(), priority == Priority.Medium, loading) {
-                            viewModel.onPrioritySelected(Priority.Medium)
-                        }
-                        PriorityOption(WishlistStrings.priorityHigh.translation(), priority == Priority.High, loading) {
-                            viewModel.onPrioritySelected(Priority.High)
-                        }
-                        PriorityOption(WishlistStrings.priorityCustom.translation(), priority is Priority.Custom, loading) {
-                            viewModel.onPrioritySelected(Priority.Custom((priority as? Priority.Custom)?.weight ?: 0u))
-                        }
-                    }
+                val customWeight = (priority as? Priority.Custom)?.weight ?: 0u
+                FieldSet(label = WishlistStrings.priorityLabel.translation()) {
+                    PriorityOptions(
+                        options = listOf(Priority.Small, Priority.Medium, Priority.High, Priority.Custom(customWeight)),
+                        selected = priority,
+                        label = { option ->
+                            when (option) {
+                                Priority.Small -> WishlistStrings.prioritySmall.translation()
+                                Priority.Medium -> WishlistStrings.priorityMedium.translation()
+                                Priority.High -> WishlistStrings.priorityHigh.translation()
+                                is Priority.Custom -> WishlistStrings.priorityCustom.translation()
+                            }
+                        },
+                        enabled = !loading,
+                        onSelect = { viewModel.onPrioritySelected(it) },
+                    )
                     if (priority is Priority.Custom) {
                         Input(InputType.Text) {
                             classes(CalmStudioStyleSheet.input, WishlistItemEditStyleSheet.customWeight)
@@ -229,18 +189,19 @@ class WishlistItemEditView(
                             if (loading) disabled()
                         }
                     }
-                    P({ classes(CalmStudioStyleSheet.hint) }) { Text(WishlistStrings.priorityHelp.translation()) }
+                    FormHint(WishlistStrings.priorityHelp.translation())
                 }
 
-                Div({ classes(CalmStudioStyleSheet.fieldset) }) {
-                    Label { Text(WishlistStrings.linksLabel.translation()) }
+                FieldSet(label = WishlistStrings.linksLabel.translation()) {
                     links.forEachIndexed { index, link ->
                         Div({ classes(WishlistItemEditStyleSheet.linkRow) }) {
                             Span({ classes(WishlistItemEditStyleSheet.linkText) }) { Text(link.displayText) }
-                            Button({
-                                classes(CalmStudioStyleSheet.btn, CalmStudioStyleSheet.ghost, CalmStudioStyleSheet.sm)
-                                onClick { viewModel.onRemoveLink(index) }
-                            }) { Text("×") }
+                            CalmButton(
+                                text = "×",
+                                onClick = { viewModel.onRemoveLink(index) },
+                                variant = CalmButtonVariant.Ghost,
+                                size = CalmButtonSize.Small,
+                            )
                         }
                     }
                     Div({ classes(WishlistItemEditStyleSheet.addLinkRow) }) {
@@ -258,11 +219,11 @@ class WishlistItemEditView(
                             onInput { viewModel.onNewLinkChanged(it.value) }
                             if (loading) disabled()
                         }
-                        Button({
-                            classes(CalmStudioStyleSheet.btn)
-                            onClick { viewModel.onAddLink() }
-                            if (newLink.isBlank()) disabled()
-                        }) { Text(WishlistStrings.addLinkButton.translation()) }
+                        CalmButton(
+                            text = WishlistStrings.addLinkButton.translation(),
+                            onClick = { viewModel.onAddLink() },
+                            disabled = newLink.isBlank(),
+                        )
                     }
                     if (hasDuplicateLinks) {
                         P({ classes(WishlistItemEditStyleSheet.dupError) }) {
@@ -271,8 +232,7 @@ class WishlistItemEditView(
                     }
                 }
 
-                Div({ classes(CalmStudioStyleSheet.fieldset) }) {
-                    Label { Text(WishlistStrings.imagesLabel.translation()) }
+                FieldSet(label = WishlistStrings.imagesLabel.translation()) {
                     if (imageIds.isNotEmpty()) {
                         Div({ classes(WishlistItemEditStyleSheet.imageGrid) }) {
                             imageIds.forEachIndexed { index, id ->
@@ -289,59 +249,37 @@ class WishlistItemEditView(
                             }
                         }
                     }
-                    Button({
-                        classes(CalmStudioStyleSheet.btn)
-                        onClick { scope.launch { pickImageFile()?.let { viewModel.onAddImage(it) } } }
-                        if (loading || uploadingImage) disabled()
-                    }) {
-                        Text(
-                            if (uploadingImage) WishlistStrings.uploadingImage.translation()
-                            else WishlistStrings.addImageButton.translation()
+                    CalmButton(
+                        text = if (uploadingImage) WishlistStrings.uploadingImage.translation()
+                            else WishlistStrings.addImageButton.translation(),
+                        onClick = { scope.launch { pickImageFile()?.let { viewModel.onAddImage(it) } } },
+                        disabled = loading || uploadingImage,
+                    )
+                }
+
+                Div({ classes(CalmStudioStyleSheet.formactions) }) {
+                    CalmButton(
+                        text = WishlistStrings.saveButton.translation(),
+                        onClick = { viewModel.onSave() },
+                        variant = CalmButtonVariant.Primary,
+                        disabled = loading || title.isBlank() || hasDuplicateLinks,
+                    )
+                    CalmButton(
+                        text = WishlistStrings.cancelButton.translation(),
+                        onClick = { viewModel.onBack() },
+                        variant = CalmButtonVariant.Ghost,
+                    )
+                    if (viewModel.canDelete) {
+                        CalmButton(
+                            text = WishlistStrings.deleteButton.translation(),
+                            onClick = { viewModel.onDelete() },
+                            variant = CalmButtonVariant.Danger,
+                            leadingIcon = CalmIcons.trash,
+                            disabled = loading,
                         )
                     }
                 }
-
-                Div({ classes(WishlistItemEditStyleSheet.actions) }) {
-                    Button({
-                        classes(CalmStudioStyleSheet.btn, CalmStudioStyleSheet.primary)
-                        onClick { viewModel.onSave() }
-                        if (loading || title.isBlank() || hasDuplicateLinks) disabled()
-                    }) { Text(WishlistStrings.saveButton.translation()) }
-                    Button({
-                        classes(CalmStudioStyleSheet.btn, CalmStudioStyleSheet.ghost)
-                        onClick { viewModel.onBack() }
-                    }) { Text(WishlistStrings.cancelButton.translation()) }
-                    Div({ classes(WishlistItemEditStyleSheet.actionsSpacer) })
-                    if (viewModel.canDelete) {
-                        Button({
-                            classes(CalmStudioStyleSheet.btn, CalmStudioStyleSheet.danger)
-                            onClick { viewModel.onDelete() }
-                            if (loading) disabled()
-                        }) {
-                            CalmIcon(CalmIcons.trash)
-                            Text(WishlistStrings.deleteButton.translation())
-                        }
-                    }
-                }
             }
-        }
-    }
-
-    /**
-     * Renders one priority option as a Calm Studio `.priopt` segment.
-     *
-     * @param label Localized option text.
-     * @param selected `true` when this option is the active priority (adds the `on` class).
-     * @param loading Ignores clicks while a request is in flight.
-     * @param action Invoked when the option is clicked.
-     */
-    @Composable
-    private fun PriorityOption(label: String, selected: Boolean, loading: Boolean, action: () -> Unit) {
-        Div({
-            if (selected) classes(CalmStudioStyleSheet.priopt, CalmStudioStyleSheet.on) else classes(CalmStudioStyleSheet.priopt)
-            if (!loading) onClick { action() }
-        }) {
-            Text(label)
         }
     }
 }

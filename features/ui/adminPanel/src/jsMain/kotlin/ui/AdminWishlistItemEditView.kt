@@ -9,18 +9,17 @@ import dev.inmo.navigation.core.NavigationChain
 import dev.inmo.navigation.mvvm.compose.ComposeView
 import dev.inmo.wishlist.features.common.client.models.ViewConfig
 import dev.inmo.wishlist.features.common.client.ui.components.BackButton
+import dev.inmo.wishlist.features.common.client.ui.components.CalmButton
+import dev.inmo.wishlist.features.common.client.ui.components.CalmButtonVariant
+import dev.inmo.wishlist.features.common.client.ui.components.CalmForm
+import dev.inmo.wishlist.features.common.client.ui.components.CalmTextArea
+import dev.inmo.wishlist.features.common.client.ui.components.CalmTextField
+import dev.inmo.wishlist.features.common.client.ui.components.ContentColumn
+import dev.inmo.wishlist.features.common.client.ui.components.FormRow
+import dev.inmo.wishlist.features.common.client.ui.components.PageHead
 import dev.inmo.wishlist.features.ui.topBar.ui.TopBarTitleProvider
 import dev.inmo.wishlist.features.ui.adminPanel.AdminPanelStrings
-import org.jetbrains.compose.web.attributes.InputType
-import org.jetbrains.compose.web.attributes.disabled
-import org.jetbrains.compose.web.attributes.placeholder
-import org.jetbrains.compose.web.dom.Button
 import org.jetbrains.compose.web.dom.Div
-import org.jetbrains.compose.web.dom.H1
-import org.jetbrains.compose.web.dom.Input
-import org.jetbrains.compose.web.dom.Label
-import org.jetbrains.compose.web.dom.Text
-import org.jetbrains.compose.web.dom.TextArea
 import org.koin.core.component.inject
 import org.koin.core.parameter.parametersOf
 
@@ -54,76 +53,55 @@ class AdminWishlistItemEditView(
             )
         }
 
-        Div({ classes(CalmStudioStyleSheet.`content-inner`) }) {
-            Div({ classes(CalmStudioStyleSheet.pagehead) }) {
-                Div {
-                    H1 {
-                        Text(
-                            if (viewModel.isCreating) AdminPanelStrings.newItemTitle.translation()
-                            else AdminPanelStrings.editItemTitle.translation()
-                        )
-                    }
-                }
-                Div({ classes(CalmStudioStyleSheet.acts) }) {
-                    BackButton(AdminPanelStrings.backButton.translation()) { viewModel.onBack() }
-                }
-            }
+        ContentColumn {
+            PageHead(
+                title = if (viewModel.isCreating) AdminPanelStrings.newItemTitle.translation()
+                    else AdminPanelStrings.editItemTitle.translation(),
+                actions = { BackButton(AdminPanelStrings.backButton.translation()) { viewModel.onBack() } },
+            )
 
-            Div({ classes(CalmStudioStyleSheet.form) }) {
-                Div({ classes(CalmStudioStyleSheet.fieldset) }) {
-                    Label("item-title") { Text(AdminPanelStrings.itemTitleLabel.translation()) }
-                    Input(InputType.Text) {
-                        id("item-title")
-                        classes(CalmStudioStyleSheet.input)
-                        value(title)
-                        placeholder(AdminPanelStrings.itemTitleLabel.translation())
-                        onInput { viewModel.onTitleChanged(it.value) }
-                        if (loading) disabled()
-                    }
+            CalmForm {
+                CalmTextField(
+                    value = title,
+                    onValueChange = { viewModel.onTitleChanged(it) },
+                    label = AdminPanelStrings.itemTitleLabel.translation(),
+                    placeholder = AdminPanelStrings.itemTitleLabel.translation(),
+                    disabled = loading,
+                    id = "item-title",
+                )
+                FormRow {
+                    CalmTextField(
+                        value = price,
+                        onValueChange = { viewModel.onPriceChanged(it) },
+                        label = AdminPanelStrings.itemPriceLabel.translation(),
+                        placeholder = "0.00",
+                        disabled = loading,
+                        id = "item-price",
+                    )
+                    CalmTextField(
+                        value = priceUnits,
+                        onValueChange = { viewModel.onPriceUnitsChanged(it) },
+                        label = AdminPanelStrings.itemPriceUnitsLabel.translation(),
+                        placeholder = "$, €, ...",
+                        disabled = loading,
+                        id = "item-units",
+                    )
                 }
-                Div({ classes(CalmStudioStyleSheet.`form-row`) }) {
-                    Div({ classes(CalmStudioStyleSheet.fieldset) }) {
-                        Label("item-price") { Text(AdminPanelStrings.itemPriceLabel.translation()) }
-                        Input(InputType.Text) {
-                            id("item-price")
-                            classes(CalmStudioStyleSheet.input)
-                            value(price)
-                            placeholder("0.00")
-                            onInput { viewModel.onPriceChanged(it.value) }
-                            if (loading) disabled()
-                        }
-                    }
-                    Div({ classes(CalmStudioStyleSheet.fieldset) }) {
-                        Label("item-units") { Text(AdminPanelStrings.itemPriceUnitsLabel.translation()) }
-                        Input(InputType.Text) {
-                            id("item-units")
-                            classes(CalmStudioStyleSheet.input)
-                            value(priceUnits)
-                            placeholder("$, €, ...")
-                            onInput { viewModel.onPriceUnitsChanged(it.value) }
-                            if (loading) disabled()
-                        }
-                    }
-                }
-                Div({ classes(CalmStudioStyleSheet.fieldset) }) {
-                    Label("item-description") { Text(AdminPanelStrings.itemDescriptionLabel.translation()) }
-                    TextArea(description) {
-                        id("item-description")
-                        classes(CalmStudioStyleSheet.textarea)
-                        value(description)
-                        placeholder(AdminPanelStrings.itemDescriptionLabel.translation())
-                        onInput { viewModel.onDescriptionChanged(it.value) }
-                        if (loading) disabled()
-                    }
-                }
-                Div({ style { property("margin-top", "24px") } }) {
-                    Button({
-                        classes(CalmStudioStyleSheet.btn, CalmStudioStyleSheet.primary)
-                        onClick { viewModel.onSave() }
-                        if (loading || title.isBlank()) disabled()
-                    }) {
-                        Text(AdminPanelStrings.saveButton.translation())
-                    }
+                CalmTextArea(
+                    value = description,
+                    onValueChange = { viewModel.onDescriptionChanged(it) },
+                    label = AdminPanelStrings.itemDescriptionLabel.translation(),
+                    placeholder = AdminPanelStrings.itemDescriptionLabel.translation(),
+                    disabled = loading,
+                    id = "item-description",
+                )
+                Div({ classes(CalmStudioStyleSheet.formactions) }) {
+                    CalmButton(
+                        text = AdminPanelStrings.saveButton.translation(),
+                        onClick = { viewModel.onSave() },
+                        variant = CalmButtonVariant.Primary,
+                        disabled = loading || title.isBlank(),
+                    )
                 }
             }
         }

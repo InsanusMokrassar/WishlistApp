@@ -9,14 +9,18 @@ import dev.inmo.navigation.core.NavigationChain
 import dev.inmo.navigation.mvvm.compose.ComposeView
 import dev.inmo.wishlist.features.common.client.models.ViewConfig
 import dev.inmo.wishlist.features.common.client.ui.components.BackButton
+import dev.inmo.wishlist.features.common.client.ui.components.CalmButton
+import dev.inmo.wishlist.features.common.client.ui.components.CalmButtonSize
+import dev.inmo.wishlist.features.common.client.ui.components.CalmButtonVariant
+import dev.inmo.wishlist.features.common.client.ui.components.ContentColumn
 import dev.inmo.wishlist.features.common.client.ui.components.ListRow
+import dev.inmo.wishlist.features.common.client.ui.components.PageHead
+import dev.inmo.wishlist.features.common.client.ui.components.RowsList
+import dev.inmo.wishlist.features.common.client.ui.components.Subline
 import dev.inmo.wishlist.features.ui.topBar.ui.TopBarTitleProvider
 import dev.inmo.wishlist.features.ui.adminPanel.AdminPanelStrings
-import org.jetbrains.compose.web.dom.Button
 import org.jetbrains.compose.web.dom.Div
-import org.jetbrains.compose.web.dom.H1
 import org.jetbrains.compose.web.dom.H2
-import org.jetbrains.compose.web.dom.P
 import org.jetbrains.compose.web.dom.Span
 import org.jetbrains.compose.web.dom.Text
 import org.koin.core.component.inject
@@ -44,61 +48,49 @@ class AdminWishlistView(
         val items by viewModel.itemsState.collectAsState()
         val loading by viewModel.loadingState.collectAsState()
 
-        Div({ classes(CalmStudioStyleSheet.`content-inner`) }) {
-            Div({ classes(CalmStudioStyleSheet.pagehead) }) {
-                Div {
-                    H1 { Text(wishlist?.title ?: "#${config.wishlistId.long}") }
-                    if (wishlist != null) {
-                        P({ classes(CalmStudioStyleSheet.subline) }) { Text("user #${wishlist!!.userId.long}") }
-                    }
-                }
-                Div({ classes(CalmStudioStyleSheet.acts) }) {
+        ContentColumn {
+            PageHead(
+                title = wishlist?.title ?: "#${config.wishlistId.long}",
+                subline = wishlist?.let { "user #${it.userId.long}" },
+                actions = {
                     BackButton(AdminPanelStrings.backButton.translation()) { viewModel.onBack() }
-                    Button({
-                        classes(CalmStudioStyleSheet.btn, CalmStudioStyleSheet.primary)
-                        onClick { viewModel.onEditWishlist() }
-                    }) { Text(AdminPanelStrings.editButton.translation()) }
-                }
-            }
+                    CalmButton(
+                        text = AdminPanelStrings.editButton.translation(),
+                        onClick = { viewModel.onEditWishlist() },
+                        variant = CalmButtonVariant.Primary,
+                    )
+                },
+            )
 
             if (loading) {
-                P({ classes(CalmStudioStyleSheet.subline) }) { Text(AdminPanelStrings.loading.translation()) }
+                Subline(AdminPanelStrings.loading.translation())
             } else {
-                Div({
-                    style {
-                        property("display", "flex")
-                        property("justify-content", "space-between")
-                        property("align-items", "center")
-                        property("margin", "18px 0 12px")
-                    }
-                }) {
+                Div({ classes(CalmStudioStyleSheet.sectionhead) }) {
                     H2 { Text(AdminPanelStrings.itemsSection.translation()) }
-                    Button({
-                        classes(CalmStudioStyleSheet.btn)
-                        onClick { viewModel.onAddItem() }
-                    }) { Text(AdminPanelStrings.addItemButton.translation()) }
+                    CalmButton(
+                        text = AdminPanelStrings.addItemButton.translation(),
+                        onClick = { viewModel.onAddItem() },
+                    )
                 }
                 if (items.isEmpty()) {
-                    P({ classes(CalmStudioStyleSheet.subline) }) { Text(AdminPanelStrings.emptyItems.translation()) }
+                    Subline(AdminPanelStrings.emptyItems.translation())
                 } else {
-                    Div({ classes(CalmStudioStyleSheet.rows) }) {
+                    RowsList {
                         items.forEach { item ->
                             ListRow(
                                 trailing = {
-                                    Div({
-                                        style {
-                                            property("display", "flex")
-                                            property("gap", "8px")
-                                        }
-                                    }) {
-                                        Button({
-                                            classes(CalmStudioStyleSheet.btn, CalmStudioStyleSheet.sm)
-                                            onClick { viewModel.onEditItem(item.id) }
-                                        }) { Text(AdminPanelStrings.editButton.translation()) }
-                                        Button({
-                                            classes(CalmStudioStyleSheet.btn, CalmStudioStyleSheet.danger, CalmStudioStyleSheet.sm)
-                                            onClick { viewModel.onDeleteItem(item.id) }
-                                        }) { Text(AdminPanelStrings.deleteButton.translation()) }
+                                    Div({ classes(CalmStudioStyleSheet.hstack) }) {
+                                        CalmButton(
+                                            text = AdminPanelStrings.editButton.translation(),
+                                            onClick = { viewModel.onEditItem(item.id) },
+                                            size = CalmButtonSize.Small,
+                                        )
+                                        CalmButton(
+                                            text = AdminPanelStrings.deleteButton.translation(),
+                                            onClick = { viewModel.onDeleteItem(item.id) },
+                                            variant = CalmButtonVariant.Danger,
+                                            size = CalmButtonSize.Small,
+                                        )
                                     }
                                 }
                             ) {

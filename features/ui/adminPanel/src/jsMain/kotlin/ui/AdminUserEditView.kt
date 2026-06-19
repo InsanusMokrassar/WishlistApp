@@ -9,17 +9,16 @@ import dev.inmo.navigation.core.NavigationChain
 import dev.inmo.navigation.mvvm.compose.ComposeView
 import dev.inmo.wishlist.features.common.client.models.ViewConfig
 import dev.inmo.wishlist.features.common.client.ui.components.BackButton
+import dev.inmo.wishlist.features.common.client.ui.components.CalmButton
+import dev.inmo.wishlist.features.common.client.ui.components.CalmButtonVariant
+import dev.inmo.wishlist.features.common.client.ui.components.CalmForm
+import dev.inmo.wishlist.features.common.client.ui.components.CalmTextField
+import dev.inmo.wishlist.features.common.client.ui.components.ContentColumn
+import dev.inmo.wishlist.features.common.client.ui.components.PageHead
 import dev.inmo.wishlist.features.ui.topBar.ui.TopBarTitleProvider
 import dev.inmo.wishlist.features.ui.adminPanel.AdminPanelStrings
 import org.jetbrains.compose.web.attributes.InputType
-import org.jetbrains.compose.web.attributes.disabled
-import org.jetbrains.compose.web.attributes.placeholder
-import org.jetbrains.compose.web.dom.Button
 import org.jetbrains.compose.web.dom.Div
-import org.jetbrains.compose.web.dom.H1
-import org.jetbrains.compose.web.dom.Input
-import org.jetbrains.compose.web.dom.Label
-import org.jetbrains.compose.web.dom.Text
 import org.koin.core.component.inject
 import org.koin.core.parameter.parametersOf
 
@@ -51,54 +50,40 @@ class AdminUserEditView(
             )
         }
 
-        Div({ classes(CalmStudioStyleSheet.`content-inner`) }) {
-            Div({ classes(CalmStudioStyleSheet.pagehead) }) {
-                Div {
-                    H1 {
-                        Text(
-                            if (viewModel.isCreating) AdminPanelStrings.newUserTitle.translation()
-                            else AdminPanelStrings.editUserTitle.translation()
-                        )
-                    }
-                }
-                Div({ classes(CalmStudioStyleSheet.acts) }) {
-                    BackButton(AdminPanelStrings.backButton.translation()) { viewModel.onBack() }
-                }
-            }
+        ContentColumn {
+            PageHead(
+                title = if (viewModel.isCreating) AdminPanelStrings.newUserTitle.translation()
+                    else AdminPanelStrings.editUserTitle.translation(),
+                actions = { BackButton(AdminPanelStrings.backButton.translation()) { viewModel.onBack() } },
+            )
 
-            Div({ classes(CalmStudioStyleSheet.form) }) {
-                Div({ classes(CalmStudioStyleSheet.fieldset) }) {
-                    Label("user-username") { Text(AdminPanelStrings.usernameLabel.translation()) }
-                    Input(InputType.Text) {
-                        id("user-username")
-                        classes(CalmStudioStyleSheet.input)
-                        value(username)
-                        placeholder(AdminPanelStrings.usernameLabel.translation())
-                        onInput { viewModel.onUsernameChanged(it.value) }
-                        if (loading) disabled()
-                    }
-                }
+            CalmForm {
+                CalmTextField(
+                    value = username,
+                    onValueChange = { viewModel.onUsernameChanged(it) },
+                    label = AdminPanelStrings.usernameLabel.translation(),
+                    placeholder = AdminPanelStrings.usernameLabel.translation(),
+                    disabled = loading,
+                    id = "user-username",
+                )
                 if (viewModel.isCreating) {
-                    Div({ classes(CalmStudioStyleSheet.fieldset) }) {
-                        Label("user-password") { Text(AdminPanelStrings.passwordLabel.translation()) }
-                        Input(InputType.Password) {
-                            id("user-password")
-                            classes(CalmStudioStyleSheet.input)
-                            value(password)
-                            placeholder(AdminPanelStrings.passwordLabel.translation())
-                            onInput { viewModel.onPasswordChanged(it.value) }
-                            if (loading) disabled()
-                        }
-                    }
+                    CalmTextField(
+                        value = password,
+                        onValueChange = { viewModel.onPasswordChanged(it) },
+                        label = AdminPanelStrings.passwordLabel.translation(),
+                        placeholder = AdminPanelStrings.passwordLabel.translation(),
+                        type = InputType.Password,
+                        disabled = loading,
+                        id = "user-password",
+                    )
                 }
-                Div({ style { property("margin-top", "24px") } }) {
-                    Button({
-                        classes(CalmStudioStyleSheet.btn, CalmStudioStyleSheet.primary)
-                        onClick { viewModel.onSave() }
-                        if (loading || username.isBlank() || (viewModel.isCreating && password.isBlank())) disabled()
-                    }) {
-                        Text(AdminPanelStrings.saveButton.translation())
-                    }
+                Div({ classes(CalmStudioStyleSheet.formactions) }) {
+                    CalmButton(
+                        text = AdminPanelStrings.saveButton.translation(),
+                        onClick = { viewModel.onSave() },
+                        variant = CalmButtonVariant.Primary,
+                        disabled = loading || username.isBlank() || (viewModel.isCreating && password.isBlank()),
+                    )
                 }
             }
         }

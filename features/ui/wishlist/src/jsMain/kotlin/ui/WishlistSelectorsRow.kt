@@ -1,19 +1,18 @@
 package dev.inmo.wishlist.features.ui.wishlist.ui
 
-import dev.inmo.wishlist.features.common.client.ui.CalmStudioStyleSheet
 import androidx.compose.runtime.Composable
 import dev.inmo.micro_utils.strings.StringResource
+import dev.inmo.wishlist.features.common.client.ui.components.Toolbar
 import dev.inmo.wishlist.features.currency.common.models.CurrencyCode
 import dev.inmo.wishlist.features.currency.common.models.CurrencyInfo
 import dev.inmo.wishlist.features.ui.wishlist.WishlistStrings
-import org.jetbrains.compose.web.dom.Div
 
 /**
- * Calm Studio screen toolbar (`.toolbar`) for the wishlist item collections — the sort selector, the
- * optional currency selector and the grid/list view-mode toggle, grouped on the right. The sort
- * selector is rendered only when [showSortSelector] is `true` (hidden while fewer than two items are
- * loaded — PR #31 T1, operator decision); the currency selector only when [isCurrenciesFeatureEnabled]
- * is `true` and [currencies] is not empty. Shared by [WishlistView] and [UserWishlistsView].
+ * Calm Studio screen [Toolbar] for the wishlist item collections — the sort selector, the optional
+ * currency selector and the grid/list view-mode toggle, grouped on the right. The sort selector is
+ * rendered only when [showSortSelector] is `true` (hidden while fewer than two items are loaded — PR #31
+ * T1, operator decision); the currency selector only when [isCurrenciesFeatureEnabled] is `true` and
+ * [currencies] is not empty. Shared by [WishlistView] and [UserWishlistsView].
  *
  * The left cell is intentionally empty (the app exposes no item filter backed by the data layer);
  * keeping it preserves the toolbar's space-between layout so the controls sit flush right.
@@ -45,9 +44,8 @@ fun WishlistSelectorsRow(
     onViewModeSelected: (WishlistViewMode) -> Unit,
     noneLabel: StringResource = WishlistStrings.sortNone,
 ) {
-    Div({ classes(CalmStudioStyleSheet.toolbar) }) {
-        Div {}
-        Div({ classes("right") }) {
+    Toolbar(
+        right = {
             if (showSortSelector) {
                 WishlistSortSelector(
                     selected = sortMode,
@@ -67,6 +65,6 @@ fun WishlistSelectorsRow(
                 selected = viewMode,
                 onViewModeSelected = onViewModeSelected
             )
-        }
-    }
+        },
+    )
 }

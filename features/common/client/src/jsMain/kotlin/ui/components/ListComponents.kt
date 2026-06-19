@@ -87,7 +87,7 @@ fun ListRow(
         if (onSelect != null) {
             onClick { onSelect() }
         } else {
-            style { property("cursor", "default") }
+            classes(CalmStudioStyleSheet.nonclickable)
         }
     }) {
         leading?.invoke()

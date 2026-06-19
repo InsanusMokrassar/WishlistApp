@@ -49,10 +49,7 @@ fun WishlistItemCard(
                 Img(src = imageUrl(firstImage), alt = "")
             }
             Span({ classes(CalmStudioStyleSheet.badge) }) {
-                Span({
-                    classes(CalmStudioStyleSheet.dot)
-                    style { property("background", item.priority.dotColorVar()) }
-                })
+                Span({ classes(CalmStudioStyleSheet.dot, item.priority.dotClass()) })
                 Text(item.priority.labelResource().translation())
             }
         }

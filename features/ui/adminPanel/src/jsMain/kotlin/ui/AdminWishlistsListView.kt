@@ -8,13 +8,15 @@ import dev.inmo.micro_utils.strings.translation
 import dev.inmo.navigation.core.NavigationChain
 import dev.inmo.navigation.mvvm.compose.ComposeView
 import dev.inmo.wishlist.features.common.client.models.ViewConfig
+import dev.inmo.wishlist.features.common.client.ui.components.CalmButton
+import dev.inmo.wishlist.features.common.client.ui.components.CalmButtonVariant
+import dev.inmo.wishlist.features.common.client.ui.components.ContentColumn
 import dev.inmo.wishlist.features.common.client.ui.components.ListRow
+import dev.inmo.wishlist.features.common.client.ui.components.PageHead
+import dev.inmo.wishlist.features.common.client.ui.components.RowsList
+import dev.inmo.wishlist.features.common.client.ui.components.Subline
 import dev.inmo.wishlist.features.ui.topBar.ui.TopBarTitleProvider
 import dev.inmo.wishlist.features.ui.adminPanel.AdminPanelStrings
-import org.jetbrains.compose.web.dom.Button
-import org.jetbrains.compose.web.dom.Div
-import org.jetbrains.compose.web.dom.H1
-import org.jetbrains.compose.web.dom.P
 import org.jetbrains.compose.web.dom.Span
 import org.jetbrains.compose.web.dom.Text
 import org.koin.core.component.inject
@@ -38,24 +40,21 @@ class AdminWishlistsListView(
         val wishlists by viewModel.wishlistsState.collectAsState()
         val loading by viewModel.loadingState.collectAsState()
 
-        Div({ classes(CalmStudioStyleSheet.`content-inner`) }) {
-            Div({ classes(CalmStudioStyleSheet.pagehead) }) {
-                Div {
-                    H1 { Text(AdminPanelStrings.wishlistsListTitle.translation()) }
-                }
-                Div({ classes(CalmStudioStyleSheet.acts) }) {
-                    Button({
-                        classes(CalmStudioStyleSheet.btn, CalmStudioStyleSheet.primary)
-                        onClick { viewModel.onCreateWishlist() }
-                    }) {
-                        Text(AdminPanelStrings.addWishlistButton.translation())
-                    }
-                }
-            }
+        ContentColumn {
+            PageHead(
+                title = AdminPanelStrings.wishlistsListTitle.translation(),
+                actions = {
+                    CalmButton(
+                        text = AdminPanelStrings.addWishlistButton.translation(),
+                        onClick = { viewModel.onCreateWishlist() },
+                        variant = CalmButtonVariant.Primary,
+                    )
+                },
+            )
             when {
-                loading -> P({ classes(CalmStudioStyleSheet.subline) }) { Text(AdminPanelStrings.loading.translation()) }
-                wishlists.isEmpty() -> P({ classes(CalmStudioStyleSheet.subline) }) { Text(AdminPanelStrings.emptyWishlists.translation()) }
-                else -> Div({ classes(CalmStudioStyleSheet.rows) }) {
+                loading -> Subline(AdminPanelStrings.loading.translation())
+                wishlists.isEmpty() -> Subline(AdminPanelStrings.emptyWishlists.translation())
+                else -> RowsList {
                     wishlists.forEach { wishlist ->
                         ListRow(onSelect = { viewModel.onWishlistSelected(wishlist.id) }) {
                             Span { Text(wishlist.title) }

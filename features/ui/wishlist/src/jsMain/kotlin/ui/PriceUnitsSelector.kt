@@ -37,12 +37,7 @@ fun PriceUnitsSelector(
     val entries = PriceUnitsResolver.entries
     Div({ classes(CalmStudioStyleSheet.fieldset) }) {
         Label(id) { Text(label) }
-        Div({
-            style {
-                property("display", "flex")
-                property("gap", "8px")
-            }
-        }) {
+        Div({ classes(CalmStudioStyleSheet.hstack) }) {
             Input(InputType.Text) {
                 id(id)
                 classes(CalmStudioStyleSheet.input)

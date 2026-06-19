@@ -10,20 +10,20 @@ import org.jetbrains.compose.web.dom.Span
 import org.jetbrains.compose.web.dom.Text
 
 /**
- * Calm Studio CSS custom property holding the dot color for a [Priority].
+ * Calm Studio stylesheet class setting the dot fill for a [Priority] (applied alongside `.dot`).
  *
- * @return One of the `--cs-pri-*` design tokens; custom priorities reuse the high-priority accent.
+ * @return One of the `.dot-pri-*` classes; custom priorities reuse the high-priority fill.
  */
-fun Priority.dotColorVar(): String = when (this) {
-    Priority.Small -> "var(--cs-pri-low)"
-    Priority.Medium -> "var(--cs-pri-med)"
-    Priority.High -> "var(--cs-pri-high)"
-    is Priority.Custom -> "var(--cs-pri-high)"
+fun Priority.dotClass(): String = when (this) {
+    Priority.Small -> CalmStudioStyleSheet.`dot-pri-low`
+    Priority.Medium -> CalmStudioStyleSheet.`dot-pri-med`
+    Priority.High -> CalmStudioStyleSheet.`dot-pri-high`
+    is Priority.Custom -> CalmStudioStyleSheet.`dot-pri-high`
 }
 
 /**
  * Calm Studio priority pill (`.pill`) — a neutral rounded chip with a colored leading dot and the
- * localized priority label. The dot color encodes the [Priority] via [dotColorVar]; the chip itself
+ * localized priority label. The dot color encodes the [Priority] via [dotClass]; the chip itself
  * stays deliberately neutral (metadata, not a status alarm). Shared by every place that surfaces an
  * item's priority (detail and list rows).
  *
@@ -32,10 +32,7 @@ fun Priority.dotColorVar(): String = when (this) {
 @Composable
 fun PriorityBadge(priority: Priority) {
     Span({ classes(CalmStudioStyleSheet.pill) }) {
-        Span({
-            classes(CalmStudioStyleSheet.dot)
-            style { property("background", priority.dotColorVar()) }
-        })
+        Span({ classes(CalmStudioStyleSheet.dot, priority.dotClass()) })
         Text("${priority.labelResource().translation()}${priority.weightSuffix()}")
     }
 }

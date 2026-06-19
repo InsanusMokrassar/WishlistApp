@@ -56,8 +56,8 @@ object CalmStudioStyleSheet : StyleSheet(usePrefix = false) {
     /** `.kbd` — top-bar shortcut chip (styled by `.topbar .kbd`). */
     val kbd by style {}
 
-    /** `.av` — avatar circle (styled by `.me .av` / `.person .av`). */
-    val av by style {}
+    /** `.av` — avatar circle (styled by `.me .av` / `.person .av`); covers when applied to an `<img>`. */
+    val av by style { property("object-fit", "cover") }
 
     /** `.nm` — profile name block (styled by `.me .nm`). */
     val nm by style {}
@@ -526,9 +526,10 @@ object CalmStudioStyleSheet : StyleSheet(usePrefix = false) {
         "label" style { property("display", "block"); property("font-size", "12.5px"); property("font-weight", "700"); property("color", "var(--cs-ink-2)"); property("margin-bottom", "6px") }
     }
 
-    /** `.hint` — muted helper line under a field. */
+    /** `.hint` — muted helper line under a field (the `.danger` variant tints it for inline errors). */
     val hint by style {
         property("font-size", "12px"); property("color", "var(--cs-muted)"); property("margin-top", "5px")
+        self + className(danger) style { property("color", "var(--cs-danger)") }
     }
 
     /** `.priopts` — row holding the priority option chips. */
@@ -618,6 +619,47 @@ object CalmStudioStyleSheet : StyleSheet(usePrefix = false) {
 
     /** `.t7` — deterministic media/avatar gradient tint. */
     val t7 by style { property("background", "linear-gradient(135deg,#efe9f3,#ddd0ea)") }
+
+    // ---- layout / utility helpers (extracted from former inline `style {}` blocks in views) ----
+
+    /** `.formactions` — bottom form action bar; a trailing `.danger` (Delete) is pushed to the far right. */
+    val formactions by style {
+        property("display", "flex"); property("align-items", "center"); property("gap", "9px"); property("margin-top", "24px")
+        className(danger) style { property("margin-left", "auto") }
+    }
+
+    /** `.sectionhead` — in-page section header row: title on the left, an action button on the right. */
+    val sectionhead by style {
+        property("display", "flex"); property("justify-content", "space-between"); property("align-items", "center"); property("margin", "18px 0 12px")
+    }
+
+    /** `.hstack` — generic inline cluster: a centered flex row with an 8px gap (button groups, input+select). */
+    val hstack by style {
+        property("display", "flex"); property("align-items", "center"); property("gap", "8px")
+    }
+
+    /** `.titlepill` — inline row pairing a heading with its trailing priority pill (9px gap). */
+    val titlepill by style {
+        property("display", "flex"); property("align-items", "center"); property("gap", "9px")
+    }
+
+    /** `.nonclickable` — default-cursor marker for card/row components rendered without an open handler. */
+    val nonclickable by style { property("cursor", "default") }
+
+    /** `.dot-pri-low` — low-priority dot fill (applied alongside `.dot`). */
+    val `dot-pri-low` by style { property("background", "var(--cs-pri-low)") }
+
+    /** `.dot-pri-med` — medium-priority dot fill (applied alongside `.dot`). */
+    val `dot-pri-med` by style { property("background", "var(--cs-pri-med)") }
+
+    /** `.dot-pri-high` — high-priority dot fill (applied alongside `.dot`). */
+    val `dot-pri-high` by style { property("background", "var(--cs-pri-high)") }
+
+    /** `.dot-ok` — success/reserved dot fill (applied alongside `.dot`). */
+    val `dot-ok` by style { property("background", "var(--cs-ok)") }
+
+    /** `.pill-ok` — success/reserved pill fill + text color (applied alongside `.pill`). */
+    val `pill-ok` by style { property("background", "var(--cs-ok-soft)"); property("color", "var(--cs-ok)") }
 
     init {
         // Non-class rules that cannot be `by style` delegates: the `--cs-*` token block, the element

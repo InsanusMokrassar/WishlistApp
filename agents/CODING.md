@@ -53,7 +53,7 @@ Every JS (`jsMain`) view that needs custom CSS **MUST** define its styles in a d
 ## Design System Rule (web — Calm Studio)
 
 The web client's design is the **Calm Studio** language. It is delivered as Kotlin, **never as a `.css`
-file**. Three hard rules govern every web design change:
+file**. Five hard rules govern every web design change:
 
 1. **Styles live in a Compose `StyleSheet`, not in CSS.** The single design stylesheet is
    `features/common/client/src/jsMain/kotlin/ui/CalmStudioStyleSheet.kt`
@@ -104,6 +104,28 @@ file**. Three hard rules govern every web design change:
      reference markup and class names) and the corresponding rules in `CalmStudioStyleSheet`.
    - Components take already-translated strings and primitive props / slots; they must not depend on
      feature domain types, so they stay reusable across every UI feature.
+
+4. **Standard components everywhere possible — raw DOM / custom composables are the exception.** A view
+   MUST compose from the standard Calm Studio `@Composable` components (rule 3) wherever one fits.
+   Hand-written DOM with `classes(CalmStudioStyleSheet.<name>)`, or a new per-view/custom composable, is
+   permitted **only** when the element needs customization an existing component cannot express, and the
+   raw/custom code is then the minimum needed to achieve that result.
+   - "Cannot express" means the component lacks the required capability or prop, e.g.: a real `<img>`
+     where the component only renders a tint (`ItemCard`/`ItemRow`/`PersonCard` media), a custom non-string
+     header (`PageHead` takes a `String` title), a number / read-only input (`CalmTextField` is
+     string-only and always enabled-or-disabled), a native `.select`, or a control needing an extra
+     positioning class `CalmButton`/etc. do not accept. App-shell chrome (`.sidebar`, `.topbar`, `.crumb`,
+     `.navitem`, …) and pure layout utilities (`.formactions`, `.hstack`, `.sectionhead`) have no
+     component and stay raw.
+   - When you fall back to raw/custom, keep it local and say **why** (one line) so the exception is
+     auditable. Do not hand-roll something a component already covers for convenience.
+
+5. **Components MUST NOT be modified without a direct request to do so.** The shared composables in
+   `features/common/client/src/jsMain/kotlin/ui/components/` (and their `CalmStudioStyleSheet` rules) are
+   frozen unless the operator explicitly asks to change a component. If a view needs a capability a
+   component lacks, do **not** edit the component to add it — either fall back to the raw/custom exception
+   (rule 4) or stop and ask the operator to extend the component. Adding/altering a component's props,
+   markup, or styling on your own initiative is the error.
 
 > **Stale rule note:** `agents/local.CODING.md` ("JS UI MUST use Bootstrap") predates the redesign and is
 > **obsolete** — the web client dropped Bootstrap and uses Calm Studio only. Do not follow it.

@@ -8,6 +8,14 @@ import dev.inmo.micro_utils.strings.translation
 import dev.inmo.navigation.core.NavigationChain
 import dev.inmo.navigation.mvvm.compose.ComposeView
 import dev.inmo.wishlist.features.common.client.models.ViewConfig
+import dev.inmo.wishlist.features.common.client.ui.components.CalmButton
+import dev.inmo.wishlist.features.common.client.ui.components.CalmButtonSize
+import dev.inmo.wishlist.features.common.client.ui.components.CalmButtonVariant
+import dev.inmo.wishlist.features.common.client.ui.components.ContentColumn
+import dev.inmo.wishlist.features.common.client.ui.components.ItemGrid
+import dev.inmo.wishlist.features.common.client.ui.components.PageHead
+import dev.inmo.wishlist.features.common.client.ui.components.RowsList
+import dev.inmo.wishlist.features.common.client.ui.components.Subline
 import dev.inmo.wishlist.features.currency.common.models.CurrencyCode
 import dev.inmo.wishlist.features.currency.common.models.CurrencyRates
 import dev.inmo.wishlist.features.ui.topBar.ui.TopBarTitleProvider
@@ -15,11 +23,8 @@ import dev.inmo.wishlist.features.ui.wishlist.WishlistStrings
 import dev.inmo.wishlist.features.wishlist.common.models.RegisteredWishlistItem
 import org.jetbrains.compose.web.css.Style
 import org.jetbrains.compose.web.css.StyleSheet
-import org.jetbrains.compose.web.dom.Button
 import org.jetbrains.compose.web.dom.Div
-import org.jetbrains.compose.web.dom.H1
 import org.jetbrains.compose.web.dom.H3
-import org.jetbrains.compose.web.dom.P
 import org.jetbrains.compose.web.dom.Text
 import org.koin.core.component.inject
 import org.koin.core.parameter.parametersOf
@@ -45,10 +50,9 @@ object UserWishlistsViewStylesheet : StyleSheet() {
 /**
  * JS Compose-HTML list of every item across a user's wishlists (Calm Studio all-items view).
  *
- * Renders the items inside the standard `.content-inner` + `.pagehead` shell with a `.toolbar` of sort
- * + grid/list controls, then either grouped sections (each with its own header) under the `Grouped`
- * sort or a single flat `.grid` / `.rows`. Reuses [WishlistItemCard] and [WishlistItemRow]; class names
- * mirror the design skill's `app.jsx` so the Calm Studio shell CSS styles the screen directly.
+ * Composed from the shared Calm Studio components ([ContentColumn] + [PageHead] shell, [ItemGrid] /
+ * [RowsList] containers), with either grouped sections (each under its own [sectionHead] header) for the
+ * `Grouped` sort or a single flat grid / rows. Reuses [WishlistItemCard] and [WishlistItemRow].
  */
 class UserWishlistsView(
     chain: NavigationChain<ViewConfig>,
@@ -84,27 +88,21 @@ class UserWishlistsView(
         val isOwner by viewModel.isOwnerState.collectAsState()
         val sortSelectorVisible by viewModel.sortSelectorVisibleState.collectAsState()
 
-        Div({ classes(CalmStudioStyleSheet.`content-inner`) }) {
-            Div({ classes(CalmStudioStyleSheet.pagehead) }) {
-                Div {
-                    H1 {
-                        Text(
-                            userName?.let { WishlistStrings.userWishesTitleFormat.translation().replace("{name}", it) }
-                                ?: WishlistStrings.allItemsTitle.translation()
-                        )
-                    }
-                }
-                Div({ classes(CalmStudioStyleSheet.acts) }) {
+        ContentColumn {
+            PageHead(
+                title = userName?.let { WishlistStrings.userWishesTitleFormat.translation().replace("{name}", it) }
+                    ?: WishlistStrings.allItemsTitle.translation(),
+                actions = {
                     CreateWishlistButton(isOwner) { viewModel.onCreateWishlist() }
-                    Button({
-                        classes(CalmStudioStyleSheet.btn)
-                        onClick { viewModel.onOpenProfile() }
-                    }) { Text(WishlistStrings.profileButton.translation()) }
-                }
-            }
+                    CalmButton(
+                        text = WishlistStrings.profileButton.translation(),
+                        onClick = { viewModel.onOpenProfile() },
+                    )
+                },
+            )
 
             when {
-                loading -> P({ classes(CalmStudioStyleSheet.subline) }) { Text(WishlistStrings.loading.translation()) }
+                loading -> Subline(WishlistStrings.loading.translation())
                 sections.isEmpty() -> Div({ classes("empty") }) {
                     H3 { Text(WishlistStrings.emptyItems.translation()) }
                 }
@@ -126,21 +124,24 @@ class UserWishlistsView(
                         sections.forEach { section ->
                             Div({ classes(UserWishlistsViewStylesheet.sectionHead) }) {
                                 H3 { Text(section.wishlist.title) }
-                                Div({ classes(CalmStudioStyleSheet.acts) }) {
+                                Div({ classes(CalmStudioStyleSheet.hstack) }) {
                                     if (isOwner) {
-                                        Button({
-                                            classes(CalmStudioStyleSheet.btn, CalmStudioStyleSheet.primary, CalmStudioStyleSheet.sm)
-                                            onClick { viewModel.onCreateItem(section.wishlist) }
-                                        }) { Text(WishlistStrings.addItemButton.translation()) }
+                                        CalmButton(
+                                            text = WishlistStrings.addItemButton.translation(),
+                                            onClick = { viewModel.onCreateItem(section.wishlist) },
+                                            variant = CalmButtonVariant.Primary,
+                                            size = CalmButtonSize.Small,
+                                        )
                                     }
-                                    Button({
-                                        classes(CalmStudioStyleSheet.btn, CalmStudioStyleSheet.sm)
-                                        onClick { viewModel.onWishlistSelected(section.wishlist) }
-                                    }) { Text(WishlistStrings.openWishlistButton.translation()) }
+                                    CalmButton(
+                                        text = WishlistStrings.openWishlistButton.translation(),
+                                        onClick = { viewModel.onWishlistSelected(section.wishlist) },
+                                        size = CalmButtonSize.Small,
+                                    )
                                 }
                             }
                             when {
-                                section.items.isEmpty() -> P({ classes(CalmStudioStyleSheet.subline) }) { Text(WishlistStrings.emptyItems.translation()) }
+                                section.items.isEmpty() -> Subline(WishlistStrings.emptyItems.translation())
                                 viewMode == WishlistViewMode.Grid -> ItemsGrid(section.items.map { it to null })
                                 else -> ItemRows(section.items.map { it to null }, selectedCurrency, rates)
                             }
@@ -158,14 +159,14 @@ class UserWishlistsView(
     }
 
     /**
-     * Renders a Calm Studio `.grid` of item cards.
+     * Renders an [ItemGrid] of item cards.
      *
      * @param entries Items paired with the originating wishlist title (used as the card's secondary
      * line when sorting across lists); `null` shows the item alone.
      */
     @Composable
     private fun ItemsGrid(entries: List<Pair<RegisteredWishlistItem, String?>>) {
-        Div({ classes(CalmStudioStyleSheet.grid) }) {
+        ItemGrid {
             entries.forEach { (item, wishlistTitle) ->
                 WishlistItemCard(
                     item = item,
@@ -178,7 +179,7 @@ class UserWishlistsView(
     }
 
     /**
-     * Renders a Calm Studio `.rows` list of items.
+     * Renders a [RowsList] of items.
      *
      * @param entries Items paired with the originating wishlist title (appended after the title when
      * sorting across lists); `null` shows the item alone.
@@ -191,7 +192,7 @@ class UserWishlistsView(
         selectedCurrency: CurrencyCode?,
         rates: CurrencyRates?,
     ) {
-        Div({ classes(CalmStudioStyleSheet.rows) }) {
+        RowsList {
             entries.forEach { (item, wishlistTitle) ->
                 WishlistItemRow(
                     item = item,
