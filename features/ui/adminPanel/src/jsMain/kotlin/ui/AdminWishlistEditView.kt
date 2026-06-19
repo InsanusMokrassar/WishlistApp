@@ -72,7 +72,7 @@ class AdminWishlistEditView(
                     disabled = loading,
                     id = "wl-title",
                 )
-                FieldSet(label = AdminPanelStrings.ownerLabel.translation()) {
+                FieldSet(label = AdminPanelStrings.ownerLabel.translation(), forId = "wl-owner") {
                     Select({
                         id("wl-owner")
                         classes(CalmStudioStyleSheet.select)

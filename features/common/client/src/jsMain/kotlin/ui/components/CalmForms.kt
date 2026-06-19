@@ -29,12 +29,14 @@ fun CalmForm(content: @Composable () -> Unit) {
  * for plain text fields prefer [CalmTextField] / [CalmTextArea].
  *
  * @param label Optional already-translated field label.
+ * @param forId Optional id of the control inside [content]; when set, ties [label] to that control
+ *   (`<label for=…>`) for accessibility. Omit when [content] has no single associable control.
  * @param content The field control(s).
  */
 @Composable
-fun FieldSet(label: String? = null, content: @Composable () -> Unit) {
+fun FieldSet(label: String? = null, forId: String? = null, content: @Composable () -> Unit) {
     Div({ classes(CalmStudioStyleSheet.fieldset) }) {
-        label?.let { Label { Text(it) } }
+        label?.let { Label(forId = forId) { Text(it) } }
         content()
     }
 }

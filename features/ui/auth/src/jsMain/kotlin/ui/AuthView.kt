@@ -89,6 +89,9 @@ class AuthView(
             Form(attrs = {
                 onSubmit {
                     it.preventDefault()
+                    // Enter mirrors the submit button: ignore the submit when that button is disabled
+                    // (request in flight or blank fields), so loginEnabled gates Enter and the click alike.
+                    if (!loginEnabled) return@onSubmit
                     if (registerMode) viewModel.onRegister() else viewModel.onAuthorize()
                 }
             }) {
@@ -141,6 +144,8 @@ class AuthView(
                     CalmButton(
                         text = if (registerMode) AuthStrings.submitRegisterButton.translation()
                             else AuthStrings.submitButton.translation(),
+                        // type=Submit: the native form submit fires Form.onSubmit above (which calls
+                        // onRegister()/onAuthorize()), so this button needs no onClick of its own.
                         onClick = { },
                         variant = CalmButtonVariant.Primary,
                         disabled = !loginEnabled,

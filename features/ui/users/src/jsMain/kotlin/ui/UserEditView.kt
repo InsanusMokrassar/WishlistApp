@@ -149,7 +149,7 @@ class UserEditView(
                         disabled = loading,
                         id = "settings-password",
                     )
-                    FieldSet(label = UsersListStrings.confirmPasswordLabel.translation()) {
+                    FieldSet(label = UsersListStrings.confirmPasswordLabel.translation(), forId = "settings-confirm-password") {
                         Input(InputType.Password) {
                             id("settings-confirm-password")
                             classes(CalmStudioStyleSheet.input)
@@ -181,7 +181,7 @@ class UserEditView(
                         )
                     }
                 } else {
-                    FieldSet(label = UsersListStrings.usernameLabel.translation()) {
+                    FieldSet(label = UsersListStrings.usernameLabel.translation(), forId = "settings-username") {
                         Input(InputType.Text) {
                             id("settings-username")
                             classes(CalmStudioStyleSheet.input)

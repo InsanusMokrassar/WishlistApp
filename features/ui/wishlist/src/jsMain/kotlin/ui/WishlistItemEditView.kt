@@ -140,7 +140,7 @@ class WishlistItemEditView(
                         disabled = loading,
                         id = "item-price",
                     )
-                    FieldSet(label = WishlistStrings.amountLabel.translation()) {
+                    FieldSet(label = WishlistStrings.amountLabel.translation(), forId = "item-amount") {
                         Input(InputType.Text) {
                             id("item-amount")
                             classes(CalmStudioStyleSheet.input)
@@ -166,6 +166,8 @@ class WishlistItemEditView(
 
                 val customWeight = (priority as? Priority.Custom)?.weight ?: 0u
                 FieldSet(label = WishlistStrings.priorityLabel.translation()) {
+                    // The Custom option carries the live customWeight so it equals (data-class ==) the
+                    // selected Priority.Custom and that segment highlights; rebuilt each recompose.
                     PriorityOptions(
                         options = listOf(Priority.Small, Priority.Medium, Priority.High, Priority.Custom(customWeight)),
                         selected = priority,
