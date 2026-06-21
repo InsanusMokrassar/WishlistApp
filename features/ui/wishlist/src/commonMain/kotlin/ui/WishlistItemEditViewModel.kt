@@ -7,7 +7,9 @@ import dev.inmo.navigation.core.NavigationNode
 import dev.inmo.navigation.core.onResumeFlow
 import dev.inmo.navigation.mvvm.ViewModel
 import dev.inmo.micro_utils.common.MPPFile
+import dev.inmo.wishlist.features.auth.client.AuthCredentialsStorage
 import dev.inmo.wishlist.features.common.client.models.ViewConfig
+import dev.inmo.wishlist.features.common.client.utils.subscribeOnLoggedOut
 import dev.inmo.wishlist.features.common.common.models.Amount
 import dev.inmo.wishlist.features.files.common.models.FileId
 import dev.inmo.wishlist.features.wishlist.common.models.NewWishlistItem
@@ -30,14 +32,22 @@ import kotlinx.coroutines.flow.takeWhile
  * Back navigation shows a discard-changes confirmation modal when [isDirtyState] is `true`.
  * Navigation side-effects are delegated to [interactor].
  *
+ * On logout this screen exits unconditionally to its non-edit view, bypassing the dirty-changes
+ * confirm dialog. Both CREATE and EDIT modes call
+ * [WishlistItemEditViewInteractor.onNavigateBackToParent], which routes internally:
+ * EDIT → item read view ([WishlistItemViewConfig]); CREATE → containing wishlist detail
+ * ([WishlistViewConfig]).
+ *
  * @param node Navigation node this ViewModel is bound to.
  * @param model Wishlist data source.
  * @param interactor Navigation delegate for this screen.
+ * @param authCredentialsStorage Login-state source; on logout this screen exits to its non-edit view.
  */
 class WishlistItemEditViewModel(
     private val node: NavigationNode<WishlistItemEditViewConfig, ViewConfig>,
     private val model: WishlistsModel,
-    private val interactor: WishlistItemEditViewInteractor
+    private val interactor: WishlistItemEditViewInteractor,
+    private val authCredentialsStorage: AuthCredentialsStorage
 ) : ViewModel<ViewConfig>(node) {
     /** `true` when this screen is in create mode (no existing item id). */
     val isCreating: Boolean = node.config.wishlistItemId == null
@@ -168,6 +178,9 @@ class WishlistItemEditViewModel(
                 }
             }
             inited = true
+        }
+        authCredentialsStorage.userAuthorised.subscribeOnLoggedOut(scope) {
+            interactor.onNavigateBackToParent(node)
         }
     }
 

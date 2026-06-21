@@ -53,7 +53,7 @@ object Plugin : StartPlugin {
         }
         factory { UsersListViewModel(node = it.get(), model = get(), interactor = get()) }
         factory { UserViewModel(node = it.get(), model = get(), interactor = get()) }
-        factory { UserEditViewModel(node = it.get(), model = get(), interactor = get()) }
+        factory { UserEditViewModel(node = it.get(), model = get(), interactor = get(), authCredentialsStorage = get()) }
         single<UsersModel> {
             val feature = get<UsersFeature>()
             val meState = meStateFlow

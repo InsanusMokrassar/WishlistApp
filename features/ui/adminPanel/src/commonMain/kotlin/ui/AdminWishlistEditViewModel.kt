@@ -6,7 +6,9 @@ import dev.inmo.micro_utils.coroutines.subscribeLoggingDropExceptions
 import dev.inmo.navigation.core.NavigationNode
 import dev.inmo.navigation.core.onResumeFlow
 import dev.inmo.navigation.mvvm.ViewModel
+import dev.inmo.wishlist.features.auth.client.AuthCredentialsStorage
 import dev.inmo.wishlist.features.common.client.models.ViewConfig
+import dev.inmo.wishlist.features.common.client.utils.subscribeOnLoggedOut
 import dev.inmo.wishlist.features.users.common.models.RegisteredUser
 import dev.inmo.wishlist.features.users.common.models.UserId
 import dev.inmo.wishlist.features.wishlist.common.models.NewWishlist
@@ -24,14 +26,19 @@ import kotlinx.coroutines.flow.takeWhile
  * If [AdminWishlistEditViewConfig.preselectedUserId] is non-null and the wishlistId is null,
  * the owner dropdown is pre-selected to that user.
  *
+ * On logout this screen exits unconditionally via [AdminWishlistEditViewInteractor.onNavigateBack],
+ * bypassing the dirty-changes confirm dialog.
+ *
  * @param node Navigation node this ViewModel is bound to.
  * @param model Admin data source.
  * @param interactor Navigation delegate for this screen.
+ * @param authCredentialsStorage Login-state source; on logout this screen exits to its non-edit view.
  */
 class AdminWishlistEditViewModel(
     private val node: NavigationNode<AdminWishlistEditViewConfig, ViewConfig>,
     private val model: AdminPanelModel,
-    private val interactor: AdminWishlistEditViewInteractor
+    private val interactor: AdminWishlistEditViewInteractor,
+    private val authCredentialsStorage: AuthCredentialsStorage
 ) : ViewModel<ViewConfig>(node) {
     /** `true` when operating in create mode. */
     val isCreating: Boolean = node.config.wishlistId == null
@@ -83,6 +90,9 @@ class AdminWishlistEditViewModel(
                 _loadingState.value = false
             }
             inited = true
+        }
+        authCredentialsStorage.userAuthorised.subscribeOnLoggedOut(scope) {
+            interactor.onNavigateBack(node)
         }
     }
 

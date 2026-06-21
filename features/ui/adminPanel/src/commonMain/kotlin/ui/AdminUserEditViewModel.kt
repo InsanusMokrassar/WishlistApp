@@ -7,8 +7,10 @@ import dev.inmo.navigation.core.NavigationNode
 import dev.inmo.navigation.core.onResumeFlow
 import dev.inmo.navigation.mvvm.ViewModel
 import dev.inmo.wishlist.features.admin.common.models.NewUserWithPassword
+import dev.inmo.wishlist.features.auth.client.AuthCredentialsStorage
 import dev.inmo.wishlist.features.auth.common.models.Password
 import dev.inmo.wishlist.features.common.client.models.ViewConfig
+import dev.inmo.wishlist.features.common.client.utils.subscribeOnLoggedOut
 import dev.inmo.wishlist.features.users.common.models.NewUser
 import dev.inmo.wishlist.features.users.common.models.Username
 import kotlinx.coroutines.flow.asStateFlow
@@ -22,14 +24,19 @@ import kotlinx.coroutines.flow.takeWhile
  * When [AdminUserEditViewConfig.userId] is `null`, operates in create mode (requires password).
  * When non-null, loads the existing user and pre-fills fields. Password field only shown in create mode.
  *
+ * On logout this screen exits unconditionally via [AdminUserEditViewInteractor.onNavigateBack],
+ * bypassing the dirty-changes confirm dialog.
+ *
  * @param node Navigation node this ViewModel is bound to.
  * @param model Admin data source.
  * @param interactor Navigation delegate for this screen.
+ * @param authCredentialsStorage Login-state source; on logout this screen exits to its non-edit view.
  */
 class AdminUserEditViewModel(
     private val node: NavigationNode<AdminUserEditViewConfig, ViewConfig>,
     private val model: AdminPanelModel,
-    private val interactor: AdminUserEditViewInteractor
+    private val interactor: AdminUserEditViewInteractor,
+    private val authCredentialsStorage: AuthCredentialsStorage
 ) : ViewModel<ViewConfig>(node) {
     /** `true` when operating in create mode (no existing user id). */
     val isCreating: Boolean = node.config.userId == null
@@ -74,6 +81,9 @@ class AdminUserEditViewModel(
                 }
             }
             inited = true
+        }
+        authCredentialsStorage.userAuthorised.subscribeOnLoggedOut(scope) {
+            interactor.onNavigateBack(node)
         }
     }
 

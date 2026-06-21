@@ -7,8 +7,10 @@ import dev.inmo.micro_utils.coroutines.subscribeLoggingDropExceptions
 import dev.inmo.navigation.core.NavigationNode
 import dev.inmo.navigation.core.onResumeFlow
 import dev.inmo.navigation.mvvm.ViewModel
+import dev.inmo.wishlist.features.auth.client.AuthCredentialsStorage
 import dev.inmo.wishlist.features.auth.common.models.Password
 import dev.inmo.wishlist.features.common.client.models.ViewConfig
+import dev.inmo.wishlist.features.common.client.utils.subscribeOnLoggedOut
 import dev.inmo.wishlist.features.files.common.models.FileId
 import dev.inmo.wishlist.features.users.common.models.UserId
 import dev.inmo.wishlist.features.users.common.models.Username
@@ -35,14 +37,19 @@ import kotlinx.coroutines.flow.takeWhile
  * through the files feature (allowed for the owner or root). Server-side authorization is the
  * source of truth — the field gating here is purely presentational.
  *
+ * On logout this screen exits unconditionally to the underlying profile (read) view via
+ * [UserEditViewInteractor.onNavigateBack], bypassing the dirty-changes confirm dialog.
+ *
  * @param node Navigation node this ViewModel is bound to.
  * @param model Users data source.
  * @param interactor Navigation delegate for this screen.
+ * @param authCredentialsStorage Login-state source; on logout this screen exits to its non-edit view.
  */
 class UserEditViewModel(
     private val node: NavigationNode<UserEditViewConfig, ViewConfig>,
     private val model: UsersModel,
-    private val interactor: UserEditViewInteractor
+    private val interactor: UserEditViewInteractor,
+    private val authCredentialsStorage: AuthCredentialsStorage
 ) : ViewModel<ViewConfig>(node) {
     /** Identifier of the edited user; surfaced read-only to the view. */
     val userId: UserId = node.config.userId
@@ -135,6 +142,9 @@ class UserEditViewModel(
                 _loadingState.value = false
             }
             inited = true
+        }
+        authCredentialsStorage.userAuthorised.subscribeOnLoggedOut(scope) {
+            interactor.onNavigateBack(node)
         }
     }
 

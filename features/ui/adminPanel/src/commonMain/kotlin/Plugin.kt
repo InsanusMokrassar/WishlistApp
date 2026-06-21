@@ -73,11 +73,11 @@ object Plugin : StartPlugin {
         factory { AdminPanelViewModel(it.get(), get(), get()) }
         factory { AdminUsersListViewModel(it.get(), get(), get()) }
         factory { AdminUserViewModel(it.get(), get(), get()) }
-        factory { AdminUserEditViewModel(it.get(), get(), get()) }
+        factory { AdminUserEditViewModel(it.get(), get(), get(), get()) }
         factory { AdminWishlistsListViewModel(it.get(), get(), get()) }
         factory { AdminWishlistViewModel(it.get(), get(), get()) }
-        factory { AdminWishlistEditViewModel(it.get(), get(), get()) }
-        factory { AdminWishlistItemEditViewModel(it.get(), get(), get()) }
+        factory { AdminWishlistEditViewModel(it.get(), get(), get(), get()) }
+        factory { AdminWishlistItemEditViewModel(it.get(), get(), get(), get()) }
 
         single<AdminPanelModel> {
             val admin = get<AdminFeature>()

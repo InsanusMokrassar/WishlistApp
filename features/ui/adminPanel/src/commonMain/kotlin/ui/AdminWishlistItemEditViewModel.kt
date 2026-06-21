@@ -6,7 +6,9 @@ import dev.inmo.micro_utils.coroutines.subscribeLoggingDropExceptions
 import dev.inmo.navigation.core.NavigationNode
 import dev.inmo.navigation.core.onResumeFlow
 import dev.inmo.navigation.mvvm.ViewModel
+import dev.inmo.wishlist.features.auth.client.AuthCredentialsStorage
 import dev.inmo.wishlist.features.common.client.models.ViewConfig
+import dev.inmo.wishlist.features.common.client.utils.subscribeOnLoggedOut
 import dev.inmo.wishlist.features.common.common.models.Amount
 import dev.inmo.wishlist.features.wishlist.common.models.NewWishlistItem
 import kotlinx.coroutines.flow.asStateFlow
@@ -20,14 +22,19 @@ import kotlinx.coroutines.flow.takeWhile
  * When [AdminWishlistItemEditViewConfig.itemId] is `null`, operates in create mode.
  * When non-null, loads the existing item and pre-fills all fields.
  *
+ * On logout this screen exits unconditionally via [AdminWishlistItemEditViewInteractor.onNavigateBack],
+ * bypassing the dirty-changes confirm dialog.
+ *
  * @param node Navigation node this ViewModel is bound to.
  * @param model Admin data source.
  * @param interactor Navigation delegate for this screen.
+ * @param authCredentialsStorage Login-state source; on logout this screen exits to its non-edit view.
  */
 class AdminWishlistItemEditViewModel(
     private val node: NavigationNode<AdminWishlistItemEditViewConfig, ViewConfig>,
     private val model: AdminPanelModel,
-    private val interactor: AdminWishlistItemEditViewInteractor
+    private val interactor: AdminWishlistItemEditViewInteractor,
+    private val authCredentialsStorage: AuthCredentialsStorage
 ) : ViewModel<ViewConfig>(node) {
     /** `true` when operating in create mode. */
     val isCreating: Boolean = node.config.itemId == null
@@ -86,6 +93,9 @@ class AdminWishlistItemEditViewModel(
                 }
             }
             inited = true
+        }
+        authCredentialsStorage.userAuthorised.subscribeOnLoggedOut(scope) {
+            interactor.onNavigateBack(node)
         }
     }
 

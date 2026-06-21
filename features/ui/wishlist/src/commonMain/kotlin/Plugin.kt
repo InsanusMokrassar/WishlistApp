@@ -89,8 +89,8 @@ object Plugin : StartPlugin {
 
         factory { WishlistsListViewModel(it.get(), get(), get()) }
         factory { WishlistViewModel(it.get(), get(), get()) }
-        factory { WishlistEditViewModel(it.get(), get(), get()) }
-        factory { WishlistItemEditViewModel(it.get(), get(), get()) }
+        factory { WishlistEditViewModel(it.get(), get(), get(), get()) }
+        factory { WishlistItemEditViewModel(it.get(), get(), get(), get()) }
         factory { WishlistItemViewModel(it.get(), get(), get(), getAllDistinct()) }
         factory { UserWishlistsViewModel(it.get(), get(), get()) }
         factory { WishlistItemCopyViewModel(it.get(), get(), get()) }
