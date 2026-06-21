@@ -23,6 +23,17 @@ THIS AGENT MUST WRITE `agents/task/<TASK_ID_FORMAT>/<STEP_NUMBER>.md` WITH RESUL
 
 ---
 
+In the end of your work you MUST put in the beginning of your step file information in the next format:
+
+```markdown
+Model: <model name>
+Execution time: <execution time in seconds for this step only>
+Tokens used: <amount of tokens as is>
+Changed files: <list of changed files>
+```
+
+---
+
 ALWAYS USE `ast-index` for any code search/navigation (symbols, files, usages, hierarchy). NEVER use grep/find when `ast-index` can do the job. Read about how to use it in `AST_INDEX.md`. This rule applies to ALL roles without exceptions.
 
 if `ast-index` is not installed - install it with:
