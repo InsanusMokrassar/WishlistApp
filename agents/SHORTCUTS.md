@@ -1,6 +1,6 @@
 All `local.*` files can be missed, but you MUST check their availability if you need them.
 
-Before any work, read in this order:
+Before any work, read in this order (priorities placed from the best for role to the worst, always must be used the better available model according to priority; choice of model must be argumented in step file in the beginning):
 
 1. `agents/ALL.md` + (`agents/local.ALL.md` (if exists))
 2. Task-specific:
