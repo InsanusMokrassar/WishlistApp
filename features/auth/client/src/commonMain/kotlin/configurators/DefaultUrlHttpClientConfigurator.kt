@@ -10,6 +10,18 @@ import dev.inmo.wishlist.features.common.client.utils.fillAbsentPartsWith
 import dev.inmo.wishlist.features.common.client.utils.set
 import dev.inmo.wishlist.features.common.common.apiPathPart
 
+/**
+ * [HttpClientConfigurator] that points every outgoing request at the user-configured server.
+ *
+ * Installs a client plugin that, per request, reads the stored server URL and fills the request's
+ * absent URL parts (scheme, host, port, path, ...) from it. When [useDefaultUrlPrefix] is set it also
+ * guarantees the base URL begins with the `/api` path prefix, so bare feature paths resolve under the
+ * server's `/api` routing root.
+ *
+ * @param storage Source of the user-configured server URL.
+ * @param useDefaultUrlPrefix Whether to prepend the `/api` path prefix to the base URL (default `true`);
+ * disable when the configured URL already targets the API root.
+ */
 class DefaultUrlHttpClientConfigurator(
     private val storage: ServerUrlStorage,
     private val useDefaultUrlPrefix: Boolean = true
@@ -24,18 +36,19 @@ class DefaultUrlHttpClientConfigurator(
                 } else {
                     "http://$currentUrl"
                 }
-                // Add the `/api` prefix to the base URL by appending it as a path segment, parsing the
-                // URL first so an existing path / query / fragment is preserved and not matched by a
-                // fragile string suffix. Skip when disabled or when `/api` is already the last segment.
+                // Ensure the base URL carries `/api` as the FIRST path segment (the server mounts every
+                // route under `route("api")` at the routing root). Parse the URL first so an existing
+                // path / query / fragment is preserved rather than matched by a fragile string suffix;
+                // skip when disabled or when `/api` is already the leading segment.
                 val fixedCurrentUrl = when {
                     useDefaultUrlPrefix.not() -> schemeFixedUrl
                     else -> {
                         val builder = URLBuilder(schemeFixedUrl)
                         val pathSegments = builder.encodedPathSegments.filter { it.isNotEmpty() }
-                        when (pathSegments.lastOrNull()) {
+                        when (pathSegments.firstOrNull()) {
                             apiPathPart -> schemeFixedUrl
                             else -> {
-                                builder.encodedPathSegments = listOf("") + pathSegments + apiPathPart
+                                builder.encodedPathSegments = listOf(apiPathPart) + pathSegments
                                 builder.buildString()
                             }
                         }
