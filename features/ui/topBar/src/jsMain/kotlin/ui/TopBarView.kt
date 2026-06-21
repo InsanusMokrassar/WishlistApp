@@ -10,11 +10,12 @@ import dev.inmo.navigation.compose.InjectNavigationNode
 import dev.inmo.navigation.core.NavigationChain
 import dev.inmo.navigation.mvvm.compose.ComposeView
 import dev.inmo.wishlist.features.common.client.models.ViewConfig
+import dev.inmo.wishlist.features.common.client.ui.components.Breadcrumb
+import dev.inmo.wishlist.features.common.client.ui.components.CrumbItem
 import dev.inmo.wishlist.features.ui.auth.ui.AuthViewConfig
 import dev.inmo.wishlist.features.ui.topBar.TopBarStrings
 import org.jetbrains.compose.web.attributes.InputType
 import org.jetbrains.compose.web.attributes.placeholder
-import org.jetbrains.compose.web.dom.B
 import org.jetbrains.compose.web.dom.Div
 import org.jetbrains.compose.web.dom.Input
 import org.jetbrains.compose.web.dom.Label
@@ -73,21 +74,19 @@ class TopBarView(
                     InjectNavigationChain<ViewConfig> { InjectNavigationNode(AuthViewConfig()) }
                 }
             }
-            val crumbTitles = titleProviders.map { it.title }.filter { it.isNotBlank() }
-            if (crumbTitles.isNotEmpty()) {
+            // Read all @Composable titles inside the composable context before building lambdas.
+            val crumbs = titleProviders.map { provider -> provider to provider.title }
+                .filter { (_, title) -> title.isNotBlank() }
+            if (crumbs.isNotEmpty()) {
                 Div({ classes(CalmStudioStyleSheet.crumbbar) }) {
-                    Div({ classes(CalmStudioStyleSheet.crumb) }) {
-                        crumbTitles.forEachIndexed { index, title ->
-                            if (index > 0) {
-                                Span({ classes(CalmStudioStyleSheet.sep) }) { Text("/") }
-                            }
-                            if (index == crumbTitles.lastIndex) {
-                                B { Text(title) }
-                            } else {
-                                Span { Text(title) }
-                            }
-                        }
+                    val ancestors = crumbs.dropLast(1).map { (provider, title) ->
+                        CrumbItem(
+                            label = title,
+                            onClick = { viewModel.onCrumbSelected(provider) }
+                        )
                     }
+                    val current = crumbs.last().second
+                    Breadcrumb(items = ancestors, current = current)
                 }
             }
         }

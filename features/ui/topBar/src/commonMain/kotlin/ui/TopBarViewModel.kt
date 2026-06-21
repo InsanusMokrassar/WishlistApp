@@ -4,6 +4,7 @@ import androidx.compose.runtime.Composable
 import dev.inmo.micro_utils.coroutines.MutableRedeliverStateFlow
 import dev.inmo.micro_utils.coroutines.launchLoggingDropExceptions
 import dev.inmo.micro_utils.coroutines.subscribeLoggingDropExceptions
+import dev.inmo.navigation.core.NavigationChain
 import dev.inmo.navigation.core.NavigationNode
 import dev.inmo.navigation.core.extensions.changesInSubTreeFlow
 import dev.inmo.navigation.core.extensions.findInSubTree
@@ -11,8 +12,8 @@ import dev.inmo.navigation.core.extensions.rootChain
 import dev.inmo.navigation.mvvm.ViewModel
 import dev.inmo.wishlist.features.common.client.models.MainNavigationChainId
 import dev.inmo.wishlist.features.common.client.models.ViewConfig
-import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.merge
@@ -36,6 +37,12 @@ class TopBarViewModel(
 ) : ViewModel<ViewConfig>(node) {
     private val rootChain = node.chain.rootChain()
 
+    /**
+     * The scaffold's main navigation chain, cached after the first subtree-change event.
+     * Updated on every subtree-change alongside [_titleProviders].
+     */
+    private var mainChain: NavigationChain<ViewConfig>? = null
+
     private val _titleProviders = MutableRedeliverStateFlow<List<TopBarTitleProvider>>(emptyList())
 
     /**
@@ -55,8 +62,9 @@ class TopBarViewModel(
 
     init {
         merge(flowOf(Unit), rootChain.changesInSubTreeFlow().map { }).subscribeLoggingDropExceptions(scope) {
-            val mainChain = rootChain.findInSubTree(MainNavigationChainId)
-            _titleProviders.value = mainChain
+            val resolved = rootChain.findInSubTree(MainNavigationChainId)
+            mainChain = resolved
+            _titleProviders.value = resolved
                 ?.stackFlow
                 ?.value
                 ?.filterIsInstance<TopBarTitleProvider>()
@@ -71,6 +79,33 @@ class TopBarViewModel(
      */
     fun onSearchQueryChanged(query: String) {
         _searchQueryState.value = query
+    }
+
+    /**
+     * Handles a user tap on a non-current breadcrumb segment.
+     *
+     * Collapses the main navigation chain so that [provider] becomes the top-most node. Nodes
+     * above [provider] in the stack are popped one at a time, each pop awaited before the next
+     * is issued, to avoid the race condition in [dev.inmo.navigation.core.NavigationChain.drop]
+     * where a synchronous batch of drops would each snapshot the same pre-drop stack and
+     * overwrite each other when the channel applies them.
+     *
+     * No-ops when [provider] is not found in the chain, is already the top node, the chain is
+     * not yet resolved, or [provider] is not a [dev.inmo.navigation.core.NavigationNode].
+     *
+     * @param provider The [TopBarTitleProvider] node to navigate back to.
+     */
+    fun onCrumbSelected(provider: TopBarTitleProvider) {
+        val chain = mainChain ?: return
+        val targetNode = provider as? NavigationNode<*, ViewConfig> ?: return
+        scope.launchLoggingDropExceptions {
+            while (true) {
+                val top = chain.stackFlow.value.lastOrNull() ?: break
+                if (top === targetNode) break
+                chain.drop(top)
+                chain.stackFlow.first { it.lastOrNull() !== top }
+            }
+        }
     }
 
     /** Forwards "change server URL" to [TopBarViewInteractor.onChangeServerUrl]. */
