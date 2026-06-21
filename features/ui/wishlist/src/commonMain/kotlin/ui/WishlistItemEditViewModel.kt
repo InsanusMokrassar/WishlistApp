@@ -8,6 +8,7 @@ import dev.inmo.navigation.core.onResumeFlow
 import dev.inmo.navigation.mvvm.ViewModel
 import dev.inmo.micro_utils.common.MPPFile
 import dev.inmo.wishlist.features.common.client.models.ViewConfig
+import dev.inmo.wishlist.features.common.client.utils.subscribeOnLoggedOut
 import dev.inmo.wishlist.features.common.common.models.Amount
 import dev.inmo.wishlist.features.files.common.models.FileId
 import dev.inmo.wishlist.features.wishlist.common.models.NewWishlistItem
@@ -168,6 +169,11 @@ class WishlistItemEditViewModel(
                 }
             }
             inited = true
+        }
+        // On logout this editor must exit, replacing itself with its non-edit view: the item's read
+        // view in EDIT mode, the containing wishlist in CREATE mode (see onNavigateBackToParent).
+        model.currentUserIdFlow.subscribeOnLoggedOut(scope) {
+            interactor.onNavigateBackToParent(node)
         }
     }
 

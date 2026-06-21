@@ -9,6 +9,7 @@ import dev.inmo.navigation.core.onResumeFlow
 import dev.inmo.navigation.mvvm.ViewModel
 import dev.inmo.wishlist.features.auth.common.models.Password
 import dev.inmo.wishlist.features.common.client.models.ViewConfig
+import dev.inmo.wishlist.features.common.client.utils.subscribeOnLoggedOut
 import dev.inmo.wishlist.features.files.common.models.FileId
 import dev.inmo.wishlist.features.users.common.models.UserId
 import dev.inmo.wishlist.features.users.common.models.Username
@@ -135,6 +136,11 @@ class UserEditViewModel(
                 _loadingState.value = false
             }
             inited = true
+        }
+        // On logout this editor must exit: pop the edit screen so the underlying (non-edit) profile
+        // view is revealed for the now-anonymous caller.
+        model.currentUserIdFlow.subscribeOnLoggedOut(scope) {
+            interactor.onNavigateBack(node)
         }
     }
 

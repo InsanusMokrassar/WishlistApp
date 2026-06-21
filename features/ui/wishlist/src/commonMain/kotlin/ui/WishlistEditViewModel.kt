@@ -7,6 +7,7 @@ import dev.inmo.navigation.core.NavigationNode
 import dev.inmo.navigation.core.onResumeFlow
 import dev.inmo.navigation.mvvm.ViewModel
 import dev.inmo.wishlist.features.common.client.models.ViewConfig
+import dev.inmo.wishlist.features.common.client.utils.subscribeOnLoggedOut
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.flow.merge
@@ -93,6 +94,15 @@ class WishlistEditViewModel(
                 }
             }
             inited = true
+        }
+        // On logout this editor must exit, replacing itself with its non-edit view: the edited
+        // wishlist's detail screen in EDIT mode; CREATE mode has no parent entity, so it pops back to
+        // where the create form was opened.
+        model.currentUserIdFlow.subscribeOnLoggedOut(scope) {
+            when {
+                isCreating -> interactor.onNavigateBack(node)
+                else -> interactor.onNavigateBackToParent(node)
+            }
         }
     }
 

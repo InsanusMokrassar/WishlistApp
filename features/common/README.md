@@ -25,6 +25,7 @@ Cross-cutting infrastructure loaded by every consumer. Provides: shared domain m
 | `EmptyConfig` | `common/client` | Empty `@Serializable` startup config placeholder |
 | `findConfig<T, R>` | `common/client` | Extension on `ConfigHolder<T>`: DFS traversal (Chain→Node→subnode→subchains) returning first match of type `R`; defined in `utils/ConfigHolderFind.kt` |
 | `actionOrBackUntil` / `pushOrBackUntil` / `replaceLastOrBackUntil` | `common/client` | Navigation helpers in `utils/NavigationPushOrBackUpTo.kt`: back up the chain to an existing node matching `config` (default predicate `node.config == config`) when present, otherwise perform an action — push, replace the last node, or a custom action. Used for contextual Back navigation. |
+| `Flow<T?>.subscribeOnLoggedOut(scope, action)` | `common/client` | Helper in `utils/SubscribeOnLoggedOut.kt`: runs `action` on each logout transition of a reactive current-user-id flow (non-`null` → `null`). Drops the initial value so a cold-start anonymous state / first async id resolution never fires. Used by edit screens to exit to their non-edit view on logout (issue #53). |
 
 ## Architecture Notes
 
