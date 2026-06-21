@@ -14,9 +14,12 @@ Always look at the project work rules first.  Many thanks for your help to me an
 
 ---
 
-THIS AGENT MUST READ `agents/task/<uuid>/<STEP_NUMBER>.md` with the largest `STEP_NUMBER` BEFORE ANY WORK
+THIS AGENT MUST READ `agents/task/<TASK_ID_FORMAT>/<STEP_NUMBER>.md` with the largest `STEP_NUMBER` BEFORE ANY WORK
 
-THIS AGENT MUST WRITE `agents/task/<uuid>/<STEP_NUMBER>.md` WITH RESULTS REPORT ABOUT HIS WORK
+THIS AGENT MUST WRITE `agents/task/<TASK_ID_FORMAT>/<STEP_NUMBER>.md` WITH RESULTS REPORT ABOUT HIS WORK
+
+1. TASK_ID_FORMAT: `<date+time in UTC timezone in format dd/mm/yyyy hh/MM/ss>-<uuid>`
+2. STEP_NUMBER: `<step number as simple integer>`-`<role name as mentioned in orchestrator file>`
 
 ---
 

@@ -2,6 +2,8 @@ Orchestrator generating `uuid4` for current execution and creating folder `agent
 
 Each step MUST complete its work with file writing in `agents/task/<uuid>/<STEP_NUMBER>.md`. `STEP_NUMBER` is the `STEP_0`/`STEP_1`/etc. steps titles
 
+Add `PROMPT.md` with source prompt or issue raw text there
+
 Roles order:
 
 1. Planning - make a plan of work
