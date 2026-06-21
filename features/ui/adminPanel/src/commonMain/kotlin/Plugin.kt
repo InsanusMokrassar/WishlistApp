@@ -3,6 +3,8 @@ package dev.inmo.wishlist.features.ui.adminPanel
 import dev.inmo.micro_utils.koin.singleWithRandomQualifier
 import dev.inmo.micro_utils.startup.plugin.StartPlugin
 import dev.inmo.wishlist.features.admin.client.AdminFeature
+import dev.inmo.wishlist.features.email.common.EmailFeature
+import dev.inmo.wishlist.features.email.common.models.Email
 import dev.inmo.wishlist.features.admin.common.models.NewUserWithPassword
 import dev.inmo.wishlist.features.common.client.models.ViewConfig
 import dev.inmo.wishlist.features.ui.adminPanel.ui.AdminPanelModel
@@ -81,6 +83,7 @@ object Plugin : StartPlugin {
 
         single<AdminPanelModel> {
             val admin = get<AdminFeature>()
+            val email = get<EmailFeature>()
             object : AdminPanelModel {
                 override suspend fun getAllUsers(): List<RegisteredUser> =
                     admin.usersManagement.getAll()
@@ -126,6 +129,12 @@ object Plugin : StartPlugin {
 
                 override suspend fun deleteWishlistItem(id: WishlistItemId): Boolean =
                     admin.wishlistItems.delete(id)
+
+                override suspend fun isEmailFeatureEnabled(): Boolean =
+                    email.isFeatureEnabled()
+
+                override suspend fun sendTestEmail(recipient: Email): Boolean =
+                    email.sendTestEmail(recipient)
             }
         }
     }

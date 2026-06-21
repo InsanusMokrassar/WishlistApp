@@ -22,8 +22,8 @@ User identity storage and public read-only API. Provides the `UsersRepo` CRUD re
 |------|-------------|
 | `UserId` | `@JvmInline value class` wrapping `Long` — primary key |
 | `Username` | `@JvmInline value class` wrapping `String` |
-| `NewUser` | Create payload: `username: Username` |
-| `RegisteredUser` | Persisted entity: `id: UserId`, `username: Username` |
+| `NewUser` | Create payload: `username: Username`, `email: Email? = null` |
+| `RegisteredUser` | Persisted entity: `id: UserId`, `username: Username`, `email: Email? = null` |
 | `ReadUsersRepo` | Read-only repo interface |
 | `WriteUsersRepo` | Write-only repo interface |
 | `UsersRepo` | Combined CRUD repo interface |
@@ -39,3 +39,5 @@ User identity storage and public read-only API. Provides the `UsersRepo` CRUD re
 - `server/Plugin.kt` is intentionally empty. `auth/server/JVMPlugin` calls `users.common.JVMPlugin.setupDI` directly to wire `ExposedUsersRepo → CacheUsersRepo → UsersRepo` into the DI graph.
 - `singleWithBinds<UsersRepo>` registers `CacheUsersRepo` as `UsersRepo`, `ReadUsersRepo`, and `WriteUsersRepo` simultaneously.
 - Root user bootstrap happens inside `auth/server/JVMPlugin.startPlugin`: if `UsersRepo.count() == 0`, creates a `root` user and prints generated password once via KSLog.
+- **Email field (added in issue #44):** `User`, `NewUser`, and `RegisteredUser` all carry `email: Email? = null` (defaults to `null` for back-compat). `ExposedUsersRepo` has a `nullable text("email")` column; `createMissingTablesAndColumns` (via `initTable()`) adds it to existing tables without data migration. Invalid stored values are read defensively via `Email.parse(...).getOrNull()`. `features/users/common` now depends on `features/email/common` for the `Email` type.
+- Self-service email update is exposed via `PUT /api/email/myEmail` in `features/email/server` (not under `/users`) to keep the email-routing scope cohesive.
