@@ -19,8 +19,10 @@
     "dev.inmo.wishlist.features.files.server.JVMPlugin",
     "dev.inmo.wishlist.features.admin.server.JVMPlugin",
     "dev.inmo.wishlist.features.currency.server.JVMPlugin",
-    "dev.inmo.wishlist.features.booking.server.JVMPlugin"
+    "dev.inmo.wishlist.features.booking.server.JVMPlugin",
+    "dev.inmo.wishlist.features.email.server.JVMPlugin"
   ],
+  "smtp": null,
   "filesFolder": "/data/uploaded_files",
   "useCache": true,
   "tokenTtl": "PT15M",

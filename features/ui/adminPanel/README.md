@@ -6,11 +6,11 @@
 
 ## Overview
 
-Admin panel UI scenario. Full CRUD for users, wishlists, and wishlist items via a `List → View → Edit` canvas. Accessible only to authenticated admins.
+Admin panel UI scenario. Full CRUD for users, wishlists, and wishlist items via a `List → View → Edit` canvas. Also provides a root-only "send test email" form on the dashboard. Accessible only to authenticated admins.
 
 ## Routes
 
-No server routes — UI-only feature. Consumes `features/admin/client` via `AdminFeature`.
+No server routes — UI-only feature. Consumes `features/admin/client` via `AdminFeature` and `features/email/client` via `EmailFeature`.
 
 ## Models
 
@@ -24,6 +24,8 @@ No server routes — UI-only feature. Consumes `features/admin/client` via `Admi
 | `AdminWishlistViewConfig(wishlistId)` | Wishlist detail with inline items list |
 | `AdminWishlistEditViewConfig(wishlistId?, preselectedUserId?)` | Create/edit wishlist; owner dropdown; `null` wishlistId = create mode |
 | `AdminWishlistItemEditViewConfig(itemId?, wishlistId)` | Create/edit wishlist item |
+| `AdminPanelModel.sendTestEmail(recipient: Email): Boolean` | Delegates to `EmailFeature.sendTestEmail` |
+| `AdminPanelModel.isEmailFeatureEnabled(): Boolean` | Delegates to `EmailFeature.isFeatureEnabled` |
 
 ## Architecture Notes
 
@@ -34,3 +36,5 @@ No server routes — UI-only feature. Consumes `features/admin/client` via `Admi
 - Android `AndroidPlugin` registers all 8 `NavigationNodeFactory` entries (same as JS and JVM plugins).
 - JS views use Bootstrap CSS classes. JVM and Android use Compose Desktop / Material3.
 - Wishlist create screen (`AdminWishlistEditViewConfig(null, preselectedUserId)`) pre-selects the owner dropdown when `preselectedUserId` is non-null — used when "Add Wishlist" is tapped from a user detail screen.
+- **Email section (added in issue #44):** Dashboard (`AdminPanelView`) gains a `CalmTextField` + `CalmButton` row for sending a test email. Input validated via `Email.parse(...)` before calling `viewModel.onSendTestEmail(recipient)`. `AdminPanelViewModel.sendTestEmailState: StateFlow<Boolean?>` holds result (`null` = not yet attempted). Real authorization is server-side (`requireRoot` on `POST /api/email/sendTest`). Requires `api project(":wishlist.features.email.client")` in `build.gradle`.
+- **Note:** The "JS views use Bootstrap CSS classes" bullet in the original notes is stale — JS views use Calm Studio components only.
