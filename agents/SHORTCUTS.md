@@ -4,7 +4,7 @@ Before any work, read in this order:
 
 1. `agents/ALL.md` + (`agents/local.ALL.md` (if exists))
 2. Task-specific:
-    * root (if there are no direct saying of role) → `agents/ORCHESTRATOR.md` + (`agents/local.CODING.md` (if exists)) (priorities of agents: `sonnet` / `opus`)
+    * root (if there are no direct saying of role) → `agents/ORCHESTRATOR.md` + (`agents/local.ORCHESTRATOR.md` (if exists)) (priorities of agents: `sonnet` / `opus`)
     * issue-executor → `agents/ISSUES_EXECUTION.md` (`agents/local.ISSUES_EXECUTION.md` (if exists)) (priorities of agents: `sonnet` / `opus`)
     * planning → `agents/PLAN.md` + (`agents/local.PLAN.md` (if exists)) (priorities of agents: `fable` / `opus` / `sonnet`)
     * coding → `agents/CODING.md` + (`agents/local.CODING.md` (if exists)) (priorities of agents: `sonnet` / `opus` / `fable`)
