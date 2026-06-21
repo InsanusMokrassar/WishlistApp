@@ -19,7 +19,8 @@
     "dev.inmo.wishlist.features.files.server.JVMPlugin",
     "dev.inmo.wishlist.features.admin.server.JVMPlugin",
     "dev.inmo.wishlist.features.currency.server.JVMPlugin",
-    "dev.inmo.wishlist.features.booking.server.JVMPlugin"
+    "dev.inmo.wishlist.features.booking.server.JVMPlugin",
+    "dev.inmo.wishlist.features.deeplinks.server.JVMPlugin"
   ],
   "filesFolder": "/data/uploaded_files",
   "useCache": true,
