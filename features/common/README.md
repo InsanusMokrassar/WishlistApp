@@ -10,6 +10,8 @@ Cross-cutting infrastructure loaded by every consumer. Provides: shared domain m
 
 ## Routes
 
+> All paths below are served under the global `/api` prefix (e.g. `/api/echo/echo`). The prefix is applied centrally by `features/common/server` (`InternalApplicationRoutingConfigurator`) and added on the client by `DefaultUrlHttpClientConfigurator`, which appends `/api` to the configured server base URL.
+
 | Method | Path | Auth | Body / Response | Description |
 |--------|------|------|-----------------|-------------|
 | GET | `/echo/echo` | None | `→ String` | Server health/status ping; returns a static echo string |

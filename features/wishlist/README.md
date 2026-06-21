@@ -10,6 +10,8 @@ Full-stack wishlist management. Users create wishlists and add items to them. Al
 
 ## Routes
 
+> All paths below are served under the global `/api` prefix (e.g. `/api/wishlist/getById/{id}`). The prefix is applied centrally by `features/common/server` (`InternalApplicationRoutingConfigurator`) and added on the client by `DefaultUrlHttpClientConfigurator`, which appends `/api` to the configured server base URL.
+
 ### Wishlists (`/wishlist/...`)
 
 | Method | Path | Auth | Body / Response | Description |

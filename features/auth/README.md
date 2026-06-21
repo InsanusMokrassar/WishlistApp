@@ -10,6 +10,8 @@ End-to-end bearer-token authentication. Handles login (BCrypt password check), o
 
 ## Routes
 
+> All paths below are served under the global `/api` prefix (e.g. `/api/auth/login`). The prefix is applied centrally by `features/common/server` (`InternalApplicationRoutingConfigurator`) and added on the client by `DefaultUrlHttpClientConfigurator`, which appends `/api` to the configured server base URL.
+
 | Method | Path | Auth | Body / Response | Description |
 |--------|------|------|-----------------|-------------|
 | GET | `/auth/is_registration_available` | None | `→ Boolean` | Returns `true` when self-service registration is open |

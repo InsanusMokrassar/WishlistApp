@@ -10,6 +10,8 @@ Generic binary file storage with metadata. Stores file payloads on disk and meta
 
 ## Routes
 
+> All paths below are served under the global `/api` prefix applied by `features/common/server` (e.g. `/api/files/{id}`, `/api/temp_upload`). The client adds the prefix by appending `/api` to the configured server base URL (`DefaultUrlHttpClientConfigurator`), except browser-loaded image `<img src>` URLs (which bypass the shared client), for which `FilesClientService.apiFileUrl` bakes in `/api` directly.
+
 | Method | Path | Auth | Body / Response | Description |
 |--------|------|------|-----------------|-------------|
 | POST | `/temp_upload` | None | multipart binary → `TemporalFileId` | Shared temporal upload endpoint (MicroUtils `TemporalFilesRoutingConfigurator`); single reusable entry point for all features |
@@ -32,7 +34,7 @@ Generic binary file storage with metadata. Stores file payloads on disk and meta
 | `FilesMetaInfoRepo` | common | Interface: `KeyValueRepo<FileId, RegisteredFileMetaInfo>` |
 | `UserAvatarsRepo` | common | Interface: `KeyValueRepo<UserId, FileId>` — maps a user to that user's avatar file; Exposed impl `ExposedUserAvatarsRepo` (`user_avatars` table: `user_id` long PK, `file_id` text) |
 | `FilesFeature` | client | Client contract: `finalize(FinalizeFileRequest)`, `getMeta(FileId)`, `getAvatar(UserId)`, `setAvatar(UserId, FileId)` |
-| `FilesClientService` | client | High-level client service: `uploadFile(MPPFile)`, `fileUrl(FileId)`, `downloadBytes(FileId)`, `getAvatar(UserId)`, `uploadAvatar(UserId, MPPFile)` |
+| `FilesClientService` | client | High-level client service: `uploadFile(MPPFile)`, `apiFileUrl(FileId)` (browser-ready `/api/files/{id}`), `fileUrl(FileId)` (bare `files/{id}` for the shared client), `downloadBytes(FileId)`, `getAvatar(UserId)`, `uploadAvatar(UserId, MPPFile)` |
 | `KtorFilesFeature` | client | HTTP implementation of `FilesFeature` |
 
 ## Architecture Notes
@@ -46,4 +48,5 @@ Generic binary file storage with metadata. Stores file payloads on disk and meta
 - **Server-only service**: `FilesService` is server-only (caller `UserId` parameter on finalize) — not bound to a client-facing interface, mirroring `WishlistItemService` pattern.
 - **Temporal-file management**: The shared `TemporalFilesRoutingConfigurator` is registered as both a Koin singleton (so `FilesService` can retrieve pending temp files) and an `ApplicationRoutingConfigurator.Element` (installs the `/temp_upload` route). It is built with `TimedTemporalFilesUtilizer` (in `server/.../services/`), which purges any temporal upload not finalized within a one-hour TTL from the in-memory map and from disk — without it, abandoned uploads would survive until process exit and grow unbounded. (`/temp_upload` itself stays unauthenticated: the JS web client uploads it via a raw `XMLHttpRequest` that does not carry the bearer token, so requiring auth there would break web uploads.)
 - **Client service composition**: `FilesClientService` wraps the two-step flow (tempUpload via MicroUtils `tempUpload`, then finalize via `FilesFeature`). Higher-level concerns (MIME type inference, URL building, byte downloads) live in the service, not in the HTTP feature interface.
+- **`/api` prefix split**: HTTP calls made through the shared client (`downloadBytes`, `tempUpload`, finalize/meta/avatar) use bare paths (`files/{id}`, `temp_upload`); `/api` is added once by appending it to the server base URL (`DefaultUrlHttpClientConfigurator`). Browser `<img>` requests bypass the client, so `apiFileUrl(id)` returns the already-prefixed absolute `/api/files/{id}`. The two paths must never both add the prefix (would yield `/api/api/...`).
 - **Dependencies**: Server module depends on `features/auth/server` (bearer caller resolution) and `micro_utils.ktor.server`. Client module depends on `micro_utils.ktor.client`.

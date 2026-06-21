@@ -3,7 +3,7 @@
   "port": 8196,
   "publicHost": "0.0.0.0",
   "staticFolders": {
-    "ui": "/static"
+    "": "/static"
   },
   "database": {
     "url": "jdbc:postgresql://postgres:5432/TEST_DB",
@@ -29,4 +29,3 @@
   "openExchangeRatesAppId": null,
   "openExchangeRatesRefreshTTLMillis": 3600000
 }
-

@@ -230,10 +230,10 @@ MainKt (microutils launcher)
             │    ├─ Sessions (extensible)
             │    ├─ StatusPages (extensible)
             │    ├─ CachingHeaders (extensible)
-            │    └─ Static file serving (from config.staticFolders)
+            │    └─ Static file serving at site root `/` (from config.staticFolders)
             ├─ creates EmbeddedServer<Netty> with 32-thread pool
             │    └─ installs all KtorApplicationConfigurator instances
-            │    └─ installs ApplicationRoutingConfigurator
+            │    └─ installs InternalApplicationRoutingConfigurator (wraps all feature routes under `/api`)
             │    └─ installs CallLogging (TRACE in debug, WARN in prod)
             └─ starts server (blocking)
 ```

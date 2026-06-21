@@ -10,6 +10,8 @@ Reference/demo feature. Demonstrates the full-stack feature scaffold: server rou
 
 ## Routes
 
+> All paths below are served under the global `/api` prefix (e.g. `/api/sample/getSampleText`). The prefix is applied centrally by `features/common/server` (`InternalApplicationRoutingConfigurator`) and added on the client by `DefaultUrlHttpClientConfigurator`, which appends `/api` to the configured server base URL.
+
 | Method | Path | Auth | Body / Response | Description |
 |--------|------|------|-----------------|-------------|
 | GET | `/sample/getSampleText` | Bearer | `→ String` | Returns a static sample text string |

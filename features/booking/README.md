@@ -12,6 +12,8 @@ The booking server plugin must be loaded **after** `features/wishlist/server` an
 
 ## Routes
 
+> All paths below are served under the global `/api` prefix (e.g. `/api/wishlistItemBooking/book/{itemId}`). The prefix is applied centrally by `features/common/server` (`InternalApplicationRoutingConfigurator`) and added on the client by `DefaultUrlHttpClientConfigurator`, which appends `/api` to the configured server base URL.
+
 All routes live under `/wishlistItemBooking` and the whole tree is wrapped in `authenticate { }` — anonymous callers get `401` (rule 1).
 
 | Method | Path | Auth | Body / Response | Description |

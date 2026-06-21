@@ -18,6 +18,8 @@ rendered in their original units with no conversion.
 
 ## Routes
 
+> All paths below are served under the global `/api` prefix (e.g. `/api/currency/rates`). The prefix is applied centrally by `features/common/server` (`InternalApplicationRoutingConfigurator`) and added on the client by `DefaultUrlHttpClientConfigurator`, which appends `/api` to the configured server base URL.
+
 All routes are mounted under the `currency` prefix and are public (no authentication required).
 
 | Method | Path                   | Auth | Body / Response          | Description |

@@ -3,7 +3,9 @@ package dev.inmo.wishlist.features.files.client
 import dev.inmo.micro_utils.common.MPPFile
 import dev.inmo.micro_utils.common.filename
 import dev.inmo.micro_utils.ktor.client.tempUpload
+import dev.inmo.wishlist.features.common.common.apiPathPart
 import dev.inmo.wishlist.features.files.client.utils.imageMimeType
+import dev.inmo.wishlist.features.files.client.utils.temporalUploadFullPath
 import dev.inmo.wishlist.features.files.common.Constants
 import dev.inmo.wishlist.features.files.common.models.FileId
 import dev.inmo.wishlist.features.files.common.models.FinalizeFileRequest
@@ -35,7 +37,7 @@ class FilesClientService(
      * (e.g. non-image MIME or expired temporal upload).
      */
     suspend fun uploadFile(file: MPPFile): RegisteredFileMetaInfo? {
-        val temporalFileId = client.tempUpload("/${Constants.temporalUploadPathPart}", file)
+        val temporalFileId = client.tempUpload(temporalUploadFullPath(), file)
         return feature.finalize(
             FinalizeFileRequest(
                 temporalFileId = temporalFileId,
@@ -46,16 +48,36 @@ class FilesClientService(
     }
 
     /**
-     * Builds the relative download URL for [id] (resolved against the configured server base URL).
+     * Absolute, `/api`-prefixed download URL for [id], suitable as a browser image `src`.
+     *
+     * Browser-loaded `<img>` requests do not pass through the shared [HttpClient] (so the base-URL
+     * `/api` prefix added by [DefaultUrlHttpClientConfigurator] does not apply to them); the prefix is
+     * therefore baked in here, and the
+     * leading slash anchors the URL to the site origin regardless of the current SPA route.
      *
      * @param id File identifier.
-     * @return Path such as `files/<id>` usable as an image `src` or HTTP GET target.
+     * @return Path such as `/api/files/<id>` usable directly as an image `src`.
+     */
+    fun apiFileUrl(id: FileId): String = "/$apiPathPart/${Constants.filesPrefixPathPart}/${id.string}"
+
+    /**
+     * Bare, relative download path for [id] (e.g. `files/<id>`), for use through the shared [HttpClient].
+     *
+     * Deliberately carries no `api` prefix: the configured server base URL already carries `/api` (appended
+     * by `DefaultUrlHttpClientConfigurator`), so prefixing here too would double it to `/api/api/...`. For a browser `<img>`
+     * src (which bypasses the shared client), use [apiFileUrl] instead.
+     *
+     * @param id File identifier.
+     * @return Relative path such as `files/<id>`.
      */
     fun fileUrl(id: FileId): String = "${Constants.filesPrefixPathPart}/${id.string}"
 
     /**
      * Downloads the raw bytes of the file [id] through the shared client. Used by platforms that
      * cannot render an image straight from a URL and must decode bytes themselves (JVM/Android).
+     *
+     * The path is left bare (no `api` prefix): the configured server base URL already carries `/api` (via
+     * `DefaultUrlHttpClientConfigurator`), so prefixing here too would yield a doubled `/api/api/...`.
      *
      * @param id File identifier.
      * @return Payload bytes, or `null` on a non-2xx response.

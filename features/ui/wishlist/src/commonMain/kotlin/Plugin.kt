@@ -176,7 +176,7 @@ object Plugin : StartPlugin {
                     filesService.uploadFile(file)?.id
 
                 override fun imageUrl(id: FileId): String =
-                    filesService.fileUrl(id)
+                    filesService.apiFileUrl(id)
 
                 override suspend fun loadImageBytes(id: FileId): ByteArray? =
                     filesService.downloadBytes(id)

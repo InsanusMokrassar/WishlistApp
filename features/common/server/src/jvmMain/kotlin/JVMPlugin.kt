@@ -34,8 +34,6 @@ import io.ktor.server.engine.connector
 import io.ktor.server.engine.embeddedServer
 import io.ktor.server.http.content.staticFiles
 import io.ktor.server.netty.Netty
-import io.ktor.server.response.respondRedirect
-import io.ktor.server.routing.get
 import io.ktor.server.plugins.calllogging.CallLogging
 import io.ktor.server.routing.RoutingNode
 import io.ktor.server.routing.RoutingRoot
@@ -52,9 +50,9 @@ import org.slf4j.LoggerFactory
 import org.slf4j.event.Level
 import dev.inmo.wishlist.features.common.server.configurators.ApplicationAuthenticationConfigurator
 import dev.inmo.wishlist.features.common.server.configurators.ContentNegotiationKtorApplicationConfigurator
+import dev.inmo.wishlist.features.common.server.configurators.InternalApplicationRoutingConfigurator
 import dev.inmo.wishlist.features.common.server.models.Config
 import dev.inmo.wishlist.features.common.server.models.KtorConfig
-import dev.inmo.wishlist.features.common.server.models.defaultWebClientSubPath
 import io.ktor.http.HttpStatusCode
 import java.io.File
 
@@ -95,7 +93,7 @@ object JVMPlugin : StartPlugin {
                 )
             )
         }
-        single { ApplicationRoutingConfigurator(getAllDistinct()) }
+        single { InternalApplicationRoutingConfigurator(getAllDistinct()) }
         singleWithRandomQualifier<KtorApplicationConfigurator> { StatusPagesConfigurator(getAllDistinct()) }
         singleWithRandomQualifier<KtorApplicationConfigurator> { ApplicationCachingHeadersConfigurator(getAllDistinct()) }
         singleWithRandomQualifier<KtorApplicationConfigurator> { ApplicationSessionsConfigurator(getAllDistinct()) }
@@ -126,7 +124,7 @@ object JVMPlugin : StartPlugin {
                                 configure()
                             }
                         }
-                        getOrNull<ApplicationRoutingConfigurator>() ?.let {
+                        getOrNull<InternalApplicationRoutingConfigurator>() ?.let {
                             with(it) {
                                 configure()
                             }
@@ -159,31 +157,22 @@ object JVMPlugin : StartPlugin {
             }
         }
 
-        singleWithRandomQualifier<ApplicationRoutingConfigurator.Element> {
+        singleWithRandomQualifier<KtorApplicationConfigurator> {
             val config = get<Config>(configJsonQualifier)
-            val webClientSubPathConfigured = config.staticFolders.keys.any {
-                it.trim('/') == defaultWebClientSubPath
-            }
-            if (!webClientSubPathConfigured) {
-                this@JVMPlugin.logger.w(
-                    "Static content is not configured for the '/$defaultWebClientSubPath' sub-path; " +
-                        "the web client will not be served. Add an entry with the '$defaultWebClientSubPath' " +
-                        "key to the 'staticFolders' config to serve the web client under '/$defaultWebClientSubPath'."
-                )
-            }
-            ApplicationRoutingConfigurator.Element {
-                get("/") {
-                    call.respondRedirect(url = "/$defaultWebClientSubPath", permanent = true)
-                }
-                config.staticFolders.forEach { (path, folderPath) ->
-                    val file = File(folderPath)
-                    staticFiles(path, file) {
-                        // SPA fallback: any sub-path under the mount (e.g. `/ui/users`) with no
-                        // matching file serves the web client shell so client-side routing works.
-                        default("index.html")
+            ApplicationRoutingConfigurator(
+                listOf(
+                    ApplicationRoutingConfigurator.Element {
+                        config.staticFolders.forEach { (path, folderPath) ->
+                            val file = File(folderPath)
+                            staticFiles(path, file) {
+                                // SPA fallback: any sub-path under the mount (e.g. `/ui/users`) with no
+                                // matching file serves the web client shell so client-side routing works.
+                                default("index.html")
+                            }
+                        }
                     }
-                }
-            }
+                )
+            )
         }
     }
 
