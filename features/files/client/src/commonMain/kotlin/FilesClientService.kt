@@ -5,6 +5,7 @@ import dev.inmo.micro_utils.common.filename
 import dev.inmo.micro_utils.ktor.client.tempUpload
 import dev.inmo.wishlist.features.common.common.apiPathPart
 import dev.inmo.wishlist.features.files.client.utils.imageMimeType
+import dev.inmo.wishlist.features.files.client.utils.temporalUploadFullPath
 import dev.inmo.wishlist.features.files.common.Constants
 import dev.inmo.wishlist.features.files.common.models.FileId
 import dev.inmo.wishlist.features.files.common.models.FinalizeFileRequest
@@ -36,7 +37,7 @@ class FilesClientService(
      * (e.g. non-image MIME or expired temporal upload).
      */
     suspend fun uploadFile(file: MPPFile): RegisteredFileMetaInfo? {
-        val temporalFileId = client.tempUpload("/$apiPathPart/${Constants.temporalUploadPathPart}", file)
+        val temporalFileId = client.tempUpload(temporalUploadFullPath(), file)
         return feature.finalize(
             FinalizeFileRequest(
                 temporalFileId = temporalFileId,
