@@ -88,7 +88,7 @@ object Plugin : StartPlugin {
                 override suspend fun uploadAvatar(userId: UserId, file: MPPFile): FileId? =
                     filesService.uploadAvatar(userId, file)
 
-                override fun imageUrl(id: FileId): String = filesService.fileUrl(id)
+                override fun imageUrl(id: FileId): String = filesService.apiFileUrl(id)
 
                 override suspend fun loadImageBytes(id: FileId): ByteArray? =
                     filesService.downloadBytes(id)

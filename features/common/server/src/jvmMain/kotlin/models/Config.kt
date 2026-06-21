@@ -4,12 +4,13 @@ import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 
 /**
- * Default URL sub-path prefix under which the web client (single page application) is served.
+ * Default URL sub-path under which the web client (single page application) is served.
  *
- * Used both as the default key for [Config.staticFolders] (when only a single [Config.staticFolder]
- * is provided) and as the target of the root path redirect configured in the server routing.
+ * Empty string mounts the web client at the site root (`/`); API endpoints live under `/api`
+ * (see [dev.inmo.wishlist.features.common.common.apiPathPart]). Used as the default key for
+ * [Config.staticFolders] when only a single [Config.staticFolder] is provided.
  */
-const val defaultWebClientSubPath = "ui"
+const val defaultWebClientSubPath = ""
 
 /**
  * Top-level server configuration decoded from the launcher JSON config.

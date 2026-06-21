@@ -583,14 +583,15 @@ object MyStrings {
 
 ## Adding Server Routes
 
-Routes are not hardcoded. Feature plugins register `ApplicationRoutingConfigurator.Element` instances into Koin using `singleWithRandomQualifier`. The common server plugin collects all of them and installs their routes into Ktor's routing tree.
+Routes are not hardcoded. Feature plugins register `ApplicationRoutingConfigurator.Element` instances into Koin using `singleWithRandomQualifier`. The common server plugin collects all of them via `InternalApplicationRoutingConfigurator`, which wraps every feature route under the global `/api` prefix and installs them into Ktor's routing tree. The web client (static SPA) is served separately at the site root `/`. Register paths RELATIVE (no `/api`) — the prefix is added centrally; adding it yourself would double it to `/api/api/...`.
 
 ```kotlin
 // In a feature's JVMPlugin.setupDI:
 singleWithRandomQualifier<ApplicationRoutingConfigurator.Element> {
     ApplicationRoutingConfigurator.Element {
-        // `this` is Routing
-        get("/api/my-endpoint") {
+        // `this` is Route. Register paths WITHOUT the `/api` prefix — it is added centrally by
+        // InternalApplicationRoutingConfigurator, so this is served as `GET /api/my-endpoint`.
+        get("/my-endpoint") {
             call.respondText("Hello")
         }
     }

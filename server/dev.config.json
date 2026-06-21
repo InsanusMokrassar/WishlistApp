@@ -3,7 +3,7 @@
   "port": 8196,
   "publicHost": "0.0.0.0",
   "staticFolders": {
-    "ui": "../client/build/dist/js/developmentExecutable"
+    "": "../client/build/dist/js/developmentExecutable"
   },
   "database": {
     "url": "jdbc:postgresql://127.0.0.1:8501/test",
