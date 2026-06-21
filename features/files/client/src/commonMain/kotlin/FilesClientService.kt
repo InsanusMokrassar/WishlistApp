@@ -35,7 +35,7 @@ class FilesClientService(
      * (e.g. non-image MIME or expired temporal upload).
      */
     suspend fun uploadFile(file: MPPFile): RegisteredFileMetaInfo? {
-        val temporalFileId = client.tempUpload(Constants.temporalUploadPathPart, file)
+        val temporalFileId = client.tempUpload("/${Constants.temporalUploadPathPart}", file)
         return feature.finalize(
             FinalizeFileRequest(
                 temporalFileId = temporalFileId,
