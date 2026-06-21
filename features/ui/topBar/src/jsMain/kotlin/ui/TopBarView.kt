@@ -14,6 +14,7 @@ import dev.inmo.wishlist.features.ui.auth.ui.AuthViewConfig
 import dev.inmo.wishlist.features.ui.topBar.TopBarStrings
 import org.jetbrains.compose.web.attributes.InputType
 import org.jetbrains.compose.web.attributes.placeholder
+import org.jetbrains.compose.web.dom.A
 import org.jetbrains.compose.web.dom.B
 import org.jetbrains.compose.web.dom.Div
 import org.jetbrains.compose.web.dom.Input
@@ -73,18 +74,23 @@ class TopBarView(
                     InjectNavigationChain<ViewConfig> { InjectNavigationNode(AuthViewConfig()) }
                 }
             }
-            val crumbTitles = titleProviders.map { it.title }.filter { it.isNotBlank() }
-            if (crumbTitles.isNotEmpty()) {
+            val crumbs = titleProviders.filter { it.title.isNotBlank() }
+            if (crumbs.isNotEmpty()) {
                 Div({ classes(CalmStudioStyleSheet.crumbbar) }) {
                     Div({ classes(CalmStudioStyleSheet.crumb) }) {
-                        crumbTitles.forEachIndexed { index, title ->
+                        crumbs.forEachIndexed { index, provider ->
                             if (index > 0) {
                                 Span({ classes(CalmStudioStyleSheet.sep) }) { Text("/") }
                             }
-                            if (index == crumbTitles.lastIndex) {
+                            val title = provider.title
+                            if (index == crumbs.lastIndex) {
                                 B { Text(title) }
                             } else {
-                                Span { Text(title) }
+                                // `<a>` (no href) — styled clickable by `.crumb a`; navigates to the
+                                // chain point this crumb reflects.
+                                A(attrs = {
+                                    onClick { viewModel.onCrumbSelected(provider) }
+                                }) { Text(title) }
                             }
                         }
                     }

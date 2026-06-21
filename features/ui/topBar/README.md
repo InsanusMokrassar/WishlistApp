@@ -15,7 +15,10 @@ JS does not show the URL change button because the browser controls the origin.
 On JS the bar follows the Calm Studio shell: a global search field
 (people / lists / items) on the left and the auth action on the right, with a
 slim breadcrumb (`.crumb`) rendered under the bar for content depth. The
-breadcrumb is still fed by the main chain's `TopBarTitleProvider`s.
+breadcrumb is still fed by the main chain's `TopBarTitleProvider`s. Each
+non-current crumb is a clickable `<a>` (the current/last one stays a bold `<b>`):
+clicking it collapses the main chain back to the node that crumb reflects
+(`TopBarViewModel.onCrumbSelected`).
 
 ## Routes
 
@@ -26,7 +29,7 @@ None — client-only UI feature.
 | Type | Description |
 |------|-------------|
 | `TopBarViewConfig` | Empty `@Serializable class` |
-| `TopBarViewModel` | Tracks `titleProviders` (breadcrumb) and `searchQueryState`; `onChangeServerUrl()` / `onSearchQueryChanged()` events |
+| `TopBarViewModel` | Tracks `titleProviders` (breadcrumb) and `searchQueryState`; `onChangeServerUrl()` / `onSearchQueryChanged()` / `onCrumbSelected(provider)` events |
 | `TopBarViewInteractor` | `onChangeServerUrl(node)` — pushes `ServerUrlViewConfig` on the root chain |
 
 ## Architecture Notes
