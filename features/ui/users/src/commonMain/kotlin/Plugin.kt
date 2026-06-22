@@ -4,6 +4,7 @@ import dev.inmo.micro_utils.common.MPPFile
 import dev.inmo.micro_utils.koin.singleWithRandomQualifier
 import dev.inmo.micro_utils.startup.plugin.StartPlugin
 import dev.inmo.wishlist.features.admin.client.AdminFeature
+import dev.inmo.wishlist.features.auth.client.AuthCredentialsStorage
 import dev.inmo.wishlist.features.auth.client.meStateFlow
 import dev.inmo.wishlist.features.auth.common.models.Password
 import dev.inmo.wishlist.features.common.client.models.ViewConfig
@@ -53,14 +54,17 @@ object Plugin : StartPlugin {
         }
         factory { UsersListViewModel(node = it.get(), model = get(), interactor = get()) }
         factory { UserViewModel(node = it.get(), model = get(), interactor = get()) }
-        factory { UserEditViewModel(node = it.get(), model = get(), interactor = get(), authCredentialsStorage = get()) }
+        factory { UserEditViewModel(node = it.get(), model = get(), interactor = get()) }
         single<UsersModel> {
             val feature = get<UsersFeature>()
             val meState = meStateFlow
             val adminFeature = get<AdminFeature>()
             val filesService = get<FilesClientService>()
             val scope = get<CoroutineScope>()
+            val credentialsStorage = get<AuthCredentialsStorage>()
             object : UsersModel {
+                override val userAuthorisedState = credentialsStorage.userAuthorised
+
                 override suspend fun getAllUsers(): List<RegisteredUser> = feature.getAll()
 
                 override suspend fun getUser(id: UserId): RegisteredUser? =

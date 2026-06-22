@@ -4,6 +4,7 @@ import dev.inmo.micro_utils.koin.getAllDistinct
 import dev.inmo.micro_utils.koin.singleWithRandomQualifier
 import dev.inmo.micro_utils.startup.plugin.StartPlugin
 import dev.inmo.micro_utils.common.MPPFile
+import dev.inmo.wishlist.features.auth.client.AuthCredentialsStorage
 import dev.inmo.wishlist.features.auth.client.meStateFlow
 import dev.inmo.wishlist.features.common.client.models.ViewConfig
 import dev.inmo.wishlist.features.currency.client.CurrencyService
@@ -89,8 +90,8 @@ object Plugin : StartPlugin {
 
         factory { WishlistsListViewModel(it.get(), get(), get()) }
         factory { WishlistViewModel(it.get(), get(), get()) }
-        factory { WishlistEditViewModel(it.get(), get(), get(), get()) }
-        factory { WishlistItemEditViewModel(it.get(), get(), get(), get()) }
+        factory { WishlistEditViewModel(it.get(), get(), get()) }
+        factory { WishlistItemEditViewModel(it.get(), get(), get()) }
         factory { WishlistItemViewModel(it.get(), get(), get(), getAllDistinct()) }
         factory { UserWishlistsViewModel(it.get(), get(), get()) }
         factory { WishlistItemCopyViewModel(it.get(), get(), get()) }
@@ -107,7 +108,10 @@ object Plugin : StartPlugin {
             val currencyService = get<CurrencyService>()
             val viewModeStorage = get<WishlistViewModeStorage>()
             val scope = get<CoroutineScope>()
+            val credentialsStorage = get<AuthCredentialsStorage>()
             object : WishlistsModel {
+                override val userAuthorisedState = credentialsStorage.userAuthorised
+
                 override suspend fun getSavedViewMode(): WishlistViewMode =
                     viewModeStorage.getViewMode() ?: WishlistViewMode.Grid
 

@@ -7,7 +7,6 @@ import dev.inmo.navigation.core.NavigationNode
 import dev.inmo.navigation.core.onResumeFlow
 import dev.inmo.navigation.mvvm.ViewModel
 import dev.inmo.wishlist.features.admin.common.models.NewUserWithPassword
-import dev.inmo.wishlist.features.auth.client.AuthCredentialsStorage
 import dev.inmo.wishlist.features.auth.common.models.Password
 import dev.inmo.wishlist.features.common.client.models.ViewConfig
 import dev.inmo.wishlist.features.common.client.utils.subscribeOnLoggedOut
@@ -30,13 +29,11 @@ import kotlinx.coroutines.flow.takeWhile
  * @param node Navigation node this ViewModel is bound to.
  * @param model Admin data source.
  * @param interactor Navigation delegate for this screen.
- * @param authCredentialsStorage Login-state source; on logout this screen exits to its non-edit view.
  */
 class AdminUserEditViewModel(
     private val node: NavigationNode<AdminUserEditViewConfig, ViewConfig>,
     private val model: AdminPanelModel,
-    private val interactor: AdminUserEditViewInteractor,
-    private val authCredentialsStorage: AuthCredentialsStorage
+    private val interactor: AdminUserEditViewInteractor
 ) : ViewModel<ViewConfig>(node) {
     /** `true` when operating in create mode (no existing user id). */
     val isCreating: Boolean = node.config.userId == null
@@ -82,7 +79,7 @@ class AdminUserEditViewModel(
             }
             inited = true
         }
-        authCredentialsStorage.userAuthorised.subscribeOnLoggedOut(scope) {
+        model.userAuthorisedState.subscribeOnLoggedOut(scope) {
             interactor.onNavigateBack(node)
         }
     }
