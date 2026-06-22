@@ -9,7 +9,7 @@ import org.koin.core.module.Module
  * JVM server plugin for the deeplinks feature.
  *
  * Delegates to the deeplinks common JVM plugin (which registers the Exposed-backed `DeepLinksRepo`)
- * and to the server `Plugin` (service + root route). Requires `features/common/server` (which
+ * and to the server `Plugin` (service + the standard `/api` routing Element). Requires `features/common/server` (which
  * provides `Database`, `Json`, and the `KtorApplicationConfigurator` collection) loaded earlier.
  */
 object JVMPlugin : StartPlugin {
