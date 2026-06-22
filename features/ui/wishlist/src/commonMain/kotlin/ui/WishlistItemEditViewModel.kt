@@ -8,6 +8,7 @@ import dev.inmo.navigation.core.onResumeFlow
 import dev.inmo.navigation.mvvm.ViewModel
 import dev.inmo.micro_utils.common.MPPFile
 import dev.inmo.wishlist.features.common.client.models.ViewConfig
+import dev.inmo.wishlist.features.common.client.utils.subscribeOnLoggedOut
 import dev.inmo.wishlist.features.common.common.models.Amount
 import dev.inmo.wishlist.features.files.common.models.FileId
 import dev.inmo.wishlist.features.wishlist.common.models.NewWishlistItem
@@ -29,6 +30,12 @@ import kotlinx.coroutines.flow.takeWhile
  *
  * Back navigation shows a discard-changes confirmation modal when [isDirtyState] is `true`.
  * Navigation side-effects are delegated to [interactor].
+ *
+ * On logout this screen exits unconditionally to its non-edit view, bypassing the dirty-changes
+ * confirm dialog. Both CREATE and EDIT modes call
+ * [WishlistItemEditViewInteractor.onNavigateBackToParent], which routes internally:
+ * EDIT → item read view ([WishlistItemViewConfig]); CREATE → containing wishlist detail
+ * ([WishlistViewConfig]).
  *
  * @param node Navigation node this ViewModel is bound to.
  * @param model Wishlist data source.
@@ -168,6 +175,9 @@ class WishlistItemEditViewModel(
                 }
             }
             inited = true
+        }
+        model.userAuthorisedState.subscribeOnLoggedOut(scope) {
+            interactor.onNavigateBackToParent(node)
         }
     }
 

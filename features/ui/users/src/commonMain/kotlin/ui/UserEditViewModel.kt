@@ -9,6 +9,7 @@ import dev.inmo.navigation.core.onResumeFlow
 import dev.inmo.navigation.mvvm.ViewModel
 import dev.inmo.wishlist.features.auth.common.models.Password
 import dev.inmo.wishlist.features.common.client.models.ViewConfig
+import dev.inmo.wishlist.features.common.client.utils.subscribeOnLoggedOut
 import dev.inmo.wishlist.features.files.common.models.FileId
 import dev.inmo.wishlist.features.users.common.models.UserId
 import dev.inmo.wishlist.features.users.common.models.Username
@@ -34,6 +35,9 @@ import kotlinx.coroutines.flow.takeWhile
  * Username/password mutations go through the root-only admin endpoints; the avatar upload goes
  * through the files feature (allowed for the owner or root). Server-side authorization is the
  * source of truth — the field gating here is purely presentational.
+ *
+ * On logout this screen exits unconditionally to the underlying profile (read) view via
+ * [UserEditViewInteractor.onNavigateBack], bypassing the dirty-changes confirm dialog.
  *
  * @param node Navigation node this ViewModel is bound to.
  * @param model Users data source.
@@ -135,6 +139,9 @@ class UserEditViewModel(
                 _loadingState.value = false
             }
             inited = true
+        }
+        model.userAuthorisedState.subscribeOnLoggedOut(scope) {
+            interactor.onNavigateBack(node)
         }
     }
 

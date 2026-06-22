@@ -7,6 +7,7 @@ import dev.inmo.navigation.core.NavigationNode
 import dev.inmo.navigation.core.onResumeFlow
 import dev.inmo.navigation.mvvm.ViewModel
 import dev.inmo.wishlist.features.common.client.models.ViewConfig
+import dev.inmo.wishlist.features.common.client.utils.subscribeOnLoggedOut
 import dev.inmo.wishlist.features.common.common.models.Amount
 import dev.inmo.wishlist.features.wishlist.common.models.NewWishlistItem
 import kotlinx.coroutines.flow.asStateFlow
@@ -19,6 +20,9 @@ import kotlinx.coroutines.flow.takeWhile
  *
  * When [AdminWishlistItemEditViewConfig.itemId] is `null`, operates in create mode.
  * When non-null, loads the existing item and pre-fills all fields.
+ *
+ * On logout this screen exits unconditionally via [AdminWishlistItemEditViewInteractor.onNavigateBack],
+ * bypassing the dirty-changes confirm dialog.
  *
  * @param node Navigation node this ViewModel is bound to.
  * @param model Admin data source.
@@ -86,6 +90,9 @@ class AdminWishlistItemEditViewModel(
                 }
             }
             inited = true
+        }
+        model.userAuthorisedState.subscribeOnLoggedOut(scope) {
+            interactor.onNavigateBack(node)
         }
     }
 

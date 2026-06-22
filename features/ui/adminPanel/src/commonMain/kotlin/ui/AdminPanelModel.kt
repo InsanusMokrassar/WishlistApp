@@ -10,6 +10,7 @@ import dev.inmo.wishlist.features.wishlist.common.models.RegisteredWishlist
 import dev.inmo.wishlist.features.wishlist.common.models.RegisteredWishlistItem
 import dev.inmo.wishlist.features.wishlist.common.models.WishlistId
 import dev.inmo.wishlist.features.wishlist.common.models.WishlistItemId
+import kotlinx.coroutines.flow.StateFlow
 
 /**
  * Model interface for all admin panel UI screens.
@@ -18,6 +19,13 @@ import dev.inmo.wishlist.features.wishlist.common.models.WishlistItemId
  * consumed by all admin ViewModels.
  */
 interface AdminPanelModel {
+    /**
+     * Reactive login-state flow; emits `true` while a user is authenticated and `false` after logout.
+     * Mirrors `AuthCredentialsStorage.userAuthorised`, exposed here so edit ViewModels route their
+     * logout-exit through the model instead of touching auth storage directly (MVVM boundary).
+     */
+    val userAuthorisedState: StateFlow<Boolean>
+
     /** Returns all registered users. */
     suspend fun getAllUsers(): List<RegisteredUser>
 

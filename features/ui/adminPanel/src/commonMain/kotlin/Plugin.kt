@@ -4,6 +4,7 @@ import dev.inmo.micro_utils.koin.singleWithRandomQualifier
 import dev.inmo.micro_utils.startup.plugin.StartPlugin
 import dev.inmo.wishlist.features.admin.client.AdminFeature
 import dev.inmo.wishlist.features.admin.common.models.NewUserWithPassword
+import dev.inmo.wishlist.features.auth.client.AuthCredentialsStorage
 import dev.inmo.wishlist.features.common.client.models.ViewConfig
 import dev.inmo.wishlist.features.ui.adminPanel.ui.AdminPanelModel
 import dev.inmo.wishlist.features.ui.adminPanel.ui.AdminPanelViewConfig
@@ -81,7 +82,10 @@ object Plugin : StartPlugin {
 
         single<AdminPanelModel> {
             val admin = get<AdminFeature>()
+            val credentialsStorage = get<AuthCredentialsStorage>()
             object : AdminPanelModel {
+                override val userAuthorisedState = credentialsStorage.userAuthorised
+
                 override suspend fun getAllUsers(): List<RegisteredUser> =
                     admin.usersManagement.getAll()
 
