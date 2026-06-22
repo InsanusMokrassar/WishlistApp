@@ -26,7 +26,7 @@ None — client-only UI feature.
 | Type | Description |
 |------|-------------|
 | `TopBarViewConfig` | Empty `@Serializable class` |
-| `TopBarViewModel` | Tracks `titleProviders` (breadcrumb) and `searchQueryState`; `onChangeServerUrl()` / `onSearchQueryChanged()` events |
+| `TopBarViewModel` | Tracks `titleProviders` (breadcrumb) and `searchQueryState`; `onChangeServerUrl()` / `onSearchQueryChanged()` / `onCrumbSelected(provider)` events |
 | `TopBarViewInteractor` | `onChangeServerUrl(node)` — pushes `ServerUrlViewConfig` on the root chain |
 
 ## Architecture Notes
@@ -38,3 +38,16 @@ None — client-only UI feature.
 - The "Change server URL" button is only rendered in the JVM and Android views.
 - The `TopBarViewInteractor` implementation lives in `client/ClientPlugin`
   and operates on the root `NavigationChain<ViewConfig>`.
+- Breadcrumb segments (all except the last/current) are clickable. `TopBarView` (JS) maps each
+  non-last `TopBarTitleProvider` to a `CrumbItem` with an `onClick` that calls
+  `viewModel.onCrumbSelected(provider)`, then passes the resulting list to the `Breadcrumb`
+  composable (Calm Studio standard component).
+- `TopBarViewModel.onCrumbSelected(provider)` casts the provider to
+  `NavigationNode<*, ViewConfig>` and pops the main chain's stack down to that node using a
+  sequential-await loop: one `chain.drop(top)` per iteration, each followed by
+  `chain.stackFlow.first { it.lastOrNull() !== top }` to await the channel's application of
+  that drop. This avoids the race in `NavigationChain.drop()` where a synchronous batch of
+  drops would all snapshot the pre-drop stack and overwrite each other.
+- `TopBarViewModel` caches the resolved main chain in `private var mainChain` (updated in the
+  same `init` subscription that refreshes `_titleProviders`) so `onCrumbSelected` can reference
+  it without re-resolving the subtree on each click.
