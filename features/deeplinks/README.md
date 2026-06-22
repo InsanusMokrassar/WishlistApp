@@ -7,8 +7,8 @@
 ## Overview
 
 Server-only feature. It stores declared deeplink UUIDs together with attached handler info, mints
-deeplinks in-process, and resolves an opened `links/{deeplink_uuid}` by dispatching it to the first
-registered handler that claims it.
+deeplinks in-process, and resolves an opened `links/{deeplink_uuid}` by dispatching it to the handler
+registered under the stored `DeepLinkHandlerId`.
 
 The feature ships **zero** concrete handlers — it only declares the `DeepLinkHandler` interface and
 the dispatch infrastructure. Other features provide their own handlers (registered in their own
@@ -25,7 +25,7 @@ with every other feature and compiles.
 | GET | `/links/{deeplink_uuid}` | none | empty body; `200` handled, `404` not-found or unhandled, `400` blank/missing id | User-clickable deeplink, served at the **site root** (NOT under `/api`) via a root-level `KtorApplicationConfigurator`; resolved ahead of the static-SPA fallback by route specificity. |
 
 There is **no HTTP create endpoint**. Creating a deeplink is the in-process
-`DeepLinksService.createDeepLink(handlerInfo)` API, called by other server features (avoids
+`DeepLinksService.createDeepLink(handlerId, value)` API, called by other server features (avoids
 unauthenticated link minting). A present-but-bogus id is a normal lookup miss (`404`), since
 `DeepLinkId` is an opaque string and UUID format is not validated.
 
@@ -35,19 +35,36 @@ Key data types:
 
 - `DeepLinkId` — `@Serializable @JvmInline value class DeepLinkId(val string: String)`; opaque
   server-generated UUID, the `{deeplink_uuid}` path part and the repo primary key.
-- `DeepLinkHandlerInfo` — `@Serializable data class DeepLinkHandlerInfo(val type: String, val payload: JsonElement)`;
-  the record stored as JSON for each deeplink. `type` is a discriminator naming the owning handler;
-  `payload` is that handler's own data class encoded to a `JsonElement`.
-- `DeepLinkHandler` — interface in `common` with `suspend fun tryHandle(deeplinkId: DeepLinkId, handlerInfo: Any): Boolean`.
-  A handler casts `handlerInfo` to `DeepLinkHandlerInfo`, returns `false` immediately when
-  `info.type` is not its own key, otherwise decodes `info.payload` with its own serializer, performs
-  its side-effect, and returns `true`. Returning `true` means "owned and processed".
+- `DeepLinkHandlerId` — `@Serializable @JvmInline value class DeepLinkHandlerId(val string: String)`;
+  type-safe identifier of a handler, used as the map key in the dispatch service and stored in each
+  deeplink record. Handler ids MUST be globally unique; duplicate ids cause startup failure.
+- `DeepLinkHandlerInfo` — `@Serializable data class DeepLinkHandlerInfo(val handlerId: DeepLinkHandlerId, @Polymorphic val value: Any)`;
+  the record stored as JSON for each deeplink. `handlerId` identifies the owning handler; `value` is
+  that handler's own payload, serialized polymorphically via the global `Json` aggregated
+  `SerializersModule` (all handler-providing features register their value type via
+  `polymorphic(Any::class, T::class, T.serializer())`).
+- `DeepLinkHandler` — interface in `common` with `val id: DeepLinkHandlerId` and
+  `suspend fun tryHandle(deeplinkId: DeepLinkId, value: Any): Boolean`. The service selects the
+  handler by `id` (map lookup), then passes the decoded `value` (no wrapper, no id). The handler
+  casts `value` to its concrete type, performs its side-effect, and returns `true` if processed,
+  `false` otherwise.
 - `DeepLinksRepo : KeyValueRepo<DeepLinkId, DeepLinkHandlerInfo>` — persistent store (Exposed-backed
   `ExposedDeepLinksRepo`, `deeplinks` table, JSON blob value column).
 - `HandleResult` — sealed: `NotFound` / `Unhandled` / `Handled`; mapped to HTTP status by the route.
 
 ## Architecture Notes
 
+- **Map-based dispatch by `DeepLinkHandlerId`.** The service builds `handlersById: Map<DeepLinkHandlerId, DeepLinkHandler>`
+  at construction and looks up the handler directly by `info.handlerId`. Unknown handler ids → `Unhandled`
+  (→ `404`). No list scan, no first-true-wins.
+- **Polymorphic value serialization via aggregated `SerializersModule`.** `@Polymorphic val value: Any`
+  is resolved through the global `Json` (`features/common/common/.../Plugin.kt`, `useArrayPolymorphism = true`)
+  which aggregates every Koin-registered `SerializersModule` via `getAllDistinct<SerializersModule>()`.
+  Each handler-providing feature MUST register its concrete value type in its server plugin:
+  `singleWithRandomQualifier { SerializersModule { polymorphic(Any::class, T::class, T.serializer()) } }`.
+  Unregistered value types fail fast with `SerializationException`.
+- **Duplicate handler ids throw at service construction.** Registering two handlers under the same `DeepLinkHandlerId`
+  causes startup failure (fail-fast during Koin `single{}` build); handler ids MUST be globally unique.
 - **Root route, not an `Element`.** The route is a `KtorApplicationConfigurator` that opens its own
   `routing { }` at the site root (like `InternalApplicationRoutingConfigurator`). It is deliberately
   NOT an `ApplicationRoutingConfigurator.Element`: every such `Element` is force-wrapped under `/api`
@@ -55,13 +72,6 @@ Key data types:
 - **Route specificity beats the SPA fallback.** The explicit `route("links") { get("{deeplink_uuid}") }`
   is strictly more specific than the static `default("index.html")` SPA fallback mounted at root, so
   Ktor resolves the deeplink route regardless of the unordered `getAllDistinct` install order.
-- **The `Any` parameter is honored via a JSON-blob discriminator.** No `Any` value is ever
-  serialized: only the fully-serializable `DeepLinkHandlerInfo(type, payload)` is persisted. At
-  dispatch the decoded record is passed as the `Any` argument. The global `Json` has
-  `ignoreUnknownKeys = true`, so a blind `decodeFromJsonElement` of a foreign payload could falsely
-  succeed; the `type` gate makes dispatch deterministic and decouples handlers from any central
-  polymorphic registry. `type` keys must be **globally unique per handler** (dispatch is
-  first-true-wins over the unordered `getAllDistinct<DeepLinkHandler>()` list).
 - **Plain `KeyValueRepo`, no cache.** Deeplinks are write-once (mint) and read-rarely (only when a
   link is opened); there is no hot-read or list traffic, so no `FullCRUDCacheRepo` wrapper is used —
   matching `FilesMetaInfoRepo`.
