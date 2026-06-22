@@ -84,11 +84,13 @@ class TopBarViewModel(
     /**
      * Handles a user tap on a non-current breadcrumb segment.
      *
-     * Collapses the main navigation chain so that [provider] becomes the top-most node. Nodes
-     * above [provider] in the stack are popped one at a time, each pop awaited before the next
-     * is issued, to avoid the race condition in [dev.inmo.navigation.core.NavigationChain.drop]
-     * where a synchronous batch of drops would each snapshot the same pre-drop stack and
-     * overwrite each other when the channel applies them.
+     * Collapses the main navigation chain so that [provider] becomes the top-most node. The
+     * nodes to drop are collected into an explicit list up front ([toDrop]), then dropped
+     * top-first. Each drop is awaited before the next is issued because
+     * [dev.inmo.navigation.core.NavigationChain.drop] snapshots `newStack` at call-time and
+     * applies it on a FIFO channel — two un-awaited drops would each snapshot the same pre-drop
+     * stack and the second would re-add the node the first removed. [NavigationChain] exposes no
+     * race-free batch-drop API, so the per-node await is forced, not lazy.
      *
      * No-ops when [provider] is not found in the chain, is already the top node, the chain is
      * not yet resolved, or [provider] is not a [dev.inmo.navigation.core.NavigationNode].
@@ -98,12 +100,22 @@ class TopBarViewModel(
     fun onCrumbSelected(provider: TopBarTitleProvider) {
         val chain = mainChain ?: return
         val targetNode = provider as? NavigationNode<*, ViewConfig> ?: return
+        // Build the explicit drop-list ONCE: every node strictly above targetNode, in stack order
+        // (bottom→top). takeLastWhile stops at the first node identity-equal to targetNode, so the
+        // result excludes targetNode and everything below it.
+        val toDrop = chain.stackFlow.value.takeLastWhile { it !== targetNode }
+        // No-op when targetNode is absent (toDrop == whole stack), or is already the top (toDrop empty).
+        if (toDrop.isEmpty() || toDrop.size == chain.stackFlow.value.size) return
         scope.launchLoggingDropExceptions {
-            while (true) {
-                val top = chain.stackFlow.value.lastOrNull() ?: break
-                if (top === targetNode) break
-                chain.drop(top)
-                chain.stackFlow.first { it.lastOrNull() !== top }
+            // Drop the pre-computed nodes top-first. Each drop is awaited before the next is issued:
+            // NavigationChain.drop snapshots `newStack` at call-time and applies it on a FIFO channel,
+            // so two un-awaited drops would each snapshot the same pre-drop stack and the second would
+            // re-add the node the first removed. NavigationChain offers no race-free batch-drop API,
+            // so the per-node await is forced, not lazy. The drop-list itself is now explicit and
+            // pre-built (reviewer's "list of nodes to drop") rather than recomputed each loop.
+            for (node in toDrop.asReversed()) {
+                chain.drop(node)
+                chain.stackFlow.first { node !in it }
             }
         }
     }
