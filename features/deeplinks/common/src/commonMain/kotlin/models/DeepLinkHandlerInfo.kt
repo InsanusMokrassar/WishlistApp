@@ -1,24 +1,27 @@
 package dev.inmo.wishlist.features.deeplinks.common.models
 
+import kotlinx.serialization.Polymorphic
 import kotlinx.serialization.Serializable
-import kotlinx.serialization.json.JsonElement
 
 /**
  * Serializable record stored as JSON for each deeplink.
  *
- * [type] is a caller-chosen discriminator naming the owning handler; [payload] is that handler's
- * own data class already encoded to a [JsonElement]. This is the exact object decoded at dispatch
- * time and passed as `handlerInfo: Any` to every
- * [dev.inmo.wishlist.features.deeplinks.common.DeepLinkHandler]. No `Any` value is ever serialized:
- * only this fully-serializable record is persisted.
+ * [handlerId] selects the owning [dev.inmo.wishlist.features.deeplinks.common.DeepLinkHandler] via the
+ * service's handler map; [value] is that handler's own payload, serialized polymorphically. Because
+ * [value] is `@Polymorphic Any`, its concrete runtime type must be registered by the owning
+ * handler-providing feature with `polymorphic(Any::class, T::class, T.serializer())` in a Koin
+ * `SerializersModule`; the global `Json` (`features/common/common/.../Plugin.kt`,
+ * `useArrayPolymorphism = true`) aggregates every such module via `getAllDistinct<SerializersModule>()`
+ * and resolves the value at encode/decode time. An unregistered value type fails fast with a
+ * `SerializationException`.
  *
- * @property type Logical handler key; a handler claims a deeplink only when this equals its own
- *   constant. Keys must be globally unique per handler (dispatch is first-true-wins, unordered).
- * @property payload Opaque per-handler JSON body; the owning handler decodes it with its own
- *   serializer after matching [type].
+ * @property handlerId Identifier of the handler that owns this deeplink; the dispatcher looks the
+ *   handler up by it.
+ * @property value The owning handler's own payload, serialized via the global polymorphic module and
+ *   handed back to that handler (without the id) at dispatch time.
  */
 @Serializable
 data class DeepLinkHandlerInfo(
-    val type: String,
-    val payload: JsonElement
+    val handlerId: DeepLinkHandlerId,
+    @Polymorphic val value: Any
 )
