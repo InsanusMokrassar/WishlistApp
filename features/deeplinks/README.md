@@ -22,7 +22,7 @@ with every other feature and compiles.
 
 | Method | Path | Auth | Body / Response | Description |
 |--------|------|------|-----------------|-------------|
-| GET | `/links/{deeplink_uuid}` | none | empty body; `200` handled, `404` not-found or unhandled, `400` blank/missing id | User-clickable deeplink, served at the **site root** (NOT under `/api`) via a root-level `KtorApplicationConfigurator`; resolved ahead of the static-SPA fallback by route specificity. |
+| GET | `/api/links/{deeplink_uuid}` | none | empty body; `200` handled, `404` not-found or unhandled, `400` blank/missing id | User-clickable deeplink, served under the standard `/api` prefix via a normal `ApplicationRoutingConfigurator.Element`, auto-wrapped by `InternalApplicationRoutingConfigurator`. |
 
 There is **no HTTP create endpoint**. Creating a deeplink is the in-process
 `DeepLinksService.createDeepLink(handlerId, value)` API, called by other server features (avoids
@@ -50,7 +50,7 @@ Key data types:
   `false` otherwise.
 - `DeepLinksRepo : KeyValueRepo<DeepLinkId, DeepLinkHandlerInfo>` — persistent store (Exposed-backed
   `ExposedDeepLinksRepo`, `deeplinks` table, JSON blob value column).
-- `HandleResult` — sealed: `NotFound` / `Unhandled` / `Handled`; mapped to HTTP status by the route.
+- `HandleResult` — `@Serializable` sealed interface: `NotFound` / `Unhandled` / `Handled`; mapped to HTTP status by the route.
 
 ## Architecture Notes
 
@@ -65,13 +65,10 @@ Key data types:
   Unregistered value types fail fast with `SerializationException`.
 - **Duplicate handler ids throw at service construction.** Registering two handlers under the same `DeepLinkHandlerId`
   causes startup failure (fail-fast during Koin `single{}` build); handler ids MUST be globally unique.
-- **Root route, not an `Element`.** The route is a `KtorApplicationConfigurator` that opens its own
-  `routing { }` at the site root (like `InternalApplicationRoutingConfigurator`). It is deliberately
-  NOT an `ApplicationRoutingConfigurator.Element`: every such `Element` is force-wrapped under `/api`
-  plus a `/api` 404 catch-all, so an `Element` could never serve a root `links/...` link.
-- **Route specificity beats the SPA fallback.** The explicit `route("links") { get("{deeplink_uuid}") }`
-  is strictly more specific than the static `default("index.html")` SPA fallback mounted at root, so
-  Ktor resolves the deeplink route regardless of the unordered `getAllDistinct` install order.
+- **Standard `Element` under `/api`.** The route is a normal `ApplicationRoutingConfigurator.Element`,
+  auto-wrapped under `/api` by `InternalApplicationRoutingConfigurator`, so the full path is
+  `/api/links/{deeplink_uuid}`. No exception or special routing — deeplinks follow the same pattern as
+  every other feature.
 - **Plain `KeyValueRepo`, no cache.** Deeplinks are write-once (mint) and read-rarely (only when a
   link is opened); there is no hot-read or list traffic, so no `FullCRUDCacheRepo` wrapper is used —
   matching `FilesMetaInfoRepo`.
