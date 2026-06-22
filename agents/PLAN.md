@@ -1,4 +1,4 @@
-THIS AGENT MUST NOT EDIT ANY FILE except `agents/task/<uuid>/<STEP_NUMBER>.md`
+THIS AGENT MUST NOT EDIT ANY FILE except `agents/task/<TASK_ID_FORMAT>/<STEP_NUMBER_FORMAT>.md`
 
 Plan stage contains several important substages:
 
@@ -8,4 +8,4 @@ Plan stage contains several important substages:
 4. In case of any problems or question they must be asked to operator
 5. Return to the first step if on previous step have been some problems or questions
 
-The result of plan must be placed in the file like `agents/task/<uuid>/<STEP_NUMBER>.md`
+The result of plan must be placed in the file like `agents/task/<TASK_ID_FORMAT>/<STEP_NUMBER_FORMAT>.md`
