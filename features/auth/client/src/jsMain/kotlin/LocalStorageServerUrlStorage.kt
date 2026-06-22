@@ -4,17 +4,20 @@ import dev.inmo.micro_utils.coroutines.SmartRWLocker
 import dev.inmo.micro_utils.coroutines.withReadAcquire
 import dev.inmo.micro_utils.coroutines.withWriteLock
 import kotlinx.browser.localStorage
+import kotlinx.browser.window
 import org.w3c.dom.get
 import org.w3c.dom.set
 
 class LocalStorageServerUrlStorage(
-    private val key: String = "wishlist.serverAddress.url"
+    private val key: String = "wishlist.serverAddress.url",
+    private val useFallbackToWindowAddress: Boolean = true
 ) : ServerUrlStorage {
     private val locker = SmartRWLocker()
+    private val defaultUrl = if (useFallbackToWindowAddress) window.location.origin else null
 
     override suspend fun getServerUrl(): String? = locker.withReadAcquire {
         localStorage[key]
-    }
+    } ?: defaultUrl
 
     override suspend fun saveServerUrl(url: String?) {
         locker.withWriteLock {
