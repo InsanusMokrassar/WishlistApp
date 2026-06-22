@@ -54,6 +54,18 @@ In case of changes in source files (any files) you MUST use ast-index rebuild
 
 ---
 
+## Git Commit Rule
+
+Each role MUST make a git commit with the result of its work, UNLESS the prompt gives other direction.
+
+- Commit only the files this role changed; never stage `agents/task/` step reports.
+- Use a normal-style (non-caveman) commit message describing the work result.
+- End the commit body with:
+  `Co-Authored-By: Claude Opus 4.8 <noreply@anthropic.com>`
+- Do NOT push — pushing stays with the Orchestrator unless the prompt says otherwise.
+
+---
+
 ## Feature README.md Rule
 
 Every feature directory MUST contain a `README.md` file.
