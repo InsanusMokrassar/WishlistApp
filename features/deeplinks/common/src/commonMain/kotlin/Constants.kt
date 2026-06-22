@@ -6,10 +6,9 @@ package dev.inmo.wishlist.features.deeplinks.common
  */
 object DeepLinksConstants {
     /**
-     * Root path segment under which a deeplink resolves: `GET /links/{deeplink_uuid}`.
-     *
-     * Served at the SITE ROOT (NOT under `/api`), because a deeplink is a user-clickable URL and
-     * the `/api` namespace is reserved for the internal API (and carries a `404` catch-all).
+     * Path segment under which a deeplink resolves: `GET {deeplink_uuid}`. Served under the standard
+     * global `/api` prefix like every other feature, so the full resolved route is
+     * `/api/links/{deeplink_uuid}`.
      */
     const val linksPrefixPathPart = "links"
 
