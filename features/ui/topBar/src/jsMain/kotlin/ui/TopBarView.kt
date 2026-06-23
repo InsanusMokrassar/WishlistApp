@@ -61,7 +61,7 @@ class TopBarView(
 
         Div {
             Div({ classes(CalmStudioStyleSheet.topbar) }) {
-                Label(attrs = { classes(CalmStudioStyleSheet.search); attr("title", TopBarStrings.searchComingSoonTooltip.translation()) }) {
+                Label(attrs = { classes(CalmStudioStyleSheet.search); attr("disabled", ""); attr("title", TopBarStrings.searchComingSoonTooltip.translation()) }) {
                     SearchIcon()
                     Input(type = InputType.Text) {
                         value(searchQuery)
