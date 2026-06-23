@@ -16,6 +16,7 @@ On JS the bar follows the Calm Studio shell: a global search field
 (people / lists / items) on the left and the auth action on the right, with a
 slim breadcrumb (`.crumb`) rendered under the bar for content depth. The
 breadcrumb is still fed by the main chain's `TopBarTitleProvider`s.
+The JS search field is currently disabled (non-interactive, `<input disabled>`) with a native browser tooltip "This feature will be implemented soon" shown on hover.
 
 ## Routes
 

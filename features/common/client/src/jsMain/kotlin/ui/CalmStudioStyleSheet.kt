@@ -735,6 +735,9 @@ object CalmStudioStyleSheet : StyleSheet(usePrefix = false) {
         }
         className(textarea) style { property("resize", "vertical"); property("min-height", "84px"); property("line-height", "1.5") }
 
+        // search disabled state (raw attribute selector — `.search[disabled]`; applied when the Label carries a disabled HTML attribute)
+        ".search[disabled]" style { property("opacity", ".5"); property("cursor", "default") }
+
         // empty states (flat raw — `empty` as a property would clash with SelectorsScope.empty)
         ".empty" style { property("text-align", "center"); property("padding", "60px 20px"); property("color", "var(--cs-muted)") }
         ".empty .ic" style {

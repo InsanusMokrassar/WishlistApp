@@ -19,4 +19,9 @@ object TopBarStrings {
     val searchPlaceholder = buildStringResource("Search people, lists, items…") {
         IetfLang.Russian("Поиск людей, списков, товаров…")
     }
+
+    /** Tooltip shown on the (temporarily disabled) search field — search not yet implemented. */
+    val searchComingSoonTooltip = buildStringResource("This feature will be implemented soon") {
+        IetfLang.Russian("Эта функция будет добавлена скоро")
+    }
 }

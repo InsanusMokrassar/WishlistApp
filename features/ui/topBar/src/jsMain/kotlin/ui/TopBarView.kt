@@ -15,6 +15,7 @@ import dev.inmo.wishlist.features.common.client.ui.components.CrumbItem
 import dev.inmo.wishlist.features.ui.auth.ui.AuthViewConfig
 import dev.inmo.wishlist.features.ui.topBar.TopBarStrings
 import org.jetbrains.compose.web.attributes.InputType
+import org.jetbrains.compose.web.attributes.disabled
 import org.jetbrains.compose.web.attributes.placeholder
 import org.jetbrains.compose.web.dom.Div
 import org.jetbrains.compose.web.dom.Input
@@ -60,12 +61,13 @@ class TopBarView(
 
         Div {
             Div({ classes(CalmStudioStyleSheet.topbar) }) {
-                Label(attrs = { classes(CalmStudioStyleSheet.search) }) {
+                Label(attrs = { classes(CalmStudioStyleSheet.search); attr("disabled", ""); attr("title", TopBarStrings.searchComingSoonTooltip.translation()) }) {
                     SearchIcon()
                     Input(type = InputType.Text) {
                         value(searchQuery)
                         placeholder(TopBarStrings.searchPlaceholder.translation())
                         onInput { viewModel.onSearchQueryChanged(it.value) }
+                        disabled()
                     }
                     Span({ classes(CalmStudioStyleSheet.kbd) }) { Text("⌘K") }
                 }
