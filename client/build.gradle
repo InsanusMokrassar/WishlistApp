@@ -43,6 +43,25 @@ kotlin {
     }
 }
 
+compose.desktop {
+    application {
+        mainClass = "dev.inmo.wishlist.client.MainKt"
+        nativeDistributions {
+            targetFormats(
+                org.jetbrains.compose.desktop.application.dsl.TargetFormat.Deb,
+                org.jetbrains.compose.desktop.application.dsl.TargetFormat.Rpm,
+                org.jetbrains.compose.desktop.application.dsl.TargetFormat.Msi,
+                org.jetbrains.compose.desktop.application.dsl.TargetFormat.Exe
+            )
+            packageName = "wishlist"
+            // D2: derive jpackage packageVersion from app `version` by major+1, keep minor/patch.
+            // version=0.1.0 -> "1.1.0" (jpackage requires major>=1)
+            def __v = "$version".tokenize('.')
+            packageVersion = "${(__v[0].toInteger() + 1)}.${__v[1]}.${__v[2]}"
+        }
+    }
+}
+
 project.tasks.configureEach {
     if (it.name == "jsBrowserProductionWebpack") {
         it.dependsOn("jsDevelopmentExecutableCompileSync")
