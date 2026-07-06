@@ -1,4 +1,13 @@
-# Memory — DISABLED
+THIS AGENT MUST READ `agents/task/<TASK_ID_FORMAT>/<STEP_NUMBER_FORMAT>.md` with the largest `STEP_NUMBER` BEFORE ANY WORK
+
+THIS AGENT MUST WRITE `agents/task/<TASK_ID_FORMAT>/<STEP_NUMBER_FORMAT>.md` WITH RESULTS REPORT ABOUT HIS WORK
+
+1. TASK_ID_FORMAT: `<date+time in UTC timezone in format dd/mm/yyyy hh/MM/ss>-<uuid>`
+2. STEP_NUMBER: `<step number as simple integer>`-`<role name as mentioned in orchestrator file>`
+
+---
+
+**Memory — DISABLED**
 
 Do NOT use Claude Code's file-based auto-memory for this project:
 
@@ -11,15 +20,6 @@ Do NOT use Claude Code's file-based auto-memory for this project:
 Always starts with `/caveman full`
 
 Always look at the project work rules first.  Many thanks for your help to me and your work.
-
----
-
-THIS AGENT MUST READ `agents/task/<TASK_ID_FORMAT>/<STEP_NUMBER>.md` with the largest `STEP_NUMBER` BEFORE ANY WORK
-
-THIS AGENT MUST WRITE `agents/task/<TASK_ID_FORMAT>/<STEP_NUMBER>.md` WITH RESULTS REPORT ABOUT HIS WORK
-
-1. TASK_ID_FORMAT: `<date+time in UTC timezone in format dd/mm/yyyy hh/MM/ss>-<uuid>`
-2. STEP_NUMBER: `<step number as simple integer>`-`<role name as mentioned in orchestrator file>`
 
 ---
 
@@ -51,6 +51,18 @@ brew install ast-index
 After installation continue your task using `ast-index`
 
 In case of changes in source files (any files) you MUST use ast-index rebuild
+
+---
+
+## Git Commit Rule
+
+Each role MUST make a git commit with the result of its work, UNLESS the prompt gives other direction.
+
+- Commit only the files this role changed; never stage `agents/task/` step reports.
+- Use a normal-style (non-caveman) commit message describing the work result.
+- End the commit body with:
+  `Co-Authored-By: Claude Opus 4.8 <noreply@anthropic.com>`
+- Do NOT push — pushing stays with the Orchestrator unless the prompt says otherwise.
 
 ---
 

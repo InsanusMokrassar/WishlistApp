@@ -7,6 +7,7 @@ import dev.inmo.navigation.core.NavigationNode
 import dev.inmo.navigation.core.onResumeFlow
 import dev.inmo.navigation.mvvm.ViewModel
 import dev.inmo.wishlist.features.common.client.models.ViewConfig
+import dev.inmo.wishlist.features.common.client.utils.subscribeOnLoggedOut
 import dev.inmo.wishlist.features.users.common.models.RegisteredUser
 import dev.inmo.wishlist.features.users.common.models.UserId
 import dev.inmo.wishlist.features.wishlist.common.models.NewWishlist
@@ -23,6 +24,9 @@ import kotlinx.coroutines.flow.takeWhile
  * Loads all users to populate the owner dropdown.
  * If [AdminWishlistEditViewConfig.preselectedUserId] is non-null and the wishlistId is null,
  * the owner dropdown is pre-selected to that user.
+ *
+ * On logout this screen exits unconditionally via [AdminWishlistEditViewInteractor.onNavigateBack],
+ * bypassing the dirty-changes confirm dialog.
  *
  * @param node Navigation node this ViewModel is bound to.
  * @param model Admin data source.
@@ -83,6 +87,9 @@ class AdminWishlistEditViewModel(
                 _loadingState.value = false
             }
             inited = true
+        }
+        model.userAuthorisedState.subscribeOnLoggedOut(scope) {
+            interactor.onNavigateBack(node)
         }
     }
 

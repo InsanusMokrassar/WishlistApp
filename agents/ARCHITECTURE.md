@@ -1,6 +1,6 @@
 # Architecture
 
-THIS AGENT MUST NOT EDIT ANY FILE except `agents/task/<uuid>/<STEP_NUMBER>.md`
+THIS AGENT MUST NOT EDIT ANY FILE except `agents/task/<TASK_ID_FORMAT>/<STEP_NUMBER_FORMAT>.md`
 
 ## Feature README.md
 

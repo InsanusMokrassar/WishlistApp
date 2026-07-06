@@ -165,7 +165,7 @@ object JVMPlugin : StartPlugin {
                         config.staticFolders.forEach { (path, folderPath) ->
                             val file = File(folderPath)
                             staticFiles(path, file) {
-                                // SPA fallback: any sub-path under the mount (e.g. `/ui/users`) with no
+                                // SPA fallback: any sub-path under the mount (e.g. `/users`) with no
                                 // matching file serves the web client shell so client-side routing works.
                                 default("index.html")
                             }

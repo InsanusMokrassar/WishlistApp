@@ -149,8 +149,13 @@ private fun deepestConfigPath(holder: ConfigHolder<ViewConfig>): List<String>? {
  *
  * Emits the [appBasePathSegments] prefix followed by the [deepestConfigPath] of the focused screen
  * (nothing beyond the prefix when only the root users list is shown). Mirrored by [parsePath].
+ *
+ * The [Builder] arrives pre-filled with the current URL's path segments, so they are reset before
+ * rebuilding; otherwise each navigation re-appends the prefix and screen path, duplicating segments.
  */
 private fun LocationData.Builder.buildPath(holder: ConfigHolder<ViewConfig>) {
+    // reset: Builder arrives pre-filled with the current URL's segments; without clearing, each navigation re-appends and duplicates them
+    pathSegments.clear()
     appBasePathSegments().forEach { pathSegment(it) }
     deepestConfigPath(holder)?.forEach { pathSegment(it) }
 }
