@@ -2,6 +2,14 @@
 
 THIS AGENT MUST NOT EDIT ANY FILE except `agents/task/<TASK_ID_FORMAT>/<STEP_NUMBER_FORMAT>.md`
 
+## Test Planning Requirement
+
+After planning all architectural changes, this agent MUST produce test stubs or test specifications for every planned change:
+
+- For each new or modified function/class/endpoint: describe what test cases must pass (inputs, expected outputs, edge cases).
+- Test stubs must be written into the current step report file (`agents/task/<TASK_ID_FORMAT>/<STEP_NUMBER_FORMAT>.md`) so the Coding agent can implement them alongside the production code.
+- If any planned functionality **cannot** be covered by automated tests (e.g. platform-specific UI rendering, external service integration with no stub possible): this MUST be explicitly flagged in the step report and raised with the operator **before proceeding to the Coding step**. Do not hand off to Coding until the operator has confirmed how untestable functionality should be handled.
+
 ## Feature README.md
 
 See `ALL.md` for the full rule. Short version:
