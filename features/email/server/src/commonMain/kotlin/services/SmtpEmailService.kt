@@ -2,7 +2,6 @@ package dev.inmo.wishlist.features.email.server.services
 
 import dev.inmo.kslog.common.KSLog
 import dev.inmo.kslog.common.w
-import dev.inmo.wishlist.features.email.common.EmailFeature
 import dev.inmo.wishlist.features.email.common.models.Email
 import dev.inmo.wishlist.features.email.server.EmailConfig
 import dev.inmo.wishlist.features.email.server.SmtpConfig
@@ -16,19 +15,18 @@ import kotlinx.coroutines.withContext
 import java.util.Properties
 
 /**
- * Server-side [EmailFeature] implementation backed by Jakarta Mail (Angus Mail).
+ * SMTP delivery service backed by Jakarta Mail (Angus Mail).
  *
- * SMTP delivery is attempted on [Dispatchers.IO] to keep blocking socket I/O off the event loop.
+ * Performs email delivery on [Dispatchers.IO] to keep blocking socket I/O off the event loop.
  * When [EmailConfig.smtp] is `null` or the host is blank, all delivery methods are no-ops and
  * [isFeatureEnabled] returns `false`.
  *
- * Setting the authenticated caller's email address ([setMyEmail]) is a persistence concern handled
- * directly in the routing configurator via the [dev.inmo.wishlist.features.users.common.repo.UsersRepo];
- * this service returns `false` for that method as it is not an SMTP responsibility.
+ * This class is an SMTP transport only — caller-identity checks and user-email persistence are
+ * handled by [EmailFeatureService], which wraps this class.
  *
  * @param config Full email config slice decoded from the server config JSON.
  */
-class SmtpEmailService(private val config: EmailConfig) : EmailFeature {
+class SmtpEmailService(private val config: EmailConfig) {
 
     private val logger = KSLog("SmtpEmailService")
 
@@ -37,7 +35,7 @@ class SmtpEmailService(private val config: EmailConfig) : EmailFeature {
      *
      * @return Whether SMTP delivery is available.
      */
-    override suspend fun isFeatureEnabled(): Boolean =
+    suspend fun isFeatureEnabled(): Boolean =
         config.smtp != null && config.smtp.host.isNotBlank()
 
     /**
@@ -49,7 +47,7 @@ class SmtpEmailService(private val config: EmailConfig) : EmailFeature {
      * @return `true` when the message was accepted by the SMTP server; `false` when the feature
      *   is disabled or an error occurs (errors are logged at warn level).
      */
-    override suspend fun sendTestEmail(recipient: Email): Boolean {
+    suspend fun sendTestEmail(recipient: Email): Boolean {
         val smtp = config.smtp
         if (smtp == null || smtp.host.isBlank()) {
             logger.w { "sendTestEmail called but SMTP is not configured — skipping." }
@@ -72,15 +70,6 @@ class SmtpEmailService(private val config: EmailConfig) : EmailFeature {
             false
         }
     }
-
-    /**
-     * Not implemented at the service level — email persistence is handled by the routing
-     * configurator directly via [dev.inmo.wishlist.features.users.common.repo.UsersRepo].
-     *
-     * @param email Ignored.
-     * @return Always `false`.
-     */
-    override suspend fun setMyEmail(email: Email?): Boolean = false
 
     /**
      * Builds a [Session] from [smtp] settings, configuring STARTTLS and/or SSL as requested.

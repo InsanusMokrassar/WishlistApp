@@ -3,7 +3,7 @@ package dev.inmo.wishlist.features.ui.adminPanel
 import dev.inmo.micro_utils.koin.singleWithRandomQualifier
 import dev.inmo.micro_utils.startup.plugin.StartPlugin
 import dev.inmo.wishlist.features.admin.client.AdminFeature
-import dev.inmo.wishlist.features.email.common.EmailFeature
+import dev.inmo.wishlist.features.email.client.EmailFeature
 import dev.inmo.wishlist.features.email.common.models.Email
 import dev.inmo.wishlist.features.admin.common.models.NewUserWithPassword
 import dev.inmo.wishlist.features.auth.client.AuthCredentialsStorage

@@ -1,7 +1,7 @@
 package dev.inmo.wishlist.features.email.client
 
 import dev.inmo.wishlist.features.email.common.EmailConstants
-import dev.inmo.wishlist.features.email.common.EmailFeature
+import dev.inmo.wishlist.features.email.client.EmailFeature
 import dev.inmo.wishlist.features.email.common.models.Email
 import dev.inmo.wishlist.features.email.common.models.SetEmailRequest
 import dev.inmo.wishlist.features.email.common.models.TestEmailRequest
@@ -16,8 +16,8 @@ import io.ktor.http.contentType
 import io.ktor.http.isSuccess
 
 /**
- * HTTP-only [EmailFeature] implementation that forwards requests to the server over the shared
- * [HttpClient].
+ * HTTP-only [dev.inmo.wishlist.features.email.client.EmailFeature] implementation that forwards
+ * requests to the server over the shared [HttpClient].
  *
  * Per the project's Ktor realization rule, this class performs no caching, state management, or
  * business logic — it only translates method calls into HTTP requests and returns the result.

@@ -1,7 +1,7 @@
 package dev.inmo.wishlist.features.email.client
 
 import dev.inmo.micro_utils.startup.plugin.StartPlugin
-import dev.inmo.wishlist.features.email.common.EmailFeature
+import dev.inmo.wishlist.features.email.client.EmailFeature
 import kotlinx.serialization.json.JsonObject
 import org.koin.core.Koin
 import org.koin.core.module.Module

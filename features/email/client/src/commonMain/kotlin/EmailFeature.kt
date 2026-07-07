@@ -1,16 +1,18 @@
-package dev.inmo.wishlist.features.email.common
+package dev.inmo.wishlist.features.email.client
 
 import dev.inmo.wishlist.features.email.common.models.Email
 
 /**
- * Shared capability surface for the email feature, implemented by both the server-side
- * [dev.inmo.wishlist.features.email.server.services.SmtpEmailService] and the client-side
- * [dev.inmo.wishlist.features.email.client.KtorEmailFeature].
+ * Client-side capability surface for the email feature.
  *
- * When the email feature is disabled (no SMTP configuration provided), [isFeatureEnabled] returns
- * `false`, [sendTestEmail] returns `false` without attempting any delivery, and [setMyEmail]
- * is still available for persisting the address regardless of SMTP state (storage vs sending are
- * independent concerns).
+ * Implemented by [KtorEmailFeature], which forwards each call to the server over the shared
+ * authenticated [io.ktor.client.HttpClient]. Authentication context is embedded in the client,
+ * so methods here carry no explicit caller identity — the server resolves it from the bearer token.
+ *
+ * The feature reports its enabled state via [isFeatureEnabled] so callers can decide whether to
+ * surface email-related UI. [sendTestEmail] is root-only on the server — the server enforces
+ * the privilege check; the client only forwards the request. [setMyEmail] is self-service and
+ * available to every authenticated user.
  */
 interface EmailFeature {
 
@@ -24,13 +26,11 @@ interface EmailFeature {
     /**
      * Sends a test email to [recipient] using the server's configured SMTP settings.
      *
-     * Root-only on the server side — clients must supply a valid bearer token belonging to the
-     * root user; the server enforces this via [requireRoot]. The client implementation forwards
-     * the request to `POST /email/sendTest`.
+     * The server enforces root-only access. The client implementation forwards the request to
+     * `POST /email/sendTest`.
      *
      * @param recipient Target email address to deliver the test message to.
-     * @return `true` when the message was accepted by the SMTP server; `false` when the feature
-     *   is disabled, the request was rejected, or an error occurred.
+     * @return `true` when the message was accepted by the SMTP server; `false` otherwise.
      */
     suspend fun sendTestEmail(recipient: Email): Boolean
 

@@ -151,7 +151,7 @@ interface AdminPanelModel {
     /**
      * Sends a test email to [recipient] via the server's SMTP configuration.
      *
-     * Delegates to the injected [dev.inmo.wishlist.features.email.common.EmailFeature].
+     * Delegates to the injected [dev.inmo.wishlist.features.email.client.EmailFeature].
      *
      * @param recipient Validated target address for the test message.
      * @return `true` when delivery was accepted; `false` on failure or when feature is disabled.
