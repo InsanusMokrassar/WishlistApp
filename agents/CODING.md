@@ -867,6 +867,8 @@ Auxiliary value types (e.g. `ItemName`) should also be inline value classes so t
 @Serializable @JvmInline value class ItemName(val string: String)
 ```
 
+> **Value-class property naming rule:** in an inline value class that wraps a single value, the wrapped property MUST be named as its type name, lowercased — `String` → `string`, `Long` → `long`, `Int` → `int`. Do not use ad-hoc names like `raw`, `value`, or `content`. Examples: `value class ItemName(val string: String)`, `value class ItemId(val long: Long)`.
+
 ### Repository interfaces (`features/FEATURE_NAME/common/commonMain`)
 
 Split the repository into three interfaces:

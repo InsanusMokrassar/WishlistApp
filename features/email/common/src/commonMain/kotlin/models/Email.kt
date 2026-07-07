@@ -18,11 +18,11 @@ import kotlinx.serialization.encoding.Encoder
  * Serialization uses [EmailSerializer], which round-trips the address as a bare JSON string
  * and re-validates on deserialization — malformed wire values fail fast.
  *
- * @property raw Trimmed, validated email address string.
+ * @property string Trimmed, validated email address string.
  */
 @Serializable(with = EmailSerializer::class)
 @JvmInline
-value class Email private constructor(val raw: String) {
+value class Email private constructor(val string: String) {
 
     companion object {
         /** Maximum allowed email length per RFC 5321. */
@@ -94,7 +94,7 @@ object EmailSerializer : KSerializer<Email> {
      * @param value [Email] to serialize.
      */
     override fun serialize(encoder: Encoder, value: Email) {
-        encoder.encodeString(value.raw)
+        encoder.encodeString(value.string)
     }
 
     /**

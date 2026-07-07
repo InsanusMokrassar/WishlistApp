@@ -71,7 +71,7 @@ class ExposedUsersRepo(
      */
     override fun update(id: UserId?, value: NewUser, it: UpdateBuilder<Int>) {
         it[usernameColumn] = value.username.string
-        it[emailColumn] = value.email?.raw
+        it[emailColumn] = value.email?.string
     }
 
     /**

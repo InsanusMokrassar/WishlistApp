@@ -59,8 +59,8 @@ class SmtpEmailService(private val config: EmailConfig) : EmailFeature {
             withContext(Dispatchers.IO) {
                 val session = buildSession(smtp)
                 val message = MimeMessage(session).apply {
-                    setFrom(InternetAddress(smtp.from.raw))
-                    setRecipients(Message.RecipientType.TO, InternetAddress.parse(recipient.raw))
+                    setFrom(InternetAddress(smtp.from.string))
+                    setRecipients(Message.RecipientType.TO, InternetAddress.parse(recipient.string))
                     subject = "Test email from WishlistApp"
                     setText("This is a test email sent from WishlistApp to verify SMTP configuration.")
                 }
@@ -68,7 +68,7 @@ class SmtpEmailService(private val config: EmailConfig) : EmailFeature {
             }
             true
         }.getOrElse { e ->
-            logger.w(e) { "Failed to send test email to ${recipient.raw}" }
+            logger.w(e) { "Failed to send test email to ${recipient.string}" }
             false
         }
     }
