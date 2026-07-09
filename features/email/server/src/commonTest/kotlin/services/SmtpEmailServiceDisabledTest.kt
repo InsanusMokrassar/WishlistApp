@@ -17,6 +17,7 @@ import kotlin.test.assertFalse
  */
 class SmtpEmailServiceDisabledTest {
 
+    /** Shared recipient address used by every disabled-mode assertion. */
     private val recipient = Email("recipient@example.com")
 
     /** `sendText` must return `false` when [EmailConfig.smtp] is `null`. */

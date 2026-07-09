@@ -15,6 +15,7 @@ import kotlin.test.assertFailsWith
  */
 class EmailAttachmentDataSourceTest {
 
+    /** Fixed content bytes each test attachment streams, used to assert fresh-stream reads. */
     private val payload = "bridge payload".encodeToByteArray()
 
     /**
