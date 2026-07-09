@@ -17,7 +17,8 @@ import org.koin.core.module.Module
  *
  * Registers in the shared DI graph:
  * - [EmailConfig] decoded from the root server config JSON using the config-slice pattern.
- * - [SmtpEmailService] as the SMTP delivery transport.
+ * - [SmtpEmailService] as the SMTP delivery transport, additionally bound under its
+ *   [EmailsService] interface for server-side consumers that need direct sends.
  * - [EmailFeatureService] as the public [EmailFeature] binding, wrapping [SmtpEmailService] and
  *   [UsersRepo] for combined SMTP delivery, privilege checking, and email-address persistence.
  * - [EmailRoutingsConfigurator] registered with a random qualifier so Ktor picks it up automatically.
@@ -29,6 +30,7 @@ object Plugin : StartPlugin {
     override fun Module.setupDI(config: JsonObject) {
         single { get<Json>().decodeFromJsonElement(EmailConfig.serializer(), config) }
         single { SmtpEmailService(get<EmailConfig>()) }
+        single<EmailsService> { get<SmtpEmailService>() }
         single<EmailFeature> { EmailFeatureService(get<SmtpEmailService>(), get<UsersRepo>()) }
         singleWithRandomQualifier<ApplicationRoutingConfigurator.Element> {
             EmailRoutingsConfigurator(get())
