@@ -56,4 +56,33 @@ object AdminPanelStrings {
     val confirmDiscardMessage = buildStringResource("Unsaved changes will be lost.") { IetfLang.Russian("Несохранённые изменения будут потеряны.") }
 
     val ownerIdLabel = buildStringResource("Owner ID") { IetfLang.Russian("ID владельца") }
+
+    // Email feature
+    /** Section heading for the test-email form on the admin dashboard. */
+    val sendTestEmailSection = buildStringResource("Send test email") {
+        IetfLang.Russian("Отправить тестовое письмо")
+    }
+
+    /** Label for the recipient input in the test-email form. */
+    val sendTestEmailRecipientLabel = buildStringResource("Recipient") {
+        IetfLang.Russian("Получатель")
+    }
+
+    /** Label for the send button in the test-email form. */
+    val sendTestEmailButton = buildStringResource("Send") { IetfLang.Russian("Отправить") }
+
+    /** Feedback shown after a successful test-email delivery. */
+    val sendTestEmailSuccess = buildStringResource("Test email sent.") {
+        IetfLang.Russian("Тестовое письмо отправлено.")
+    }
+
+    /** Feedback shown after a failed test-email delivery attempt. */
+    val sendTestEmailFailure = buildStringResource("Failed to send test email.") {
+        IetfLang.Russian("Не удалось отправить тестовое письмо.")
+    }
+
+    /** Validation hint shown when the entered address is not a valid email. */
+    val sendTestEmailInvalid = buildStringResource("Invalid email address.") {
+        IetfLang.Russian("Некорректный адрес.")
+    }
 }

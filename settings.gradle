@@ -37,6 +37,10 @@ String[] includes = [
     ":features:booking:server",
     ":features:booking:client",
 
+    ":features:email:common",
+    ":features:email:server",
+    ":features:email:client",
+
     ":features:deeplinks:common",
     ":features:deeplinks:server",
     ":features:deeplinks:client",

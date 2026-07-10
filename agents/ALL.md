@@ -1,9 +1,11 @@
-THIS AGENT MUST READ `agents/task/<TASK_ID_FORMAT>/<STEP_NUMBER_FORMAT>.md` with the largest `STEP_NUMBER` BEFORE ANY WORK
+THIS AGENT MUST READ `agents/task/<TASK_ID_FORMAT>/<STEP_NUMBER_FORMAT>.md` with the largest `STEP_NUMBER` BEFORE ANY WORK.
+If no step files exist yet, read `PROMPT.md` in the task folder instead.
 
-THIS AGENT MUST WRITE `agents/task/<TASK_ID_FORMAT>/<STEP_NUMBER_FORMAT>.md` WITH RESULTS REPORT ABOUT HIS WORK
+THIS AGENT MUST WRITE `agents/task/<TASK_ID_FORMAT>/<STEP_NUMBER_FORMAT>.md` WITH RESULTS REPORT ABOUT ITS WORK.
 
-1. TASK_ID_FORMAT: `<date+time in UTC timezone in format dd/mm/yyyy hh/MM/ss>-<uuid>`
-2. STEP_NUMBER: `<step number as simple integer>`-`<role name as mentioned in orchestrator file>`
+See `agents/PROTOCOL.md` for TASK_ID_FORMAT and STEP_NUMBER_FORMAT specifications.
+See `agents/GIT.md` for all git commit and push rules.
+See `agents/TOOLS.md` for ast-index and caveman setup.
 
 ---
 
@@ -19,7 +21,7 @@ Do NOT use Claude Code's file-based auto-memory for this project:
 
 Always starts with `/caveman full`
 
-Always look at the project work rules first.  Many thanks for your help to me and your work.
+Always look at the project work rules first.
 
 ---
 
@@ -34,35 +36,9 @@ Changed files: <list of changed files>
 
 ---
 
-ALWAYS USE `ast-index` for any code search/navigation (symbols, files, usages, hierarchy). NEVER use grep/find when `ast-index` can do the job. Read about how to use it in `AST_INDEX.md`. This rule applies to ALL roles without exceptions.
+ALWAYS USE `ast-index` for any code search/navigation (symbols, files, usages, hierarchy). NEVER use grep/find when `ast-index` can do the job. Read about how to use it in `agents/AST_INDEX.md`. See `agents/TOOLS.md` for installation instructions. This rule applies to ALL roles without exceptions.
 
-if `ast-index` is not installed - install it with:
-
-```bash
-curl -fsSL https://raw.githubusercontent.com/JuliusBrussee/caveman/main/install.sh | bash
-echo 'eval "$(/home/linuxbrew/.linuxbrew/bin/brew shellenv)"' >> ~/.bashrc
-/bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
-source ~/.bashrc
-
-brew tap defendend/ast-index
-brew install ast-index
-```
-
-After installation continue your task using `ast-index`
-
-In case of changes in source files (any files) you MUST use ast-index rebuild
-
----
-
-## Git Commit Rule
-
-Each role MUST make a git commit with the result of its work, UNLESS the prompt gives other direction.
-
-- Commit only the files this role changed; never stage `agents/task/` step reports.
-- Use a normal-style (non-caveman) commit message describing the work result.
-- End the commit body with:
-  `Co-Authored-By: Claude Opus 4.8 <noreply@anthropic.com>`
-- Do NOT push — pushing stays with the Orchestrator unless the prompt says otherwise.
+In case of changes in source code files (.kt, .java, .ts, .js, etc.) you MUST run `ast-index rebuild`. Do NOT rebuild for markdown or step report changes.
 
 ---
 

@@ -96,6 +96,7 @@ template (see [Production deployment](#production-deployment)). Key fields:
 | `enableRegistration` | allow new-user registration |
 | `openExchangeRatesAppId` | Open Exchange Rates App ID enabling the currency feature (`null` disables it) |
 | `openExchangeRatesRefreshTTLMillis` | currency-rates cache lifetime in milliseconds |
+| `email` | Nested SMTP config object (`{ smtp: { host, port, username?, password?, from, useTls, useSsl } }`) that enables the email feature's SMTP test-email delivery; omit the key (or set it to JSON `null`) to disable SMTP while per-user email-address storage (`PUT /email/myEmail`) keeps working |
 
 ## Production deployment
 
@@ -106,7 +107,7 @@ never commit the result.
 
 | File | Role | What to change before use |
 |------|------|---------------------------|
-| `server/sample.config.json` | Production server config template. Serves the web bundle from `/static`, stores uploads under `/data/uploaded_files`, and points the database at the `postgres` service host. | Replace the `database` `url` / `username` / `password` (placeholders `TEST_DB` / `TEST_USERNAME` / `TEST_PASSWORD`), set `publicHost` to your real public address, set `openExchangeRatesAppId` if you use the currency feature, and review `enableRegistration`. Mount the finished file into the container at `/config.json`. |
+| `server/sample.config.json` | Production server config template. Serves the web bundle from `/static`, stores uploads under `/data/uploaded_files`, and points the database at the `postgres` service host. | Replace the `database` `url` / `username` / `password` (placeholders `TEST_DB` / `TEST_USERNAME` / `TEST_PASSWORD`), set `publicHost` to your real public address, set `openExchangeRatesAppId` if you use the currency feature, configure (or omit) the `email` block if you want SMTP-based test-email delivery, and review `enableRegistration`. Mount the finished file into the container at `/config.json`. |
 | `server/sample.docker-compose.yml` | Production Docker Compose template. Runs the published `insanusmokrassar/wishlists` image plus a PostgreSQL service, mounts `./config.json:/config.json:ro` and `./data/uploaded_files/`, and publishes port `8196`. | Copy to `docker-compose.yml`, replace the `POSTGRES_USER` / `POSTGRES_PASSWORD` / `POSTGRES_DB` placeholders (match them to your config's `database` block), and provide your filled-in `config.json` next to it. |
 | `server/Dockerfile` | Builds the server image (`amazoncorretto:21`). Unpacks the web production bundle into `/static` and the server distribution, and runs the entrypoint against `/config.json`. | Usually unchanged; used by `deploy.sh`. |
 | `server/deploy.sh` | Build-and-publish script: packs the web `productionExecutable` bundle, then builds, tags, and pushes the Docker image to the registry. | Set `app` / `version` / `server` (registry account) to your own. Build the client (`./gradlew :wishlist.client:jsBrowserDistribution`) and server distribution tar first. |

@@ -20,8 +20,20 @@
     "dev.inmo.wishlist.features.admin.server.JVMPlugin",
     "dev.inmo.wishlist.features.currency.server.JVMPlugin",
     "dev.inmo.wishlist.features.booking.server.JVMPlugin",
+    "dev.inmo.wishlist.features.email.server.JVMPlugin",
     "dev.inmo.wishlist.features.deeplinks.server.JVMPlugin"
   ],
+  "email": {
+    "smtp": {
+      "host": "smtp.example.com",
+      "port": 587,
+      "username": "user",
+      "password": "pass",
+      "from": "noreply@example.com",
+      "useTls": true,
+      "useSsl": false
+    }
+  },
   "filesFolder": "/data/uploaded_files",
   "useCache": true,
   "tokenTtl": "PT15M",

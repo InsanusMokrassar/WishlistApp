@@ -1,5 +1,6 @@
 package dev.inmo.wishlist.features.ui.adminPanel.ui
 
+import dev.inmo.wishlist.features.email.common.models.Email
 import dev.inmo.wishlist.features.admin.common.models.NewUserWithPassword
 import dev.inmo.wishlist.features.users.common.models.NewUser
 import dev.inmo.wishlist.features.users.common.models.RegisteredUser
@@ -139,4 +140,21 @@ interface AdminPanelModel {
      * @return `true` on success.
      */
     suspend fun deleteWishlistItem(id: WishlistItemId): Boolean
+
+    /**
+     * Returns whether the server-side email feature (SMTP) is configured and enabled.
+     *
+     * @return `true` when SMTP delivery is available; `false` otherwise.
+     */
+    suspend fun isEmailFeatureEnabled(): Boolean
+
+    /**
+     * Sends a test email to [recipient] via the server's SMTP configuration.
+     *
+     * Delegates to the injected [dev.inmo.wishlist.features.email.client.EmailFeature].
+     *
+     * @param recipient Validated target address for the test message.
+     * @return `true` when delivery was accepted; `false` on failure or when feature is disabled.
+     */
+    suspend fun sendTestEmail(recipient: Email): Boolean
 }

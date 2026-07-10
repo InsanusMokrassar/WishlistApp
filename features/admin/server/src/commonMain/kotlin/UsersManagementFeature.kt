@@ -34,12 +34,30 @@ class UsersManagementFeature(
     suspend fun getAll(): List<RegisteredUser> =
         usersRepo.getAll().values.toList()
 
+    /**
+     * Creates a new user with a hashed password.
+     *
+     * @param newUserWithPassword Desired username, plus plaintext password (hashed via
+     *   [authService] before storage).
+     * @return The newly created [RegisteredUser], or `null` when creation failed.
+     * @throws dev.inmo.wishlist.features.users.common.repo.exceptions.DuplicateUserFieldException
+     *   when [newUserWithPassword]'s username is already taken by another user.
+     */
     suspend fun create(newUserWithPassword: NewUserWithPassword): RegisteredUser? {
         val user = usersRepo.create(NewUser(newUserWithPassword.username)).firstOrNull() ?: return null
         authService.setPassword(user.id, newUserWithPassword.password)
         return user
     }
 
+    /**
+     * Replaces the stored username/email of user [id].
+     *
+     * @param id User to update.
+     * @param newUser Replacement username/email pair.
+     * @return `true` when the update was persisted; `null` when no such user exists.
+     * @throws dev.inmo.wishlist.features.users.common.repo.exceptions.DuplicateUserFieldException
+     *   when [newUser]'s username or email is already taken by another user.
+     */
     suspend fun update(id: UserId, newUser: NewUser): Boolean? {
         if (!usersRepo.contains(id)) return null
         return usersRepo.update(id, newUser) != null

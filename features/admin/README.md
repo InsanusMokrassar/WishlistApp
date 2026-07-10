@@ -40,8 +40,8 @@ All routes are under `/admin` prefix and require bearer authentication. Caller m
 | Method | Path | Body | Response | Description |
 |---|---|---|---|---|
 | GET | `/admin/users/getAll` | — | `List<RegisteredUser>` | Get all registered users |
-| POST | `/admin/users/create` | `NewUserWithPassword` | `RegisteredUser` | Create user with plaintext password |
-| PUT | `/admin/users/update/{id}` | `NewUser` | `200 OK` / `404` | Update user info by id |
+| POST | `/admin/users/create` | `NewUserWithPassword` | `RegisteredUser` / `500` / `409` | Create user with plaintext password; `409` when the username is already taken |
+| PUT | `/admin/users/update/{id}` | `NewUser` | `200 OK` / `404` / `409` | Update user info by id; `409` when the new username or email is already taken |
 | PUT | `/admin/users/setPassword/{id}` | `Password` | `200 OK` / `404` | Replace a user's password; delegates to existing `AuthFeatureService.setPassword` |
 | DELETE | `/admin/users/delete/{id}` | — | `200 OK` / `404` | Delete user by id; cascades all related data (wishlists, items, password, sessions) |
 
@@ -92,6 +92,7 @@ data class NewWishlist(
 - `AdminRoutingsConfigurator` — registers all `/admin/...` routes under `authenticate { }`. Uses `requireAdmin()` helper (private `RoutingContext` extension) to verify caller is `root`.
   - Wishlist reads delegate to `WishlistService` (existing).
   - Wishlist writes that bypass ownership (update, delete) delegate to `WishlistRepo` directly (existing functionality, per operator constraint).
+- **Duplicate username/email → 409:** `AdminRoutingsConfigurator`'s `POST /admin/users/create` and `PUT /admin/users/update/{id}` handlers each wrap only the `adminFeature.usersManagement.create(...)`/`update(...)` call in a `try`/`catch (e: DuplicateUserFieldException)`, responding `409 Conflict` and returning before the existing `if (result == null)`/`when (result)` branch runs. The exception originates in `ExposedUsersRepo.update`/`create` (see `features/users/README.md`'s "Duplicate-key-to-409 convention") and propagates unchanged through `UsersManagementFeature.create`/`update` — neither adds a `try`/`catch` of its own; only the HTTP boundary (`AdminRoutingsConfigurator`) does. No other admin route is affected.
 - `Plugin` — registers `UsersManagementFeature`, `AdminFeature`, and `AdminRoutingsConfigurator` as `ApplicationRoutingConfigurator.Element`.
 - `JVMPlugin` — delegates to `Plugin`.
 
