@@ -23,7 +23,17 @@
     "dev.inmo.wishlist.features.email.server.JVMPlugin",
     "dev.inmo.wishlist.features.deeplinks.server.JVMPlugin"
   ],
-  "smtp": null,
+  "email": {
+    "smtp": {
+      "host": "smtp.example.com",
+      "port": 587,
+      "username": "user",
+      "password": "pass",
+      "from": "noreply@example.com",
+      "useTls": true,
+      "useSsl": false
+    }
+  },
   "filesFolder": "/data/uploaded_files",
   "useCache": true,
   "tokenTtl": "PT15M",

@@ -11,37 +11,43 @@ import kotlin.test.assertEquals
 import kotlin.test.assertFalse
 
 /**
- * Verifies [SmtpEmailService]'s disabled/no-op mode: no SMTP server is configured (or the
- * configured host is blank), so every delivery method must short-circuit to `false` without
- * attempting a connection or touching attachment content.
+ * Verifies [SmtpEmailService]'s remaining no-op trigger: a configured-but-blank SMTP host.
+ * [EmailConfig.smtp] is non-nullable now, so "no SMTP configured at all" is a DI-graph-shape fact
+ * handled by [DisabledEmailFeature] (see `DisabledEmailFeatureTest`), not something this class can
+ * represent — every case here constructs [SmtpEmailService] with a real, non-null [EmailConfig]
+ * whose host happens to be blank.
  */
 class SmtpEmailServiceDisabledTest {
 
-    /** Shared recipient address used by every disabled-mode assertion. */
+    /** Shared recipient address used by every blank-host assertion. */
     private val recipient = Email("recipient@example.com")
 
-    /** `sendText` must return `false` when [EmailConfig.smtp] is `null`. */
+    /** Builds an [EmailConfig] with a blank SMTP host — the only remaining no-op trigger. */
+    private fun blankHostConfig() =
+        EmailConfig(smtp = SmtpConfig(host = "", from = Email("noreply@example.com")))
+
+    /** `sendText` must return `false` when the configured SMTP host is blank. */
     @Test
-    fun sendTextReturnsFalseWhenSmtpIsNull() = runTest {
-        val service = SmtpEmailService(EmailConfig(smtp = null))
+    fun sendTextReturnsFalseWhenHostIsBlank() = runTest {
+        val service = SmtpEmailService(blankHostConfig())
         assertFalse(service.sendText(recipient, "subject", "body"))
     }
 
-    /** `sendHtml` must return `false` when [EmailConfig.smtp] is `null`. */
+    /** `sendHtml` must return `false` when the configured SMTP host is blank. */
     @Test
-    fun sendHtmlReturnsFalseWhenSmtpIsNull() = runTest {
-        val service = SmtpEmailService(EmailConfig(smtp = null))
+    fun sendHtmlReturnsFalseWhenHostIsBlank() = runTest {
+        val service = SmtpEmailService(blankHostConfig())
         assertFalse(service.sendHtml(recipient, "subject", "<p>body</p>"))
     }
 
     /**
-     * `sendTextWithAttachments` must return `false` when [EmailConfig.smtp] is `null` AND must
-     * never invoke an attachment's content provider — disabled mode must not touch attachment
+     * `sendTextWithAttachments` must return `false` when the configured SMTP host is blank AND must
+     * never invoke an attachment's content provider — the no-op path must not touch attachment
      * content at all.
      */
     @Test
-    fun sendTextWithAttachmentsReturnsFalseWhenSmtpIsNullAndDoesNotInvokeProvider() = runTest {
-        val service = SmtpEmailService(EmailConfig(smtp = null))
+    fun sendTextWithAttachmentsReturnsFalseWhenHostIsBlankAndDoesNotInvokeProvider() = runTest {
+        val service = SmtpEmailService(blankHostConfig())
         var invocations = 0
         val attachment = EmailAttachment("file.txt", "text/plain") {
             invocations++
@@ -52,21 +58,5 @@ class SmtpEmailServiceDisabledTest {
 
         assertFalse(result)
         assertEquals(0, invocations)
-    }
-
-    /** `sendText` must return `false` when the configured SMTP host is blank. */
-    @Test
-    fun sendTextReturnsFalseWhenHostIsBlank() = runTest {
-        val service = SmtpEmailService(
-            EmailConfig(smtp = SmtpConfig(host = "", from = Email("noreply@example.com")))
-        )
-        assertFalse(service.sendText(recipient, "subject", "body"))
-    }
-
-    /** `isFeatureEnabled` must return `false` when [EmailConfig.smtp] is `null`. */
-    @Test
-    fun isFeatureEnabledFalseWhenSmtpIsNull() = runTest {
-        val service = SmtpEmailService(EmailConfig(smtp = null))
-        assertFalse(service.isFeatureEnabled())
     }
 }

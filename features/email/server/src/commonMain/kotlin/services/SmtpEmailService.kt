@@ -29,25 +29,20 @@ import java.util.Properties
  * implementation.
  *
  * Performs email delivery on [Dispatchers.IO] to keep blocking socket I/O off the event loop.
- * When [EmailConfig.smtp] is `null` or the host is blank, all delivery methods are no-ops and
- * [isFeatureEnabled] returns `false`.
+ * When the configured host is blank, all delivery methods are no-ops. This class is only ever
+ * constructed by [dev.inmo.wishlist.features.email.server.Plugin] when the `"email"` key is
+ * present and non-null in the server config — "no SMTP configured at all" is handled at the
+ * DI-graph-shape level by [DisabledEmailFeature], not by this class.
  *
  * This class is an SMTP transport only — caller-identity checks and user-email persistence are
  * handled by [EmailFeatureService], which wraps this class.
  *
- * @param config Full email config slice decoded from the server config JSON.
+ * @param config Email config slice decoded from the nested `"email"` object in the server config
+ *   JSON (see [EmailConfig]).
  */
 class SmtpEmailService(private val config: EmailConfig) : EmailsService {
 
     private val logger = KSLog("SmtpEmailService")
-
-    /**
-     * Returns `true` when an SMTP host is configured and non-blank.
-     *
-     * @return Whether SMTP delivery is available.
-     */
-    suspend fun isFeatureEnabled(): Boolean =
-        config.smtp != null && config.smtp.host.isNotBlank()
 
     /**
      * Sends a test email to [recipient] using the configured SMTP settings.
@@ -147,10 +142,10 @@ class SmtpEmailService(private val config: EmailConfig) : EmailsService {
     /**
      * Shared send skeleton used by every delivery method.
      *
-     * Centralizes the disabled-mode check (warn-log + `false` when [EmailConfig.smtp] is `null`
-     * or its host is blank), session construction via [buildSession], the message envelope
-     * (`From`, `To`, subject), the blocking [Transport.send] on [Dispatchers.IO], and the
-     * `runCatching`/warn-log failure handling.
+     * Centralizes the disabled-mode check (warn-log + `false` when the configured host is
+     * blank), session construction via [buildSession], the message envelope (`From`, `To`,
+     * subject), the blocking [Transport.send] on [Dispatchers.IO], and the `runCatching`/warn-log
+     * failure handling.
      *
      * @param recipient Target email address placed into the `To` header.
      * @param subject Subject header, encoded as UTF-8.
@@ -166,7 +161,7 @@ class SmtpEmailService(private val config: EmailConfig) : EmailsService {
         fillContent: MimeMessage.() -> Unit
     ): Boolean {
         val smtp = config.smtp
-        if (smtp == null || smtp.host.isBlank()) {
+        if (smtp.host.isBlank()) {
             logger.w { "$logLabel called but SMTP is not configured — skipping." }
             return false
         }
