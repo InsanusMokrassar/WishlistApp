@@ -28,6 +28,7 @@ class EmailFeatureServiceTest {
     /** Shared test-email recipient used by every `sendTestEmail` assertion. */
     private val recipient = Email("recipient@example.com")
 
+    /** `isFeatureEnabled` unconditionally returns `true` — `emailsService` is now a non-nullable constructor parameter, so this class is only ever constructed with a real transport. */
     @Test
     fun isFeatureEnabledAlwaysReturnsTrue() = runTest {
         val service = EmailFeatureService(FakeEmailsService(), FakeUsersRepo())
@@ -105,6 +106,7 @@ class EmailFeatureServiceTest {
         assertEquals(newEmail, repo.getById(plainUser.id)?.email)
     }
 
+    /** Caller id resolves to no user → `setMyEmail` returns `false`. */
     @Test
     fun setMyEmailReturnsFalseWhenUserNotFound() = runTest {
         val service = EmailFeatureService(FakeEmailsService(), FakeUsersRepo())
