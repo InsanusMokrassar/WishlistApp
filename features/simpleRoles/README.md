@@ -55,14 +55,3 @@ app (issue #68 points 8/9) now goes through.
   `features/common/server`, `features/auth/server` (bearer caller resolution), `features/users/common`
   (`UserId`). `simpleRoles/client` depends on `features/common/client`, `features/auth/client` (for
   `meStateFlow`), `features/users/common` (for `RegisteredUser` in `meState`'s type).
-
-> **Coding-pass status note (this app's own multi-pass rollout, not part of the design above):** this
-> feature is fully implemented in **Coding pass 1 (Foundation, current)** — server, both client
-> realizations, and Koin wiring on all three client platforms are all landed now. What is *not* landed
-> yet is any production caller: issue #68 point 9's client-side replacement (`features/ui/users`
-> consuming `CacheSimpleRolesFeature.isSuperAdminStateFlow` instead of `UsersModel.isCurrentUserRootFlow`'s
-> current root check) is Coding pass 4 (security-sensitive, deliberately smallest/last pass). Until
-> pass 4 lands, calling `GET /simpleRoles/isSuperAdmin` with any real user's bearer token returns
-> `false` for everyone (including `root`) because pass 2 (the bootstrap that actually grants the
-> `SuperAdmin` role to `root`) has not landed yet either — see `features/roles/README.md`'s own status
-> note.
