@@ -11,10 +11,11 @@ import kotlin.test.assertFalse
 import kotlin.test.assertTrue
 
 /**
- * Verifies [EmailFeatureService]: [EmailFeatureService.isFeatureEnabled] reports
- * `emailsService != null`; [EmailFeatureService.sendTestEmail] enforces the root-only guard before
- * delegating exactly one `EmailsService.sendText` call; [EmailFeatureService.setMyEmail] persists
- * via `UsersRepo` regardless of `EmailsService` availability (storage stays independent of SMTP).
+ * Verifies [EmailFeatureService]: [EmailFeatureService.isFeatureEnabled] always returns `true`
+ * (this class is only ever constructed with a real, non-null `EmailsService` — see
+ * `DisabledEmailFeatureTest` for the SMTP-disabled no-op path); [EmailFeatureService.sendTestEmail]
+ * enforces the root-only guard before delegating exactly one `EmailsService.sendText` call;
+ * [EmailFeatureService.setMyEmail] persists via `UsersRepo` for a found user.
  */
 class EmailFeatureServiceTest {
 
@@ -28,24 +29,9 @@ class EmailFeatureServiceTest {
     private val recipient = Email("recipient@example.com")
 
     @Test
-    fun isFeatureEnabledTrueWhenEmailsServiceNonNull() = runTest {
+    fun isFeatureEnabledAlwaysReturnsTrue() = runTest {
         val service = EmailFeatureService(FakeEmailsService(), FakeUsersRepo())
         assertTrue(service.isFeatureEnabled())
-    }
-
-    @Test
-    fun isFeatureEnabledFalseWhenEmailsServiceNull() = runTest {
-        val service = EmailFeatureService(null, FakeUsersRepo())
-        assertFalse(service.isFeatureEnabled())
-    }
-
-    /** `emailsService == null` short-circuits before the root check even runs its course. */
-    @Test
-    fun sendTestEmailReturnsFalseWhenEmailsServiceNullEvenForRootCaller() = runTest {
-        val repo = FakeUsersRepo(mapOf(rootUser.id to rootUser))
-        val service = EmailFeatureService(null, repo)
-
-        assertFalse(service.sendTestEmail(rootUser.id, recipient))
     }
 
     /** Root caller + present `emailsService` → exactly one `sendText` call with the fixed subject/text; result is `sendText`'s own `true`. */
@@ -106,11 +92,11 @@ class EmailFeatureServiceTest {
         assertEquals(0, emailsService.sendTextCalls.size)
     }
 
-    /** Storage keeps working even when `emailsService` is `null` — proves the documented independence. */
+    /** A found user's stored email is updated and persisted via `UsersRepo`, exercising `EmailFeatureService.setMyEmail` directly (the SMTP-disabled path is covered separately by `DisabledEmailFeatureTest`). */
     @Test
-    fun setMyEmailPersistsViaUsersRepoRegardlessOfEmailsService() = runTest {
+    fun setMyEmailPersistsViaUsersRepoForFoundUser() = runTest {
         val repo = FakeUsersRepo(mapOf(plainUser.id to plainUser))
-        val service = EmailFeatureService(null, repo)
+        val service = EmailFeatureService(FakeEmailsService(), repo)
         val newEmail = Email("alice@example.com")
 
         val result = service.setMyEmail(plainUser.id, newEmail)

@@ -9,27 +9,22 @@ import dev.inmo.wishlist.features.users.common.repo.UsersRepo
 /**
  * Server-side [EmailFeature] implementation that unifies SMTP delivery and user-email persistence.
  *
- * [emailsService] stays nullable so this class remains directly constructible (e.g. in unit tests)
- * without an SMTP transport — [isFeatureEnabled] reports that state via `emailsService != null`. In
- * the DI graph wired by [dev.inmo.wishlist.features.email.server.Plugin], `EmailFeatureService` is
- * only ever constructed with a **non-null** [emailsService]: when no [EmailsService] is registered
- * (SMTP not configured), [DisabledEmailFeature] is substituted for the whole [EmailFeature] binding
- * instead of passing `null` in here. The nullable type is retained anyway, per the operator's
- * explicit instruction and for direct-construction testability.
+ * [emailsService] is always a real, non-null [EmailsService] — [dev.inmo.wishlist.features.email.server.Plugin]
+ * only ever constructs this class when one is registered (SMTP configured). When no [EmailsService] is
+ * registered (SMTP not configured), [DisabledEmailFeature] is substituted for the whole [EmailFeature]
+ * binding instead. Because of that, [isFeatureEnabled] always returns `true`.
  *
  * Resolves the caller's user record from [usersRepo] to enforce access rules and to perform
  * email-address storage updates:
- * - [sendTestEmail] verifies [callerId] is root AND that [emailsService] is present before
- *   delegating SMTP delivery.
+ * - [sendTestEmail] verifies [callerId] is root before delegating SMTP delivery via [emailsService].
  * - [setMyEmail] updates the caller's stored email address via [updateStoredEmail] — independent of
  *   [emailsService].
  *
- * @param emailsService SMTP delivery service used for sends, or `null` when constructed without one
- *   (never `null` via the production DI wiring — see class doc).
+ * @param emailsService SMTP delivery service used for sends. Always non-null — see class doc.
  * @param usersRepo User repository used for privilege checking and email-address persistence.
  */
 class EmailFeatureService(
-    private val emailsService: EmailsService?,
+    private val emailsService: EmailsService,
     private val usersRepo: UsersRepo
 ) : EmailFeature {
 
@@ -39,27 +34,25 @@ class EmailFeatureService(
     /**
      * Returns whether an SMTP delivery service is available.
      *
-     * @return `true` when [emailsService] is non-null; `false` otherwise.
+     * @return Always `true` — this class is only ever constructed with a real [emailsService]; see
+     *   [DisabledEmailFeature] for the SMTP-disabled no-op path.
      */
-    override suspend fun isFeatureEnabled(): Boolean = emailsService != null
+    override suspend fun isFeatureEnabled(): Boolean = true
 
     /**
-     * Sends a test email to [recipient] if [callerId] belongs to the root account and an SMTP
-     * delivery service is available.
+     * Sends a test email to [recipient] if [callerId] belongs to the root account.
      *
-     * Returns `false` immediately when the caller is not found, is not root, or [emailsService] is
-     * `null`.
+     * Returns `false` immediately when the caller is not found or is not root.
      *
      * @param callerId Caller whose username is checked against the root account.
      * @param recipient Target address for the test message.
-     * @return `true` when delivery succeeded; `false` when the caller lacks privilege, SMTP is
-     *   unavailable, or SMTP delivery fails.
+     * @return `true` when delivery succeeded; `false` when the caller lacks privilege or SMTP
+     *   delivery fails.
      */
     override suspend fun sendTestEmail(callerId: UserId, recipient: Email): Boolean {
         val caller = usersRepo.getById(callerId) ?: return false
         if (caller.username.string != rootUsername) return false
-        val service = emailsService ?: return false
-        return service.sendText(
+        return emailsService.sendText(
             recipient = recipient,
             subject = "Test email from WishlistApp",
             text = "This is a test email sent from WishlistApp to verify SMTP configuration."
