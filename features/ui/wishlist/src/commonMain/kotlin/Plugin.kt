@@ -22,10 +22,10 @@ import dev.inmo.wishlist.features.wishlist.common.models.CopyItemRequest
 import dev.inmo.wishlist.features.wishlist.common.models.CopyWishlistRequest
 import dev.inmo.wishlist.features.wishlist.common.models.NewWishlistInFeature
 import dev.inmo.wishlist.features.wishlist.common.models.NewWishlistItem
-import dev.inmo.wishlist.features.wishlist.common.models.RegisteredWishlist
-import dev.inmo.wishlist.features.wishlist.common.models.RegisteredWishlistItem
 import dev.inmo.wishlist.features.wishlist.common.models.WishlistId
 import dev.inmo.wishlist.features.wishlist.common.models.WishlistItemId
+import dev.inmo.wishlist.features.wishlist.common.models.WishlistsFeatureItem
+import dev.inmo.wishlist.features.wishlist.common.models.WishlistsFeatureWishlist
 import dev.inmo.wishlist.features.ui.wishlist.ui.WishlistEditViewConfig
 import dev.inmo.wishlist.features.ui.wishlist.ui.WishlistEditViewModel
 import dev.inmo.wishlist.features.ui.wishlist.ui.WishlistItemEditViewConfig
@@ -128,19 +128,19 @@ object Plugin : StartPlugin {
 
                 override fun selectCurrency(code: CurrencyCode?) = currencyService.select(code)
 
-                override suspend fun getMyWishlists(): List<RegisteredWishlist> =
+                override suspend fun getMyWishlists(): List<WishlistsFeatureWishlist> =
                     wishlistsFeature.getMyWishlists()
 
-                override suspend fun getUserWishlists(userId: UserId): List<RegisteredWishlist> =
+                override suspend fun getUserWishlists(userId: UserId): List<WishlistsFeatureWishlist> =
                     wishlistsFeature.getByUserId(userId)
 
-                override suspend fun getWishlist(id: WishlistId): RegisteredWishlist? =
+                override suspend fun getWishlist(id: WishlistId): WishlistsFeatureWishlist? =
                     wishlistsFeature.getById(id)
 
-                override suspend fun getWishlistItems(wishlistId: WishlistId): List<RegisteredWishlistItem> =
+                override suspend fun getWishlistItems(wishlistId: WishlistId): List<WishlistsFeatureItem> =
                     itemsFeature.getByWishlistId(wishlistId)
 
-                override suspend fun createWishlist(title: String, defaultPriceUnits: String): RegisteredWishlist? =
+                override suspend fun createWishlist(title: String, defaultPriceUnits: String): WishlistsFeatureWishlist? =
                     wishlistsFeature.create(NewWishlistInFeature(title, defaultPriceUnits))
 
                 override suspend fun updateWishlist(id: WishlistId, title: String, defaultPriceUnits: String): Boolean =
@@ -149,7 +149,7 @@ object Plugin : StartPlugin {
                 override suspend fun deleteWishlist(id: WishlistId): Boolean =
                     wishlistsFeature.delete(id)
 
-                override suspend fun createWishlistItem(item: NewWishlistItem): RegisteredWishlistItem? =
+                override suspend fun createWishlistItem(item: NewWishlistItem): WishlistsFeatureItem? =
                     itemsFeature.create(item)
 
                 override suspend fun updateWishlistItem(id: WishlistItemId, item: NewWishlistItem): Boolean =
@@ -162,7 +162,7 @@ object Plugin : StartPlugin {
                     sourceItemId: WishlistItemId,
                     sourceWishlistId: WishlistId,
                     targetWishlistId: WishlistId
-                ): RegisteredWishlistItem? =
+                ): WishlistsFeatureItem? =
                     itemsFeature.copy(CopyItemRequest(sourceItemId, sourceWishlistId, targetWishlistId))
 
                 override suspend fun enqueueWishlistCopy(sourceWishlistId: WishlistId): Boolean =

@@ -1,7 +1,7 @@
 package dev.inmo.wishlist.features.ui.sidebar.ui
 
 import dev.inmo.wishlist.features.users.common.models.UserId
-import dev.inmo.wishlist.features.wishlist.common.models.RegisteredWishlist
+import dev.inmo.wishlist.features.wishlist.common.models.WishlistsFeatureWishlist
 import kotlinx.coroutines.flow.StateFlow
 
 /**
@@ -23,7 +23,7 @@ interface SidebarModel {
      *
      * @return Owned wishlists; empty when none or when anonymous.
      */
-    suspend fun getMyWishlists(): List<RegisteredWishlist>
+    suspend fun getMyWishlists(): List<WishlistsFeatureWishlist>
 
     /**
      * Counts the items the caller has reserved to gift, shown as the live badge on the Reserved item.

@@ -4,10 +4,10 @@ import dev.inmo.micro_utils.common.MPPFile
 import dev.inmo.wishlist.features.files.common.models.FileId
 import dev.inmo.wishlist.features.users.common.models.UserId
 import dev.inmo.wishlist.features.wishlist.common.models.NewWishlistItem
-import dev.inmo.wishlist.features.wishlist.common.models.RegisteredWishlist
-import dev.inmo.wishlist.features.wishlist.common.models.RegisteredWishlistItem
 import dev.inmo.wishlist.features.wishlist.common.models.WishlistId
 import dev.inmo.wishlist.features.wishlist.common.models.WishlistItemId
+import dev.inmo.wishlist.features.wishlist.common.models.WishlistsFeatureItem
+import dev.inmo.wishlist.features.wishlist.common.models.WishlistsFeatureWishlist
 import dev.inmo.wishlist.features.currency.common.models.CurrencyCode
 import dev.inmo.wishlist.features.currency.common.models.CurrencyInfo
 import dev.inmo.wishlist.features.currency.common.models.CurrencyRates
@@ -31,7 +31,7 @@ interface WishlistsModel {
     val userAuthorisedState: StateFlow<Boolean>
 
     /** Returns all wishlists owned by the authenticated caller. */
-    suspend fun getMyWishlists(): List<RegisteredWishlist>
+    suspend fun getMyWishlists(): List<WishlistsFeatureWishlist>
 
     /**
      * Returns all wishlists owned by the user identified by [userId].
@@ -42,7 +42,7 @@ interface WishlistsModel {
      * @param userId Owner to filter by.
      * @return List of wishlists; empty when none found.
      */
-    suspend fun getUserWishlists(userId: UserId): List<RegisteredWishlist>
+    suspend fun getUserWishlists(userId: UserId): List<WishlistsFeatureWishlist>
 
     /**
      * Returns a single wishlist by [id], resolved from the caller's wishlist list.
@@ -50,7 +50,7 @@ interface WishlistsModel {
      * @param id Identifier of the wishlist to retrieve.
      * @return Matching wishlist, or `null` when not found.
      */
-    suspend fun getWishlist(id: WishlistId): RegisteredWishlist?
+    suspend fun getWishlist(id: WishlistId): WishlistsFeatureWishlist?
 
     /**
      * Returns all items belonging to [wishlistId].
@@ -58,7 +58,7 @@ interface WishlistsModel {
      * @param wishlistId Parent wishlist identifier.
      * @return List of items; empty when none found.
      */
-    suspend fun getWishlistItems(wishlistId: WishlistId): List<RegisteredWishlistItem>
+    suspend fun getWishlistItems(wishlistId: WishlistId): List<WishlistsFeatureItem>
 
     /**
      * Creates a new wishlist with [title] for the authenticated caller.
@@ -67,7 +67,7 @@ interface WishlistsModel {
      * @param defaultPriceUnits Default currency/units label pre-filled into new items; empty for none.
      * @return Created wishlist, or `null` on failure.
      */
-    suspend fun createWishlist(title: String, defaultPriceUnits: String): RegisteredWishlist?
+    suspend fun createWishlist(title: String, defaultPriceUnits: String): WishlistsFeatureWishlist?
 
     /**
      * Replaces [id] wishlist title with [title] and its default price units with [defaultPriceUnits].
@@ -93,7 +93,7 @@ interface WishlistsModel {
      * @param item Data for the new item including parent [WishlistId].
      * @return Created item, or `null` on failure or authorization error.
      */
-    suspend fun createWishlistItem(item: NewWishlistItem): RegisteredWishlistItem?
+    suspend fun createWishlistItem(item: NewWishlistItem): WishlistsFeatureItem?
 
     /**
      * Replaces item [id] data with [item].
@@ -127,7 +127,7 @@ interface WishlistsModel {
         sourceItemId: WishlistItemId,
         sourceWishlistId: WishlistId,
         targetWishlistId: WishlistId
-    ): RegisteredWishlistItem?
+    ): WishlistsFeatureItem?
 
     /**
      * Enqueues a background server-side deep copy of another user's whole wishlist into the caller's

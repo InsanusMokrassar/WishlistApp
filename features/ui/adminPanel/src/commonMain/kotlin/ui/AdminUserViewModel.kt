@@ -6,9 +6,9 @@ import dev.inmo.micro_utils.coroutines.subscribeLoggingDropExceptions
 import dev.inmo.navigation.core.NavigationNode
 import dev.inmo.navigation.core.onResumeFlow
 import dev.inmo.navigation.mvvm.ViewModel
+import dev.inmo.wishlist.features.admin.common.models.AdminUser
+import dev.inmo.wishlist.features.admin.common.models.AdminWishlist
 import dev.inmo.wishlist.features.common.client.models.ViewConfig
-import dev.inmo.wishlist.features.users.common.models.RegisteredUser
-import dev.inmo.wishlist.features.wishlist.common.models.RegisteredWishlist
 import dev.inmo.wishlist.features.wishlist.common.models.WishlistId
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.flowOf
@@ -29,12 +29,12 @@ class AdminUserViewModel(
     private val model: AdminPanelModel,
     private val interactor: AdminUserViewInteractor
 ) : ViewModel<ViewConfig>(node) {
-    private val _userState = MutableRedeliverStateFlow<RegisteredUser?>(null)
+    private val _userState = MutableRedeliverStateFlow<AdminUser?>(null)
 
     /** The loaded user, `null` while loading or on error. */
     val userState = _userState.asStateFlow()
 
-    private val _wishlistsState = MutableRedeliverStateFlow<List<RegisteredWishlist>>(emptyList())
+    private val _wishlistsState = MutableRedeliverStateFlow<List<AdminWishlist>>(emptyList())
 
     /** Wishlists owned by the loaded user. */
     val wishlistsState = _wishlistsState.asStateFlow()

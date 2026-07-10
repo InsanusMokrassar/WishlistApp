@@ -1,8 +1,8 @@
 package dev.inmo.wishlist.features.booking.client
 
 import dev.inmo.wishlist.features.booking.common.Constants
+import dev.inmo.wishlist.features.booking.common.models.BookingFeatureItem
 import dev.inmo.wishlist.features.booking.common.models.BookingState
-import dev.inmo.wishlist.features.wishlist.common.models.RegisteredWishlistItem
 import dev.inmo.wishlist.features.wishlist.common.models.WishlistItemId
 import io.ktor.client.HttpClient
 import io.ktor.client.call.body
@@ -67,7 +67,7 @@ class KtorBookingFeature(
      *
      * @return Parsed item list, or an empty list on any non-2xx response.
      */
-    override suspend fun myPresentsBooks(): List<RegisteredWishlistItem> {
+    override suspend fun myPresentsBooks(): List<BookingFeatureItem> {
         val response = client.get(
             "${Constants.bookingPrefixPathPart}/${Constants.bookingMyPresentsBooksPathPart}"
         )

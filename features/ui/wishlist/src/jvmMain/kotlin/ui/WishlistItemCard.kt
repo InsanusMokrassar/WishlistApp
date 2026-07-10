@@ -16,7 +16,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import dev.inmo.wishlist.features.currency.common.utils.formatItemPriceWithAmount
 import dev.inmo.wishlist.features.files.common.models.FileId
-import dev.inmo.wishlist.features.wishlist.common.models.RegisteredWishlistItem
+import dev.inmo.wishlist.features.wishlist.common.models.WishlistsFeatureItem
 
 /**
  * Material card presenting a single wishlist [item].
@@ -36,7 +36,7 @@ import dev.inmo.wishlist.features.wishlist.common.models.RegisteredWishlistItem
  */
 @Composable
 fun WishlistItemCard(
-    item: RegisteredWishlistItem,
+    item: WishlistsFeatureItem,
     wishlistTitle: String?,
     loadImageBytes: suspend (FileId) -> ByteArray?,
     onSelect: () -> Unit,

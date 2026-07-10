@@ -8,13 +8,14 @@ import dev.inmo.micro_utils.coroutines.withWriteLock
 import dev.inmo.micro_utils.repos.create
 import dev.inmo.micro_utils.repos.deleteById
 import dev.inmo.wishlist.features.booking.common.models.BookResult
+import dev.inmo.wishlist.features.booking.common.models.BookingFeatureItem
 import dev.inmo.wishlist.features.booking.common.models.BookingResult
 import dev.inmo.wishlist.features.booking.common.models.BookingState
 import dev.inmo.wishlist.features.booking.common.models.CancelResult
 import dev.inmo.wishlist.features.booking.common.models.NewBooking
+import dev.inmo.wishlist.features.booking.common.models.asBookingFeatureItem
 import dev.inmo.wishlist.features.booking.common.repo.BookingRepo
 import dev.inmo.wishlist.features.users.common.models.UserId
-import dev.inmo.wishlist.features.wishlist.common.models.RegisteredWishlistItem
 import dev.inmo.wishlist.features.wishlist.common.models.WishlistItemId
 import dev.inmo.wishlist.features.wishlist.common.repo.WishlistItemRepo
 import dev.inmo.wishlist.features.wishlist.common.repo.WishlistRepo
@@ -150,8 +151,8 @@ class BookingService(
      * @param callerId Authenticated caller whose booked items to list.
      * @return Items the caller has reserved for gifting; empty when the caller booked nothing.
      */
-    suspend fun myPresentsBooks(callerId: UserId): List<RegisteredWishlistItem> = locker.withReadAcquire {
+    suspend fun myPresentsBooks(callerId: UserId): List<BookingFeatureItem> = locker.withReadAcquire {
         val itemIds = bookingRepo.getByUserId(callerId).map { it.itemId }
-        wishlistItemRepo.getByIds(itemIds)
+        wishlistItemRepo.getByIds(itemIds).map { it.asBookingFeatureItem() }
     }
 }

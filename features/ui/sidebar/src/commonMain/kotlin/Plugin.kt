@@ -9,7 +9,7 @@ import dev.inmo.wishlist.features.ui.sidebar.ui.SidebarViewConfig
 import dev.inmo.wishlist.features.ui.sidebar.ui.SidebarViewModel
 import dev.inmo.wishlist.features.ui.wishlist.ui.WishlistsModel
 import dev.inmo.wishlist.features.users.common.models.UserId
-import dev.inmo.wishlist.features.wishlist.common.models.RegisteredWishlist
+import dev.inmo.wishlist.features.wishlist.common.models.WishlistsFeatureWishlist
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.modules.SerializersModule
@@ -37,7 +37,7 @@ object Plugin : StartPlugin {
             val bookingModel = get<BookingModel>()
             object : SidebarModel {
                 override val currentUserIdFlow: StateFlow<UserId?> = wishlistsModel.currentUserIdFlow
-                override suspend fun getMyWishlists(): List<RegisteredWishlist> = wishlistsModel.getMyWishlists()
+                override suspend fun getMyWishlists(): List<WishlistsFeatureWishlist> = wishlistsModel.getMyWishlists()
                 override suspend fun getReservedCount(): Int = bookingModel.myPresentsBooks().size
                 override suspend fun getUserName(userId: UserId): String? = wishlistsModel.getUserName(userId)
             }

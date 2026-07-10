@@ -6,9 +6,9 @@ import dev.inmo.micro_utils.coroutines.subscribeLoggingDropExceptions
 import dev.inmo.navigation.core.NavigationNode
 import dev.inmo.navigation.core.onResumeFlow
 import dev.inmo.navigation.mvvm.ViewModel
+import dev.inmo.wishlist.features.admin.common.models.AdminWishlist
+import dev.inmo.wishlist.features.admin.common.models.AdminWishlistItem
 import dev.inmo.wishlist.features.common.client.models.ViewConfig
-import dev.inmo.wishlist.features.wishlist.common.models.RegisteredWishlist
-import dev.inmo.wishlist.features.wishlist.common.models.RegisteredWishlistItem
 import dev.inmo.wishlist.features.wishlist.common.models.WishlistItemId
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.flowOf
@@ -30,12 +30,12 @@ class AdminWishlistViewModel(
     private val model: AdminPanelModel,
     private val interactor: AdminWishlistViewInteractor
 ) : ViewModel<ViewConfig>(node) {
-    private val _wishlistState = MutableRedeliverStateFlow<RegisteredWishlist?>(null)
+    private val _wishlistState = MutableRedeliverStateFlow<AdminWishlist?>(null)
 
     /** The loaded wishlist, `null` while loading or on error. */
     val wishlistState = _wishlistState.asStateFlow()
 
-    private val _itemsState = MutableRedeliverStateFlow<List<RegisteredWishlistItem>>(emptyList())
+    private val _itemsState = MutableRedeliverStateFlow<List<AdminWishlistItem>>(emptyList())
 
     /** Items belonging to the loaded wishlist. */
     val itemsState = _itemsState.asStateFlow()

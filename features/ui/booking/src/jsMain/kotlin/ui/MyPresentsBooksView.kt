@@ -17,7 +17,7 @@ import dev.inmo.wishlist.features.common.client.ui.components.Subline
 import dev.inmo.wishlist.features.common.client.ui.components.tintClass
 import dev.inmo.wishlist.features.ui.booking.BookingStrings
 import dev.inmo.wishlist.features.ui.topBar.ui.TopBarTitleProvider
-import dev.inmo.wishlist.features.wishlist.common.models.RegisteredWishlistItem
+import dev.inmo.wishlist.features.booking.common.models.BookingFeatureItem
 import org.koin.core.component.inject
 import org.koin.core.parameter.parametersOf
 
@@ -48,7 +48,7 @@ class MyPresentsBooksView(
      * @param item Reserved item to render.
      */
     @Composable
-    private fun ReservedCard(item: RegisteredWishlistItem) {
+    private fun ReservedCard(item: BookingFeatureItem) {
         val price = item.approximatePrice
         val priceText = if (price != null) {
             val units = item.priceUnits.takeIf { it.isNotBlank() }?.let { " $it" } ?: ""

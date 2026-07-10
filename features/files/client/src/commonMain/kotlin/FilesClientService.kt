@@ -8,8 +8,8 @@ import dev.inmo.wishlist.features.files.client.utils.imageMimeType
 import dev.inmo.wishlist.features.files.client.utils.temporalUploadFullPath
 import dev.inmo.wishlist.features.files.common.Constants
 import dev.inmo.wishlist.features.files.common.models.FileId
+import dev.inmo.wishlist.features.files.common.models.FilesFeatureMetaInfo
 import dev.inmo.wishlist.features.files.common.models.FinalizeFileRequest
-import dev.inmo.wishlist.features.files.common.models.RegisteredFileMetaInfo
 import dev.inmo.wishlist.features.users.common.models.UserId
 import io.ktor.client.HttpClient
 import io.ktor.client.call.body
@@ -33,10 +33,10 @@ class FilesClientService(
      * Uploads [file] to temporal storage and finalizes it into a permanent file.
      *
      * @param file File chosen by the user on the current platform.
-     * @return The persisted [RegisteredFileMetaInfo], or `null` if the server rejected the finalize
+     * @return The persisted [FilesFeatureMetaInfo], or `null` if the server rejected the finalize
      * (e.g. non-image MIME or expired temporal upload).
      */
-    suspend fun uploadFile(file: MPPFile): RegisteredFileMetaInfo? {
+    suspend fun uploadFile(file: MPPFile): FilesFeatureMetaInfo? {
         val temporalFileId = client.tempUpload(temporalUploadFullPath(), file)
         return feature.finalize(
             FinalizeFileRequest(

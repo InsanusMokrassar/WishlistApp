@@ -16,8 +16,8 @@ import dev.inmo.wishlist.features.ui.booking.ui.MyPresentsBooksViewConfig
 import dev.inmo.wishlist.features.ui.users.ui.UserEditViewConfig
 import dev.inmo.wishlist.features.ui.users.ui.UsersListViewConfig
 import dev.inmo.wishlist.features.ui.wishlist.ui.WishlistsListViewConfig
-import dev.inmo.wishlist.features.wishlist.common.models.RegisteredWishlist
 import dev.inmo.wishlist.features.wishlist.common.models.WishlistId
+import dev.inmo.wishlist.features.wishlist.common.models.WishlistsFeatureWishlist
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.conflate
@@ -52,7 +52,7 @@ class SidebarViewModel(
     /** Display name of the signed-in caller, shown in the profile row; `null` until resolved. */
     val userNameState = _userNameState.asStateFlow()
 
-    private val _myListsState = MutableRedeliverStateFlow<List<RegisteredWishlist>>(emptyList())
+    private val _myListsState = MutableRedeliverStateFlow<List<WishlistsFeatureWishlist>>(emptyList())
 
     /** The caller's own wishlists, pinned below the primary navigation. */
     val myListsState = _myListsState.asStateFlow()

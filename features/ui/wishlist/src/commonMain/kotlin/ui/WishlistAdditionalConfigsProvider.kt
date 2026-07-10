@@ -2,7 +2,7 @@ package dev.inmo.wishlist.features.ui.wishlist.ui
 
 import dev.inmo.navigation.core.NavigationChainId
 import dev.inmo.wishlist.features.common.client.models.ViewConfig
-import dev.inmo.wishlist.features.wishlist.common.models.RegisteredWishlistItem
+import dev.inmo.wishlist.features.wishlist.common.models.WishlistsFeatureItem
 
 /**
  * Extension point for additional, item-scoped views drawn on the wishlist item screen.
@@ -23,5 +23,5 @@ sealed interface WishlistAdditionalConfigsProvider {
      * @param item Item currently displayed on the wishlist item screen.
      * @return Config rendered inline (via `InjectNavigationNode`) inside this provider's chain.
      */
-    fun createConfig(item: RegisteredWishlistItem): ViewConfig
+    fun createConfig(item: WishlistsFeatureItem): ViewConfig
 }

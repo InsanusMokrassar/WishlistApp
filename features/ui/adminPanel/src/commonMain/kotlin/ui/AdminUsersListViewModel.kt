@@ -6,8 +6,8 @@ import dev.inmo.micro_utils.coroutines.subscribeLoggingDropExceptions
 import dev.inmo.navigation.core.NavigationNode
 import dev.inmo.navigation.core.onResumeFlow
 import dev.inmo.navigation.mvvm.ViewModel
+import dev.inmo.wishlist.features.admin.common.models.AdminUser
 import dev.inmo.wishlist.features.common.client.models.ViewConfig
-import dev.inmo.wishlist.features.users.common.models.RegisteredUser
 import dev.inmo.wishlist.features.users.common.models.UserId
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.flowOf
@@ -27,7 +27,7 @@ class AdminUsersListViewModel(
     private val model: AdminPanelModel,
     private val interactor: AdminUsersListViewInteractor
 ) : ViewModel<ViewConfig>(node) {
-    private val _usersState = MutableRedeliverStateFlow<List<RegisteredUser>>(emptyList())
+    private val _usersState = MutableRedeliverStateFlow<List<AdminUser>>(emptyList())
 
     /** Current list of all registered users. */
     val usersState = _usersState.asStateFlow()

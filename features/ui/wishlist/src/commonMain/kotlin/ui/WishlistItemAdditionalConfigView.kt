@@ -15,7 +15,7 @@ import dev.inmo.navigation.core.extensions.changesInSubTreeFlow
 import dev.inmo.navigation.core.extensions.findInSubTree
 import dev.inmo.navigation.core.extensions.rootChain
 import dev.inmo.wishlist.features.common.client.models.ViewConfig
-import dev.inmo.wishlist.features.wishlist.common.models.RegisteredWishlistItem
+import dev.inmo.wishlist.features.wishlist.common.models.WishlistsFeatureItem
 
 /**
  * Draws one [WishlistAdditionalConfigsProvider] contribution for [item].
@@ -32,7 +32,7 @@ import dev.inmo.wishlist.features.wishlist.common.models.RegisteredWishlistItem
 @Composable
 fun WishlistItemAdditionalConfigView(
     provider: WishlistAdditionalConfigsProvider,
-    item: RegisteredWishlistItem,
+    item: WishlistsFeatureItem,
     viewNode: NavigationNode<*, ViewConfig>,
 ) {
     val config = remember(provider, item) { provider.createConfig(item) }

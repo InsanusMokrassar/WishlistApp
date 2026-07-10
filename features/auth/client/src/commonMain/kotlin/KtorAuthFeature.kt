@@ -17,8 +17,8 @@ import dev.inmo.wishlist.features.auth.common.models.LoginRequest
 import dev.inmo.wishlist.features.auth.common.models.Password
 import dev.inmo.wishlist.features.auth.common.models.RefreshRequest
 import dev.inmo.wishlist.features.auth.common.models.RefreshToken
+import dev.inmo.wishlist.features.auth.common.models.AuthFeatureUser
 import dev.inmo.wishlist.features.auth.common.models.RegisterRequest
-import dev.inmo.wishlist.features.users.common.models.RegisteredUser
 import dev.inmo.wishlist.features.users.common.models.Username
 
 class KtorAuthFeature(
@@ -62,7 +62,7 @@ class KtorAuthFeature(
         response.body<Boolean>()
     }.getOrDefault(false)
 
-    override suspend fun getMe(): RegisteredUser? {
+    override suspend fun getMe(): AuthFeatureUser? {
         val response = runCatchingLogging {
             client.get(getMePath) {
                 expectSuccess = true

@@ -1,10 +1,10 @@
 package dev.inmo.wishlist.features.admin.client
 
 import dev.inmo.wishlist.features.admin.common.Constants
+import dev.inmo.wishlist.features.admin.common.models.AdminUser
 import dev.inmo.wishlist.features.admin.common.models.NewUserWithPassword
 import dev.inmo.wishlist.features.auth.common.models.Password
 import dev.inmo.wishlist.features.users.common.models.NewUser
-import dev.inmo.wishlist.features.users.common.models.RegisteredUser
 import dev.inmo.wishlist.features.users.common.models.UserId
 import io.ktor.client.HttpClient
 import io.ktor.client.call.body
@@ -20,15 +20,15 @@ class KtorUsersManagementFeature(
 ) : UsersManagementFeature {
     private val basePath = "${Constants.adminPrefixPathPart}/${Constants.usersPathPart}"
 
-    override suspend fun getAll(): List<RegisteredUser> =
+    override suspend fun getAll(): List<AdminUser> =
         client.get("$basePath/${Constants.usersGetAllPathPart}").body()
 
-    override suspend fun getById(id: UserId): RegisteredUser? {
+    override suspend fun getById(id: UserId): AdminUser? {
         val response = client.get("$basePath/${Constants.usersGetByIdPathPart}/${id.long}")
         return if (response.status.isSuccess()) response.body() else null
     }
 
-    override suspend fun create(newUser: NewUserWithPassword): RegisteredUser? {
+    override suspend fun create(newUser: NewUserWithPassword): AdminUser? {
         val response = client.post("$basePath/${Constants.usersCreatePathPart}") {
             setBody(newUser)
         }

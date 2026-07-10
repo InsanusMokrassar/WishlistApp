@@ -3,7 +3,7 @@ package dev.inmo.wishlist.features.ui.wishlist.ui
 import dev.inmo.navigation.core.NavigationChainId
 import dev.inmo.wishlist.features.common.client.models.ViewConfig
 import dev.inmo.wishlist.features.ui.booking.ui.BookingViewConfig
-import dev.inmo.wishlist.features.wishlist.common.models.RegisteredWishlistItem
+import dev.inmo.wishlist.features.wishlist.common.models.WishlistsFeatureItem
 
 /**
  * [WishlistAdditionalConfigsProvider] adapter for the booking scenario.
@@ -19,6 +19,6 @@ class BookingConfigsProvider : WishlistAdditionalConfigsProvider {
      * @param item Item to draw the inline gift-booking view for.
      * @return [BookingViewConfig] carrying the item and its parent wishlist.
      */
-    override fun createConfig(item: RegisteredWishlistItem): ViewConfig =
+    override fun createConfig(item: WishlistsFeatureItem): ViewConfig =
         BookingViewConfig(item.id, item.wishlistId)
 }

@@ -1,14 +1,14 @@
 package dev.inmo.wishlist.features.ui.adminPanel.ui
 
 import dev.inmo.wishlist.features.email.common.models.Email
+import dev.inmo.wishlist.features.admin.common.models.AdminUser
+import dev.inmo.wishlist.features.admin.common.models.AdminWishlist
+import dev.inmo.wishlist.features.admin.common.models.AdminWishlistItem
 import dev.inmo.wishlist.features.admin.common.models.NewUserWithPassword
 import dev.inmo.wishlist.features.users.common.models.NewUser
-import dev.inmo.wishlist.features.users.common.models.RegisteredUser
 import dev.inmo.wishlist.features.users.common.models.UserId
 import dev.inmo.wishlist.features.wishlist.common.models.NewWishlist
 import dev.inmo.wishlist.features.wishlist.common.models.NewWishlistItem
-import dev.inmo.wishlist.features.wishlist.common.models.RegisteredWishlist
-import dev.inmo.wishlist.features.wishlist.common.models.RegisteredWishlistItem
 import dev.inmo.wishlist.features.wishlist.common.models.WishlistId
 import dev.inmo.wishlist.features.wishlist.common.models.WishlistItemId
 import kotlinx.coroutines.flow.StateFlow
@@ -28,7 +28,7 @@ interface AdminPanelModel {
     val userAuthorisedState: StateFlow<Boolean>
 
     /** Returns all registered users. */
-    suspend fun getAllUsers(): List<RegisteredUser>
+    suspend fun getAllUsers(): List<AdminUser>
 
     /**
      * Returns a single user by [id].
@@ -36,7 +36,7 @@ interface AdminPanelModel {
      * @param id User identifier.
      * @return Matching user, or `null` when not found.
      */
-    suspend fun getUserById(id: UserId): RegisteredUser?
+    suspend fun getUserById(id: UserId): AdminUser?
 
     /**
      * Creates a new user with password.
@@ -44,7 +44,7 @@ interface AdminPanelModel {
      * @param newUser Username and password for the new user.
      * @return Created user, or `null` on failure.
      */
-    suspend fun createUser(newUser: NewUserWithPassword): RegisteredUser?
+    suspend fun createUser(newUser: NewUserWithPassword): AdminUser?
 
     /**
      * Updates an existing user's username.
@@ -64,7 +64,7 @@ interface AdminPanelModel {
     suspend fun deleteUser(id: UserId): Boolean
 
     /** Returns all wishlists across all users. */
-    suspend fun getAllWishlists(): List<RegisteredWishlist>
+    suspend fun getAllWishlists(): List<AdminWishlist>
 
     /**
      * Returns wishlists owned by [userId].
@@ -72,7 +72,7 @@ interface AdminPanelModel {
      * @param userId Owner identifier.
      * @return List of wishlists; empty when none found.
      */
-    suspend fun getWishlistsByUser(userId: UserId): List<RegisteredWishlist>
+    suspend fun getWishlistsByUser(userId: UserId): List<AdminWishlist>
 
     /**
      * Returns a single wishlist by [id].
@@ -80,7 +80,7 @@ interface AdminPanelModel {
      * @param id Wishlist identifier.
      * @return Matching wishlist, or `null` when not found.
      */
-    suspend fun getWishlistById(id: WishlistId): RegisteredWishlist?
+    suspend fun getWishlistById(id: WishlistId): AdminWishlist?
 
     /**
      * Creates a new wishlist.
@@ -88,7 +88,7 @@ interface AdminPanelModel {
      * @param newWishlist Owner and title for the new wishlist.
      * @return Created wishlist, or `null` on failure.
      */
-    suspend fun createWishlist(newWishlist: NewWishlist): RegisteredWishlist?
+    suspend fun createWishlist(newWishlist: NewWishlist): AdminWishlist?
 
     /**
      * Updates an existing wishlist's owner and title.
@@ -114,7 +114,7 @@ interface AdminPanelModel {
      * @param wishlistId Parent wishlist identifier.
      * @return List of items; empty when none found.
      */
-    suspend fun getItemsByWishlist(wishlistId: WishlistId): List<RegisteredWishlistItem>
+    suspend fun getItemsByWishlist(wishlistId: WishlistId): List<AdminWishlistItem>
 
     /**
      * Creates a new wishlist item.
@@ -122,7 +122,7 @@ interface AdminPanelModel {
      * @param item Item data including parent [WishlistId].
      * @return Created item, or `null` on failure.
      */
-    suspend fun createWishlistItem(item: NewWishlistItem): RegisteredWishlistItem?
+    suspend fun createWishlistItem(item: NewWishlistItem): AdminWishlistItem?
 
     /**
      * Replaces item [id] data with [item].

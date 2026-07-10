@@ -20,7 +20,7 @@ import dev.inmo.wishlist.features.currency.common.models.CurrencyCode
 import dev.inmo.wishlist.features.currency.common.models.CurrencyRates
 import dev.inmo.wishlist.features.ui.topBar.ui.TopBarTitleProvider
 import dev.inmo.wishlist.features.ui.wishlist.WishlistStrings
-import dev.inmo.wishlist.features.wishlist.common.models.RegisteredWishlistItem
+import dev.inmo.wishlist.features.wishlist.common.models.WishlistsFeatureItem
 import org.jetbrains.compose.web.css.Style
 import org.jetbrains.compose.web.css.StyleSheet
 import org.jetbrains.compose.web.dom.Div
@@ -165,7 +165,7 @@ class UserWishlistsView(
      * line when sorting across lists); `null` shows the item alone.
      */
     @Composable
-    private fun ItemsGrid(entries: List<Pair<RegisteredWishlistItem, String?>>) {
+    private fun ItemsGrid(entries: List<Pair<WishlistsFeatureItem, String?>>) {
         ItemGrid {
             entries.forEach { (item, wishlistTitle) ->
                 WishlistItemCard(
@@ -188,7 +188,7 @@ class UserWishlistsView(
      */
     @Composable
     private fun ItemRows(
-        entries: List<Pair<RegisteredWishlistItem, String?>>,
+        entries: List<Pair<WishlistsFeatureItem, String?>>,
         selectedCurrency: CurrencyCode?,
         rates: CurrencyRates?,
     ) {

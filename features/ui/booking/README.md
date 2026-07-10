@@ -19,7 +19,7 @@ Client-only UI scenario for gift booking, extracted from `features/ui/wishlist` 
 
 | Type | Description |
 |------|-------------|
-| `BookingModel` | Interface wrapping `features/booking/client` `BookingFeature`; methods `getBookingState(itemId)`, `bookItem(itemId)` → `BookingFeature.tryBook`, `cancelBooking(itemId)` → `BookingFeature.cancelBooking`, `myPresentsBooks()`. Single anonymous impl in the feature's common `Plugin.kt`. |
+| `BookingModel` | Interface wrapping `features/booking/client` `BookingFeature`; methods `getBookingState(itemId)`, `bookItem(itemId)` → `BookingFeature.tryBook`, `cancelBooking(itemId)` → `BookingFeature.cancelBooking`, `myPresentsBooks(): List<BookingFeatureItem>`. Single anonymous impl in the feature's common `Plugin.kt`. |
 | `MyPresentsBooksViewInteractor` | `suspend fun onSelectReserved(config)` wires view B to sidebar "Reserved" entry; impl in `client/ClientPlugin`. |
 
 > `BookingViewInteractor` was REMOVED: view A is embedded inline with no back navigation, so `BookingViewModel` takes only `(node, model)` and the `client/ClientPlugin` binding is gone.
@@ -33,3 +33,4 @@ Client-only UI scenario for gift booking, extracted from `features/ui/wishlist` 
 - Web (JS) views use Calm Studio markup (`.btn`, `.pill`, `.card`, `.reserved-flag`, `.content-inner`, `.grid`). JVM and Android views unchanged; Material v2 and Material3 copy untouched.
 - Localized strings live in `BookingStrings` (EN + RU). Calm-Studio-only strings (reserveGiftButton, cancelReservationButton, reservedByYouLabel, reservedBySomeoneLabel, reservedTitle, reservedSubline, reservedEmptyTitle, reservedEmptyBody, reservedFlag) kept separate from Material strings.
 - Privacy: owner-hidden / booker-anonymous rules server-enforced in `features/booking`. Owners see only THAT item is reserved (item card marker + count), never WHO. Reserved section lists only caller's own bookings.
+- **Feature Interface Return Model Rule:** `BookingModel.myPresentsBooks()` and `MyPresentsBooksViewModel.presentsState` now hold `BookingFeatureItem` (from `booking.common.models`) instead of `RegisteredWishlistItem`, per `agents/CODING.md`'s Feature Interface Return Model Rule — `BookingFeature.myPresentsBooks` (client) and `BookingService.myPresentsBooks` (server) were retyped to match. `MyPresentsBooksView`'s `ReservedCard(item: BookingFeatureItem)` field access is unchanged since the new model mirrors `RegisteredWishlistItem`'s display fields.
