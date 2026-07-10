@@ -27,7 +27,7 @@ import io.ktor.server.routing.route
  *
  * **Public routes** (no auth):
  * - `GET /files/{id}` — streams the raw payload with its stored `Content-Type`
- * - `GET /files/meta/{id}` — returns the [dev.inmo.wishlist.features.files.common.models.RegisteredFileMetaInfo] as JSON
+ * - `GET /files/meta/{id}` — returns the [dev.inmo.wishlist.features.files.common.models.FilesFeatureMetaInfo] as JSON
  *
  * **Auth-required route** (valid bearer token):
  * - `POST /files/finalize` — promotes a temporal upload into permanent storage; body: [FinalizeFileRequest]
