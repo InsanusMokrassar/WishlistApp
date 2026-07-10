@@ -305,3 +305,141 @@ For each new model + mapper pair introduced in commit A and commit B, minimum te
   across all 6 violation surfaces with concrete per-file changes, two Gradle-dependency findings, and two
   server-side architecture asymmetries documented so Architecture does not have to re-derive them).
 - Handoff: Architecture may proceed immediately on both commits per section 5.
+
+---
+
+## 7. Independent re-verification pass (addendum)
+
+Addendum step header — Model: Sonnet 5 (claude-sonnet-5) / Execution time: ~1400 seconds / Tokens used:
+~150000 / Changed files: this file only (appended section 7).
+
+**Process note (why this section exists):** this exact finalization task was dispatched twice. Sections
+1–6 above were written and committed (`ac5574e`) by a concurrent Planning pass while this independent pass
+was already investigating from a cold start. Rather than overwrite or fork a competing version of the plan,
+this section re-verifies sections 1–6 against a fresh read of current source (three parallel read-only
+investigation agents covering commit A's 12 files, commit B's V1–V3, and commit B's V4–V6, plus direct
+spot-reads of build.gradle files, feature interfaces, and `RegisteredFileMetaInfo`) and records the delta.
+Sections 1–6 stand except where superseded below. **Status remains READY.**
+
+### 7.1 Commit A (section 3, commit A) — fully confirmed, no changes
+
+All 12 files re-read against current source: exact match, including the "no-change-but-verify-compiles"
+list. Cross-referenced `ast-index refs UsersFeature` / `ast-index usages getAll` plus repo-wide grep for
+`RegisteredUser` importers — no missing call site found. File list, build gate, and commit message in
+section 3 stand unmodified.
+
+### 7.2 Commit B corrections (supersedes the specific bullets named below; everything else in section 3 stands)
+
+**B-V1 (auth) — one missing file, one over-inclusion:**
+- **Add** `features/auth/client/src/commonMain/kotlin/Plugin.kt` to the file list: it registers the DI
+  qualifier backing `meStateFlow` — `singleSecretMeMutableStateFlow { MutableRedeliverStateFlow<RegisteredUser?>(null) }`
+  (line 40) plus the `RegisteredUser` import (line 19). This is the concrete file behind section 3's
+  "`meStateFlow` DI surface" phrase, which named `Me.kt` but not the plugin registration that instantiates
+  the flow — retype to `MutableRedeliverStateFlow<AuthFeatureUser?>`.
+- **Remove** `features/ui/sidebar` from the B-V1 consumer list. Verified via grep across all of
+  `features/ui/sidebar/src/`: zero references to `RegisteredUser`, `meStateFlow`, or `AuthFeature`. Sidebar
+  only consumes `WishlistsModel.currentUserIdFlow: StateFlow<UserId?>` (already an id) — not a V1 consumer.
+  (Sidebar **is** a genuine V4 consumer — see below — the two are unrelated surfaces.)
+
+**B-V2 (booking) — one missing file:**
+- **Add** `features/ui/booking/src/jsMain/kotlin/ui/MyPresentsBooksView.kt` explicitly to the file list.
+  It directly imports and type-annotates `RegisteredWishlistItem` (`private fun ReservedCard(item: RegisteredWishlistItem)`,
+  lines ~20/51) — this is a real retype, not the "compile-verify field access only" treatment section 3
+  gave the jvmMain/androidMain platform views (those two remain compile-verify-only).
+
+**B-V3 (admin) — confirmed, no file-list change.** The "server-side equivalents" phrasing in section 3's
+B-V3 file list is already correctly qualified by this file's own section 2 (no server-side
+`AdminWishlistsFeature`/`AdminWishlistItemsFeature` class exists; the fix point is inline in
+`AdminRoutingsConfigurator`) — re-verification found no additional discrepancy beyond what section 2
+already documents. `AdminWishlistItemsFeature.kt` / `KtorAdminWishlistItemsFeature.kt` reconfirmed to exist
+client-side (the admin README does not document them — pre-existing doc staleness, unrelated to this plan,
+folded into the mandatory README update).
+
+**B-V4 (`WishlistsFeature`) — one missing consumer:**
+- **Add** `features/ui/sidebar` (`ui/SidebarModel.kt:26`, `ui/SidebarViewModel.kt:55`, `Plugin.kt:40`) to
+  the file list — all three type `List<RegisteredWishlist>`, wrapping `WishlistsModel.getMyWishlists()`
+  transitively. Retype to `List<WishlistsFeatureWishlist>`.
+- Confirmed exact current signatures of all 4 non-exempt `WishlistsFeature` methods match section 3
+  verbatim; `update`/`delete` correctly excluded (return `Boolean`).
+- Confirmed booking (V2) has not landed on this branch yet (still returns `RegisteredWishlistItem` today) —
+  expected, since Coding hasn't run; not an inconsistency.
+
+**B-V5 (`WishlistsItemsFeature`) — one file removed, several files added:**
+- **Remove** `WishlistCopyService` from the file list. Verified its only public method,
+  `enqueue(sourceWishlistId, recipientUserId): RegisteredWishlistCopyJob?` (line 67), never returns
+  `RegisteredWishlistItem` — it calls `wishlistItemRepo.create(...)` at the repo layer internally and
+  exposes only `RegisteredWishlistCopyJob` outward. `WishlistCopyFeature.enqueueCopy(): Boolean` (the
+  actual `*Feature` method) was already correctly marked compliant in `001-planning.md` section 2.4's audit
+  table — section 3's B-V5 bullet contradicted that finding by including the service; the audit table wins.
+- **Supplement** (concrete examples for section 3's own "not fully read, `ast-index outline` first"
+  caveat — not exhaustive, Architecture should still run the outline): `features/ui/wishlist/ui/BookingConfigsProvider.kt`,
+  `ui/WishlistAdditionalConfigsProvider.kt`, `ui/WishlistItemAdditionalConfigView.kt`,
+  `ui/WishlistItemCopyViewModel.kt`, plus platform-specific views (`UserWishlistsView.kt` in jvmMain/androidMain/jsMain,
+  `WishlistItemCard.kt`, jsMain `WishlistItemRow.kt`) all reference `RegisteredWishlistItem` and fall inside
+  V5's retype scope.
+
+**B-V6 (`FilesFeature`) — confirmed accurate, blast radius smaller than section 3 implied:**
+- Exact signatures and `RegisteredFileMetaInfo` field set (`id`, `fileName`, `mimeType`, `size`,
+  `uploaderId`) re-confirmed verbatim against `features/files/common/.../models/FileMetaInfo.kt:57-63`.
+- Repo-wide grep found **zero** UI callers of client `getMeta`; the only `uploadFile()`/`finalize()`
+  consumer is `features/ui/wishlist/Plugin.kt:180`, which narrows to `?.id` (`FileId`) immediately — no UI
+  file needs retyping beyond the four core files (`FilesFeature.kt`, `KtorFilesFeature.kt`,
+  `FilesClientService.kt`, server `FilesService.kt` + `FilesRoutingsConfigurator.kt`) already named in
+  section 3.
+
+### 7.3 V4/V5 naming — finalized by Planning now, not handed to Architecture
+
+Per this file's task instructions, Planning decides rather than deferring: **`WishlistsFeatureWishlist`**
+(V4) and **`WishlistsFeatureItem`** (V5), exactly as section 3 already named them. Rationale: strict
+adherence to the established `<FeatureInterfaceName><Entity>` convention (matches `UsersFeatureUser`,
+`BookingFeatureItem`) beats a shorter purpose name for greppability across a large multi-module codebase,
+even though "Wishlists...Wishlist" reads slightly redundant — the codebase already tolerates a comparable
+overlap (`WishlistItem` / `WishlistsItemsFeature`). An independent investigation agent, asked to propose
+an alternative, converged on the same recommendation unprompted. No further input needed from Architecture
+on this point.
+
+### 7.4 Dependency additions — confirmed exact, with verified transitivity
+
+- **`auth/common` → `email/common`:** confirmed **not required**. `features/auth/common/build.gradle`
+  depends only on `common.common` + `users.common`; `features/users/common/build.gradle` declares
+  `api project(":wishlist.features.email.common")`. Gradle `api` is transitive, so `Email` is already
+  visible inside `auth/common` through the existing `users.common` dependency. No `build.gradle` edit needed.
+- **`admin/common` → `wishlist/common`:** confirmed **required**. `features/admin/common/build.gradle`
+  currently depends only on `users.common` + `auth.common` — neither transitively carries `wishlist.common`.
+  Exact line to add to `features/admin/common/build.gradle`'s `commonMain.dependencies` block:
+  ```groovy
+  api project(":wishlist.features.wishlist.common")
+  ```
+- **`admin/common` → `email/common`:** confirmed **not required** — reachable transitively via the same
+  `users.common` → `email.common` chain as auth above.
+- **`booking/common` → `wishlist/common`:** already present (`api project(":wishlist.features.wishlist.common")`
+  confirmed in `features/booking/common/build.gradle`) — no change, as section 3 already stated.
+
+### 7.5 Test-stub candidates — made explicit per-model (section 4's generic rule, enumerated)
+
+Section 4's "for each new model + mapper pair" is confirmed to cover every model introduced by this plan;
+enumerated explicitly here so Coding has an unambiguous checklist. For **each** of the 8 new models —
+`UsersFeatureUser`, `AuthFeatureUser`, `BookingFeatureItem`, `AdminUser`, `AdminWishlist`,
+`AdminWishlistItem`, `WishlistsFeatureWishlist`, `WishlistsFeatureItem`, `FilesFeatureMetaInfo` — write:
+1. A serialization/field-set test asserting the encoded JSON contains exactly the model's declared
+   properties (regression test for the leak class point 1 fixes — most important for `UsersFeatureUser`,
+   `AuthFeatureUser`, and `AdminUser`, the three that sit near an `email` field).
+2. A mapper unit test (`as<NewType>()`) asserting every field is projected correctly from a constructed
+   `Registered*` fixture.
+3. A service-layer test with a fake underlying repo/service for each retyped method:
+   `UsersService.getAll`, `AuthFeatureService.getUser` (server), `BookingService.myPresentsBooks`,
+   admin `UsersManagementFeature.getAll`/`create`, `WishlistService.getById`/`getByUserId`/`getMyWishlists`/`create`,
+   `WishlistItemService.getByWishlistId`/`create`/`copyItem`, `FilesService`'s `finalize`/`getMeta`-equivalent
+   methods — each asserting the returned value(s) are the new feature model with correctly mapped fields.
+
+Test infra confirmed present and reusable as scaffolding precedent: `features/users/common/src/jvmTest/kotlin/repo/IsUniqueViolationTest.kt`,
+`features/email/server/src/commonTest/kotlin/**` (including its `Fake*Repo` pattern, directly reusable for
+the fake-repo service tests above).
+
+### 7.6 Result of this addendum
+
+- All corrections above are additive/corrective deltas on section 3, not a reinterpretation of Q1 or the
+  rule text — no new open question was surfaced.
+- Status: **READY**, unchanged. Architecture should read sections 1–6 for the base plan and section 7 for
+  the corrected file lists (7.2), finalized V4/V5 names (7.3, already reflected in section 3's own text),
+  confirmed Gradle deltas (7.4), and the explicit test checklist (7.5).
