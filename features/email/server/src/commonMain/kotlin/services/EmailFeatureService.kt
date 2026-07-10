@@ -33,6 +33,7 @@ class EmailFeatureService(
     private val usersRepo: UsersRepo
 ) : EmailFeature {
 
+    /** Username [sendTestEmail] compares the caller's username against to gate test-email sends to the root account. */
     private val rootUsername = "root"
 
     /**

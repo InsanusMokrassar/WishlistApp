@@ -42,6 +42,7 @@ import java.util.Properties
  */
 class SmtpEmailService(private val config: EmailConfig) : EmailsService {
 
+    /** Logger scoped to this class, used to warn-log disabled-mode skips and delivery failures in [send]. */
     private val logger = KSLog("SmtpEmailService")
 
     /**
