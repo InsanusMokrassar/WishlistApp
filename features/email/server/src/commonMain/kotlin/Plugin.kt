@@ -7,6 +7,7 @@ import dev.inmo.wishlist.features.email.server.configurators.EmailRoutingsConfig
 import dev.inmo.wishlist.features.email.server.services.DisabledEmailFeature
 import dev.inmo.wishlist.features.email.server.services.EmailFeatureService
 import dev.inmo.wishlist.features.email.server.services.SmtpEmailService
+import dev.inmo.wishlist.features.simpleRoles.server.SimpleRolesFeature
 import dev.inmo.wishlist.features.users.common.repo.UsersRepo
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonElement
@@ -49,7 +50,7 @@ object Plugin : StartPlugin {
         }
         single<EmailFeature> {
             getOrNull<EmailsService>() ?.let {
-                EmailFeatureService(it, get<UsersRepo>())
+                EmailFeatureService(it, get<UsersRepo>(), get<SimpleRolesFeature>())
             } ?: DisabledEmailFeature(get<UsersRepo>())
         }
         singleWithRandomQualifier<ApplicationRoutingConfigurator.Element> {

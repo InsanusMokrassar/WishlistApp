@@ -19,9 +19,9 @@ design skill's `ui_kits/calm-studio` reference so the phase-1 shell CSS styles t
   (visible only when logged in) opens the caller's own profile.
 - **User profile view** (`UserViewConfig(userId)`) — public, readable by anyone (anonymous
   included). Shows the username and avatar (when set). Shows an **Edit** button only to the profile
-  owner and `root`.
-- **User profile edit** (`UserEditViewConfig(userId)`) — reachable by the owner and `root`. A
-  non-root owner has **no editable text fields** but may upload an avatar; `root` may edit the
+  owner and a SuperAdmin.
+- **User profile edit** (`UserEditViewConfig(userId)`) — reachable by the owner and a SuperAdmin. A
+  non-root owner has **no editable text fields** but may upload an avatar; a SuperAdmin may edit the
   username, set a new password (with a confirmation field that must match), upload an avatar, and
   **delete** the user. The user id is never editable. User *creation* is not done here (admin panel).
 
@@ -40,7 +40,7 @@ None — client-only UI feature. Consumes `features/users/client` (public read),
 | `UsersListViewConfig` | Empty `@Serializable class` — main slot root identifier |
 | `UserViewConfig` | `data class(userId: UserId)` — public profile detail |
 | `UserEditViewConfig` | `data class(userId: UserId)` — profile edit (owner/root) |
-| `UsersModel` | Single feature model (renamed from `UsersListModel`). Wraps `UsersFeature.getAll()`, auth "me" `StateFlow<RegisteredUser?>` from `features/auth/client` `Scope.meStateFlow` (`getCurrentUserId`, `isCurrentUserRoot`), admin `AdminFeature.usersManagement` (`updateUsername`, `setPassword`, `deleteUser`), and `FilesClientService` (`getAvatar`, `uploadAvatar`, `imageUrl`, `loadImageBytes`); `getUser(id)` resolves from the public list |
+| `UsersModel` | Single feature model (renamed from `UsersListModel`). Wraps `UsersFeature.getAll()`, auth "me" `StateFlow<RegisteredUser?>` from `features/auth/client` `Scope.meStateFlow` (`getCurrentUserId`, `isCurrentUserRootFlow` — now SuperAdmin-role-backed, see Architecture Notes), admin `AdminFeature.usersManagement` (`updateUsername`, `setPassword`, `deleteUser`), and `FilesClientService` (`getAvatar`, `uploadAvatar`, `imageUrl`, `loadImageBytes`); `getUser(id)` resolves from the public list |
 | `UsersListViewInteractor` | `onUserSelected(node, userId)` (→ user's all-items view), `onOpenProfile(node, userId)` (→ profile view) |
 | `UserViewInteractor` | `onBack(node)`, `onEditUser(node)` (→ edit) |
 | `UserEditViewInteractor` | `onNavigateBack(node)`, `onSaved(node)`, `onDeleted(node)` |
@@ -54,7 +54,13 @@ None — client-only UI feature. Consumes `features/users/client` (public read),
 - All three screens' interactors are implemented in `client/ClientPlugin` (intra-feature push/pop). `onOpenProfile`/`UserViewInteractor.onEditUser` push `UserViewConfig`/`UserEditViewConfig` onto `node.chain`.
 - `build.gradle` deps: `features/auth/client` (`ClientAuthFeature`), `features/admin/client` (`AdminFeature`), `features/files/client` (`FilesClientService`).
 - **Single model**: `UsersListModel` was renamed to `UsersModel` and expanded to back all three screens (matching the one-model-per-UI-feature convention used by `wishlist`/`adminPanel`).
-- **Root detection** is client-side (`me.value?.username?.string == "root"`); the server still enforces root on every admin endpoint (`403`) and owner-or-root on the avatar `PUT` (`403`).
+- **Superadmin detection is client-side**, via `simpleRoles.client`'s `CacheSimpleRolesFeature.isSuperAdminStateFlow`
+  (issue #68) — replaces the previous `me.value?.username?.string == "root"` comparison.
+  `UsersModel.isCurrentUserRootFlow` keeps its name (SuperAdmin is architecturally fixed to `root`, so the
+  two remain the same boolean) but its Koin wiring now injects `CacheSimpleRolesFeature` directly (not the
+  narrower `SimpleRolesFeature` interface) specifically to read this reactive flow — see
+  `simpleRoles/README.md` Architecture Notes for why. The server still enforces independently on every
+  admin endpoint (`403`) and on the avatar `PUT` (`403`) — unchanged, just re-worded mechanism.
 - **My profile**: `UsersListViewModel` loads `currentUserIdState` (= `me.value?.id`); the header button is shown only when non-null and pushes `UserViewConfig(currentUserId)`.
 - **Profile edit gating** (`UserEditViewModel`):
   - `isRootState` gates the editable username/password fields, the delete button, and `canSaveState`. Non-root owners see read-only username + a "no editable fields" note + the avatar uploader.

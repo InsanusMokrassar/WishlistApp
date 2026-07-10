@@ -10,6 +10,7 @@ import dev.inmo.wishlist.features.auth.common.models.Password
 import dev.inmo.wishlist.features.common.client.models.ViewConfig
 import dev.inmo.wishlist.features.files.client.FilesClientService
 import dev.inmo.wishlist.features.files.common.models.FileId
+import dev.inmo.wishlist.features.simpleRoles.client.CacheSimpleRolesFeature
 import dev.inmo.wishlist.features.users.client.UsersFeature
 import dev.inmo.wishlist.features.users.common.models.NewUser
 import dev.inmo.wishlist.features.users.common.models.RegisteredUser
@@ -74,8 +75,7 @@ object Plugin : StartPlugin {
                     meState.map { it?.id }.stateIn(scope, SharingStarted.Eagerly, meState.value?.id)
 
                 override val isCurrentUserRootFlow: StateFlow<Boolean> =
-                    meState.map { it?.username?.string == "root" }
-                        .stateIn(scope, SharingStarted.Eagerly, meState.value?.username?.string == "root")
+                    get<CacheSimpleRolesFeature>().isSuperAdminStateFlow
 
                 override suspend fun updateUsername(id: UserId, username: Username): Boolean =
                     adminFeature.usersManagement.update(id, NewUser(username))

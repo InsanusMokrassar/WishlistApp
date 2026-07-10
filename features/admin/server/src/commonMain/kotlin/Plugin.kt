@@ -5,6 +5,7 @@ import dev.inmo.micro_utils.ktor.server.configurators.ApplicationRoutingConfigur
 import dev.inmo.micro_utils.startup.plugin.StartPlugin
 import dev.inmo.wishlist.features.admin.server.configurators.AdminRoutingsConfigurator
 import dev.inmo.wishlist.features.auth.server.services.AuthFeatureService
+import dev.inmo.wishlist.features.simpleRoles.server.SimpleRolesFeature
 import dev.inmo.wishlist.features.users.common.repo.UsersRepo
 import dev.inmo.wishlist.features.wishlist.common.repo.WishlistItemRepo
 import dev.inmo.wishlist.features.wishlist.common.repo.WishlistRepo
@@ -31,7 +32,8 @@ object Plugin : StartPlugin {
                 usersRepo = get<UsersRepo>(),
                 wishlistService = get<WishlistService>(),
                 wishlistRepo = get<WishlistRepo>(),
-                wishlistItemRepo = get<WishlistItemRepo>()
+                wishlistItemRepo = get<WishlistItemRepo>(),
+                simpleRolesFeature = get<SimpleRolesFeature>()
             )
         }
     }

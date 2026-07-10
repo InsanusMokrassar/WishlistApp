@@ -7,6 +7,7 @@ import dev.inmo.micro_utils.startup.plugin.StartPlugin
 import dev.inmo.wishlist.features.files.server.configurators.FilesRoutingsConfigurator
 import dev.inmo.wishlist.features.files.server.services.FilesService
 import dev.inmo.wishlist.features.files.server.services.TimedTemporalFilesUtilizer
+import dev.inmo.wishlist.features.simpleRoles.server.SimpleRolesFeature
 import kotlinx.serialization.json.JsonObject
 import org.koin.core.Koin
 import org.koin.core.module.Module
@@ -43,7 +44,7 @@ object Plugin : StartPlugin {
 
         single { FilesService(get(), get(), get(), get()) }
         singleWithRandomQualifier<ApplicationRoutingConfigurator.Element> {
-            FilesRoutingsConfigurator(get(), get())
+            FilesRoutingsConfigurator(get(), get<SimpleRolesFeature>())
         }
     }
 
