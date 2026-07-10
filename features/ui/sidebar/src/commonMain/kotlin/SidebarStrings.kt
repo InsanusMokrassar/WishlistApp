@@ -30,6 +30,11 @@ object SidebarStrings {
         IetfLang.Russian("Настройки")
     }
 
+    /** Primary item: root-only admin panel dashboard. */
+    val adminPanel = buildStringResource("Admin Panel") {
+        IetfLang.Russian("Панель администратора")
+    }
+
     /** Section label above the caller's pinned lists. */
     val yourLists = buildStringResource("Your lists") {
         IetfLang.Russian("Ваши списки")

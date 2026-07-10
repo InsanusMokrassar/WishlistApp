@@ -68,6 +68,7 @@ class SidebarView(
     override fun onDraw() {
         super.onDraw()
         val currentUserId by viewModel.currentUserIdState.collectAsState()
+        val isRoot by viewModel.isRootState.collectAsState()
         val userName by viewModel.userNameState.collectAsState()
         val myLists by viewModel.myListsState.collectAsState()
         val reservedCount by viewModel.reservedCountState.collectAsState()
@@ -108,6 +109,13 @@ class SidebarView(
                     active = activeSection == SidebarSection.Settings,
                     enabled = signedIn
                 ) { viewModel.onSelectSettings() }
+                if (isRoot) {
+                    NavItem(
+                        icon = LucideIcons.shield,
+                        label = SidebarStrings.adminPanel.translation(),
+                        active = activeSection == SidebarSection.Admin
+                    ) { viewModel.onSelectAdminPanel() }
+                }
             }
 
             if (currentUserId != null && myLists.isNotEmpty()) {

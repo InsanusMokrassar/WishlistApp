@@ -20,6 +20,9 @@ enum class SidebarSection {
     /** Account settings for the signed-in caller. */
     Settings,
 
+    /** Root-only admin panel dashboard. */
+    Admin,
+
     /** No primary section owns the current main-chain screen. */
     None
 }
