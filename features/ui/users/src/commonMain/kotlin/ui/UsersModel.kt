@@ -3,9 +3,9 @@ package dev.inmo.wishlist.features.ui.users.ui
 import dev.inmo.micro_utils.common.MPPFile
 import dev.inmo.wishlist.features.auth.common.models.Password
 import dev.inmo.wishlist.features.files.common.models.FileId
-import dev.inmo.wishlist.features.users.common.models.RegisteredUser
 import dev.inmo.wishlist.features.users.common.models.UserId
 import dev.inmo.wishlist.features.users.common.models.Username
+import dev.inmo.wishlist.features.users.common.models.UsersFeatureUser
 import kotlinx.coroutines.flow.StateFlow
 
 /**
@@ -26,17 +26,17 @@ interface UsersModel {
     /**
      * Returns the full list of registered users (public read).
      *
-     * @return All [RegisteredUser]s; empty when none registered.
+     * @return All [UsersFeatureUser]s; empty when none registered.
      */
-    suspend fun getAllUsers(): List<RegisteredUser>
+    suspend fun getAllUsers(): List<UsersFeatureUser>
 
     /**
      * Resolves a single user by [id] from the public users list.
      *
      * @param id User identifier.
-     * @return Matching [RegisteredUser], or `null` when not found.
+     * @return Matching [UsersFeatureUser], or `null` when not found.
      */
-    suspend fun getUser(id: UserId): RegisteredUser?
+    suspend fun getUser(id: UserId): UsersFeatureUser?
 
     /**
      * Reactive id of the authenticated caller ("me"), or `null` when anonymous / not yet resolved.
