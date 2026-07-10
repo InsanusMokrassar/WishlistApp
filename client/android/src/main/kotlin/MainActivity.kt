@@ -37,6 +37,7 @@ class MainActivity : AppCompatActivity() {
                         dev.inmo.wishlist.features.booking.client.AndroidPlugin,
                         dev.inmo.wishlist.features.email.client.AndroidPlugin,
                         dev.inmo.wishlist.features.deeplinks.client.AndroidPlugin,
+                        dev.inmo.wishlist.features.simpleRoles.client.AndroidPlugin,
 
                         dev.inmo.wishlist.features.ui.sample.AndroidPlugin,
                         dev.inmo.wishlist.features.ui.auth.AndroidPlugin,

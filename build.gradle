@@ -22,6 +22,20 @@ allprojects {
         mavenCentral()
         google()
     }
+
+    // `dev.inmo:micro_utils.repos.common:0.30.0` (bumped for kroles 0.0.2 compatibility, see
+    // gradle/libs.versions.toml's `kroles`/`microutils` entries) transitively requests
+    // `androidx.core:core(-ktx):1.19.0`, which needs `compileSdk 37` + AGP 9.1.0+ — well beyond this
+    // project's current `android-compileSdk = "36"` / `android-gradle-plugin = "8.12.+"` (see
+    // `gradle/libs.versions.toml`). Nothing in this app's own code depends on 1.19.0-only APIs, so pin
+    // back to 1.18.0 — the version every other AndroidX dependency in this graph already converges on
+    // — rather than taking on an AGP major-version bump to satisfy one transitive `requires` bump.
+    configurations.all {
+        resolutionStrategy {
+            force "androidx.core:core:1.18.0"
+            force "androidx.core:core-ktx:1.18.0"
+        }
+    }
 }
 
 apply from: "./extensions.gradle"
