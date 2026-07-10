@@ -94,14 +94,19 @@ None. This feature has no HTTP surface; the only client-facing capability derive
 > **Coding-pass status note (this app's own multi-pass rollout, not part of the design above):** this
 > feature lands across 4 Coding passes (see the task's `003-architecturing.md` §4). **Pass 1
 > (Foundation)** shipped the scaffolding and the DI storage layer only. **Pass 2 (Bootstrap +
-> migration, current)** replaced `roles/server/JVMPlugin.kt`'s stock scaffold with the real
+> migration)** replaced `roles/server/JVMPlugin.kt`'s stock scaffold with the real
 > subscribe-then-backfill bootstrap and added `roles/server/RolesBootstrap.kt`
 > (`grantDefaultRoles`/`backfillDefaultRoles`) plus its test suite (`RolesBootstrapTest.kt`,
 > `FakeRolesRepo.kt`, `FakeUsersRepo.kt`) — `SuperAdmin`/`User` are now actually granted at runtime.
-> `roles/common/Plugin.kt` is still the stock empty scaffold, so `FeatureRolesRegistry`/
-> `RoleGatedFeatureIds`/`requireRole` still do not exist in the tree yet. `roles/server` was already
-> registered in `server/sample.config.json`/`server/dev.config.json`'s `"plugins"` array since pass 1
-> purely so the `RolesRepo` Koin binding exists for `features/simpleRoles/server` to resolve. Pass 3
-> adds `FeatureRolesRegistry`/`RoleGatedFeatureIds`/`requireRole`; pass 4 replaces the 4 existing
+> `roles/server` was already registered in `server/sample.config.json`/`server/dev.config.json`'s
+> `"plugins"` array since pass 1 purely so the `RolesRepo` Koin binding exists for
+> `features/simpleRoles/server` to resolve. **Pass 3 (Aggregator + guard, current)** populated
+> `roles/common/Plugin.kt` with `FeatureRolesRegistry.register(...)` calls for the three
+> `RoleGatedFeatureIds` and added `roles/common/FeatureRolesRegistry.kt` and
+> `roles/server/utils/RequireRole.kt` (`requireRole`/`isRoleRequirementSatisfied`), each with its own
+> test suite (`FeatureRolesRegistryTest.kt`, `RequireRoleTest.kt`). As the Architecture Notes above
+> already flag, `requireRole` still has no production caller after this pass — pass 4's three
+> concrete replacements call `SimpleRolesFeature.isSuperAdmin` directly instead, per the issue's own
+> literal text; this is intentional, not a gap left by this pass. Pass 4 replaces the 4 existing
 > root-privilege call sites. The Architecture Notes above describe the feature's complete, final
 > design (all 4 passes) so this document does not need rewriting pass-to-pass.
