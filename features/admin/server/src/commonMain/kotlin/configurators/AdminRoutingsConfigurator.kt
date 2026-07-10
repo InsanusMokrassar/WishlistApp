@@ -10,6 +10,7 @@ import dev.inmo.wishlist.features.auth.server.utils.getCallerUserIdOrAnswerUnaut
 import dev.inmo.wishlist.features.users.common.models.NewUser
 import dev.inmo.wishlist.features.users.common.models.UserId
 import dev.inmo.wishlist.features.users.common.repo.ReadUsersRepo
+import dev.inmo.wishlist.features.users.common.repo.exceptions.DuplicateUserFieldException
 import dev.inmo.wishlist.features.wishlist.common.models.NewWishlist
 import dev.inmo.wishlist.features.wishlist.common.models.NewWishlistInFeature
 import dev.inmo.wishlist.features.wishlist.common.models.NewWishlistItem
@@ -38,8 +39,8 @@ import io.ktor.server.routing.route
  *
  * **Users management routes** (`/admin/users/...`):
  * - `GET    /admin/users/getAll`         — list all registered users
- * - `POST   /admin/users/create`         — create user with password; body: [NewUserWithPassword]
- * - `PUT    /admin/users/update/{id}`    — update user info; body: [NewUser]
+ * - `POST   /admin/users/create`         — create user with password; body: [NewUserWithPassword]; `409` on duplicate username
+ * - `PUT    /admin/users/update/{id}`    — update user info; body: [NewUser]; `409` on duplicate username/email
  * - `DELETE /admin/users/delete/{id}`    — remove user by id
  *
  * **Wishlists management routes** (`/admin/wishlists/...`):
@@ -51,6 +52,10 @@ import io.ktor.server.routing.route
  *
  * Wishlist read operations delegate to [WishlistService] (existing functionality).
  * Wishlist write operations that bypass ownership delegate directly to [WishlistRepo] (existing functionality).
+ *
+ * A username/email colliding with an existing user surfaces as
+ * [dev.inmo.wishlist.features.users.common.repo.exceptions.DuplicateUserFieldException] from
+ * [adminFeature]'s `usersManagement.create`/`update` — caught here and translated to `409 Conflict`.
  */
 class AdminRoutingsConfigurator(
     private val adminFeature: AdminFeature,
@@ -95,7 +100,12 @@ class AdminRoutingsConfigurator(
                     post(Constants.usersCreatePathPart) {
                         requireAdmin() ?: return@post
                         val newUser = call.receive<NewUserWithPassword>()
-                        val result = adminFeature.usersManagement.create(newUser)
+                        val result = try {
+                            adminFeature.usersManagement.create(newUser)
+                        } catch (e: DuplicateUserFieldException) {
+                            call.respond(HttpStatusCode.Conflict)
+                            return@post
+                        }
                         if (result == null) {
                             call.respond(HttpStatusCode.InternalServerError)
                         } else {
@@ -109,7 +119,13 @@ class AdminRoutingsConfigurator(
                             return@put
                         }
                         val newUser = call.receive<NewUser>()
-                        when (adminFeature.usersManagement.update(id, newUser)) {
+                        val result = try {
+                            adminFeature.usersManagement.update(id, newUser)
+                        } catch (e: DuplicateUserFieldException) {
+                            call.respond(HttpStatusCode.Conflict)
+                            return@put
+                        }
+                        when (result) {
                             true -> call.respond(HttpStatusCode.OK)
                             false -> call.respond(HttpStatusCode.InternalServerError)
                             null -> call.respond(HttpStatusCode.NotFound)

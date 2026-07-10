@@ -67,6 +67,9 @@ class EmailFeatureService(
      * @param callerId User whose record is updated.
      * @param email New address to store, or `null` to clear the current address.
      * @return `true` when the update was persisted; `false` when the user was not found.
+     * @throws dev.inmo.wishlist.features.users.common.repo.exceptions.DuplicateUserFieldException
+     *   when [email] is already stored for a different user; propagates unchanged from
+     *   [updateStoredEmail] / `UsersRepo.update` — this method does not catch it.
      */
     override suspend fun setMyEmail(callerId: UserId, email: Email?): Boolean =
         updateStoredEmail(usersRepo, callerId, email)

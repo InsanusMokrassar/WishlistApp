@@ -4,9 +4,11 @@ import dev.inmo.wishlist.features.email.common.models.Email
 import dev.inmo.wishlist.features.users.common.models.RegisteredUser
 import dev.inmo.wishlist.features.users.common.models.UserId
 import dev.inmo.wishlist.features.users.common.models.Username
+import dev.inmo.wishlist.features.users.common.repo.exceptions.DuplicateUserFieldException
 import kotlinx.coroutines.test.runTest
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertFailsWith
 import kotlin.test.assertFalse
 import kotlin.test.assertNull
 import kotlin.test.assertTrue
@@ -82,5 +84,18 @@ class DisabledEmailFeatureTest {
         val feature = DisabledEmailFeature(FakeUsersRepo())
 
         assertFalse(feature.setMyEmail(UserId(999L), Email("alice@example.com")))
+    }
+
+    /** setMyEmail propagates DuplicateUserFieldException, unmodified, when the target email is already stored for a different user — the SMTP-disabled path behaves identically to EmailFeatureService's. */
+    @Test
+    fun setMyEmailPropagatesDuplicateUserFieldExceptionWhenEmailAlreadyTaken() = runTest {
+        val takenEmail = Email("taken@example.com")
+        val ownerUser = rootUser.copy(email = takenEmail)
+        val repo = FakeUsersRepo(mapOf(ownerUser.id to ownerUser, plainUser.id to plainUser))
+        val feature = DisabledEmailFeature(repo)
+
+        assertFailsWith<DuplicateUserFieldException> {
+            feature.setMyEmail(plainUser.id, takenEmail)
+        }
     }
 }

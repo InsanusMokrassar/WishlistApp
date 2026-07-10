@@ -42,6 +42,8 @@ interface EmailFeature {
      * @param email New address to store, or `null` to clear the current address.
      * @return `true` when the update was persisted; `false` when the user was not found or the
      *   update failed.
+     * @throws dev.inmo.wishlist.features.users.common.repo.exceptions.DuplicateUserFieldException
+     *   when [email] is already stored for a different user.
      */
     suspend fun setMyEmail(callerId: UserId, email: Email?): Boolean
 }

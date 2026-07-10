@@ -17,6 +17,10 @@ import dev.inmo.wishlist.features.users.common.repo.UsersRepo
  * @param callerId User whose record is updated.
  * @param email New address to store, or `null` to clear the current address.
  * @return `true` when the update was persisted; `false` when the user was not found.
+ * @throws dev.inmo.wishlist.features.users.common.repo.exceptions.DuplicateUserFieldException
+ *   when [email] is already stored for a different user. This function does not catch it, by
+ *   design — [dev.inmo.wishlist.features.email.server.configurators.EmailRoutingsConfigurator]
+ *   catches it at the HTTP boundary and responds `409 Conflict`.
  */
 internal suspend fun updateStoredEmail(usersRepo: UsersRepo, callerId: UserId, email: Email?): Boolean {
     val user = usersRepo.getById(callerId) ?: return false

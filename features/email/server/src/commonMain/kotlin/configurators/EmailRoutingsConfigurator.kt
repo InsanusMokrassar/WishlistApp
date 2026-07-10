@@ -6,6 +6,7 @@ import dev.inmo.wishlist.features.email.common.EmailConstants
 import dev.inmo.wishlist.features.email.server.EmailFeature
 import dev.inmo.wishlist.features.email.common.models.SetEmailRequest
 import dev.inmo.wishlist.features.email.common.models.TestEmailRequest
+import dev.inmo.wishlist.features.users.common.repo.exceptions.DuplicateUserFieldException
 import io.ktor.http.HttpStatusCode
 import io.ktor.server.auth.authenticate
 import io.ktor.server.request.receive
@@ -26,7 +27,9 @@ import io.ktor.server.routing.route
  * - `POST /email/sendTest`  — bearer; the caller identity is passed to [feature] which enforces
  *   root-only access.
  * - `PUT  /email/myEmail`   — bearer (self-service); the caller identity is passed to [feature]
- *   which persists the address.
+ *   which persists the address, responding `409 Conflict` when the address is already stored for
+ *   a different user
+ *   (see [dev.inmo.wishlist.features.users.common.repo.exceptions.DuplicateUserFieldException]).
  *
  * The public `enabled` probe lives outside the `authenticate { }` block so callers without a
  * token can still check availability. Authorization and persistence logic reside entirely in
@@ -61,7 +64,12 @@ class EmailRoutingsConfigurator(
                 put(EmailConstants.myEmailPathPart) {
                     val callerId = getCallerUserIdOrAnswerUnauthorized() ?: return@put
                     val request = call.receive<SetEmailRequest>()
-                    val updated = feature.setMyEmail(callerId, request.email)
+                    val updated = try {
+                        feature.setMyEmail(callerId, request.email)
+                    } catch (e: DuplicateUserFieldException) {
+                        call.respond(HttpStatusCode.Conflict)
+                        return@put
+                    }
                     when {
                         updated -> call.respond(HttpStatusCode.OK)
                         else -> call.respond(HttpStatusCode.InternalServerError)
