@@ -11,6 +11,8 @@ kotlin {
             dependencies {
                 api project(":wishlist.features.roles.common")
                 api project(":wishlist.features.common.server")
+                api project(":wishlist.features.users.common")
+                api project(":wishlist.features.auth.server")
             }
         }
     }

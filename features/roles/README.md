@@ -93,13 +93,15 @@ None. This feature has no HTTP surface; the only client-facing capability derive
 
 > **Coding-pass status note (this app's own multi-pass rollout, not part of the design above):** this
 > feature lands across 4 Coding passes (see the task's `003-architecturing.md` §4). **Pass 1
-> (Foundation, current)** ships this scaffolding and the DI storage layer only —
-> `roles/server/JVMPlugin.kt` is still the stock delegating scaffold, and `roles/common/Plugin.kt` is
-> still the stock empty scaffold, so `FeatureRolesRegistry`/`RoleGatedFeatureIds`/`requireRole` do not
-> exist in the tree yet and no bootstrap/migration logic runs yet. `roles/server` is already
-> registered in `server/sample.config.json`/`server/dev.config.json`'s `"plugins"` array in this pass
-> (not deferred) purely so the `RolesRepo` Koin binding exists for `features/simpleRoles/server` to
-> resolve. Pass 2 adds the bootstrap/migration (`RolesBootstrap.kt` + real `JVMPlugin.kt`); pass 3 adds
-> `FeatureRolesRegistry`/`RoleGatedFeatureIds`/`requireRole`; pass 4 replaces the 4 existing
+> (Foundation)** shipped the scaffolding and the DI storage layer only. **Pass 2 (Bootstrap +
+> migration, current)** replaced `roles/server/JVMPlugin.kt`'s stock scaffold with the real
+> subscribe-then-backfill bootstrap and added `roles/server/RolesBootstrap.kt`
+> (`grantDefaultRoles`/`backfillDefaultRoles`) plus its test suite (`RolesBootstrapTest.kt`,
+> `FakeRolesRepo.kt`, `FakeUsersRepo.kt`) — `SuperAdmin`/`User` are now actually granted at runtime.
+> `roles/common/Plugin.kt` is still the stock empty scaffold, so `FeatureRolesRegistry`/
+> `RoleGatedFeatureIds`/`requireRole` still do not exist in the tree yet. `roles/server` was already
+> registered in `server/sample.config.json`/`server/dev.config.json`'s `"plugins"` array since pass 1
+> purely so the `RolesRepo` Koin binding exists for `features/simpleRoles/server` to resolve. Pass 3
+> adds `FeatureRolesRegistry`/`RoleGatedFeatureIds`/`requireRole`; pass 4 replaces the 4 existing
 > root-privilege call sites. The Architecture Notes above describe the feature's complete, final
 > design (all 4 passes) so this document does not need rewriting pass-to-pass.
