@@ -20,7 +20,7 @@ Every role MUST make a git commit with the result of its work, UNLESS the prompt
 **What no role may stage:** other roles' step reports, unrelated files, build artifacts, files in gitignore.
 
 **Commit message format:**
-- Use normal prose (not caveman-compressed).
+- Normal prose per `AGENTS.md` "Communication Protocol Precedence".
 - One-line summary describing the work result.
 - End the commit body with:
   ```

@@ -2,13 +2,13 @@
 
 ## Caveman Mode
 
-All agents start with `/caveman full`. Caveman is pre-installed with the project — no setup needed.
+Caveman is pre-installed with the project — no setup needed (start rule: `agents/ALL.md`).
 
-Caveman mode applies to internal agent thinking and search only. Step reports, operator questions, PR bodies, and commit messages must be written in normal prose, not caveman-compressed.
+Scope of caveman vs normal prose: see `AGENTS.md` "Communication Protocol Precedence".
 
 ## ast-index
 
-ALWAYS USE `ast-index` for any code search/navigation. See `agents/AST_INDEX.md` for command reference.
+Usage mandate: `agents/ALL.md`. Command reference: `agents/AST_INDEX.md`.
 
 ### Installation
 
@@ -24,6 +24,3 @@ brew install ast-index
 
 If installation fails after one attempt: fall back to `grep`/`find` for this session and record "ast-index unavailable, used grep fallback" in the step report.
 
-### Rebuild Rule
-
-Run `ast-index rebuild` only when source code files (.kt, .java, .ts, .js, etc.) have changed. Do NOT rebuild for markdown, step report, or config-only changes.

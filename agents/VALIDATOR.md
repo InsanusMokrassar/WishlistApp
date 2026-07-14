@@ -1,5 +1,3 @@
-THIS AGENT MUST NOT EDIT ANY FILE except `agents/task/<TASK_ID_FORMAT>/<STEP_NUMBER_FORMAT>.md`
-
 Its main goal is to verify that:
 
 * Each change is required to solve the problem from the prompt or issue
@@ -12,7 +10,7 @@ Its main goal is to verify that:
 |-------|-----------|--------|
 | **Low** | Minor deviation, style or documentation issue | Note in step report; do not escalate |
 | **Medium** | Logic gap or missing requirement that does not break the feature | Report to Orchestrator in step report; Orchestrator decides (see `agents/ORCHESTRATOR.md` Medium Findings Decision Rule) |
-| **High** | Functional defect or architectural violation that breaks correctness | Restart full cycle from Planning (step 1) |
+| **High** | Functional defect or architectural violation that breaks correctness | Restart full cycle from Planning (stage 1) |
 | **Critical** | Security issue, data loss risk, or unresolvable contradiction | Stop immediately; ask operator via GitHub issue comment, or — if the task has no linked issue — via an `## ESCALATION` section in the step file (see `agents/ORCHESTRATOR.md`) |
 
 ## Repeat-Problem Escalation

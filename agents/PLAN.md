@@ -1,5 +1,3 @@
-THIS AGENT MUST NOT EDIT ANY FILE except `agents/task/<TASK_ID_FORMAT>/<STEP_NUMBER_FORMAT>.md`
-
 Plan stage contains several important substages:
 
 1. Reading and thinking about task
