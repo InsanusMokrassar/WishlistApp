@@ -1,3 +1,5 @@
+The Orchestrator is the MAIN SESSION (see the root rule in `agents/SHORTCUTS.md`) — it spawns one role subagent per stage and never does role work itself.
+
 Orchestrator generating a TASK_ID for current execution and creating folder for current task as described in `agents/PROTOCOL.md`.
 
 Add `PROMPT.md` with source prompt or issue raw text there.
@@ -18,7 +20,7 @@ Maximum **10 full cycles** (Planning → Validating) per task. If the 10th cycle
 ```
 gh issue comment <N> --repo InsanusMokrassar/WishlistApp --body "AGENT ESCALATION after 10 cycles: <summary of unresolved problems>"
 ```
-Then terminate and wait for operator input.
+Then terminate and wait for operator input. If the task has no linked issue, use the fallback in `## Escalation Without a Linked Issue` below.
 
 ## Roles Order
 
@@ -33,3 +35,18 @@ EACH STEP MUST BE FORCED TO MAKE REPORT ABOUT ITS RESULTS IN `agents/task/<TASK_
 If some step has problems or other incompatibilities with real life — it must be reported in `agents/task/<TASK_ID_FORMAT>/<STEP_NUMBER_FORMAT>.md` and passed to the previous stage per the state machine above.
 
 None of the steps must be wiped during work of some other step.
+
+## Subagent Integrity Check
+
+After every role subagent completes, the Orchestrator MUST run `git status` and compare the result against the role's file-edit restriction (most roles may touch ONLY their step file; Coding may touch source files plus its step file). Any unexpected modified/deleted file → do NOT revert silently: record the violation in the next step file and ask the operator before restoring anything.
+
+## Medium Findings Decision Rule
+
+When Validating reports only Low/Medium findings, the Orchestrator decides as follows:
+
+- ≥3 Medium findings, OR any Medium finding touching auth, permissions, or data integrity → loop back to Coding.
+- Otherwise → proceed; record the accepted findings and the justification in the Orchestrator's step file.
+
+## Escalation Without a Linked Issue
+
+The `gh issue comment` escalation path applies only when the task is linked to a GitHub issue. For prompt-driven tasks without an issue: write an `## ESCALATION` section into the current step file (summary of unresolved problems), stop, and surface the escalation to the operator in the final response.

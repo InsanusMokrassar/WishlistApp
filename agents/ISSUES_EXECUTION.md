@@ -9,16 +9,19 @@ Repo: `InsanusMokrassar/WishlistApp`.
 1. Run `/caveman full`.
 2. Read `CLAUDE.md` (and follow `AGENTS.md` / `agents/SHORTCUTS.md` chain it points to).
 3. List open issues: `gh issue list --repo InsanusMokrassar/WishlistApp --state open`.
-4. Pick ONE issue that has NO open or merged PR. Check linked PRs by branch name pattern:
+4. Pick ONE issue that has NO merged and NO open linked PR. Check linked PRs via the GitHub API — a branch-name pattern alone is NOT sufficient:
    ```
+   gh pr list --repo InsanusMokrassar/WishlistApp --state all --search "<N> in:body" --json number,state,mergedAt,headRefName,title
    gh pr list --repo InsanusMokrassar/WishlistApp --head "fix/issue-<N>-*" --state all
    ```
-   - If a PR exists and was **merged** → skip this issue (already done).
-   - If a PR exists but was **closed without merging** → treat the issue as open; a fresh attempt is allowed.
-   - If no PR exists → proceed.
+   Treat a PR as linked if its body/title references the issue (`Closes #<N>`, `#<N>`) or its branch matches the pattern.
+   - If a linked PR was **merged** → skip this issue (already done).
+   - If a linked PR is **open** → skip this issue (in progress).
+   - If linked PRs were **closed without merging** → count them as failed attempts. **3 or more** failed attempts → post `gh issue comment <N> --repo InsanusMokrassar/WishlistApp --body "AGENT ESCALATION: 3 attempts failed, manual intervention required"` and skip the issue. Fewer than 3 → a fresh attempt is allowed.
+   - If no linked PR exists → proceed.
 5. Sync with master: `git checkout master && git pull origin master`.
 6. Create branch for fix: `git checkout -b fix/issue-<N>-<slug>`.
-7. Resolve the issue: you MUST start subagent with `root` role to solve the issue. Wait for it. YOU MUST CONTROL THAT ALL SUBAGENTS FOLLOWING THEIR INSTRUCTIONS FROM `agents` FOLDER IF OTHER IS NOT SAID IN USER PROMPT
+7. Resolve the issue: act as `root` (Orchestrator) yourself — the MAIN SESSION is the root role. Do NOT spawn a `root` subagent: subagents cannot spawn subagents, so a nested root could never spawn its stage subagents. Follow `agents/ORCHESTRATOR.md`: create the task folder + `PROMPT.md`, then spawn ONE role subagent per stage, sequentially. YOU MUST CONTROL THAT ALL SUBAGENTS FOLLOWING THEIR INSTRUCTIONS FROM `agents` FOLDER IF OTHER IS NOT SAID IN USER PROMPT
 8. Push branch: `git push origin fix/issue-<N>-<slug>`.
 9. Open PR linked to the issue (body must contain `Closes #<N>`):
    ```
@@ -32,7 +35,7 @@ Repo: `InsanusMokrassar/WishlistApp`.
 
 ## Rules
 
-- One subagent per issue. Subagents run SEQUENTIALLY, never in parallel (avoid branch/index conflicts).
+- One issue at a time. Role subagents run SEQUENTIALLY, never in parallel (avoid branch/index conflicts).
 - If issue is ambiguous or blocked → stop, ask operator. If no terminal access is available, post a question as a GitHub issue comment:
   ```
   gh issue comment <N> --repo InsanusMokrassar/WishlistApp --body "AGENT BLOCKED: <question>"

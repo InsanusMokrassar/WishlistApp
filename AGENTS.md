@@ -1,11 +1,22 @@
 Use `agents/SHORTCUTS.md` for instructions.
 
+## Communication Protocol Precedence
+
+When communication rules conflict, the higher rule wins:
+
+1. `agents/TOOLS.md` normal-prose requirements — step report narrative, operator questions, PR bodies, and commit messages are ALWAYS normal prose.
+2. Caveman mode (`/caveman full`, per `agents/ALL.md`) — internal agent thinking, search, and working notes.
+3. AML-HIP (below) — applies ONLY to structured data blocks inside step files.
+
 YOU MUST FOLLOW NEXT RULES WITHOUT ANY QUESTIONS OR DOUBTS
 
 SYSTEM DIRECTIVE: AUTISTIC META-LANGUAGE PROTOCOL WITH HIGH INFORMATION DENSITY (AML-HIP V1)
 
+SCOPE:
+AML-HIP applies ONLY to structured, machine-parsed data blocks inside step files (`agents/task/<TASK_ID_FORMAT>/<STEP_NUMBER_FORMAT>.md`): findings lists, entity/state records, and inter-role handoff data. AML-HIP does NOT apply to prose — step report narrative, operator questions, PR bodies, and commit messages follow the Communication Protocol Precedence above.
+
 DEFINITION:
-All agents are required to use a strictly explicit, literal, low-ambiguity, and high-density communication style (AML-HIP). The goal of AML-HIP is the maximum transmission of information with zero loss of meaning and zero ambiguity.
+Structured data blocks in step files are required to use a strictly explicit, literal, low-ambiguity, and high-density format (AML-HIP). The goal of AML-HIP is the maximum transmission of information with zero loss of meaning and zero ambiguity.
 
 CORE PRINCIPLES:
 
@@ -16,7 +27,7 @@ CORE PRINCIPLES:
 5. Minimization of "empty" words.
 6. Redundancy is allowed only to prevent loss of meaning.
 
-PROHIBITIONS:
+PROHIBITIONS (inside AML-HIP blocks):
 
 1. Pronouns are forbidden (this, he, she, they, there, it, etc.).
 2. Free conversational text is forbidden.
@@ -35,7 +46,7 @@ DENSITY REQUIREMENTS:
 4. Exclude words without semantic load.
 5. Repetitions are allowed only for critical entities.
 
-MESSAGE STRUCTURE (MANDATORY):
+BLOCK STRUCTURE (MANDATORY for AML-HIP blocks):
 
 ENTITY:
 entity_id=<id>; type=<type>; state=<state>
@@ -95,25 +106,24 @@ REPETITION RULES:
 
 MULTI-AGENT MODE:
 
-1. All agents use AML-HIP.
-2. Any message between agents is strictly AML-HIP.
+1. All structured handoff data between agents (passed via step files) uses AML-HIP.
+2. A handoff block must be fully interpretable without history.
 3. Any agent is required to:
     * duplicate critical data
     * avoid loss of context
-4. A message must be fully interpretable without history.
 
-ANTI-DEGRADATION:
-If detected:
+ANTI-DEGRADATION (applies to AML-HIP blocks):
+If detected inside an AML-HIP block:
 
 * a pronoun
 * an implicit reference
 * low density (empty words, vague constructions)
 * absence of structure
 
-→ the message is considered invalid
-→ mandatory regeneration
+→ the block is considered invalid
+→ mandatory regeneration of the block
 
-SELF-CHECK:
+SELF-CHECK (per AML-HIP block):
 
 VALIDATION:
 
@@ -143,7 +153,6 @@ PRIORITIES:
 5. Readability (minimum priority)
 
 CRITICAL RULE:
-Any response outside of AML-HIP is considered absent.
-Any agent is required to bring the response into conformity with AML-HIP.
+Any structured data block in a step file outside of AML-HIP is invalid and must be regenerated in AML-HIP form. Prose sections are governed by the Communication Protocol Precedence at the top of this file — do NOT convert prose to AML-HIP.
 
 END OF PROTOCOL

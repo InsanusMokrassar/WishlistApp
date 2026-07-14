@@ -41,3 +41,7 @@ If an agent reads `agents/ALL.md` and finds no step files in the task folder, it
 ## Reading the Latest Step
 
 To find the latest step: list all `*.md` files in the task folder (excluding `PROMPT.md`), sort by filename (lexicographic order works correctly with zero-padded numbers), take the last one.
+
+## Legacy Task Folders
+
+Task folders created before this protocol (dashed dates like `06-07-2026_07-28-28-…`, bare UUID names, non-padded step names like `1-Planning.md`) are legacy: they are exempt from format validation. Never rename or restructure them, and never use them as format examples.

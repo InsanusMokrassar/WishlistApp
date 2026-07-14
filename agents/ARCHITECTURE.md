@@ -14,15 +14,8 @@ After planning all architectural changes, this agent MUST produce test stubs or 
 
 See `ALL.md` for the full rule. Short version:
 - Read the feature's `README.md` (especially `## Operator Notes`) before making any architectural decisions.
-- After every architecture change: update the `## Architecture Notes` section of the feature's `README.md`.
-- Never modify the `## Operator Notes` section.
-
-### AFTER ANY CODE CHANGE
-
-Update the `## Architecture Notes` section of the feature `README.md`:
-- Design decisions and their rationale
-- Constraints or invariants
-- Dependency notes
+- This agent MUST NOT edit the README itself (file-edit restriction above). Instead: write the intended `## Architecture Notes` delta into the current step report, in a dedicated `## README updates` section — design decisions and their rationale, constraints or invariants, dependency notes. The Coding agent applies that delta together with the code changes.
+- Never specify changes to the `## Operator Notes` section.
 
 ---
 

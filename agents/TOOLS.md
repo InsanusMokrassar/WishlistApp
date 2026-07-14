@@ -12,7 +12,7 @@ ALWAYS USE `ast-index` for any code search/navigation. See `agents/AST_INDEX.md`
 
 ### Installation
 
-If `ast-index` is not available:
+If `ast-index` is not available: installing Homebrew + ast-index changes the operator's machine system-wide — ASK THE OPERATOR before running the installation. If the operator declines or is unreachable, skip installation and use the grep/find fallback below.
 
 ```bash
 /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
