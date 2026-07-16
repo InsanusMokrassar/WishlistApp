@@ -6,7 +6,7 @@ Repo: `InsanusMokrassar/WishlistApp`.
 
 ## Steps
 
-1. Run `/caveman full`.
+1. Run `/caveman full` (rule: `agents/ALL.md`).
 2. Read `CLAUDE.md` (and follow `AGENTS.md` / `agents/SHORTCUTS.md` chain it points to).
 3. List open issues: `gh issue list --repo InsanusMokrassar/WishlistApp --state open`.
 4. Pick ONE issue that has NO merged and NO open linked PR. Check linked PRs via the GitHub API — a branch-name pattern alone is NOT sufficient:
@@ -19,9 +19,9 @@ Repo: `InsanusMokrassar/WishlistApp`.
    - If a linked PR is **open** → skip this issue (in progress).
    - If linked PRs were **closed without merging** → count them as failed attempts. **3 or more** failed attempts → post `gh issue comment <N> --repo InsanusMokrassar/WishlistApp --body "AGENT ESCALATION: 3 attempts failed, manual intervention required"` and skip the issue. Fewer than 3 → a fresh attempt is allowed.
    - If no linked PR exists → proceed.
-5. Sync with master: `git checkout master && git pull origin master`.
+5. Sync with master per `agents/GIT.md` "## Before Branching".
 6. Create branch for fix: `git checkout -b fix/issue-<N>-<slug>`.
-7. Resolve the issue: act as `root` (Orchestrator) yourself — the MAIN SESSION is the root role. Do NOT spawn a `root` subagent: subagents cannot spawn subagents, so a nested root could never spawn its stage subagents. Follow `agents/ORCHESTRATOR.md`: create the task folder + `PROMPT.md`, then spawn ONE role subagent per stage, sequentially. YOU MUST CONTROL THAT ALL SUBAGENTS FOLLOWING THEIR INSTRUCTIONS FROM `agents` FOLDER IF OTHER IS NOT SAID IN USER PROMPT
+7. Resolve the issue: act as `root` (Orchestrator) yourself per `agents/ORCHESTRATOR.md` — the MAIN SESSION is the root role; do NOT spawn a `root` subagent.
 8. Push branch: `git push origin fix/issue-<N>-<slug>`.
 9. Open PR linked to the issue (body must contain `Closes #<N>`):
    ```
@@ -35,7 +35,7 @@ Repo: `InsanusMokrassar/WishlistApp`.
 
 ## Rules
 
-- One issue at a time. Role subagents run SEQUENTIALLY, never in parallel (avoid branch/index conflicts).
+- One issue at a time. Stage subagents run sequentially per `agents/ORCHESTRATOR.md` (avoids branch/index conflicts).
 - If issue is ambiguous or blocked → stop, ask operator. If no terminal access is available, post a question as a GitHub issue comment:
   ```
   gh issue comment <N> --repo InsanusMokrassar/WishlistApp --body "AGENT BLOCKED: <question>"

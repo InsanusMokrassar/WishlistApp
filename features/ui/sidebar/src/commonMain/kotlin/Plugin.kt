@@ -7,6 +7,7 @@ import dev.inmo.wishlist.features.ui.booking.ui.BookingModel
 import dev.inmo.wishlist.features.ui.sidebar.ui.SidebarModel
 import dev.inmo.wishlist.features.ui.sidebar.ui.SidebarViewConfig
 import dev.inmo.wishlist.features.ui.sidebar.ui.SidebarViewModel
+import dev.inmo.wishlist.features.ui.users.ui.UsersModel
 import dev.inmo.wishlist.features.ui.wishlist.ui.WishlistsModel
 import dev.inmo.wishlist.features.users.common.models.UserId
 import dev.inmo.wishlist.features.wishlist.common.models.WishlistsFeatureWishlist
@@ -20,8 +21,9 @@ import org.koin.core.module.Module
  * Platform-agnostic startup plugin for the sidebar UI feature.
  *
  * Registers the polymorphic serializer for [SidebarViewConfig], the [SidebarViewModel] factory, and
- * a [SidebarModel] singleton that composes the already-registered [WishlistsModel] and [BookingModel]
- * singletons (both resolved lazily so this plugin needs no cross-feature `setupDI` delegation).
+ * a [SidebarModel] singleton that composes the already-registered [WishlistsModel], [BookingModel]
+ * and [UsersModel] singletons (all resolved lazily so this plugin needs no cross-feature `setupDI`
+ * delegation).
  */
 object Plugin : StartPlugin {
     override fun Module.setupDI(config: JsonObject) {
@@ -35,8 +37,10 @@ object Plugin : StartPlugin {
         single<SidebarModel> {
             val wishlistsModel = get<WishlistsModel>()
             val bookingModel = get<BookingModel>()
+            val usersModel = get<UsersModel>()
             object : SidebarModel {
                 override val currentUserIdFlow: StateFlow<UserId?> = wishlistsModel.currentUserIdFlow
+                override val isCurrentUserRootFlow: StateFlow<Boolean> = usersModel.isCurrentUserRootFlow
                 override suspend fun getMyWishlists(): List<WishlistsFeatureWishlist> = wishlistsModel.getMyWishlists()
                 override suspend fun getReservedCount(): Int = bookingModel.myPresentsBooks().size
                 override suspend fun getUserName(userId: UserId): String? = wishlistsModel.getUserName(userId)

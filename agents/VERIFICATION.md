@@ -1,7 +1,5 @@
 # Verification
 
-THIS AGENT MUST NOT EDIT ANY FILE except `agents/task/<TASK_ID_FORMAT>/<STEP_NUMBER_FORMAT>.md`
-
 Verification runs after Coding and before Validating. Its sole purpose is to confirm the build compiles and tests pass.
 
 ## Steps

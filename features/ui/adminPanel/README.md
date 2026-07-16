@@ -35,7 +35,10 @@ No server routes — UI-only feature. Consumes `features/admin/client` via `Admi
 - All 8 views use the shared `ScreenTitle` / `BackButton` / `ListRow` components from `features/common/client` (`ui.components`) for titles, back buttons, and list rows. List rows with badges/prices use the `ListRow(onSelect, trailing) { content }` custom-primary overload; item edit/delete buttons are passed via the `trailing` slot.
 - Single `AdminPanelModel` interface consumed by all 8 ViewModels; implemented in `Plugin.kt` as anonymous object wrapping `AdminFeature`.
 - All 8 `*ViewInteractor` interfaces are implemented in `client/src/commonMain/kotlin/ClientPlugin.kt` as stateless anonymous objects (push/pop on `node.chain`).
-- `AdminPanelViewConfig` is the root screen pushed by `InjectNavigationNode` inside `ClientPlugin.startPlugin`.
+- `AdminPanelViewConfig` is reachable from the web client via the sidebar's root-only Admin item
+  (`features/ui/sidebar`, issue #66) — it is not the navigation root; the actual root pushed by
+  `InjectNavigationNode` in `ClientPlugin.startPlugin` is `mainScaffoldConfig`
+  (`ScaffoldViewConfig`).
 - Android `AndroidPlugin` registers all 8 `NavigationNodeFactory` entries (same as JS and JVM plugins).
 - JS views use Bootstrap CSS classes. JVM and Android use Compose Desktop / Material3.
 - Wishlist create screen (`AdminWishlistEditViewConfig(null, preselectedUserId)`) pre-selects the owner dropdown when `preselectedUserId` is non-null — used when "Add Wishlist" is tapped from a user detail screen.

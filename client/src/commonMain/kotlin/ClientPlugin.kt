@@ -216,6 +216,10 @@ object ClientPlugin : StartPlugin {
                     navigateSection(UserEditViewConfig(userId)) { it is UserEditViewConfig }
                 }
 
+                override suspend fun onSelectAdminPanel(node: NavigationNode<SidebarViewConfig, ViewConfig>) {
+                    navigateSection(AdminPanelViewConfig()) { it is AdminPanelViewConfig }
+                }
+
                 override suspend fun onSelectWishlist(
                     node: NavigationNode<SidebarViewConfig, ViewConfig>,
                     wishlistId: WishlistId

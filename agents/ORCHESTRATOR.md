@@ -1,18 +1,16 @@
-The Orchestrator is the MAIN SESSION (see the root rule in `agents/SHORTCUTS.md`) — it spawns one role subagent per stage and never does role work itself.
+The Orchestrator (root) IS THE MAIN SESSION, NEVER A SUBAGENT — subagents cannot spawn subagents. ROOT MUST NEVER DO ROLE WORK BY ITSELF — ONLY ORCHESTRATION: it receives the task, creates the task folder, places `PROMPT.md`, then spawns ONE role subagent per stage (planning → architecturing → coding → verification → validating) SEQUENTIALLY — never in parallel — reading the produced step file between stages. It must not perform planning, architecture, coding, verification, or validation itself.
 
-Orchestrator generating a TASK_ID for current execution and creating folder for current task as described in `agents/PROTOCOL.md`.
-
-Add `PROMPT.md` with source prompt or issue raw text there.
+Bootstrap the task folder and `PROMPT.md` per `agents/PROTOCOL.md` "## Task Folder Bootstrap".
 
 ## Stage State Machine
 
-| Stage | Entry condition | Exit condition (success) | On failure |
-|-------|----------------|--------------------------|------------|
-| 1. Planning | Task received | Plan + open questions resolved | Loop within Planning |
-| 2. Architecturing | Plan complete | Architecture doc + test stubs written | Loop within Architecturing |
-| 3. Coding | Architecture + test stubs ready | Code + tests implemented, committed | Loop within Coding |
-| 4. Verification | Coding complete | Build passes, all tests pass | Return to Coding |
-| 5. Validating | Verification passed | No High/Critical findings | Restart from Planning (stage 1) |
+| Stage | Duty | Entry condition | Exit condition (success) | On failure |
+|-------|------|-----------------|--------------------------|------------|
+| 1. Planning | Make a plan of work; clarify requirements and architecture questions with operator before finalizing | Task received | Plan + open questions resolved | Loop within Planning |
+| 2. Architecturing | Plan concrete code changes without actual coding; write test stubs/specs for every planned change | Plan complete | Architecture doc + test stubs written | Loop within Architecturing |
+| 3. Coding | Create required structures and write code, guided by the test stubs from stage 2 | Architecture + test stubs ready | Code + tests implemented, committed | Loop within Coding |
+| 4. Verification | Run build and tests; block handoff to Validating on any failure | Coding complete | Build passes, all tests pass | Return to Coding |
+| 5. Validating | Check that each role did proper work | Verification passed | No High/Critical findings | Restart from Planning (stage 1) |
 
 ## Cycle Limit
 
@@ -22,23 +20,15 @@ gh issue comment <N> --repo InsanusMokrassar/WishlistApp --body "AGENT ESCALATIO
 ```
 Then terminate and wait for operator input. If the task has no linked issue, use the fallback in `## Escalation Without a Linked Issue` below.
 
-## Roles Order
-
-1. **Planning** — make a plan of work; clarify requirements and architecture questions with operator before finalizing
-2. **Architecturing** — plan concrete code changes without actual coding; write test stubs/specs for every planned change
-3. **Coding** — create required structures and write code, guided by the test stubs from step 2
-4. **Verification** — run build and tests; block handoff to Validating on any failure
-5. **Validating** — check that each role did proper work; if High/Critical issues found → restart full cycle from Planning (stage 1)
-
-EACH STEP MUST BE FORCED TO MAKE REPORT ABOUT ITS RESULTS IN `agents/task/<TASK_ID_FORMAT>/<STEP_NUMBER_FORMAT>.md`. After each step its number increases by one (monotonically — never reset across restarts).
+After each stage the Orchestrator verifies that the role wrote its step report (duty defined in `agents/ALL.md`); step numbering rules are in `agents/PROTOCOL.md`.
 
 If some step has problems or other incompatibilities with real life — it must be reported in `agents/task/<TASK_ID_FORMAT>/<STEP_NUMBER_FORMAT>.md` and passed to the previous stage per the state machine above.
 
-None of the steps must be wiped during work of some other step.
-
 ## Subagent Integrity Check
 
-After every role subagent completes, the Orchestrator MUST run `git status` and compare the result against the role's file-edit restriction (most roles may touch ONLY their step file; Coding may touch source files plus its step file). Any unexpected modified/deleted file → do NOT revert silently: record the violation in the next step file and ask the operator before restoring anything.
+The Orchestrator MUST control that all spawned subagents follow their instructions from the `agents` folder, unless the user prompt says otherwise, without any exceptions.
+
+After every role subagent completes, the Orchestrator MUST run `git status` and compare the result against the role's file-edit restriction (defined in `agents/ALL.md`). Any unexpected modified/deleted file → do NOT revert silently: record the violation in the next step file and ask the operator before restoring anything.
 
 ## Medium Findings Decision Rule
 

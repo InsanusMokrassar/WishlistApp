@@ -20,10 +20,7 @@ Everything below this section is hard rules — always in force.
 
 ## Feature README.md
 
-See `ALL.md` for the full rule. Short version:
-- Read the feature's `README.md` (especially `## Operator Notes`) before touching any code.
-- After every coding session that changes a feature: update its `README.md` (routes, models, behavior, deps).
-- Never modify the `## Operator Notes` section.
+See `ALL.md` for the full rule. Role-specific duty:
 
 ### AFTER ANY CODE CHANGE
 

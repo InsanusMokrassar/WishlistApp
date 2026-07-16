@@ -12,6 +12,7 @@ import dev.inmo.navigation.mvvm.ViewModel
 import dev.inmo.wishlist.features.common.client.models.MainNavigationChainId
 import dev.inmo.wishlist.features.common.client.models.ViewConfig
 import dev.inmo.wishlist.features.users.common.models.UserId
+import dev.inmo.wishlist.features.ui.adminPanel.ui.AdminPanelViewConfig
 import dev.inmo.wishlist.features.ui.booking.ui.MyPresentsBooksViewConfig
 import dev.inmo.wishlist.features.ui.users.ui.UserEditViewConfig
 import dev.inmo.wishlist.features.ui.users.ui.UsersListViewConfig
@@ -46,6 +47,12 @@ class SidebarViewModel(
 
     /** Reactive id of the signed-in caller, or `null` when anonymous. */
     val currentUserIdState: StateFlow<UserId?> = model.currentUserIdFlow
+
+    /**
+     * Reactive flag: `true` while the signed-in caller is `root`. Gates the sidebar's admin-panel
+     * entry point, which is fully absent (not merely disabled) for non-root/anonymous callers.
+     */
+    val isRootState: StateFlow<Boolean> = model.isCurrentUserRootFlow
 
     private val _userNameState = MutableRedeliverStateFlow<String?>(null)
 
@@ -99,20 +106,7 @@ class SidebarViewModel(
     private fun resolveActiveSection(): SidebarSection {
         val mainChain: NavigationChain<ViewConfig> = rootChain.findInSubTree(MainNavigationChainId)
             ?: return SidebarSection.None
-        val stack = mainChain.stackFlow.value
-        for (chainNode in stack.asReversed()) {
-            val section = when (val cfg = chainNode.config) {
-                is WishlistsListViewConfig -> if (cfg.userId == null) SidebarSection.MyLists else null
-                is UsersListViewConfig -> SidebarSection.Discover
-                is MyPresentsBooksViewConfig -> SidebarSection.Reserved
-                is UserEditViewConfig -> SidebarSection.Settings
-                else -> null
-            }
-            if (section != null) {
-                return section
-            }
-        }
-        return SidebarSection.None
+        return resolveActiveSectionForStack(mainChain.stackFlow.value.map { it.config })
     }
 
     /** Switches to the caller's own wishlists; no-op when anonymous. */
@@ -138,6 +132,12 @@ class SidebarViewModel(
         scope.launchLoggingDropExceptions { interactor.onSelectSettings(node, userId) }
     }
 
+    /** Opens the root-only admin panel dashboard; no-op when the caller is not root. */
+    fun onSelectAdminPanel() {
+        if (!isRootState.value) return
+        scope.launchLoggingDropExceptions { interactor.onSelectAdminPanel(node) }
+    }
+
     /**
      * Opens the pinned wishlist [wishlistId] in the content area.
      *
@@ -157,4 +157,31 @@ class SidebarViewModel(
         val userId = model.currentUserIdFlow.value ?: return
         scope.launchLoggingDropExceptions { interactor.onOpenProfile(node, userId) }
     }
+}
+
+/**
+ * Pure mapping from a main-chain stack (as ordered by [NavigationChain.stackFlow], bottom-most first)
+ * to the [SidebarSection] that owns the topmost recognized screen.
+ *
+ * Scans from the topmost entry down so a pushed detail (e.g. a screen reached from elsewhere) still
+ * resolves to the section it was opened from. Returns [SidebarSection.None] when no entry in the stack
+ * maps to a primary section. Extracted as a standalone, [NavigationNode]-free function so the mapping
+ * can be unit-tested with plain [ViewConfig] fixtures instead of a live navigation chain.
+ *
+ * @param configs Main-chain [ViewConfig]s, bottom-most first.
+ * @return The [SidebarSection] the topmost recognized entry belongs to, or [SidebarSection.None].
+ */
+internal fun resolveActiveSectionForStack(configs: List<ViewConfig>): SidebarSection {
+    for (cfg in configs.asReversed()) {
+        val section = when (cfg) {
+            is WishlistsListViewConfig -> if (cfg.userId == null) SidebarSection.MyLists else null
+            is UsersListViewConfig -> SidebarSection.Discover
+            is MyPresentsBooksViewConfig -> SidebarSection.Reserved
+            is UserEditViewConfig -> SidebarSection.Settings
+            is AdminPanelViewConfig -> SidebarSection.Admin
+            else -> null
+        }
+        if (section != null) return section
+    }
+    return SidebarSection.None
 }
