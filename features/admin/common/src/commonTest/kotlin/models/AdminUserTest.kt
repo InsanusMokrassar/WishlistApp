@@ -41,4 +41,12 @@ class AdminUserTest {
 
         assertEquals(AdminUser(UserId(8L), Username("carol"), null), registered.asAdminUser())
     }
+
+    /** Round trip base → feature → base restores the original unchanged — no extra arguments required. */
+    @Test
+    fun reverseMapperRoundTripsToOriginalRegisteredUser() {
+        val original = RegisteredUser(UserId(7L), Username("bob"), Email("bob@example.com"))
+
+        assertEquals(original, original.asAdminUser().asRegisteredUser())
+    }
 }

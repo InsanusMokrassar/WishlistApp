@@ -47,4 +47,10 @@ class WishlistsFeatureItemTest {
         assertEquals(listOf(WishlistItemLink("https://example.com", "Store")), projected.links)
         assertEquals(null, projected.approximatePrice)
     }
+
+    /** Round trip base → feature → base restores the original unchanged — no extra arguments required. */
+    @Test
+    fun reverseMapperRoundTripsToOriginalRegisteredWishlistItem() {
+        assertEquals(fixture, fixture.asWishlistsFeatureItem().asRegisteredWishlistItem())
+    }
 }

@@ -35,3 +35,17 @@ fun RegisteredWishlist.asWishlistsFeatureWishlist(): WishlistsFeatureWishlist = 
     title = title,
     defaultPriceUnits = defaultPriceUnits
 )
+
+/**
+ * Projects this [WishlistsFeatureWishlist] back onto the persistence-layer [RegisteredWishlist],
+ * carrying every field through unchanged (this feature model mirrors the base verbatim, so no extra
+ * arguments are required).
+ *
+ * @return A [RegisteredWishlist] mirroring this model's full field set.
+ */
+fun WishlistsFeatureWishlist.asRegisteredWishlist(): RegisteredWishlist = RegisteredWishlist(
+    id = id,
+    userId = userId,
+    title = title,
+    defaultPriceUnits = defaultPriceUnits
+)

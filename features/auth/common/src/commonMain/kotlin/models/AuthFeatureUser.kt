@@ -42,3 +42,17 @@ fun RegisteredUser.asAuthFeatureUser(): AuthFeatureUser = AuthFeatureUser(
     username = username,
     email = email
 )
+
+/**
+ * Projects this [AuthFeatureUser] back onto the persistence-layer [RegisteredUser], carrying every
+ * field through unchanged (including [AuthFeatureUser.email] — this feature model mirrors the base
+ * verbatim, so no extra arguments are required).
+ *
+ * @return A [RegisteredUser] mirroring this model's [AuthFeatureUser.id], [AuthFeatureUser.username]
+ *   and [AuthFeatureUser.email].
+ */
+fun AuthFeatureUser.asRegisteredUser(): RegisteredUser = RegisteredUser(
+    id = id,
+    username = username,
+    email = email
+)

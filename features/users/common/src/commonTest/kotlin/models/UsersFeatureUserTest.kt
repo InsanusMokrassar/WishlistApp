@@ -42,4 +42,24 @@ class UsersFeatureUserTest {
 
         assertEquals(UsersFeatureUser(UserId(8L), Username("carol")), projected)
     }
+
+    /** Round trip base → feature → base with the original email re-supplied explicitly restores the original. */
+    @Test
+    fun reverseMapperRestoresNonNullEmailRoundTrip() {
+        val original = RegisteredUser(UserId(7L), Username("bob"), Email("bob@example.com"))
+
+        val restored = original.asUsersFeatureUser().asRegisteredUser(email = original.email)
+
+        assertEquals(original, restored)
+    }
+
+    /** Round trip with `email = null` passed consciously preserves the absent email. */
+    @Test
+    fun reverseMapperPreservesNullEmailRoundTrip() {
+        val original = RegisteredUser(UserId(8L), Username("carol"), null)
+
+        val restored = original.asUsersFeatureUser().asRegisteredUser(email = null)
+
+        assertEquals(original, restored)
+    }
 }

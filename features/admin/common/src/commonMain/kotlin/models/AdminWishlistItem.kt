@@ -65,3 +65,23 @@ fun RegisteredWishlistItem.asAdminWishlistItem(): AdminWishlistItem = AdminWishl
     priority = priority,
     imageIds = imageIds
 )
+
+/**
+ * Projects this [AdminWishlistItem] back onto the persistence-layer [RegisteredWishlistItem],
+ * carrying every display field through unchanged (this feature model mirrors the base's full field
+ * set, so no extra arguments are required).
+ *
+ * @return A [RegisteredWishlistItem] mirroring this model's full field set.
+ */
+fun AdminWishlistItem.asRegisteredWishlistItem(): RegisteredWishlistItem = RegisteredWishlistItem(
+    id = id,
+    wishlistId = wishlistId,
+    title = title,
+    amount = amount,
+    approximatePrice = approximatePrice,
+    priceUnits = priceUnits,
+    links = links,
+    description = description,
+    priority = priority,
+    imageIds = imageIds
+)

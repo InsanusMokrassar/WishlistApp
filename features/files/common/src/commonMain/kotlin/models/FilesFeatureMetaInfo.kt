@@ -39,3 +39,18 @@ fun RegisteredFileMetaInfo.asFilesFeatureMetaInfo(): FilesFeatureMetaInfo = File
     size = size,
     uploaderId = uploaderId
 )
+
+/**
+ * Projects this [FilesFeatureMetaInfo] back onto the persistence-layer [RegisteredFileMetaInfo],
+ * carrying every field through unchanged (this feature model mirrors the base verbatim, so no extra
+ * arguments are required).
+ *
+ * @return A [RegisteredFileMetaInfo] mirroring this model's full metadata field set.
+ */
+fun FilesFeatureMetaInfo.asRegisteredFileMetaInfo(): RegisteredFileMetaInfo = RegisteredFileMetaInfo(
+    id = id,
+    fileName = fileName,
+    mimeType = mimeType,
+    size = size,
+    uploaderId = uploaderId
+)

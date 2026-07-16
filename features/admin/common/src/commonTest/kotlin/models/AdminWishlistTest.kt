@@ -43,4 +43,12 @@ class AdminWishlistTest {
 
         assertEquals(AdminWishlist(WishlistId(3L), UserId(4L), "Holiday", "EUR"), fromFeature.asAdminWishlist())
     }
+
+    /** Round trip base → feature → base restores the original unchanged — no extra arguments required. */
+    @Test
+    fun reverseMapperRoundTripsToOriginalRegisteredWishlist() {
+        val original = RegisteredWishlist(WishlistId(1L), UserId(2L), "Birthday", "$")
+
+        assertEquals(original, original.asAdminWishlist().asRegisteredWishlist())
+    }
 }

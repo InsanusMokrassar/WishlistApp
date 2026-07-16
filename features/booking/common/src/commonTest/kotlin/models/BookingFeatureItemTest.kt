@@ -74,4 +74,10 @@ class BookingFeatureItemTest {
 
         assertEquals(null, projected.approximatePrice)
     }
+
+    /** Round trip base → feature → base restores the original unchanged — no extra arguments required. */
+    @Test
+    fun reverseMapperRoundTripsToOriginalRegisteredWishlistItem() {
+        assertEquals(fixture, fixture.asBookingFeatureItem().asRegisteredWishlistItem())
+    }
 }

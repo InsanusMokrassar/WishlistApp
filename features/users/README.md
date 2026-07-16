@@ -24,7 +24,7 @@ User identity storage and public read-only API. Provides the `UsersRepo` CRUD re
 | `Username` | `@JvmInline value class` wrapping `String` |
 | `NewUser` | Create payload: `username: Username`, `email: Email? = null` |
 | `RegisteredUser` | Persisted entity: `id: UserId`, `username: Username`, `email: Email? = null` |
-| `UsersFeatureUser` | Feature model returned by `UsersFeature.getAll` (client and server): `id: UserId`, `username: Username` — deliberately omits `email` (issue #67: the route is unauthenticated, so `RegisteredUser.email` must never be exposed there). Mapper: `RegisteredUser.asUsersFeatureUser()`. |
+| `UsersFeatureUser` | Feature model returned by `UsersFeature.getAll` (client and server): `id: UserId`, `username: Username` — deliberately omits `email` (issue #67: the route is unauthenticated, so `RegisteredUser.email` must never be exposed there). Mapper: `RegisteredUser.asUsersFeatureUser()`. Reverse mapper: `UsersFeatureUser.asRegisteredUser(email: Email?)` — `email` is an explicit no-default argument because the feature model drops it (Feature Interface Return Model Rule, both-directions bullet). |
 | `ReadUsersRepo` | Read-only repo interface |
 | `WriteUsersRepo` | Write-only repo interface |
 | `UsersRepo` | Combined CRUD repo interface |

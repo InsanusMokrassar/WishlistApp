@@ -293,6 +293,12 @@ classes that play the same role as a formal interface (e.g. admin's `UsersManage
   does not mistake it for a re-leak of the exact bug class this rule exists to prevent.
 - The rule covers **return types** of `*Feature` methods. Input parameters are out of its scope
   (though the same instinct applies — see `NewWishlistInFeature` for the input-side precedent).
+- Conversions between the base (persistence) model and the feature model MUST be covered in
+  **both directions**. Alongside the base→feature projection (`Registered*.as<FeatureModel>()`),
+  each feature model MUST provide the reverse converting function (`<FeatureModel>.asRegistered*()`);
+  every base-model field that the feature model does not carry is passed as an explicit argument of
+  the converting function, without default values (e.g. `UsersFeatureUser.asRegisteredUser(email: Email?)`),
+  so reconstruction never silently invents or erases data.
 
 ---
 

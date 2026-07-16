@@ -30,4 +30,12 @@ class WishlistsFeatureWishlistTest {
             registered.asWishlistsFeatureWishlist()
         )
     }
+
+    /** Round trip base → feature → base restores the original unchanged — no extra arguments required. */
+    @Test
+    fun reverseMapperRoundTripsToOriginalRegisteredWishlist() {
+        val original = RegisteredWishlist(WishlistId(1L), UserId(2L), "Birthday", "$")
+
+        assertEquals(original, original.asWishlistsFeatureWishlist().asRegisteredWishlist())
+    }
 }

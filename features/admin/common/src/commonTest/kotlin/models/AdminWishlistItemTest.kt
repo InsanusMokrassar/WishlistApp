@@ -62,4 +62,10 @@ class AdminWishlistItemTest {
             fixture.asAdminWishlistItem()
         )
     }
+
+    /** Round trip base → feature → base restores the original unchanged — no extra arguments required. */
+    @Test
+    fun reverseMapperRoundTripsToOriginalRegisteredWishlistItem() {
+        assertEquals(fixture, fixture.asAdminWishlistItem().asRegisteredWishlistItem())
+    }
 }

@@ -49,4 +49,18 @@ class FilesFeatureMetaInfoTest {
             registered.asFilesFeatureMetaInfo()
         )
     }
+
+    /** Round trip base → feature → base restores the original unchanged — no extra arguments required. */
+    @Test
+    fun reverseMapperRoundTripsToOriginalRegisteredFileMetaInfo() {
+        val original = RegisteredFileMetaInfo(
+            id = FileId("file-1"),
+            fileName = FileName("avatar.png"),
+            mimeType = "image/png",
+            size = 1024L,
+            uploaderId = UserId(1L)
+        )
+
+        assertEquals(original, original.asFilesFeatureMetaInfo().asRegisteredFileMetaInfo())
+    }
 }

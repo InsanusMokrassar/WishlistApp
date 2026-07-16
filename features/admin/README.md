@@ -67,6 +67,10 @@ never reaches this model). `AdminWishlist` has **two** mapper overloads: `Regist
 (used by the one route that bypasses `WishlistService`, `wishlistsUpdatePathPart`) and
 `WishlistsFeatureWishlist.asAdminWishlist()` (used by the three routes that go through
 `WishlistService`, which itself now returns `WishlistsFeatureWishlist` — see `features/wishlist/README.md`).
+Each admin feature model also provides its reverse mapper onto the persistence entity
+(`AdminUser.asRegisteredUser()`, `AdminWishlist.asRegisteredWishlist()`,
+`AdminWishlistItem.asRegisteredWishlistItem()`), taking no arguments since these models mirror
+their bases verbatim.
 
 ```kotlin
 @Serializable

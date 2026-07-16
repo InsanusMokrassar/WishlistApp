@@ -1,5 +1,6 @@
 package dev.inmo.wishlist.features.users.common.models
 
+import dev.inmo.wishlist.features.email.common.models.Email
 import kotlinx.serialization.Serializable
 
 /**
@@ -32,4 +33,24 @@ data class UsersFeatureUser(
 fun RegisteredUser.asUsersFeatureUser(): UsersFeatureUser = UsersFeatureUser(
     id = id,
     username = username
+)
+
+/**
+ * Projects this [UsersFeatureUser] back onto the persistence-layer [RegisteredUser].
+ *
+ * [UsersFeatureUser] deliberately drops [RegisteredUser.email] (see this model's class KDoc), so the
+ * reverse conversion cannot recover it from the receiver: the caller MUST supply [email] explicitly.
+ * The parameter has NO default value on purpose — a silent `null` default would let a caller
+ * accidentally reconstruct a user with the email erased, the same data-integrity trap (in the
+ * opposite direction) that issue #67 fixed.
+ *
+ * @param email Email address to restore onto the rebuilt [RegisteredUser] (typically taken from the
+ *   stored record being reconstructed), or `null` to consciously record "no email".
+ * @return A [RegisteredUser] carrying this model's [UsersFeatureUser.id] and
+ *   [UsersFeatureUser.username] plus the supplied [email].
+ */
+fun UsersFeatureUser.asRegisteredUser(email: Email?): RegisteredUser = RegisteredUser(
+    id = id,
+    username = username,
+    email = email
 )

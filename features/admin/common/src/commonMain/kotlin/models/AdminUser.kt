@@ -37,3 +37,17 @@ fun RegisteredUser.asAdminUser(): AdminUser = AdminUser(
     username = username,
     email = email
 )
+
+/**
+ * Projects this [AdminUser] back onto the persistence-layer [RegisteredUser], carrying every field
+ * through unchanged (including [AdminUser.email] — this feature model mirrors the base verbatim, so
+ * no extra arguments are required).
+ *
+ * @return A [RegisteredUser] mirroring this model's [AdminUser.id], [AdminUser.username] and
+ *   [AdminUser.email].
+ */
+fun AdminUser.asRegisteredUser(): RegisteredUser = RegisteredUser(
+    id = id,
+    username = username,
+    email = email
+)
