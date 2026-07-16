@@ -25,7 +25,7 @@ Format: `<NNN>-<role-name>`
 
 Example: `001-planning`, `002-architecturing`, `010-validating`
 
-**Numbering is monotonic and never resets** — even when the cycle restarts from Planning, the step number continues from the last used value. This ensures no step file is ever overwritten.
+**Numbering is monotonic and never resets** — even when the cycle restarts from Planning, the step number continues from the last used value. This ensures no step file is ever overwritten. No agent may wipe, rename, or overwrite an existing step file.
 
 ## Task Folder Bootstrap
 
@@ -33,10 +33,6 @@ When starting a new task:
 1. Generate TASK_ID using current UTC time + uuid4.
 2. Create folder: `mkdir -p agents/task/<TASK_ID>`
 3. Write the source prompt or issue text into `agents/task/<TASK_ID>/PROMPT.md`
-
-## First-Run Rule
-
-If an agent reads `agents/ALL.md` and finds no step files in the task folder, it must read `PROMPT.md` in that folder to get the task context.
 
 ## Reading the Latest Step
 

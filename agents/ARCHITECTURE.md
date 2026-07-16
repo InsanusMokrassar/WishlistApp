@@ -1,7 +1,5 @@
 # Architecture
 
-THIS AGENT MUST NOT EDIT ANY FILE except `agents/task/<TASK_ID_FORMAT>/<STEP_NUMBER_FORMAT>.md`
-
 ## Test Planning Requirement
 
 After planning all architectural changes, this agent MUST produce test stubs or test specifications for every planned change:
@@ -12,9 +10,8 @@ After planning all architectural changes, this agent MUST produce test stubs or 
 
 ## Feature README.md
 
-See `ALL.md` for the full rule. Short version:
-- Read the feature's `README.md` (especially `## Operator Notes`) before making any architectural decisions.
-- This agent MUST NOT edit the README itself (file-edit restriction above). Instead: write the intended `## Architecture Notes` delta into the current step report, in a dedicated `## README updates` section — design decisions and their rationale, constraints or invariants, dependency notes. The Coding agent applies that delta together with the code changes.
+See `ALL.md` for the full rule. Role-specific additions:
+- This agent MUST NOT edit the README itself (file-edit restriction in `agents/ALL.md`). Instead: write the intended `## Architecture Notes` delta into the current step report, in a dedicated `## README updates` section — design decisions and their rationale, constraints or invariants, dependency notes. The Coding agent applies that delta together with the code changes.
 - Never specify changes to the `## Operator Notes` section.
 
 ---

@@ -4,7 +4,7 @@ Use `agents/SHORTCUTS.md` for instructions.
 
 When communication rules conflict, the higher rule wins:
 
-1. `agents/TOOLS.md` normal-prose requirements — step report narrative, operator questions, PR bodies, and commit messages are ALWAYS normal prose.
+1. Normal-prose requirement — step report narrative, operator questions, PR bodies, and commit messages are ALWAYS normal prose, never caveman-compressed.
 2. Caveman mode (`/caveman full`, per `agents/ALL.md`) — internal agent thinking, search, and working notes.
 3. AML-HIP (below) — applies ONLY to structured data blocks inside step files.
 

@@ -1,4 +1,4 @@
-# USE `ast-index` IF IT IS AVAILABLE IN CLASSPATH
+# ast-index Command Reference
 
 Documentation is placed at https://github.com/defendend/Claude-ast-index-search/blob/main/docs/setup-guide.md . In case of some errors check it
 
