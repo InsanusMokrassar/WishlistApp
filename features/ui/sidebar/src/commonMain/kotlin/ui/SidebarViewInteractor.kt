@@ -44,6 +44,13 @@ interface SidebarViewInteractor {
     suspend fun onSelectSettings(node: NavigationNode<SidebarViewConfig, ViewConfig>, userId: UserId)
 
     /**
+     * Opens the root-only admin panel dashboard in the content area.
+     *
+     * @param node Navigation node hosting the sidebar.
+     */
+    suspend fun onSelectAdminPanel(node: NavigationNode<SidebarViewConfig, ViewConfig>)
+
+    /**
      * Opens a specific pinned wishlist in the content area.
      *
      * @param node Navigation node hosting the sidebar.
