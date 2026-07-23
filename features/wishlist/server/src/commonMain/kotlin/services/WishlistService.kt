@@ -5,8 +5,9 @@ import dev.inmo.micro_utils.repos.deleteById
 import dev.inmo.wishlist.features.users.common.models.UserId
 import dev.inmo.wishlist.features.wishlist.common.models.NewWishlist
 import dev.inmo.wishlist.features.wishlist.common.models.NewWishlistInFeature
-import dev.inmo.wishlist.features.wishlist.common.models.RegisteredWishlist
 import dev.inmo.wishlist.features.wishlist.common.models.WishlistId
+import dev.inmo.wishlist.features.wishlist.common.models.WishlistsFeatureWishlist
+import dev.inmo.wishlist.features.wishlist.common.models.asWishlistsFeatureWishlist
 import dev.inmo.wishlist.features.wishlist.common.repo.WishlistRepo
 
 /**
@@ -27,10 +28,10 @@ class WishlistService(
      * Accessible without caller identity — used by the public read endpoint.
      *
      * @param id Wishlist primary key.
-     * @return Matching [RegisteredWishlist], or `null` when absent.
+     * @return Matching [WishlistsFeatureWishlist], or `null` when absent.
      */
-    suspend fun getById(id: WishlistId): RegisteredWishlist? =
-        wishlistRepo.getById(id)
+    suspend fun getById(id: WishlistId): WishlistsFeatureWishlist? =
+        wishlistRepo.getById(id)?.asWishlistsFeatureWishlist()
 
     /**
      * Returns all wishlists owned by [userId].
@@ -38,8 +39,8 @@ class WishlistService(
      * @param userId Owner to filter by.
      * @return Matching wishlists; empty list when none found.
      */
-    suspend fun getByUserId(userId: UserId): List<RegisteredWishlist> =
-        wishlistRepo.getByUserId(userId)
+    suspend fun getByUserId(userId: UserId): List<WishlistsFeatureWishlist> =
+        wishlistRepo.getByUserId(userId).map { it.asWishlistsFeatureWishlist() }
 
     /**
      * Returns all wishlists owned by the authenticated [callerId].
@@ -49,18 +50,19 @@ class WishlistService(
      * @param callerId Authenticated caller identity resolved from the bearer token.
      * @return Matching wishlists; empty list when none found.
      */
-    suspend fun getMyWishlists(callerId: UserId): List<RegisteredWishlist> =
-        wishlistRepo.getByUserId(callerId)
+    suspend fun getMyWishlists(callerId: UserId): List<WishlistsFeatureWishlist> =
+        wishlistRepo.getByUserId(callerId).map { it.asWishlistsFeatureWishlist() }
 
     /**
      * Creates a wishlist owned by [userId] from the client-supplied [newWishlist] payload.
      *
      * @param newWishlist Client-supplied data (title only, no user identifier).
      * @param userId Authenticated caller identity resolved from the request context.
-     * @return Persisted [RegisteredWishlist], or `null` if the repo returned no result.
+     * @return Persisted [WishlistsFeatureWishlist], or `null` if the repo returned no result.
      */
-    suspend fun create(newWishlist: NewWishlistInFeature, userId: UserId): RegisteredWishlist? =
-        wishlistRepo.create(NewWishlist(userId, newWishlist.title, newWishlist.defaultPriceUnits)).firstOrNull()
+    suspend fun create(newWishlist: NewWishlistInFeature, userId: UserId): WishlistsFeatureWishlist? =
+        wishlistRepo.create(NewWishlist(userId, newWishlist.title, newWishlist.defaultPriceUnits))
+            .firstOrNull()?.asWishlistsFeatureWishlist()
 
     /**
      * Replaces data of the wishlist identified by [id] if [callerId] owns it.

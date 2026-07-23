@@ -3,6 +3,7 @@ package dev.inmo.wishlist.features.ui.booking
 import dev.inmo.micro_utils.koin.singleWithRandomQualifier
 import dev.inmo.micro_utils.startup.plugin.StartPlugin
 import dev.inmo.wishlist.features.booking.client.BookingFeature
+import dev.inmo.wishlist.features.booking.common.models.BookingFeatureItem
 import dev.inmo.wishlist.features.booking.common.models.BookingState
 import dev.inmo.wishlist.features.common.client.models.ViewConfig
 import dev.inmo.wishlist.features.ui.booking.ui.BookingModel
@@ -10,7 +11,6 @@ import dev.inmo.wishlist.features.ui.booking.ui.BookingViewConfig
 import dev.inmo.wishlist.features.ui.booking.ui.BookingViewModel
 import dev.inmo.wishlist.features.ui.booking.ui.MyPresentsBooksViewConfig
 import dev.inmo.wishlist.features.ui.booking.ui.MyPresentsBooksViewModel
-import dev.inmo.wishlist.features.wishlist.common.models.RegisteredWishlistItem
 import dev.inmo.wishlist.features.wishlist.common.models.WishlistItemId
 import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.modules.SerializersModule
@@ -53,7 +53,7 @@ object Plugin : StartPlugin {
                 override suspend fun cancelBooking(itemId: WishlistItemId): Boolean =
                     bookingFeature.cancelBooking(itemId)
 
-                override suspend fun myPresentsBooks(): List<RegisteredWishlistItem> =
+                override suspend fun myPresentsBooks(): List<BookingFeatureItem> =
                     bookingFeature.myPresentsBooks()
             }
         }

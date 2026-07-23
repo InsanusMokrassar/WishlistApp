@@ -7,8 +7,8 @@ import dev.inmo.navigation.core.NavigationNode
 import dev.inmo.navigation.core.onResumeFlow
 import dev.inmo.navigation.mvvm.ViewModel
 import dev.inmo.wishlist.features.common.client.models.ViewConfig
-import dev.inmo.wishlist.features.wishlist.common.models.RegisteredWishlist
 import dev.inmo.wishlist.features.wishlist.common.models.WishlistId
+import dev.inmo.wishlist.features.wishlist.common.models.WishlistsFeatureWishlist
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.flow.merge
@@ -29,7 +29,7 @@ class WishlistItemCopyViewModel(
     private val model: WishlistsModel,
     private val interactor: WishlistItemCopyViewInteractor
 ) : ViewModel<ViewConfig>(node) {
-    private val _targetsState = MutableRedeliverStateFlow<List<RegisteredWishlist>>(emptyList())
+    private val _targetsState = MutableRedeliverStateFlow<List<WishlistsFeatureWishlist>>(emptyList())
 
     /** Caller-owned wishlists offered as copy targets. */
     val targetsState = _targetsState.asStateFlow()

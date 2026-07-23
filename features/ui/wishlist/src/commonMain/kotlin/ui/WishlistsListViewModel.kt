@@ -8,8 +8,8 @@ import dev.inmo.navigation.core.onResumeFlow
 import dev.inmo.navigation.mvvm.ViewModel
 import dev.inmo.wishlist.features.common.client.models.ViewConfig
 import dev.inmo.wishlist.features.users.common.models.UserId
-import dev.inmo.wishlist.features.wishlist.common.models.RegisteredWishlist
 import dev.inmo.wishlist.features.wishlist.common.models.WishlistId
+import dev.inmo.wishlist.features.wishlist.common.models.WishlistsFeatureWishlist
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -32,7 +32,7 @@ class WishlistsListViewModel(
     private val model: WishlistsModel,
     private val interactor: WishlistsListViewInteractor
 ) : ViewModel<ViewConfig>(node) {
-    private val _wishlistsState = MutableRedeliverStateFlow<List<RegisteredWishlist>>(emptyList())
+    private val _wishlistsState = MutableRedeliverStateFlow<List<WishlistsFeatureWishlist>>(emptyList())
 
     /** Current list of wishlists owned by the authenticated caller. */
     val wishlistsState = _wishlistsState.asStateFlow()

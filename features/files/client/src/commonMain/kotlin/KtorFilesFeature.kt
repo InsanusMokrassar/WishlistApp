@@ -2,8 +2,8 @@ package dev.inmo.wishlist.features.files.client
 
 import dev.inmo.wishlist.features.files.common.Constants
 import dev.inmo.wishlist.features.files.common.models.FileId
+import dev.inmo.wishlist.features.files.common.models.FilesFeatureMetaInfo
 import dev.inmo.wishlist.features.files.common.models.FinalizeFileRequest
-import dev.inmo.wishlist.features.files.common.models.RegisteredFileMetaInfo
 import dev.inmo.wishlist.features.users.common.models.UserId
 import io.ktor.client.HttpClient
 import io.ktor.client.call.body
@@ -25,14 +25,14 @@ import io.ktor.http.isSuccess
 class KtorFilesFeature(
     private val client: HttpClient
 ) : FilesFeature {
-    override suspend fun finalize(request: FinalizeFileRequest): RegisteredFileMetaInfo? {
+    override suspend fun finalize(request: FinalizeFileRequest): FilesFeatureMetaInfo? {
         val response = client.post("${Constants.filesPrefixPathPart}/${Constants.finalizePathPart}") {
             setBody(request)
         }
         return if (response.status.isSuccess()) response.body() else null
     }
 
-    override suspend fun getMeta(id: FileId): RegisteredFileMetaInfo? {
+    override suspend fun getMeta(id: FileId): FilesFeatureMetaInfo? {
         val response = client.get("${Constants.filesPrefixPathPart}/${Constants.metaPathPart}/${id.string}")
         return if (response.status.isSuccess()) response.body() else null
     }

@@ -3,9 +3,9 @@ package dev.inmo.wishlist.features.wishlist.client
 import dev.inmo.wishlist.features.wishlist.common.Constants
 import dev.inmo.wishlist.features.wishlist.common.models.CopyItemRequest
 import dev.inmo.wishlist.features.wishlist.common.models.NewWishlistItem
-import dev.inmo.wishlist.features.wishlist.common.models.RegisteredWishlistItem
 import dev.inmo.wishlist.features.wishlist.common.models.WishlistId
 import dev.inmo.wishlist.features.wishlist.common.models.WishlistItemId
+import dev.inmo.wishlist.features.wishlist.common.models.WishlistsFeatureItem
 import io.ktor.client.HttpClient
 import io.ktor.client.call.body
 import io.ktor.client.request.delete
@@ -31,7 +31,7 @@ import io.ktor.http.isSuccess
 class KtorWishlistItemFeature(
     private val client: HttpClient
 ) : WishlistsItemsFeature {
-    override suspend fun getByWishlistId(wishlistId: WishlistId): List<RegisteredWishlistItem> =
+    override suspend fun getByWishlistId(wishlistId: WishlistId): List<WishlistsFeatureItem> =
         client.get("${Constants.wishlistItemPrefixPathPart}/${Constants.wishlistItemGetByWishlistIdPathPart}/${wishlistId.long}").body()
 
     /**
@@ -40,9 +40,9 @@ class KtorWishlistItemFeature(
      * Returns `null` on non-2xx response (includes 403 Forbidden when caller does not own the parent wishlist).
      *
      * @param newWishlistItem Item data to create.
-     * @return Created [RegisteredWishlistItem], or `null` on non-2xx response.
+     * @return Created [WishlistsFeatureItem], or `null` on non-2xx response.
      */
-    override suspend fun create(newWishlistItem: NewWishlistItem): RegisteredWishlistItem? {
+    override suspend fun create(newWishlistItem: NewWishlistItem): WishlistsFeatureItem? {
         val response = client.post("${Constants.wishlistItemPrefixPathPart}/${Constants.wishlistItemCreatePathPart}") {
             setBody(newWishlistItem)
         }
@@ -57,7 +57,7 @@ class KtorWishlistItemFeature(
      * @param request Source item + caller-owned target wishlist.
      * @return Created (or pre-existing identical) item, or `null` on non-2xx response.
      */
-    override suspend fun copy(request: CopyItemRequest): RegisteredWishlistItem? {
+    override suspend fun copy(request: CopyItemRequest): WishlistsFeatureItem? {
         val response = client.post("${Constants.wishlistItemPrefixPathPart}/${Constants.wishlistItemCopyPathPart}") {
             setBody(request)
         }

@@ -5,9 +5,10 @@ import dev.inmo.micro_utils.repos.deleteById
 import dev.inmo.wishlist.features.users.common.models.UserId
 import dev.inmo.wishlist.features.wishlist.common.models.CopyItemRequest
 import dev.inmo.wishlist.features.wishlist.common.models.NewWishlistItem
-import dev.inmo.wishlist.features.wishlist.common.models.RegisteredWishlistItem
 import dev.inmo.wishlist.features.wishlist.common.models.WishlistId
 import dev.inmo.wishlist.features.wishlist.common.models.WishlistItemId
+import dev.inmo.wishlist.features.wishlist.common.models.WishlistsFeatureItem
+import dev.inmo.wishlist.features.wishlist.common.models.asWishlistsFeatureItem
 import dev.inmo.wishlist.features.wishlist.common.models.hasSameContentAs
 import dev.inmo.wishlist.features.wishlist.common.models.toNewItem
 import dev.inmo.wishlist.features.wishlist.common.repo.WishlistItemRepo
@@ -38,8 +39,8 @@ class WishlistItemService(
      * @param wishlistId Parent wishlist to filter by.
      * @return Matching items; empty list when none found.
      */
-    suspend fun getByWishlistId(wishlistId: WishlistId): List<RegisteredWishlistItem> =
-        wishlistItemRepo.getByWishlistId(wishlistId)
+    suspend fun getByWishlistId(wishlistId: WishlistId): List<WishlistsFeatureItem> =
+        wishlistItemRepo.getByWishlistId(wishlistId).map { it.asWishlistsFeatureItem() }
 
     /**
      * Creates an item if [callerId] owns the parent wishlist specified in [newWishlistItem].
@@ -49,12 +50,12 @@ class WishlistItemService(
      *
      * @param newWishlistItem Data for the item to persist.
      * @param callerId Authenticated caller identity resolved from the request context.
-     * @return Persisted [RegisteredWishlistItem], or `null` on failure or authorization error.
+     * @return Persisted [WishlistsFeatureItem], or `null` on failure or authorization error.
      */
-    suspend fun create(newWishlistItem: NewWishlistItem, callerId: UserId): RegisteredWishlistItem? {
+    suspend fun create(newWishlistItem: NewWishlistItem, callerId: UserId): WishlistsFeatureItem? {
         val wishlist = wishlistRepo.getById(newWishlistItem.wishlistId) ?: return null
         if (wishlist.userId != callerId) return null
-        return wishlistItemRepo.create(newWishlistItem).firstOrNull()
+        return wishlistItemRepo.create(newWishlistItem).firstOrNull()?.asWishlistsFeatureItem()
     }
 
     /**
@@ -98,16 +99,16 @@ class WishlistItemService(
      *
      * @param request Identifies the source item and the caller-owned target wishlist.
      * @param callerId Authenticated caller identity resolved from the request context.
-     * @return The created (or pre-existing identical) [RegisteredWishlistItem], or `null` when the
+     * @return The created (or pre-existing identical) [WishlistsFeatureItem], or `null` when the
      *   target/source is missing, the caller does not own the target, or the repo returns no result.
      */
-    suspend fun copyItem(request: CopyItemRequest, callerId: UserId): RegisteredWishlistItem? {
+    suspend fun copyItem(request: CopyItemRequest, callerId: UserId): WishlistsFeatureItem? {
         val target = wishlistRepo.getById(request.targetWishlistId) ?: return null
         if (target.userId != callerId) return null
         val source = wishlistItemRepo.getById(request.sourceItemId) ?: return null
         val newItem = source.toNewItem(target.id)
         val existing = wishlistItemRepo.getByWishlistId(target.id).firstOrNull { it.hasSameContentAs(newItem) }
-        if (existing != null) return existing
-        return wishlistItemRepo.create(newItem).firstOrNull()
+        if (existing != null) return existing.asWishlistsFeatureItem()
+        return wishlistItemRepo.create(newItem).firstOrNull()?.asWishlistsFeatureItem()
     }
 }

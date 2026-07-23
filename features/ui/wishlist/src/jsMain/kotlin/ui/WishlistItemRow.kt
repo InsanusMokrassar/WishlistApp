@@ -7,7 +7,7 @@ import dev.inmo.wishlist.features.currency.common.models.CurrencyCode
 import dev.inmo.wishlist.features.currency.common.models.CurrencyRates
 import dev.inmo.wishlist.features.currency.common.utils.formatItemPriceWithAmount
 import dev.inmo.wishlist.features.files.common.models.FileId
-import dev.inmo.wishlist.features.wishlist.common.models.RegisteredWishlistItem
+import dev.inmo.wishlist.features.wishlist.common.models.WishlistsFeatureItem
 import org.jetbrains.compose.web.dom.Div
 import org.jetbrains.compose.web.dom.H3
 import org.jetbrains.compose.web.dom.Img
@@ -31,7 +31,7 @@ import org.jetbrains.compose.web.dom.Text
  */
 @Composable
 fun WishlistItemRow(
-    item: RegisteredWishlistItem,
+    item: WishlistsFeatureItem,
     secondaryTitle: String?,
     selectedCurrency: CurrencyCode?,
     rates: CurrencyRates?,

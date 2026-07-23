@@ -36,7 +36,7 @@ import dev.inmo.wishlist.features.currency.common.models.CurrencyRates
 import dev.inmo.wishlist.features.currency.common.utils.formatItemPrice
 import dev.inmo.wishlist.features.ui.topBar.ui.TopBarTitleProvider
 import dev.inmo.wishlist.features.ui.wishlist.WishlistStrings
-import dev.inmo.wishlist.features.wishlist.common.models.RegisteredWishlistItem
+import dev.inmo.wishlist.features.wishlist.common.models.WishlistsFeatureItem
 import org.koin.core.component.inject
 import org.koin.core.parameter.parametersOf
 
@@ -216,7 +216,7 @@ class UserWishlistsView(
      */
     @Composable
     private fun ItemRow(
-        item: RegisteredWishlistItem,
+        item: WishlistsFeatureItem,
         wishlistTitle: String?,
         selectedCurrency: CurrencyCode?,
         rates: CurrencyRates?
@@ -275,7 +275,7 @@ class UserWishlistsView(
      * card subtitle).
      */
     @Composable
-    private fun ItemCardsGrid(entries: List<Pair<RegisteredWishlistItem, String?>>) {
+    private fun ItemCardsGrid(entries: List<Pair<WishlistsFeatureItem, String?>>) {
         val columns = 2
         Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
             entries.chunked(columns).forEach { rowEntries ->

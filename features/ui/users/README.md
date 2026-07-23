@@ -40,7 +40,7 @@ None — client-only UI feature. Consumes `features/users/client` (public read),
 | `UsersListViewConfig` | Empty `@Serializable class` — main slot root identifier |
 | `UserViewConfig` | `data class(userId: UserId)` — public profile detail |
 | `UserEditViewConfig` | `data class(userId: UserId)` — profile edit (owner/root) |
-| `UsersModel` | Single feature model (renamed from `UsersListModel`). Wraps `UsersFeature.getAll()`, auth "me" `StateFlow<RegisteredUser?>` from `features/auth/client` `Scope.meStateFlow` (`getCurrentUserId`, `isCurrentUserRoot`), admin `AdminFeature.usersManagement` (`updateUsername`, `setPassword`, `deleteUser`), and `FilesClientService` (`getAvatar`, `uploadAvatar`, `imageUrl`, `loadImageBytes`); `getUser(id)` resolves from the public list |
+| `UsersModel` | Single feature model (renamed from `UsersListModel`). Wraps `UsersFeature.getAll()` (returns `UsersFeatureUser` — no email, see `features/users/README.md`), auth "me" `StateFlow<RegisteredUser?>` from `features/auth/client` `Scope.meStateFlow` (`getCurrentUserId`, `isCurrentUserRoot`), admin `AdminFeature.usersManagement` (`updateUsername`, `setPassword`, `deleteUser`), and `FilesClientService` (`getAvatar`, `uploadAvatar`, `imageUrl`, `loadImageBytes`); `getUser(id)` resolves a `UsersFeatureUser?` from the public list |
 | `UsersListViewInteractor` | `onUserSelected(node, userId)` (→ user's all-items view), `onOpenProfile(node, userId)` (→ profile view) |
 | `UserViewInteractor` | `onBack(node)`, `onEditUser(node)` (→ edit) |
 | `UserEditViewInteractor` | `onNavigateBack(node)`, `onSaved(node)`, `onDeleted(node)` |

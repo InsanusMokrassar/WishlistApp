@@ -6,8 +6,8 @@ import dev.inmo.micro_utils.coroutines.subscribeLoggingDropExceptions
 import dev.inmo.navigation.core.NavigationNode
 import dev.inmo.navigation.core.onResumeFlow
 import dev.inmo.navigation.mvvm.ViewModel
+import dev.inmo.wishlist.features.booking.common.models.BookingFeatureItem
 import dev.inmo.wishlist.features.common.client.models.ViewConfig
-import dev.inmo.wishlist.features.wishlist.common.models.RegisteredWishlistItem
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.flow.merge
@@ -27,7 +27,7 @@ class MyPresentsBooksViewModel(
     private val model: BookingModel,
     private val interactor: MyPresentsBooksViewInteractor
 ) : ViewModel<ViewConfig>(node) {
-    private val _presentsState = MutableRedeliverStateFlow<List<RegisteredWishlistItem>>(emptyList())
+    private val _presentsState = MutableRedeliverStateFlow<List<BookingFeatureItem>>(emptyList())
 
     /** Items the caller has booked; empty while loading or when nothing booked. */
     val presentsState = _presentsState.asStateFlow()

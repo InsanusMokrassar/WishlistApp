@@ -39,8 +39,8 @@ All routes are under `/admin` prefix and require bearer authentication. Caller m
 
 | Method | Path | Body | Response | Description |
 |---|---|---|---|---|
-| GET | `/admin/users/getAll` | — | `List<RegisteredUser>` | Get all registered users |
-| POST | `/admin/users/create` | `NewUserWithPassword` | `RegisteredUser` / `500` / `409` | Create user with plaintext password; `409` when the username is already taken |
+| GET | `/admin/users/getAll` | — | `List<AdminUser>` | Get all registered users |
+| POST | `/admin/users/create` | `NewUserWithPassword` | `AdminUser` / `500` / `409` | Create user with plaintext password; `409` when the username is already taken |
 | PUT | `/admin/users/update/{id}` | `NewUser` | `200 OK` / `404` / `409` | Update user info by id; `409` when the new username or email is already taken |
 | PUT | `/admin/users/setPassword/{id}` | `Password` | `200 OK` / `404` | Replace a user's password; delegates to existing `AuthFeatureService.setPassword` |
 | DELETE | `/admin/users/delete/{id}` | — | `200 OK` / `404` | Delete user by id; cascades all related data (wishlists, items, password, sessions) |
@@ -51,13 +51,41 @@ Ownership checks are bypassed on mutating routes — admin can update or delete 
 
 | Method | Path | Body | Response | Description |
 |---|---|---|---|---|
-| GET | `/admin/wishlists/getByUserId/{userId}` | — | `List<RegisteredWishlist>` | Get all wishlists for a user |
-| GET | `/admin/wishlists/getById/{id}` | — | `RegisteredWishlist` / `404` | Get one wishlist by id |
-| POST | `/admin/wishlists/create` | `NewWishlist` | `RegisteredWishlist` | Create wishlist for any user (userId in body) |
-| PUT | `/admin/wishlists/update/{id}` | `NewWishlistInFeature` | `RegisteredWishlist` / `404` | Update any wishlist; owner preserved |
+| GET | `/admin/wishlists/getByUserId/{userId}` | — | `List<AdminWishlist>` | Get all wishlists for a user |
+| GET | `/admin/wishlists/getById/{id}` | — | `AdminWishlist` / `404` | Get one wishlist by id |
+| POST | `/admin/wishlists/create` | `NewWishlist` | `AdminWishlist` | Create wishlist for any user (userId in body) |
+| PUT | `/admin/wishlists/update/{id}` | `NewWishlistInFeature` | `AdminWishlist` / `404` | Update any wishlist; owner preserved |
 | DELETE | `/admin/wishlists/delete/{id}` | — | `200 OK` / `404` | Delete any wishlist |
 
 ## Models
+
+### `AdminUser` / `AdminWishlist` / `AdminWishlistItem` (`admin.common.models`)
+
+`@Serializable` feature models returned by the admin surfaces above, per the Feature Interface
+Return Model Rule — root-only, so `AdminUser` deliberately keeps `email` (an unprivileged caller
+never reaches this model). `AdminWishlist` has **two** mapper overloads: `RegisteredWishlist.asAdminWishlist()`
+(used by the one route that bypasses `WishlistService`, `wishlistsUpdatePathPart`) and
+`WishlistsFeatureWishlist.asAdminWishlist()` (used by the three routes that go through
+`WishlistService`, which itself now returns `WishlistsFeatureWishlist` — see `features/wishlist/README.md`).
+Each admin feature model also provides its reverse mapper onto the persistence entity
+(`AdminUser.asRegisteredUser()`, `AdminWishlist.asRegisteredWishlist()`,
+`AdminWishlistItem.asRegisteredWishlistItem()`), taking no arguments since these models mirror
+their bases verbatim.
+
+```kotlin
+@Serializable
+data class AdminUser(val id: UserId, val username: Username, val email: Email?)
+
+@Serializable
+data class AdminWishlist(val id: WishlistId, val userId: UserId, val title: String, val defaultPriceUnits: String)
+
+@Serializable
+data class AdminWishlistItem(
+    val id: WishlistItemId, val wishlistId: WishlistId, val title: String, val amount: UInt,
+    val approximatePrice: Amount?, val priceUnits: String, val links: List<WishlistItemLink>,
+    val description: String, val priority: Priority, val imageIds: List<FileId>
+)
+```
 
 ### `NewUserWithPassword` (`admin.common.models`)
 
@@ -87,7 +115,8 @@ data class NewWishlist(
 
 ### Server side
 
-- `UsersManagementFeature` — service class; wraps `UsersRepo` (CRUD) + `AuthFeatureService` (password hashing via BCrypt) + `WishlistRepo` + `WishlistItemRepo`. No new repo or table. `delete(id)` cascades: for each wishlist owned by the user it deletes all items then the wishlist, then `AuthFeatureService.purgeUser(id)` removes the password hash and all active access/refresh sessions, then the user record is removed.
+- `UsersManagementFeature` — service class; wraps `UsersRepo` (CRUD) + `AuthFeatureService` (password hashing via BCrypt) + `WishlistRepo` + `WishlistItemRepo`. No new repo or table. `delete(id)` cascades: for each wishlist owned by the user it deletes all items then the wishlist, then `AuthFeatureService.purgeUser(id)` removes the password hash and all active access/refresh sessions, then the user record is removed. `getAll()`/`create(...)` return `AdminUser`, not `RegisteredUser` (Feature Interface Return Model Rule).
+- **Feature Interface Return Model Rule:** every admin capability (`UsersManagementFeature`, `AdminWishlistsFeature`, `AdminWishlistItemsFeature`, and `AdminRoutingsConfigurator`'s inline handlers that bypass those services) now returns `AdminUser`/`AdminWishlist`/`AdminWishlistItem` instead of the `users`/`wishlist` features' persistence entities directly. `features/admin/common/build.gradle` gained `api project(":wishlist.features.wishlist.common")` to declare these new models' dependency on `WishlistId`/`RegisteredWishlist`/`WishlistsFeatureWishlist`.
 - `AdminFeature` — thin wrapper holding `UsersManagementFeature`. Injected into `AdminRoutingsConfigurator`.
 - `AdminRoutingsConfigurator` — registers all `/admin/...` routes under `authenticate { }`. Uses `requireAdmin()` helper (private `RoutingContext` extension) to verify caller is `root`.
   - Wishlist reads delegate to `WishlistService` (existing).
@@ -104,9 +133,10 @@ Must come after `wishlist.server.JVMPlugin`.
 
 ### Client side
 
-- `UsersManagementFeature` — interface: `getAll`, `getById`, `create`, `update`, `setPassword`, `delete`. `setPassword(id, Password)` delegates server-side to the existing `AuthFeatureService.setPassword` (no new functionality), used by the public profile-edit screen when `root` changes another user's password.
-- `AdminWishlistsFeature` — interface: `getByUserId`, `getById`, `create`, `update`, `delete`.  
+- `UsersManagementFeature` — interface: `getAll(): List<AdminUser>`, `getById(): AdminUser?`, `create(): AdminUser?`, `update`, `setPassword`, `delete`. `setPassword(id, Password)` delegates server-side to the existing `AuthFeatureService.setPassword` (no new functionality), used by the public profile-edit screen when `root` changes another user's password.
+- `AdminWishlistsFeature` — interface: `getByUserId(): List<AdminWishlist>`, `getById(): AdminWishlist?`, `create(): AdminWishlist?`, `update`, `delete`.
   Create takes `NewWishlist` (explicit `userId`) unlike the regular `WishlistsFeature.create`.
+- `AdminWishlistItemsFeature` — interface: `getByWishlistId(): List<AdminWishlistItem>`, `create(): AdminWishlistItem?`, `update`, `delete`.
 - `AdminFeature` — interface: `val usersManagement: UsersManagementFeature`, `val wishlists: AdminWishlistsFeature`.
 - `KtorUsersManagementFeature` — Ktor impl; calls `/admin/users/...` endpoints.
 - `KtorAdminWishlistsFeature` — Ktor impl; calls `/admin/wishlists/...` endpoints.

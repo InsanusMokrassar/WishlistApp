@@ -16,7 +16,7 @@ import dev.inmo.wishlist.features.auth.client.configurators.BearerAuthHttpClient
 import dev.inmo.wishlist.features.auth.client.configurators.DefaultUrlHttpClientConfigurator
 import dev.inmo.wishlist.features.auth.common.AuthFeature
 import dev.inmo.wishlist.features.common.client.configurators.HttpClientConfigurator
-import dev.inmo.wishlist.features.users.common.models.RegisteredUser
+import dev.inmo.wishlist.features.auth.common.models.AuthFeatureUser
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.flowOf
@@ -37,7 +37,7 @@ object Plugin : StartPlugin {
         single<ClientAuthFeature> { get<AuthFeatureService>() }
         single<AuthFeature> { get<AuthFeatureService>() }
 
-        singleSecretMeMutableStateFlow { MutableRedeliverStateFlow<RegisteredUser?>(null) }
+        singleSecretMeMutableStateFlow { MutableRedeliverStateFlow<AuthFeatureUser?>(null) }
         singleMeStateFlow {
             secretMeMutableStateFlow.asStateFlow()
         }

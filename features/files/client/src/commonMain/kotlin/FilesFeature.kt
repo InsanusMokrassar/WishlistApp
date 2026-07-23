@@ -1,8 +1,8 @@
 package dev.inmo.wishlist.features.files.client
 
 import dev.inmo.wishlist.features.files.common.models.FileId
+import dev.inmo.wishlist.features.files.common.models.FilesFeatureMetaInfo
 import dev.inmo.wishlist.features.files.common.models.FinalizeFileRequest
-import dev.inmo.wishlist.features.files.common.models.RegisteredFileMetaInfo
 import dev.inmo.wishlist.features.users.common.models.UserId
 
 /**
@@ -17,17 +17,17 @@ interface FilesFeature {
      * Finalizes a previously uploaded temporal file into permanent storage.
      *
      * @param request Reference to the temporal upload plus metadata to persist.
-     * @return Persisted [RegisteredFileMetaInfo], or `null` on a non-2xx response.
+     * @return Persisted [FilesFeatureMetaInfo], or `null` on a non-2xx response.
      */
-    suspend fun finalize(request: FinalizeFileRequest): RegisteredFileMetaInfo?
+    suspend fun finalize(request: FinalizeFileRequest): FilesFeatureMetaInfo?
 
     /**
      * Fetches metadata for a stored file.
      *
      * @param id Identifier of the file.
-     * @return [RegisteredFileMetaInfo], or `null` when unknown / non-2xx response.
+     * @return [FilesFeatureMetaInfo], or `null` when unknown / non-2xx response.
      */
-    suspend fun getMeta(id: FileId): RegisteredFileMetaInfo?
+    suspend fun getMeta(id: FileId): FilesFeatureMetaInfo?
 
     /**
      * Fetches the avatar file id currently set for [userId].

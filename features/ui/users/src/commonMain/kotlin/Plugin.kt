@@ -12,9 +12,9 @@ import dev.inmo.wishlist.features.files.client.FilesClientService
 import dev.inmo.wishlist.features.files.common.models.FileId
 import dev.inmo.wishlist.features.users.client.UsersFeature
 import dev.inmo.wishlist.features.users.common.models.NewUser
-import dev.inmo.wishlist.features.users.common.models.RegisteredUser
 import dev.inmo.wishlist.features.users.common.models.UserId
 import dev.inmo.wishlist.features.users.common.models.Username
+import dev.inmo.wishlist.features.users.common.models.UsersFeatureUser
 import dev.inmo.wishlist.features.ui.users.ui.UserEditViewConfig
 import dev.inmo.wishlist.features.ui.users.ui.UserEditViewModel
 import dev.inmo.wishlist.features.ui.users.ui.UserViewConfig
@@ -65,9 +65,9 @@ object Plugin : StartPlugin {
             object : UsersModel {
                 override val userAuthorisedState = credentialsStorage.userAuthorised
 
-                override suspend fun getAllUsers(): List<RegisteredUser> = feature.getAll()
+                override suspend fun getAllUsers(): List<UsersFeatureUser> = feature.getAll()
 
-                override suspend fun getUser(id: UserId): RegisteredUser? =
+                override suspend fun getUser(id: UserId): UsersFeatureUser? =
                     feature.getAll().find { it.id == id }
 
                 override val currentUserIdFlow: StateFlow<UserId?> =

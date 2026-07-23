@@ -2,8 +2,8 @@ package dev.inmo.wishlist.features.wishlist.client
 
 import dev.inmo.wishlist.features.users.common.models.UserId
 import dev.inmo.wishlist.features.wishlist.common.models.NewWishlistInFeature
-import dev.inmo.wishlist.features.wishlist.common.models.RegisteredWishlist
 import dev.inmo.wishlist.features.wishlist.common.models.WishlistId
+import dev.inmo.wishlist.features.wishlist.common.models.WishlistsFeatureWishlist
 
 /**
  * Feature contract for wishlist CRUD operations.
@@ -19,9 +19,9 @@ interface WishlistsFeature {
      * Returns a single wishlist by [id] without requiring authentication.
      *
      * @param id Wishlist primary key.
-     * @return Matching [RegisteredWishlist], or `null` when not found.
+     * @return Matching [WishlistsFeatureWishlist], or `null` when not found.
      */
-    suspend fun getById(id: WishlistId): RegisteredWishlist?
+    suspend fun getById(id: WishlistId): WishlistsFeatureWishlist?
 
     /**
      * Returns all wishlists owned by the given user.
@@ -29,7 +29,7 @@ interface WishlistsFeature {
      * @param userId Owner to filter by.
      * @return List of matching registered wishlists; empty when none found.
      */
-    suspend fun getByUserId(userId: UserId): List<RegisteredWishlist>
+    suspend fun getByUserId(userId: UserId): List<WishlistsFeatureWishlist>
 
     /**
      * Returns all wishlists owned by the authenticated caller.
@@ -39,15 +39,15 @@ interface WishlistsFeature {
      *
      * @return List of wishlists owned by the caller; empty when none found.
      */
-    suspend fun getMyWishlists(): List<RegisteredWishlist>
+    suspend fun getMyWishlists(): List<WishlistsFeatureWishlist>
 
     /**
      * Creates a new wishlist for the authenticated caller.
      *
      * @param newWishlist Data for the wishlist to create; owner resolved server-side.
-     * @return The persisted [RegisteredWishlist], or `null` on failure.
+     * @return The persisted [WishlistsFeatureWishlist], or `null` on failure.
      */
-    suspend fun create(newWishlist: NewWishlistInFeature): RegisteredWishlist?
+    suspend fun create(newWishlist: NewWishlistInFeature): WishlistsFeatureWishlist?
 
     /**
      * Replaces data of an existing wishlist identified by [id].

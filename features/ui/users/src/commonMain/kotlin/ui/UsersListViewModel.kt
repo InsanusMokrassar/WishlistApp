@@ -8,8 +8,8 @@ import dev.inmo.navigation.core.onResumeFlow
 import dev.inmo.navigation.mvvm.ViewModel
 import dev.inmo.wishlist.features.common.client.models.ViewConfig
 import dev.inmo.wishlist.features.files.common.models.FileId
-import dev.inmo.wishlist.features.users.common.models.RegisteredUser
 import dev.inmo.wishlist.features.users.common.models.UserId
+import dev.inmo.wishlist.features.users.common.models.UsersFeatureUser
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.flowOf
@@ -31,7 +31,7 @@ class UsersListViewModel(
     private val model: UsersModel,
     private val interactor: UsersListViewInteractor
 ) : ViewModel<ViewConfig>(node) {
-    private val _usersState = MutableRedeliverStateFlow<List<RegisteredUser>>(emptyList())
+    private val _usersState = MutableRedeliverStateFlow<List<UsersFeatureUser>>(emptyList())
 
     /** Current list of registered users. */
     val usersState = _usersState.asStateFlow()

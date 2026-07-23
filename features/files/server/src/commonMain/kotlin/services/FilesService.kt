@@ -4,8 +4,10 @@ import com.benasher44.uuid.uuid4
 import dev.inmo.micro_utils.ktor.server.TemporalFilesRoutingConfigurator
 import dev.inmo.micro_utils.repos.set
 import dev.inmo.wishlist.features.files.common.models.FileId
+import dev.inmo.wishlist.features.files.common.models.FilesFeatureMetaInfo
 import dev.inmo.wishlist.features.files.common.models.FinalizeFileRequest
 import dev.inmo.wishlist.features.files.common.models.RegisteredFileMetaInfo
+import dev.inmo.wishlist.features.files.common.models.asFilesFeatureMetaInfo
 import dev.inmo.wishlist.features.files.common.repo.FilesMetaInfoRepo
 import dev.inmo.wishlist.features.files.common.repo.FilesRepo
 import dev.inmo.wishlist.features.files.common.repo.UserAvatarsRepo
@@ -42,9 +44,9 @@ class FilesService(
      *
      * @param request Reference to the temporal upload plus the metadata to persist.
      * @param callerId Authenticated uploader, recorded as the file owner.
-     * @return Persisted [RegisteredFileMetaInfo], or `null` on missing temp file or rejected payload.
+     * @return Persisted [FilesFeatureMetaInfo], or `null` on missing temp file or rejected payload.
      */
-    suspend fun finalize(request: FinalizeFileRequest, callerId: UserId): RegisteredFileMetaInfo? {
+    suspend fun finalize(request: FinalizeFileRequest, callerId: UserId): FilesFeatureMetaInfo? {
         val tempFile = temporalFiles.getAndRemoveTemporalFile(request.temporalFileId) ?: return null
         val bytes = tempFile.readBytes()
         tempFile.delete()
@@ -59,7 +61,7 @@ class FilesService(
             uploaderId = callerId
         )
         metaInfoRepo.set(fileId, meta)
-        return meta
+        return meta.asFilesFeatureMetaInfo()
     }
 
     /**
@@ -90,7 +92,7 @@ class FilesService(
      *
      * @param id File identifier.
      */
-    suspend fun getMeta(id: FileId): RegisteredFileMetaInfo? = metaInfoRepo.get(id)
+    suspend fun getMeta(id: FileId): FilesFeatureMetaInfo? = metaInfoRepo.get(id)?.asFilesFeatureMetaInfo()
 
     /**
      * Returns the raw payload stored for [id], or `null` when absent.
