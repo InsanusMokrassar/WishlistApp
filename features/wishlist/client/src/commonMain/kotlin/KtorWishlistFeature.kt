@@ -3,8 +3,8 @@ package dev.inmo.wishlist.features.wishlist.client
 import dev.inmo.wishlist.features.users.common.models.UserId
 import dev.inmo.wishlist.features.wishlist.common.Constants
 import dev.inmo.wishlist.features.wishlist.common.models.NewWishlistInFeature
-import dev.inmo.wishlist.features.wishlist.common.models.RegisteredWishlist
 import dev.inmo.wishlist.features.wishlist.common.models.WishlistId
+import dev.inmo.wishlist.features.wishlist.common.models.WishlistsFeatureWishlist
 import io.ktor.client.HttpClient
 import io.ktor.client.call.body
 import io.ktor.client.request.delete
@@ -33,14 +33,14 @@ class KtorWishlistFeature(
      * Fetches a single wishlist by [id] from the public endpoint (no auth token required).
      *
      * @param id Wishlist primary key.
-     * @return [RegisteredWishlist] on 2xx, `null` on 404 or any non-2xx response.
+     * @return [WishlistsFeatureWishlist] on 2xx, `null` on 404 or any non-2xx response.
      */
-    override suspend fun getById(id: WishlistId): RegisteredWishlist? {
+    override suspend fun getById(id: WishlistId): WishlistsFeatureWishlist? {
         val response = client.get("${Constants.wishlistPrefixPathPart}/${Constants.wishlistGetByIdPathPart}/${id.long}")
         return if (response.status.isSuccess()) response.body() else null
     }
 
-    override suspend fun getByUserId(userId: UserId): List<RegisteredWishlist> =
+    override suspend fun getByUserId(userId: UserId): List<WishlistsFeatureWishlist> =
         client.get("${Constants.wishlistPrefixPathPart}/${Constants.wishlistGetByUserIdPathPart}/${userId.long}").body()
 
     /**
@@ -48,16 +48,16 @@ class KtorWishlistFeature(
      *
      * @return Wishlists owned by the authenticated caller.
      */
-    override suspend fun getMyWishlists(): List<RegisteredWishlist> =
+    override suspend fun getMyWishlists(): List<WishlistsFeatureWishlist> =
         client.get("${Constants.wishlistPrefixPathPart}/${Constants.wishlistGetMyPathPart}").body()
 
     /**
      * Posts [newWishlist] as JSON (no user identifier) and deserialises the response on success.
      *
      * @param newWishlist Wishlist data to create; user resolved server-side from auth token.
-     * @return Created [RegisteredWishlist], or `null` on non-2xx response.
+     * @return Created [WishlistsFeatureWishlist], or `null` on non-2xx response.
      */
-    override suspend fun create(newWishlist: NewWishlistInFeature): RegisteredWishlist? {
+    override suspend fun create(newWishlist: NewWishlistInFeature): WishlistsFeatureWishlist? {
         val response = client.post("${Constants.wishlistPrefixPathPart}/${Constants.wishlistCreatePathPart}") {
             setBody(newWishlist)
         }

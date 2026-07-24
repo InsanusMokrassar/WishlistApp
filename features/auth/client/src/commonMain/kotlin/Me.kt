@@ -1,6 +1,6 @@
 package dev.inmo.wishlist.features.auth.client
 
-import dev.inmo.wishlist.features.users.common.models.RegisteredUser
+import dev.inmo.wishlist.features.auth.common.models.AuthFeatureUser
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import org.koin.core.Koin
@@ -20,23 +20,23 @@ val meQualifier: StringQualifier = named("me")
 
 internal fun Module.singleMeStateFlow(
     createdAtStart: Boolean = false,
-    definition: Definition<StateFlow<RegisteredUser?>>,
-): KoinDefinition<StateFlow<RegisteredUser?>> = single(meQualifier, createdAtStart, definition)
+    definition: Definition<StateFlow<AuthFeatureUser?>>,
+): KoinDefinition<StateFlow<AuthFeatureUser?>> = single(meQualifier, createdAtStart, definition)
 
 
 /**
- * State of the currently authenticated user: the caller's [RegisteredUser] when somebody is
+ * State of the currently authenticated user: the caller's [AuthFeatureUser] when somebody is
  * logged in, `null` otherwise. Kept up to date by the [Plugin.startPlugin] subscription on
  * [AuthCredentialsStorage.userAuthorised].
  */
-val Koin.meStateFlow: StateFlow<RegisteredUser?>
+val Koin.meStateFlow: StateFlow<AuthFeatureUser?>
     get() = get(qualifier = meQualifier)
 
 /**
  * [meStateFlow] accessor for Koin [Scope] receivers — e.g. inside `single { }` definitions of consumer
  * modules.
  */
-val Scope.meStateFlow: StateFlow<RegisteredUser?>
+val Scope.meStateFlow: StateFlow<AuthFeatureUser?>
     get() = get(qualifier = meQualifier)
 
 
@@ -48,20 +48,20 @@ private val secretMeMutableStateFlowQualifier: StringQualifier = named("secret_m
 
 internal fun Module.singleSecretMeMutableStateFlow(
     createdAtStart: Boolean = false,
-    definition: Definition<MutableStateFlow<RegisteredUser?>>,
-): KoinDefinition<MutableStateFlow<RegisteredUser?>> = single(secretMeMutableStateFlowQualifier, createdAtStart, definition)
+    definition: Definition<MutableStateFlow<AuthFeatureUser?>>,
+): KoinDefinition<MutableStateFlow<AuthFeatureUser?>> = single(secretMeMutableStateFlowQualifier, createdAtStart, definition)
 
 /**
- * State of the currently authenticated user: the caller's [RegisteredUser] when somebody is
+ * State of the currently authenticated user: the caller's [AuthFeatureUser] when somebody is
  * logged in, `null` otherwise. Kept up to date by the [Plugin.startPlugin] subscription on
  * [AuthCredentialsStorage.userAuthorised].
  */
-internal val Koin.secretMeMutableStateFlow: MutableStateFlow<RegisteredUser?>
+internal val Koin.secretMeMutableStateFlow: MutableStateFlow<AuthFeatureUser?>
     get() = get(qualifier = secretMeMutableStateFlowQualifier)
 
 /**
  * [meStateFlow] accessor for Koin [Scope] receivers — e.g. inside `single { }` definitions of consumer
  * modules.
  */
-internal val Scope.secretMeMutableStateFlow: MutableStateFlow<RegisteredUser?>
+internal val Scope.secretMeMutableStateFlow: MutableStateFlow<AuthFeatureUser?>
     get() = get(qualifier = secretMeMutableStateFlowQualifier)

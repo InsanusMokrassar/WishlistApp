@@ -16,10 +16,10 @@ Full-stack wishlist management. Users create wishlists and add items to them. Al
 
 | Method | Path | Auth | Body / Response | Description |
 |--------|------|------|-----------------|-------------|
-| GET | `/wishlist/getByUserId/{userId}` | None | `→ List<RegisteredWishlist> \| 400` | All wishlists owned by `userId`; public |
-| GET | `/wishlist/getById/{id}` | None | `→ RegisteredWishlist \| 400 \| 404` | Single wishlist by id; public |
-| GET | `/wishlist/getMy` | Bearer | `→ List<RegisteredWishlist>` | All wishlists owned by the authenticated caller |
-| POST | `/wishlist/create` | Bearer | `NewWishlistInFeature → RegisteredWishlist \| 500` | Create wishlist; owner resolved from bearer token |
+| GET | `/wishlist/getByUserId/{userId}` | None | `→ List<WishlistsFeatureWishlist> \| 400` | All wishlists owned by `userId`; public |
+| GET | `/wishlist/getById/{id}` | None | `→ WishlistsFeatureWishlist \| 400 \| 404` | Single wishlist by id; public |
+| GET | `/wishlist/getMy` | Bearer | `→ List<WishlistsFeatureWishlist>` | All wishlists owned by the authenticated caller |
+| POST | `/wishlist/create` | Bearer | `NewWishlistInFeature → WishlistsFeatureWishlist \| 500` | Create wishlist; owner resolved from bearer token |
 | POST | `/wishlist/copy` | Bearer | `CopyWishlistRequest → 202 \| 500` | Enqueue a background deep-copy of any wishlist into the caller's profile (recipient = caller) |
 | PUT | `/wishlist/update/{id}` | Bearer | `NewWishlistInFeature → 200 \| 400 \| 403 \| 404` | Replace wishlist data if caller is owner |
 | DELETE | `/wishlist/delete/{id}` | Bearer | `→ 200 \| 400 \| 403 \| 404` | Remove wishlist if caller is owner |
@@ -28,9 +28,9 @@ Full-stack wishlist management. Users create wishlists and add items to them. Al
 
 | Method | Path | Auth | Body / Response | Description |
 |--------|------|------|-----------------|-------------|
-| GET | `/wishlistItem/getByWishlistId/{wishlistId}` | None | `→ List<RegisteredWishlistItem> \| 400` | All items in a wishlist; public |
-| POST | `/wishlistItem/create` | Bearer | `NewWishlistItem → RegisteredWishlistItem \| 500` | Create item; caller must own parent wishlist (null=not found or not owner → 500) |
-| POST | `/wishlistItem/copy` | Bearer | `CopyItemRequest → RegisteredWishlistItem \| 500` | Deep-copy a source item (any owner) into a caller-owned target wishlist; idempotent (returns existing identical item if present); 500 when target not owned / source or target missing |
+| GET | `/wishlistItem/getByWishlistId/{wishlistId}` | None | `→ List<WishlistsFeatureItem> \| 400` | All items in a wishlist; public |
+| POST | `/wishlistItem/create` | Bearer | `NewWishlistItem → WishlistsFeatureItem \| 500` | Create item; caller must own parent wishlist (null=not found or not owner → 500) |
+| POST | `/wishlistItem/copy` | Bearer | `CopyItemRequest → WishlistsFeatureItem \| 500` | Deep-copy a source item (any owner) into a caller-owned target wishlist; idempotent (returns existing identical item if present); 500 when target not owned / source or target missing |
 | PUT | `/wishlistItem/update/{id}` | Bearer | `NewWishlistItem → 200 \| 400 \| 403 \| 404` | Replace item data if caller owns parent wishlist |
 | DELETE | `/wishlistItem/delete/{id}` | Bearer | `→ 200 \| 400 \| 403 \| 404` | Remove item if caller owns parent wishlist |
 
@@ -56,7 +56,8 @@ Note: item `create` maps both "parent not found" and "caller not owner" to `null
 | `NewWishlist` | common | Internal create payload: `userId: UserId`, `title: String`, `defaultPriceUnits: String = ""`; never sent over the wire |
 | `NewWishlistInFeature` | common | Client-facing create/update payload: `title: String`, `defaultPriceUnits: String = ""`; owner resolved server-side |
 | `RegisteredWishlist` | common | Persisted entity: `id: WishlistId`, `userId: UserId`, `title: String`, `defaultPriceUnits: String` |
-| `WishlistsFeature` | client | Client-side interface: `getByUserId`, `getMyWishlists`, `create`, `update`, `delete` |
+| `WishlistsFeatureWishlist` | common | `@Serializable` feature model mirroring `RegisteredWishlist` verbatim, returned by `WishlistsFeature`'s read/create operations instead of the persistence entity directly, per the Feature Interface Return Model Rule |
+| `WishlistsFeature` | client | Client-side interface: `getByUserId`, `getMyWishlists`, `create`, `update`, `delete` — reads/creates return `WishlistsFeatureWishlist` |
 
 ### Wishlist Item
 
@@ -69,7 +70,8 @@ Note: item `create` maps both "parent not found" and "caller not owner" to `null
 | `RegisteredWishlistItem` | common | Persisted entity: adds `id: WishlistItemId` to `NewWishlistItem` fields |
 | `WishlistItemLink` | common | `@Serializable data class(url: String, title: String? = null)` — one external link with an optional title (issue #38). Extension `WishlistItemLink.displayText` returns `title` (when non-blank) else `url` — the single "title-as-link or bare-link" display rule shared by all client views |
 | `FileId` | common | Imported from `features/files` — string type wrapping a file identifier |
-| `WishlistsItemsFeature` | client | Client-side interface: `getByWishlistId`, `create`, `copy`, `update`, `delete` |
+| `WishlistsFeatureItem` | common | `@Serializable` feature model mirroring `RegisteredWishlistItem`'s full display field set, returned by `WishlistsItemsFeature`'s read/create/copy operations instead of the persistence entity directly, per the Feature Interface Return Model Rule |
+| `WishlistsItemsFeature` | client | Client-side interface: `getByWishlistId`, `create`, `copy`, `update`, `delete` — reads/creates/copy return `WishlistsFeatureItem` |
 
 ### Copy (deep-copy of items and wishlists)
 
@@ -88,6 +90,7 @@ Note: item `create` maps both "parent not found" and "caller not owner" to `null
 ## Architecture Notes
 
 - `WishlistService` and `WishlistItemService` are **not** bound to `WishlistsFeature` / `WishlistsItemsFeature` in Koin because their mutation methods carry an explicit `callerId: UserId` parameter absent from the client interfaces. Routing configurators inject the services directly.
+- **Feature Interface Return Model Rule:** `WishlistService.getById`/`getByUserId`/`getMyWishlists`/`create` return `WishlistsFeatureWishlist`; `WishlistItemService.getByWishlistId`/`create`/`copyItem` return `WishlistsFeatureItem` — both replace the raw `RegisteredWishlist`/`RegisteredWishlistItem` persistence entities per `agents/CODING.md`'s Feature Interface Return Model Rule. `update`/`delete` on both services are unaffected (still `Boolean?`). `WishlistCopyService` was confirmed NOT in scope — its only public method never returns `RegisteredWishlistItem`. `features/admin` consumes `WishlistsFeatureWishlist` too: `AdminRoutingsConfigurator`'s three `WishlistService`-routed wishlist routes map it onward to `AdminWishlist` via a second `WishlistsFeatureWishlist`-sourced mapper overload (see `features/admin/README.md`).
 - Ownership check for wishlists: `WishlistService.update`/`delete` fetch the entity from the repo, compare `userId == callerId`; `null` = not found, `false` = not owner.
 - Ownership check for items: `WishlistItemService.create` resolves parent wishlist from `NewWishlistItem.wishlistId`; returns `null` for both not found and not owner. `update`/`delete` fetch the item then the parent wishlist; `null` = item or parent not found, `false` = not owner.
 - `WishlistItemService(get(), get())` — two Koin `get()` calls: first resolves `WishlistItemRepo`, second resolves `WishlistRepo` (registered by `wishlist.common.JVMPlugin`).

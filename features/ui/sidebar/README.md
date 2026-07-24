@@ -46,6 +46,10 @@ None — client-only UI feature.
   profile row → `UserViewConfig(me)`, New list → `WishlistEditViewConfig(null)`.
 - `SidebarModel` is registered in this feature's `Plugin` and resolves `WishlistsModel` /
   `BookingModel` lazily from Koin — no cross-feature `setupDI` delegation.
+- **Feature Interface Return Model Rule:** `SidebarModel.getMyWishlists(): List<WishlistsFeatureWishlist>`
+  (was `List<RegisteredWishlist>`) — this feature is a genuine V4 (`features/wishlist`) consumer via
+  `WishlistsModel.getMyWishlists()`, confirmed to have zero `RegisteredUser`/`meStateFlow`/`AuthFeature`
+  references (not a V1/auth consumer). `SidebarViewModel.myListsState` retyped to match.
 - `SidebarViewModel` reloads pinned lists, reserved count, and the active section on first show,
   on login/logout (`currentUserIdFlow`), and on every navigation change (`changesInSubTreeFlow`).
 - Nav glyphs are inline [Lucide](https://lucide.dev) SVGs (`LucideIcons` / `LucideIcon`), injected

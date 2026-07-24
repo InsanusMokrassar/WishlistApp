@@ -5,6 +5,9 @@ import dev.inmo.micro_utils.startup.plugin.StartPlugin
 import dev.inmo.wishlist.features.admin.client.AdminFeature
 import dev.inmo.wishlist.features.email.client.EmailFeature
 import dev.inmo.wishlist.features.email.common.models.Email
+import dev.inmo.wishlist.features.admin.common.models.AdminUser
+import dev.inmo.wishlist.features.admin.common.models.AdminWishlist
+import dev.inmo.wishlist.features.admin.common.models.AdminWishlistItem
 import dev.inmo.wishlist.features.admin.common.models.NewUserWithPassword
 import dev.inmo.wishlist.features.auth.client.AuthCredentialsStorage
 import dev.inmo.wishlist.features.common.client.models.ViewConfig
@@ -26,13 +29,10 @@ import dev.inmo.wishlist.features.ui.adminPanel.ui.AdminWishlistViewModel
 import dev.inmo.wishlist.features.ui.adminPanel.ui.AdminWishlistsListViewConfig
 import dev.inmo.wishlist.features.ui.adminPanel.ui.AdminWishlistsListViewModel
 import dev.inmo.wishlist.features.users.common.models.NewUser
-import dev.inmo.wishlist.features.users.common.models.RegisteredUser
 import dev.inmo.wishlist.features.users.common.models.UserId
 import dev.inmo.wishlist.features.wishlist.common.models.NewWishlist
 import dev.inmo.wishlist.features.wishlist.common.models.NewWishlistInFeature
 import dev.inmo.wishlist.features.wishlist.common.models.NewWishlistItem
-import dev.inmo.wishlist.features.wishlist.common.models.RegisteredWishlist
-import dev.inmo.wishlist.features.wishlist.common.models.RegisteredWishlistItem
 import dev.inmo.wishlist.features.wishlist.common.models.WishlistId
 import dev.inmo.wishlist.features.wishlist.common.models.WishlistItemId
 import kotlinx.serialization.json.JsonObject
@@ -89,13 +89,13 @@ object Plugin : StartPlugin {
             object : AdminPanelModel {
                 override val userAuthorisedState = credentialsStorage.userAuthorised
 
-                override suspend fun getAllUsers(): List<RegisteredUser> =
+                override suspend fun getAllUsers(): List<AdminUser> =
                     admin.usersManagement.getAll()
 
-                override suspend fun getUserById(id: UserId): RegisteredUser? =
+                override suspend fun getUserById(id: UserId): AdminUser? =
                     admin.usersManagement.getById(id)
 
-                override suspend fun createUser(newUser: NewUserWithPassword): RegisteredUser? =
+                override suspend fun createUser(newUser: NewUserWithPassword): AdminUser? =
                     admin.usersManagement.create(newUser)
 
                 override suspend fun updateUser(id: UserId, newUser: NewUser): Boolean =
@@ -104,16 +104,16 @@ object Plugin : StartPlugin {
                 override suspend fun deleteUser(id: UserId): Boolean =
                     admin.usersManagement.delete(id)
 
-                override suspend fun getAllWishlists(): List<RegisteredWishlist> =
+                override suspend fun getAllWishlists(): List<AdminWishlist> =
                     admin.wishlists.getAll()
 
-                override suspend fun getWishlistsByUser(userId: UserId): List<RegisteredWishlist> =
+                override suspend fun getWishlistsByUser(userId: UserId): List<AdminWishlist> =
                     admin.wishlists.getByUserId(userId)
 
-                override suspend fun getWishlistById(id: WishlistId): RegisteredWishlist? =
+                override suspend fun getWishlistById(id: WishlistId): AdminWishlist? =
                     admin.wishlists.getById(id)
 
-                override suspend fun createWishlist(newWishlist: NewWishlist): RegisteredWishlist? =
+                override suspend fun createWishlist(newWishlist: NewWishlist): AdminWishlist? =
                     admin.wishlists.create(newWishlist)
 
                 override suspend fun updateWishlist(id: WishlistId, userId: UserId, title: String): Boolean =
@@ -122,10 +122,10 @@ object Plugin : StartPlugin {
                 override suspend fun deleteWishlist(id: WishlistId): Boolean =
                     admin.wishlists.delete(id)
 
-                override suspend fun getItemsByWishlist(wishlistId: WishlistId): List<RegisteredWishlistItem> =
+                override suspend fun getItemsByWishlist(wishlistId: WishlistId): List<AdminWishlistItem> =
                     admin.wishlistItems.getByWishlistId(wishlistId)
 
-                override suspend fun createWishlistItem(item: NewWishlistItem): RegisteredWishlistItem? =
+                override suspend fun createWishlistItem(item: NewWishlistItem): AdminWishlistItem? =
                     admin.wishlistItems.create(item)
 
                 override suspend fun updateWishlistItem(id: WishlistItemId, item: NewWishlistItem): Boolean =

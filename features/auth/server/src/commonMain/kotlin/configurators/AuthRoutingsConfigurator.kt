@@ -77,11 +77,11 @@ class AuthRoutingsConfigurator(
                         return@get
                     }
                     val token = Token(header.render().removePrefix(header.authScheme).trim())
-                    val registeredUser = authFeature.getUser(token)
-                    if (registeredUser == null) {
+                    val authFeatureUser = authFeature.getUser(token)
+                    if (authFeatureUser == null) {
                         call.respond(HttpStatusCode.Unauthorized)
                     } else {
-                        call.respond(registeredUser)
+                        call.respond(authFeatureUser)
                     }
                 }
             }

@@ -2,11 +2,12 @@ package dev.inmo.wishlist.features.admin.server
 
 import dev.inmo.micro_utils.repos.create
 import dev.inmo.micro_utils.repos.deleteById
+import dev.inmo.wishlist.features.admin.common.models.AdminUser
 import dev.inmo.wishlist.features.admin.common.models.NewUserWithPassword
+import dev.inmo.wishlist.features.admin.common.models.asAdminUser
 import dev.inmo.wishlist.features.auth.common.models.Password
 import dev.inmo.wishlist.features.auth.server.services.AuthFeatureService
 import dev.inmo.wishlist.features.users.common.models.NewUser
-import dev.inmo.wishlist.features.users.common.models.RegisteredUser
 import dev.inmo.wishlist.features.users.common.models.UserId
 import dev.inmo.wishlist.features.users.common.repo.UsersRepo
 import dev.inmo.wishlist.features.wishlist.common.repo.WishlistItemRepo
@@ -31,22 +32,22 @@ class UsersManagementFeature(
     private val wishlistRepo: WishlistRepo,
     private val wishlistItemRepo: WishlistItemRepo
 ) {
-    suspend fun getAll(): List<RegisteredUser> =
-        usersRepo.getAll().values.toList()
+    suspend fun getAll(): List<AdminUser> =
+        usersRepo.getAll().values.map { it.asAdminUser() }
 
     /**
      * Creates a new user with a hashed password.
      *
      * @param newUserWithPassword Desired username, plus plaintext password (hashed via
      *   [authService] before storage).
-     * @return The newly created [RegisteredUser], or `null` when creation failed.
+     * @return The newly created [AdminUser], or `null` when creation failed.
      * @throws dev.inmo.wishlist.features.users.common.repo.exceptions.DuplicateUserFieldException
      *   when [newUserWithPassword]'s username is already taken by another user.
      */
-    suspend fun create(newUserWithPassword: NewUserWithPassword): RegisteredUser? {
+    suspend fun create(newUserWithPassword: NewUserWithPassword): AdminUser? {
         val user = usersRepo.create(NewUser(newUserWithPassword.username)).firstOrNull() ?: return null
         authService.setPassword(user.id, newUserWithPassword.password)
-        return user
+        return user.asAdminUser()
     }
 
     /**

@@ -2,9 +2,9 @@ package dev.inmo.wishlist.features.wishlist.client
 
 import dev.inmo.wishlist.features.wishlist.common.models.CopyItemRequest
 import dev.inmo.wishlist.features.wishlist.common.models.NewWishlistItem
-import dev.inmo.wishlist.features.wishlist.common.models.RegisteredWishlistItem
 import dev.inmo.wishlist.features.wishlist.common.models.WishlistId
 import dev.inmo.wishlist.features.wishlist.common.models.WishlistItemId
+import dev.inmo.wishlist.features.wishlist.common.models.WishlistsFeatureItem
 
 /**
  * Feature contract for wishlist item CRUD operations.
@@ -23,7 +23,7 @@ interface WishlistsItemsFeature {
      * @param wishlistId Parent wishlist to filter by.
      * @return List of matching registered items; empty when none found.
      */
-    suspend fun getByWishlistId(wishlistId: WishlistId): List<RegisteredWishlistItem>
+    suspend fun getByWishlistId(wishlistId: WishlistId): List<WishlistsFeatureItem>
 
     /**
      * Creates a new wishlist item from [newWishlistItem].
@@ -32,9 +32,9 @@ interface WishlistsItemsFeature {
      * the server enforces this constraint.
      *
      * @param newWishlistItem Data for the item to create.
-     * @return The persisted [RegisteredWishlistItem], or `null` on failure or authorization error.
+     * @return The persisted [WishlistsFeatureItem], or `null` on failure or authorization error.
      */
-    suspend fun create(newWishlistItem: NewWishlistItem): RegisteredWishlistItem?
+    suspend fun create(newWishlistItem: NewWishlistItem): WishlistsFeatureItem?
 
     /**
      * Deep-copies a source item into one of the caller's own wishlists.
@@ -46,7 +46,7 @@ interface WishlistsItemsFeature {
      * @param request Source item + caller-owned target wishlist.
      * @return The created (or pre-existing identical) item, or `null` on failure / authorization error.
      */
-    suspend fun copy(request: CopyItemRequest): RegisteredWishlistItem?
+    suspend fun copy(request: CopyItemRequest): WishlistsFeatureItem?
 
     /**
      * Replaces data of an existing item identified by [id].

@@ -1,7 +1,7 @@
 package dev.inmo.wishlist.features.simpleRoles.client
 
 import dev.inmo.micro_utils.coroutines.subscribeLoggingDropExceptions
-import dev.inmo.wishlist.features.users.common.models.RegisteredUser
+import dev.inmo.wishlist.features.auth.common.models.AuthFeatureUser
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -26,7 +26,7 @@ import kotlinx.coroutines.flow.merge
  */
 class CacheSimpleRolesFeature(
     private val delegate: KtorSimpleRolesFeature,
-    private val meState: StateFlow<RegisteredUser?>,
+    private val meState: StateFlow<AuthFeatureUser?>,
     scope: CoroutineScope
 ) : SimpleRolesFeature {
     /**

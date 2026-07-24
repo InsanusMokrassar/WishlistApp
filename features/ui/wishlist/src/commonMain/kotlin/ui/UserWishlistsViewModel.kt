@@ -14,8 +14,8 @@ import dev.inmo.wishlist.features.currency.common.utils.costSortKey
 import dev.inmo.wishlist.features.currency.common.utils.dominantCurrency
 import dev.inmo.wishlist.features.currency.common.utils.isCostSortAvailable
 import dev.inmo.wishlist.features.files.common.models.FileId
-import dev.inmo.wishlist.features.wishlist.common.models.RegisteredWishlist
-import dev.inmo.wishlist.features.wishlist.common.models.RegisteredWishlistItem
+import dev.inmo.wishlist.features.wishlist.common.models.WishlistsFeatureItem
+import dev.inmo.wishlist.features.wishlist.common.models.WishlistsFeatureWishlist
 import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.coroutineScope
@@ -37,8 +37,8 @@ import kotlinx.coroutines.flow.stateIn
  * @param items Items belonging to [wishlist], in their stored order.
  */
 data class UserWishlistsSection(
-    val wishlist: RegisteredWishlist,
-    val items: List<RegisteredWishlistItem>
+    val wishlist: WishlistsFeatureWishlist,
+    val items: List<WishlistsFeatureItem>
 )
 
 /**
@@ -51,13 +51,13 @@ enum class WishlistSortMode {
     /** No custom sorting; items stay grouped under their wishlist headers. */
     None,
 
-    /** Sort by [RegisteredWishlistItem.approximatePrice] ascending; items without a price go last. */
+    /** Sort by [WishlistsFeatureItem.approximatePrice] ascending; items without a price go last. */
     Cost,
 
     /** Sort by [dev.inmo.wishlist.features.wishlist.common.models.Priority.weight] descending (most important first). */
     Priority,
 
-    /** Sort by [RegisteredWishlistItem.title] case-insensitively, ascending. */
+    /** Sort by [WishlistsFeatureItem.title] case-insensitively, ascending. */
     Title
 }
 
@@ -83,7 +83,7 @@ fun sortModesFor(costSortAvailable: Boolean): List<WishlistSortMode> =
  * @param wishlistTitle Title of the wishlist [item] belongs to.
  */
 data class SortedWishlistItem(
-    val item: RegisteredWishlistItem,
+    val item: WishlistsFeatureItem,
     val wishlistTitle: String
 )
 
@@ -296,7 +296,7 @@ class UserWishlistsViewModel(
      *
      * @param item Item whose detail screen should be opened.
      */
-    fun onItemSelected(item: RegisteredWishlistItem) {
+    fun onItemSelected(item: WishlistsFeatureItem) {
         scope.launchLoggingDropExceptions { interactor.onItemSelected(node, item.id, item.wishlistId) }
     }
 
@@ -305,7 +305,7 @@ class UserWishlistsViewModel(
      *
      * @param wishlist Wishlist whose detail screen should be opened.
      */
-    fun onWishlistSelected(wishlist: RegisteredWishlist) {
+    fun onWishlistSelected(wishlist: WishlistsFeatureWishlist) {
         scope.launchLoggingDropExceptions { interactor.onWishlistSelected(node, wishlist.id) }
     }
 
@@ -349,7 +349,7 @@ class UserWishlistsViewModel(
      *
      * @param wishlist Wishlist the new item should be created in.
      */
-    fun onCreateItem(wishlist: RegisteredWishlist) {
+    fun onCreateItem(wishlist: WishlistsFeatureWishlist) {
         scope.launchLoggingDropExceptions { interactor.onCreateItemClick(node, wishlist.id) }
     }
 

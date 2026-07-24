@@ -4,6 +4,9 @@ import dev.inmo.micro_utils.ktor.server.configurators.ApplicationRoutingConfigur
 import dev.inmo.micro_utils.repos.deleteById
 import dev.inmo.wishlist.features.admin.common.Constants
 import dev.inmo.wishlist.features.admin.common.models.NewUserWithPassword
+import dev.inmo.wishlist.features.admin.common.models.asAdminUser
+import dev.inmo.wishlist.features.admin.common.models.asAdminWishlist
+import dev.inmo.wishlist.features.admin.common.models.asAdminWishlistItem
 import dev.inmo.wishlist.features.admin.server.AdminFeature
 import dev.inmo.wishlist.features.auth.common.models.Password
 import dev.inmo.wishlist.features.auth.server.utils.getCallerUserIdOrAnswerUnauthorized
@@ -94,7 +97,7 @@ class AdminRoutingsConfigurator(
                             call.respond(HttpStatusCode.NotFound)
                             return@get
                         }
-                        call.respond(user)
+                        call.respond(user.asAdminUser())
                     }
                     post(Constants.usersCreatePathPart) {
                         requireAdmin() ?: return@post
@@ -159,7 +162,7 @@ class AdminRoutingsConfigurator(
                 route(Constants.wishlistsPathPart) {
                     get(Constants.wishlistsGetAllPathPart) {
                         requireAdmin() ?: return@get
-                        call.respond(wishlistRepo.getAll().values.toList())
+                        call.respond(wishlistRepo.getAll().values.map { it.asAdminWishlist() })
                     }
                     get("${Constants.wishlistsGetByUserIdPathPart}/{userId}") {
                         requireAdmin() ?: return@get
@@ -167,7 +170,7 @@ class AdminRoutingsConfigurator(
                             call.respond(HttpStatusCode.BadRequest)
                             return@get
                         }
-                        call.respond(wishlistService.getByUserId(userId))
+                        call.respond(wishlistService.getByUserId(userId).map { it.asAdminWishlist() })
                     }
                     get("${Constants.wishlistsGetByIdPathPart}/{id}") {
                         requireAdmin() ?: return@get
@@ -179,7 +182,7 @@ class AdminRoutingsConfigurator(
                             call.respond(HttpStatusCode.NotFound)
                             return@get
                         }
-                        call.respond(wishlist)
+                        call.respond(wishlist.asAdminWishlist())
                     }
                     post(Constants.wishlistsCreatePathPart) {
                         requireAdmin() ?: return@post
@@ -191,7 +194,7 @@ class AdminRoutingsConfigurator(
                         if (result == null) {
                             call.respond(HttpStatusCode.InternalServerError)
                         } else {
-                            call.respond(result)
+                            call.respond(result.asAdminWishlist())
                         }
                     }
                     put("${Constants.wishlistsUpdatePathPart}/{id}") {
@@ -210,7 +213,7 @@ class AdminRoutingsConfigurator(
                             NewWishlist(existing.userId, newWishlist.title, existing.defaultPriceUnits)
                         )
                         if (updated != null) {
-                            call.respond(updated)
+                            call.respond(updated.asAdminWishlist())
                         } else {
                             call.respond(HttpStatusCode.InternalServerError)
                         }
@@ -236,7 +239,7 @@ class AdminRoutingsConfigurator(
                             call.respond(HttpStatusCode.BadRequest)
                             return@get
                         }
-                        call.respond(wishlistItemRepo.getByWishlistId(wishlistId))
+                        call.respond(wishlistItemRepo.getByWishlistId(wishlistId).map { it.asAdminWishlistItem() })
                     }
                     post(Constants.wishlistItemsCreatePathPart) {
                         requireAdmin() ?: return@post
@@ -245,7 +248,7 @@ class AdminRoutingsConfigurator(
                             call.respond(HttpStatusCode.InternalServerError)
                             return@post
                         }
-                        call.respond(result)
+                        call.respond(result.asAdminWishlistItem())
                     }
                     put("${Constants.wishlistItemsUpdatePathPart}/{id}") {
                         requireAdmin() ?: return@put
@@ -258,7 +261,7 @@ class AdminRoutingsConfigurator(
                             call.respond(HttpStatusCode.NotFound)
                             return@put
                         }
-                        call.respond(updated)
+                        call.respond(updated.asAdminWishlistItem())
                     }
                     delete("${Constants.wishlistItemsDeletePathPart}/{id}") {
                         requireAdmin() ?: return@delete

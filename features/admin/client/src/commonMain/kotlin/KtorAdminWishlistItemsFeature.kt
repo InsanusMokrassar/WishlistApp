@@ -1,8 +1,8 @@
 package dev.inmo.wishlist.features.admin.client
 
 import dev.inmo.wishlist.features.admin.common.Constants
+import dev.inmo.wishlist.features.admin.common.models.AdminWishlistItem
 import dev.inmo.wishlist.features.wishlist.common.models.NewWishlistItem
-import dev.inmo.wishlist.features.wishlist.common.models.RegisteredWishlistItem
 import dev.inmo.wishlist.features.wishlist.common.models.WishlistId
 import dev.inmo.wishlist.features.wishlist.common.models.WishlistItemId
 import io.ktor.client.HttpClient
@@ -19,10 +19,10 @@ class KtorAdminWishlistItemsFeature(
 ) : AdminWishlistItemsFeature {
     private val basePath = "${Constants.adminPrefixPathPart}/${Constants.wishlistItemsPathPart}"
 
-    override suspend fun getByWishlistId(wishlistId: WishlistId): List<RegisteredWishlistItem> =
+    override suspend fun getByWishlistId(wishlistId: WishlistId): List<AdminWishlistItem> =
         client.get("$basePath/${Constants.wishlistItemsGetByWishlistIdPathPart}/${wishlistId.long}").body()
 
-    override suspend fun create(item: NewWishlistItem): RegisteredWishlistItem? {
+    override suspend fun create(item: NewWishlistItem): AdminWishlistItem? {
         val response = client.post("$basePath/${Constants.wishlistItemsCreatePathPart}") {
             setBody(item)
         }

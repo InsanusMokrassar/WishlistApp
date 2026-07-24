@@ -1,10 +1,10 @@
 package dev.inmo.wishlist.features.admin.client
 
 import dev.inmo.wishlist.features.admin.common.Constants
+import dev.inmo.wishlist.features.admin.common.models.AdminWishlist
 import dev.inmo.wishlist.features.users.common.models.UserId
 import dev.inmo.wishlist.features.wishlist.common.models.NewWishlist
 import dev.inmo.wishlist.features.wishlist.common.models.NewWishlistInFeature
-import dev.inmo.wishlist.features.wishlist.common.models.RegisteredWishlist
 import dev.inmo.wishlist.features.wishlist.common.models.WishlistId
 import io.ktor.client.HttpClient
 import io.ktor.client.call.body
@@ -20,18 +20,18 @@ class KtorAdminWishlistsFeature(
 ) : AdminWishlistsFeature {
     private val basePath = "${Constants.adminPrefixPathPart}/${Constants.wishlistsPathPart}"
 
-    override suspend fun getAll(): List<RegisteredWishlist> =
+    override suspend fun getAll(): List<AdminWishlist> =
         client.get("$basePath/${Constants.wishlistsGetAllPathPart}").body()
 
-    override suspend fun getByUserId(userId: UserId): List<RegisteredWishlist> =
+    override suspend fun getByUserId(userId: UserId): List<AdminWishlist> =
         client.get("$basePath/${Constants.wishlistsGetByUserIdPathPart}/${userId.long}").body()
 
-    override suspend fun getById(id: WishlistId): RegisteredWishlist? {
+    override suspend fun getById(id: WishlistId): AdminWishlist? {
         val response = client.get("$basePath/${Constants.wishlistsGetByIdPathPart}/${id.long}")
         return if (response.status.isSuccess()) response.body() else null
     }
 
-    override suspend fun create(newWishlist: NewWishlist): RegisteredWishlist? {
+    override suspend fun create(newWishlist: NewWishlist): AdminWishlist? {
         val response = client.post("$basePath/${Constants.wishlistsCreatePathPart}") {
             setBody(newWishlist)
         }

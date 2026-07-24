@@ -19,7 +19,7 @@ End-to-end bearer-token authentication. Handles login (BCrypt password check), o
 | POST | `/auth/login` | None | `LoginRequest → AuthCredentials \| 401` | Validates credentials, returns token + refreshToken |
 | POST | `/auth/refresh` | None | `RefreshRequest → AuthCredentials \| 401` | Exchanges refreshToken for new credentials |
 | POST | `/auth/logout` | Bearer | `→ 200` | Invalidates the bearer token |
-| GET | `/auth/getMe` | Bearer | `→ RegisteredUser \| 401` | Returns the user record for the current token |
+| GET | `/auth/getMe` | Bearer | `→ AuthFeatureUser \| 401` | Returns the caller's own record for the current token |
 
 ## Models
 
@@ -33,8 +33,10 @@ End-to-end bearer-token authentication. Handles login (BCrypt password check), o
 | `LoginRequest` | Wire DTO: `username: Username`, `password: Password` |
 | `RegisterRequest` | Wire DTO: `username: Username`, `password: Password` — used for registration |
 | `RefreshRequest` | Wire DTO: `refreshToken: RefreshToken` |
+| `AuthFeatureUser` | `@Serializable` feature model returned by `getMe`/`getUser`/the "me" state flow: `id: UserId`, `username: Username`, `email: Email?`. Deliberately keeps `email` — this is the authenticated caller's own record, not a public listing; see its class KDoc. |
 | `AuthFeature` | Shared interface: `login`, `refresh`, `register`, `isRegistrationAvailable` |
-| `ServerAuthFeature` | Server-only extension: `logout`, `getUser` |
+| `ClientAuthFeature` | Client-only extension: `logout`, `getMe(): AuthFeatureUser?` |
+| `ServerAuthFeature` | Server-only extension: `logout`, `getUser(token): AuthFeatureUser?` |
 | `ServerUrlStorage` | Client-side interface: `getServerUrl / saveServerUrl` (platform-specific impls) |
 | `AuthCredentialsStorage` | Client-side interface: `get / save AuthCredentials` (platform-specific impls) |
 
@@ -51,6 +53,7 @@ End-to-end bearer-token authentication. Handles login (BCrypt password check), o
 - `AuthConfig` is server-only (package `dev.inmo.wishlist.features.auth.server.models`) — client never imports it.
 - `AuthFeatureService` (server) requires `WriteUsersRepo` in addition to `ReadUsersRepo` to create accounts during registration.
 - `AuthFeatureService.purgeUser(userId)` (server-only) removes the stored password hash and every active access/refresh session for a user; used by the admin user-delete cascade (`features/admin`).
+- **Feature Interface Return Model Rule:** `getMe`/`getUser` and the "me" state flow now return `AuthFeatureUser` (a `common/models/` feature model) instead of the persistence entity `RegisteredUser` directly, per `agents/CODING.md`'s Feature Interface Return Model Rule. `AuthFeatureUser` deliberately keeps `email` (own-record surface); contrast with `features/users`' `UsersFeatureUser`, which drops it on the public listing.
 - Role assignment for newly created/bootstrapped users (issue #68) is handled separately by `features/roles` — see `roles/README.md`.
 - `SerializationConfigurator` sets `defaultRequest { contentType(ContentType.Application.Json) }` so individual request builders need not repeat it.
 - `ServerUrlStorage` and `AuthCredentialsStorage` use `SmartRWLocker` for concurrent access safety.
@@ -58,8 +61,8 @@ End-to-end bearer-token authentication. Handles login (BCrypt password check), o
 
 ## Client-side "me" State
 
-- New `features/auth/client/src/commonMain/kotlin/Me.kt` defines `meQualifier = named("me")` (Koin qualifier) and extensions `Koin.meStateFlow` / `Scope.meStateFlow` returning `StateFlow<RegisteredUser?>`.
-- `features/auth/client/.../Plugin.kt` registers `MutableRedeliverStateFlow<RegisteredUser?>(null)` under internal qualifier `secretMeMutablemeStateFlowQualifier = named("secret_me")`; exposes read-only `StateFlow<RegisteredUser?>` under `meQualifier` via `asStateFlow()`.
-- Internal accessors `Koin.secretMeMutableStateFlow` / `Scope.secretMeMutableStateFlow` return `MutableStateFlow<RegisteredUser?>` for write access.
+- New `features/auth/client/src/commonMain/kotlin/Me.kt` defines `meQualifier = named("me")` (Koin qualifier) and extensions `Koin.meStateFlow` / `Scope.meStateFlow` returning `StateFlow<AuthFeatureUser?>`.
+- `features/auth/client/.../Plugin.kt` registers `MutableRedeliverStateFlow<AuthFeatureUser?>(null)` under internal qualifier `secretMeMutablemeStateFlowQualifier = named("secret_me")`; exposes read-only `StateFlow<AuthFeatureUser?>` under `meQualifier` via `asStateFlow()`.
+- Internal accessors `Koin.secretMeMutableStateFlow` / `Scope.secretMeMutableStateFlow` return `MutableStateFlow<AuthFeatureUser?>` for write access.
 - In `startPlugin`: on authorised → wraps `feature.getMe()` in `runCatchingLogging { }.getOrElse { null }` (failure → flow value=null); on logout → sets flow to `null`.
 - Consumers should read the "me" flow via `Scope.meStateFlow` instead of calling `getMe()` per request, reducing redundant API calls. Login gate check in `features/ui/auth` still uses raw `getMe()` request intentionally (requires fresh auth validation).

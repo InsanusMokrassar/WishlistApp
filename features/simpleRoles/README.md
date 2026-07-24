@@ -39,7 +39,7 @@ app (issue #68 points 8/9) now goes through.
 - **Cache invalidation is keyed off `meStateFlow`, not a bare login/logout boolean.** Mirrors
   `features/auth/client/Plugin.kt`'s own `meStateFlow` refresh pattern
   (`merge(flowOf(Unit), meState).subscribeLoggingDropExceptions(scope) { ... }`) exactly. Using the
-  richer `StateFlow<RegisteredUser?>` (rather than `AuthCredentialsStorage.userAuthorised: StateFlow<Boolean>`
+  richer `StateFlow<AuthFeatureUser?>` (rather than `AuthCredentialsStorage.userAuthorised: StateFlow<Boolean>`
   directly) means the cache also correctly re-fetches when the authenticated *identity* changes within
   one session (e.g. logout then a different login), not only on a bare auth-state flip.
 - **`isSuperAdminStateFlow` is a deliberate, narrow exception to "depend on interfaces."**
@@ -54,4 +54,5 @@ app (issue #68 points 8/9) now goes through.
 - **Dependencies:** `simpleRoles/server` depends on `roles/common` (for `ReadRolesRepo`/`SuperAdminRole`),
   `features/common/server`, `features/auth/server` (bearer caller resolution), `features/users/common`
   (`UserId`). `simpleRoles/client` depends on `features/common/client`, `features/auth/client` (for
-  `meStateFlow`), `features/users/common` (for `RegisteredUser` in `meState`'s type).
+  `meStateFlow`, whose value type is `AuthFeatureUser` — per master's Feature Interface Return Model
+  Rule refactor), and `features/users/common`.

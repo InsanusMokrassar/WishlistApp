@@ -13,7 +13,7 @@ object Constants {
     /** Path segment for the finalize route: `.../finalize`. Promotes a temporal upload to permanent storage. */
     const val finalizePathPart = "finalize"
 
-    /** Path segment for the metadata route: `.../meta/{id}`. Returns [dev.inmo.wishlist.features.files.common.models.RegisteredFileMetaInfo]. */
+    /** Path segment for the metadata route: `.../meta/{id}`. Returns [dev.inmo.wishlist.features.files.common.models.FilesFeatureMetaInfo]. */
     const val metaPathPart = "meta"
 
     /**

@@ -261,6 +261,47 @@ For a dependency with a public read-only view backed by a private mutable instan
 
 ---
 
+## Feature Interface Return Model Rule
+
+Any data returned from a `*Feature` interface method (client, server, or common variant) MUST be
+covered by a model that belongs to that feature's own model set and is designed for that feature's
+API surface — a "feature model". This also covers concrete `*Feature`-named service/capability
+classes that play the same role as a formal interface (e.g. admin's `UsersManagementFeature`,
+`AdminWishlistsFeature`) — the rule is about the capability surface, not about `interface` vs `class`.
+
+- **Exempt from the rule** (may be returned as-is, alone or inside collections/nullable wrappers):
+  identifiers (inline value-class ids such as `UserId`, `FileId`), primitive types (`String`,
+  `Boolean`, numbers, `Unit`), and non-project library types (streams, flows, etc.). Collections
+  (`List`, `Map`) and `Flow`/`StateFlow` of allowed types are allowed.
+- **Repo/persistence-layer models — the `New*`/`Registered*` CRUD entities from the CRUD Repository
+  Pattern — MUST NOT be returned by `*Feature` methods, not even the feature's own.** A persistence
+  model's field set evolves with storage needs; reusing it as an API return type silently widens the
+  wire surface whenever a field is added (this is exactly how `RegisteredUser.email` leaked through
+  the public `UsersFeature.getAll`).
+- A feature model exposes exactly the fields the feature intends to expose, is `@Serializable`, and
+  lives in the feature's `common` module so client and server share one wire format. Naming: either
+  `<FeatureInterfaceName><Entity>` (e.g. `UsersFeatureUser`, `BookingFeatureItem`), a purpose-named
+  wire DTO (e.g. `BookingState`, `AuthCredentials`), or a namespace-prefixed entity name when one
+  feature module umbrellas several sibling `*Feature` interfaces around the same domain
+  (e.g. admin's `AdminUser`/`AdminWishlist`/`AdminWishlistItem`, shared across
+  `UsersManagementFeature`/`AdminWishlistsFeature`/`AdminWishlistItemsFeature`).
+- Fields of a feature model may reference other features' identifiers and small value types
+  (e.g. `UserId`, `Priority`, `Amount`), but must not embed another feature's persistence entity
+  wholesale.
+- A feature model deliberately keeping a sensitive field (e.g. an authenticated caller's own
+  `email` on a "me"/self-record surface) MUST document why in its class KDoc, so a future auditor
+  does not mistake it for a re-leak of the exact bug class this rule exists to prevent.
+- The rule covers **return types** of `*Feature` methods. Input parameters are out of its scope
+  (though the same instinct applies — see `NewWishlistInFeature` for the input-side precedent).
+- Conversions between the base (persistence) model and the feature model MUST be covered in
+  **both directions**. Alongside the base→feature projection (`Registered*.as<FeatureModel>()`),
+  each feature model MUST provide the reverse converting function (`<FeatureModel>.asRegistered*()`);
+  every base-model field that the feature model does not carry is passed as an explicit argument of
+  the converting function, without default values (e.g. `UsersFeatureUser.asRegisteredUser(email: Email?)`),
+  so reconstruction never silently invents or erases data.
+
+---
+
 ## Exposed repositories notes
 
 > **IMPORTANT**: Each exposed database must contains `init` block with calling of `initTable()` (package `dev.inmo.micro_utils.repos.exposed`) to init table

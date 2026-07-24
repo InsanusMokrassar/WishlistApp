@@ -1,6 +1,6 @@
 package dev.inmo.wishlist.features.users.client
 
-import dev.inmo.wishlist.features.users.common.models.RegisteredUser
+import dev.inmo.wishlist.features.users.common.models.UsersFeatureUser
 
 /**
  * Client-side mirror of the server [dev.inmo.wishlist.features.users.server.UsersFeature].
@@ -9,9 +9,10 @@ import dev.inmo.wishlist.features.users.common.models.RegisteredUser
  */
 interface UsersFeature {
     /**
-     * Fetches the full list of registered users from the server.
+     * Fetches the full list of registered users from the server, already projected onto the
+     * public-facing [UsersFeatureUser] model (no email).
      *
-     * @return All [RegisteredUser]s; empty when none registered or on network error handled upstream.
+     * @return All [UsersFeatureUser]s; empty when none registered or on network error handled upstream.
      */
-    suspend fun getAll(): List<RegisteredUser>
+    suspend fun getAll(): List<UsersFeatureUser>
 }

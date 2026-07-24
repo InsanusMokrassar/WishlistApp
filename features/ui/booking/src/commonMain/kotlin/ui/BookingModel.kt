@@ -1,7 +1,7 @@
 package dev.inmo.wishlist.features.ui.booking.ui
 
+import dev.inmo.wishlist.features.booking.common.models.BookingFeatureItem
 import dev.inmo.wishlist.features.booking.common.models.BookingState
-import dev.inmo.wishlist.features.wishlist.common.models.RegisteredWishlistItem
 import dev.inmo.wishlist.features.wishlist.common.models.WishlistItemId
 
 /**
@@ -41,5 +41,5 @@ interface BookingModel {
      *
      * @return Booked items; empty when nothing booked.
      */
-    suspend fun myPresentsBooks(): List<RegisteredWishlistItem>
+    suspend fun myPresentsBooks(): List<BookingFeatureItem>
 }

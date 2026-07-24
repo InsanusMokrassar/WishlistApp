@@ -14,7 +14,7 @@ User identity storage and public read-only API. Provides the `UsersRepo` CRUD re
 
 | Method | Path | Auth | Body / Response | Description |
 |--------|------|------|-----------------|-------------|
-| GET | `/users/getAll` | None | `List<RegisteredUser>` | Fetch all registered users |
+| GET | `/users/getAll` | None | `List<UsersFeatureUser>` | Fetch all registered users (public-facing projection — no email) |
 
 ## Models
 
@@ -24,18 +24,20 @@ User identity storage and public read-only API. Provides the `UsersRepo` CRUD re
 | `Username` | `@JvmInline value class` wrapping `String` |
 | `NewUser` | Create payload: `username: Username`, `email: Email? = null` |
 | `RegisteredUser` | Persisted entity: `id: UserId`, `username: Username`, `email: Email? = null` |
+| `UsersFeatureUser` | Feature model returned by `UsersFeature.getAll` (client and server): `id: UserId`, `username: Username` — deliberately omits `email` (issue #67: the route is unauthenticated, so `RegisteredUser.email` must never be exposed there). Mapper: `RegisteredUser.asUsersFeatureUser()`. Reverse mapper: `UsersFeatureUser.asRegisteredUser(email: Email?)` — `email` is an explicit no-default argument because the feature model drops it (Feature Interface Return Model Rule, both-directions bullet). |
 | `ReadUsersRepo` | Read-only repo interface |
 | `WriteUsersRepo` | Write-only repo interface |
 | `UsersRepo` | Combined CRUD repo interface |
 | `CacheUsersRepo` | In-memory `FullCRUDCacheRepo` wrapper |
 | `ExposedUsersRepo` | JVM/PostgreSQL implementation (`users` table) |
 | `DuplicateUserFieldException` | Thrown by `ExposedUsersRepo.update`/`create` on a Postgres unique-constraint violation (username or email); propagates through `CacheUsersRepo` untouched; callers should catch and respond `409 Conflict`. |
-| `UsersFeature` | Server interface: `suspend fun getAll(): List<RegisteredUser>` |
-| `UsersService` | Server implementation of `UsersFeature`, delegates to `ReadUsersRepo` |
+| `UsersFeature` | Server interface: `suspend fun getAll(): List<UsersFeatureUser>` |
+| `UsersService` | Server implementation of `UsersFeature`, delegates to `ReadUsersRepo` and maps every `RegisteredUser` through `asUsersFeatureUser()` |
 
 ## Architecture Notes
 
-- **Server-side:** `UsersFeature` interface defines `getAll()` method returning all registered users. `UsersService` implements this interface and delegates to `ReadUsersRepo`. `UsersRoutingsConfigurator` (JVM) registers public endpoint `GET /users/getAll` (path constants: `usersPrefixPathPart = "users"`, `usersGetAllPathPart = "getAll"` in `features/users/common/Constants.kt`).
+- **Server-side:** `UsersFeature` interface defines `getAll()` method returning all registered users, projected onto `UsersFeatureUser`. `UsersService` implements this interface, delegates to `ReadUsersRepo`, and maps each stored `RegisteredUser` via `asUsersFeatureUser()` before returning — this is what keeps `email` off the public listing. `UsersRoutingsConfigurator` (JVM) registers public endpoint `GET /users/getAll` (path constants: `usersPrefixPathPart = "users"`, `usersGetAllPathPart = "getAll"` in `features/users/common/Constants.kt`).
+- **Feature Interface Return Model Rule (issue #67):** `UsersFeature.getAll()` (both server and client) returns `UsersFeatureUser`, not the `RegisteredUser` persistence entity — see `agents/CODING.md`'s "Feature Interface Return Model Rule" section for the repo-wide rule this fix established. `UsersFeatureUser` lives in `features/users/common/src/commonMain/kotlin/models/UsersFeatureUser.kt` alongside its `RegisteredUser.asUsersFeatureUser()` mapper.
 - **Client-side:** Mirror `UsersFeature` interface + `KtorUsersFeature` implementation in `features/users/client/src/commonMain/kotlin/`, registered in `client/Plugin.kt` (consumed by `features/ui/users`).
 - `server/Plugin.kt` is intentionally empty. `auth/server/JVMPlugin` calls `users.common.JVMPlugin.setupDI` directly to wire `ExposedUsersRepo → CacheUsersRepo → UsersRepo` into the DI graph.
 - `singleWithBinds<UsersRepo>` registers `CacheUsersRepo` as `UsersRepo`, `ReadUsersRepo`, and `WriteUsersRepo` simultaneously.

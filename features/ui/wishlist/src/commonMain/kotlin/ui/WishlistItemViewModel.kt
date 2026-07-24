@@ -11,8 +11,8 @@ import dev.inmo.wishlist.features.currency.common.models.CurrencyCode
 import dev.inmo.wishlist.features.currency.common.models.CurrencyInfo
 import dev.inmo.wishlist.features.currency.common.models.CurrencyRates
 import dev.inmo.wishlist.features.files.common.models.FileId
-import dev.inmo.wishlist.features.wishlist.common.models.RegisteredWishlist
-import dev.inmo.wishlist.features.wishlist.common.models.RegisteredWishlistItem
+import dev.inmo.wishlist.features.wishlist.common.models.WishlistsFeatureItem
+import dev.inmo.wishlist.features.wishlist.common.models.WishlistsFeatureWishlist
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -45,12 +45,12 @@ class WishlistItemViewModel(
     private val interactor: WishlistItemViewInteractor,
     val additionalConfigsProviders: List<WishlistAdditionalConfigsProvider>
 ) : ViewModel<ViewConfig>(node) {
-    private val _itemState = MutableRedeliverStateFlow<RegisteredWishlistItem?>(null)
+    private val _itemState = MutableRedeliverStateFlow<WishlistsFeatureItem?>(null)
 
     /** The loaded item, `null` while loading or when not found. */
     val itemState = _itemState.asStateFlow()
 
-    private val _parentWishlistState = MutableRedeliverStateFlow<RegisteredWishlist?>(null)
+    private val _parentWishlistState = MutableRedeliverStateFlow<WishlistsFeatureWishlist?>(null)
 
     /**
      * Label for the contextual Back button: the parent wishlist's title. Back replaces this screen
@@ -142,7 +142,7 @@ class WishlistItemViewModel(
     /**
      * Builds the download URL for an image attached to the item so the view can render it.
      *
-     * @param id Image identifier (one of [RegisteredWishlistItem.imageIds]).
+     * @param id Image identifier (one of [WishlistsFeatureItem.imageIds]).
      * @return Relative download URL.
      */
     fun imageUrl(id: FileId): String = model.imageUrl(id)

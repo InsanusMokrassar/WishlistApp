@@ -14,9 +14,9 @@ import dev.inmo.wishlist.features.currency.common.utils.costSortKey
 import dev.inmo.wishlist.features.currency.common.utils.dominantCurrency
 import dev.inmo.wishlist.features.currency.common.utils.isCostSortAvailable
 import dev.inmo.wishlist.features.files.common.models.FileId
-import dev.inmo.wishlist.features.wishlist.common.models.RegisteredWishlist
-import dev.inmo.wishlist.features.wishlist.common.models.RegisteredWishlistItem
 import dev.inmo.wishlist.features.wishlist.common.models.WishlistItemId
+import dev.inmo.wishlist.features.wishlist.common.models.WishlistsFeatureItem
+import dev.inmo.wishlist.features.wishlist.common.models.WishlistsFeatureWishlist
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -42,12 +42,12 @@ class WishlistViewModel(
     private val model: WishlistsModel,
     private val interactor: WishlistViewInteractor
 ) : ViewModel<ViewConfig>(node) {
-    private val _wishlistState = MutableRedeliverStateFlow<RegisteredWishlist?>(null)
+    private val _wishlistState = MutableRedeliverStateFlow<WishlistsFeatureWishlist?>(null)
 
     /** The loaded wishlist, `null` while loading or on error. */
     val wishlistState = _wishlistState.asStateFlow()
 
-    private val _itemsState = MutableRedeliverStateFlow<List<RegisteredWishlistItem>>(emptyList())
+    private val _itemsState = MutableRedeliverStateFlow<List<WishlistsFeatureItem>>(emptyList())
 
     /** Items belonging to the loaded wishlist. */
     val itemsState = _itemsState.asStateFlow()
@@ -162,7 +162,7 @@ class WishlistViewModel(
      * sorting is unavailable. Mirrors the sort orders used by the all-items screen. Also clamped to
      * [WishlistSortMode.None] while fewer than two items are loaded (PR #31 T1).
      */
-    val sortedItemsState: StateFlow<List<RegisteredWishlistItem>> =
+    val sortedItemsState: StateFlow<List<WishlistsFeatureItem>> =
         combine(_itemsState, _sortModeState, _ratesState, _currencyEnabledState, sortableState) { items, mode, rates, enabled, sortable ->
             val pricedUnits = items.filter { it.approximatePrice != null }.map { it.priceUnits }
             val effectiveMode = when {

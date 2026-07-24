@@ -1,9 +1,9 @@
 package dev.inmo.wishlist.features.auth.client
 
 import dev.inmo.wishlist.features.auth.common.models.AuthCredentials
+import dev.inmo.wishlist.features.auth.common.models.AuthFeatureUser
 import dev.inmo.wishlist.features.auth.common.models.Password
 import dev.inmo.wishlist.features.auth.common.models.RefreshToken
-import dev.inmo.wishlist.features.users.common.models.RegisteredUser
 import dev.inmo.wishlist.features.users.common.models.Username
 
 class AuthFeatureService(
@@ -35,7 +35,7 @@ class AuthFeatureService(
 
     override suspend fun isRegistrationAvailable(): Boolean = feature.isRegistrationAvailable()
 
-    override suspend fun getMe(): RegisteredUser? {
+    override suspend fun getMe(): AuthFeatureUser? {
         if (storage.userAuthorised.value == false) {
             return null
         }

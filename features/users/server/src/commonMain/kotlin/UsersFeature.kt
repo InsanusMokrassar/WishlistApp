@@ -1,6 +1,6 @@
 package dev.inmo.wishlist.features.users.server
 
-import dev.inmo.wishlist.features.users.common.models.RegisteredUser
+import dev.inmo.wishlist.features.users.common.models.UsersFeatureUser
 
 /**
  * Public-facing read-only feature exposing the registered users list.
@@ -10,9 +10,11 @@ import dev.inmo.wishlist.features.users.common.models.RegisteredUser
  */
 interface UsersFeature {
     /**
-     * Returns all users registered in the application.
+     * Returns all users registered in the application, projected onto the public-facing
+     * [UsersFeatureUser] model — not the persistence entity — so no field beyond `id`/`username` is
+     * ever exposed to this unauthenticated route.
      *
-     * @return Full list of [RegisteredUser]; empty when no user has been registered.
+     * @return Full list of [UsersFeatureUser]; empty when no user has been registered.
      */
-    suspend fun getAll(): List<RegisteredUser>
+    suspend fun getAll(): List<UsersFeatureUser>
 }

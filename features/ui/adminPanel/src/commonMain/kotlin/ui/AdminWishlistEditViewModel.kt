@@ -8,7 +8,7 @@ import dev.inmo.navigation.core.onResumeFlow
 import dev.inmo.navigation.mvvm.ViewModel
 import dev.inmo.wishlist.features.common.client.models.ViewConfig
 import dev.inmo.wishlist.features.common.client.utils.subscribeOnLoggedOut
-import dev.inmo.wishlist.features.users.common.models.RegisteredUser
+import dev.inmo.wishlist.features.admin.common.models.AdminUser
 import dev.inmo.wishlist.features.users.common.models.UserId
 import dev.inmo.wishlist.features.wishlist.common.models.NewWishlist
 import kotlinx.coroutines.flow.asStateFlow
@@ -45,7 +45,7 @@ class AdminWishlistEditViewModel(
     /** Current value of the title input field. */
     val titleState = _titleState.asStateFlow()
 
-    private val _usersState = MutableRedeliverStateFlow<List<RegisteredUser>>(emptyList())
+    private val _usersState = MutableRedeliverStateFlow<List<AdminUser>>(emptyList())
 
     /** All users available for selection as owner. */
     val usersState = _usersState.asStateFlow()

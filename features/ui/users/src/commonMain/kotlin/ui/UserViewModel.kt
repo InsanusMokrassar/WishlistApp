@@ -8,7 +8,7 @@ import dev.inmo.navigation.core.onResumeFlow
 import dev.inmo.navigation.mvvm.ViewModel
 import dev.inmo.wishlist.features.common.client.models.ViewConfig
 import dev.inmo.wishlist.features.files.common.models.FileId
-import dev.inmo.wishlist.features.users.common.models.RegisteredUser
+import dev.inmo.wishlist.features.users.common.models.UsersFeatureUser
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -33,7 +33,7 @@ class UserViewModel(
     private val model: UsersModel,
     private val interactor: UserViewInteractor
 ) : ViewModel<ViewConfig>(node) {
-    private val _userState = MutableRedeliverStateFlow<RegisteredUser?>(null)
+    private val _userState = MutableRedeliverStateFlow<UsersFeatureUser?>(null)
 
     /** The loaded user, `null` while loading or after the user was removed. */
     val userState = _userState.asStateFlow()

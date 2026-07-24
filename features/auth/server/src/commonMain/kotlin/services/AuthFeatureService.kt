@@ -13,12 +13,13 @@ import org.mindrot.jbcrypt.BCrypt
 import dev.inmo.wishlist.features.auth.server.ServerAuthFeature
 import dev.inmo.wishlist.features.auth.server.models.AuthConfig
 import dev.inmo.wishlist.features.auth.common.models.AuthCredentials
+import dev.inmo.wishlist.features.auth.common.models.AuthFeatureUser
 import dev.inmo.wishlist.features.auth.common.models.Password
 import dev.inmo.wishlist.features.auth.common.models.RefreshToken
 import dev.inmo.wishlist.features.auth.common.models.Token
 import dev.inmo.wishlist.features.auth.server.repo.PasswordsRepo
+import dev.inmo.wishlist.features.auth.common.models.asAuthFeatureUser
 import dev.inmo.wishlist.features.users.common.models.NewUser
-import dev.inmo.wishlist.features.users.common.models.RegisteredUser
 import dev.inmo.wishlist.features.users.common.models.UserId
 import dev.inmo.wishlist.features.users.common.models.Username
 import dev.inmo.wishlist.features.users.common.repo.ReadUsersRepo
@@ -87,11 +88,11 @@ class AuthFeatureService(
         }
     }
 
-    override suspend fun getUser(token: Token): RegisteredUser? {
+    override suspend fun getUser(token: Token): AuthFeatureUser? {
         locker.withReadAcquire {
             val entry = tokens.get(token) ?: return null
             if (entry.issued + tokenTtl > DateTime.now()) {
-                return usersRepo.getById(entry.id)
+                return usersRepo.getById(entry.id)?.asAuthFeatureUser()
             }
             return null
         }
