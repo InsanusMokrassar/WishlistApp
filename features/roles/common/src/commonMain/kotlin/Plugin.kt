@@ -1,34 +1,35 @@
 package dev.inmo.wishlist.features.roles.common
 
 import dev.inmo.micro_utils.koin.getAllDistinct
+import dev.inmo.micro_utils.koin.singleWithRandomQualifier
 import dev.inmo.micro_utils.startup.plugin.StartPlugin
 import kotlinx.serialization.json.JsonObject
+import kotlinx.serialization.modules.SerializersModule
+import kotlinx.serialization.modules.polymorphic
 import org.koin.core.module.Module
 
 /**
  * Common startup plugin for the `roles` feature.
  *
  * Registers the [FeatureRolesRegistry] realization — [MapFeatureRolesRegistry], built from every
- * contributed [FeatureRolesRegistry.Requirement] via `getAllDistinct` — and this app's current
- * requirements through [singleRequirement]. The Exposed/cache [dev.inmo.kroles.repos.RolesRepo] wiring
- * lives in [JVMPlugin] (JVM-only, since the backing store is Exposed/JDBC).
- *
- * Requirements are centralized here today (see `roles/README.md` Architecture Notes), but any feature
- * may contribute its own via [singleRequirement] from its own `setupDI` — [MapFeatureRolesRegistry]
- * aggregates them all regardless of which module declared them.
+ * contributed [FeatureRolesRegistry.Requirement] via `getAllDistinct` — and the polymorphic-to-`Any`
+ * serializer for [FeatureRolesRegistry.Requirement]. The requirements themselves are NOT declared
+ * here: each is contributed from the feature that owns the gated functionality (see `roles/README.md`
+ * Architecture Notes and `agents/ARCHITECTURE.md` "Role requirement placement"). The Exposed/cache
+ * [dev.inmo.kroles.repos.RolesRepo] wiring lives in [JVMPlugin] (JVM-only, Exposed/JDBC-backed).
  */
 object Plugin : StartPlugin {
     override fun Module.setupDI(config: JsonObject) {
         single<FeatureRolesRegistry> { MapFeatureRolesRegistry(getAllDistinct()) }
 
-        singleRequirement {
-            FeatureRolesRegistry.Requirement(RoleGatedFeatureIds.adminPanel, SuperAdminRole)
-        }
-        singleRequirement {
-            FeatureRolesRegistry.Requirement(RoleGatedFeatureIds.filesAvatarChangeForOthers, SuperAdminRole)
-        }
-        singleRequirement {
-            FeatureRolesRegistry.Requirement(RoleGatedFeatureIds.emailSendTest, SuperAdminRole)
+        singleWithRandomQualifier {
+            SerializersModule {
+                polymorphic(
+                    Any::class,
+                    FeatureRolesRegistry.Requirement::class,
+                    FeatureRolesRegistry.Requirement.serializer()
+                )
+            }
         }
     }
 }

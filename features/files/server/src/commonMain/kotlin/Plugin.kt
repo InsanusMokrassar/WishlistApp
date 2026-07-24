@@ -4,9 +4,13 @@ import dev.inmo.micro_utils.koin.singleWithRandomQualifier
 import dev.inmo.micro_utils.ktor.server.TemporalFilesRoutingConfigurator
 import dev.inmo.micro_utils.ktor.server.configurators.ApplicationRoutingConfigurator
 import dev.inmo.micro_utils.startup.plugin.StartPlugin
+import dev.inmo.wishlist.features.files.common.Constants
 import dev.inmo.wishlist.features.files.server.configurators.FilesRoutingsConfigurator
 import dev.inmo.wishlist.features.files.server.services.FilesService
 import dev.inmo.wishlist.features.files.server.services.TimedTemporalFilesUtilizer
+import dev.inmo.wishlist.features.roles.common.FeatureRolesRegistry
+import dev.inmo.wishlist.features.roles.common.SuperAdminRole
+import dev.inmo.wishlist.features.roles.common.singleRequirement
 import dev.inmo.wishlist.features.simpleRoles.server.SimpleRolesFeature
 import kotlinx.serialization.json.JsonObject
 import org.koin.core.Koin
@@ -43,6 +47,9 @@ object Plugin : StartPlugin {
         }
 
         single { FilesService(get(), get(), get(), get()) }
+        singleRequirement {
+            FeatureRolesRegistry.Requirement(Constants.avatarChangeForOthersFunctionalityId, SuperAdminRole)
+        }
         singleWithRandomQualifier<ApplicationRoutingConfigurator.Element> {
             FilesRoutingsConfigurator(get(), get<SimpleRolesFeature>())
         }

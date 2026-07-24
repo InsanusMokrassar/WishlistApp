@@ -255,24 +255,22 @@ For a dependency with a public read-only view backed by a private mutable instan
 
 ---
 
-## DI Aggregation (many contributors → one aggregator)
+## Roles requirements handling
 
-When many independently-declared contributions of one type `T` must be collected into a single consumer, register each with `singleWithRandomQualifier<T> { ... }` (or a thin named wrapper like `singleRequirement`) and have the aggregator resolve them with `getAllDistinct<T>()` from `dev.inmo.micro_utils.koin.getAllDistinct`. Contributors may live in different modules/plugins; the aggregator does not need to know who contributed. `getAllDistinct` de-dups exact duplicates, so re-declaring an identical contribution is safe.
-
-Two concrete instances of this pattern in the codebase:
-
-1. **`ApplicationRoutingConfigurator.Element`** (precedent in `features/common/server`): feature routes are registered via `singleWithRandomQualifier<ApplicationRoutingConfigurator.Element> { ... }` in each feature's server plugin, then aggregated by `single<ApplicationRoutingConfigurator> { InternalApplicationRoutingConfigurator(getAllDistinct<ApplicationRoutingConfigurator.Element>()) }`.
-
-2. **`FeatureRolesRegistry.Requirement`** (new in `features/roles/common`): role requirements are contributed via the `singleRequirement` Module extension, then aggregated by `single<FeatureRolesRegistry> { MapFeatureRolesRegistry(getAllDistinct<FeatureRolesRegistry.Requirement>()) }`.
-
-Example shape:
+Register a role requirement from the `setupDI` of the feature that owns the gated functionality, using `singleRequirement`:
 
 ```kotlin
-// Contributor (any feature's Plugin.setupDI)
-singleWithRandomQualifier { MyContribution(...) }
+// features/email/server Plugin.setupDI — email owns its own gate
+singleRequirement {
+    FeatureRolesRegistry.Requirement(EmailConstants.sendTestFunctionalityId, SuperAdminRole)
+}
+```
 
-// Aggregator (a central location)
-single { AggregatorImpl(getAllDistinct<MyContribution>()) }
+Use `FeatureRolesRegistry` through the `requireRole` route guard, which resolves the required role and answers `403`/`null` when the caller lacks it:
+
+```kotlin
+// inside a Ktor routing handler; registry + rolesRepo injected into the configurator
+val callerId = requireRole(EmailConstants.sendTestFunctionalityId, registry, rolesRepo) ?: return@post
 ```
 
 ---

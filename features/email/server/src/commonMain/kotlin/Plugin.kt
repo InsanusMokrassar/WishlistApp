@@ -3,10 +3,14 @@ package dev.inmo.wishlist.features.email.server
 import dev.inmo.micro_utils.koin.singleWithRandomQualifier
 import dev.inmo.micro_utils.ktor.server.configurators.ApplicationRoutingConfigurator
 import dev.inmo.micro_utils.startup.plugin.StartPlugin
+import dev.inmo.wishlist.features.email.common.EmailConstants
 import dev.inmo.wishlist.features.email.server.configurators.EmailRoutingsConfigurator
 import dev.inmo.wishlist.features.email.server.services.DisabledEmailFeature
 import dev.inmo.wishlist.features.email.server.services.EmailFeatureService
 import dev.inmo.wishlist.features.email.server.services.SmtpEmailService
+import dev.inmo.wishlist.features.roles.common.FeatureRolesRegistry
+import dev.inmo.wishlist.features.roles.common.SuperAdminRole
+import dev.inmo.wishlist.features.roles.common.singleRequirement
 import dev.inmo.wishlist.features.simpleRoles.server.SimpleRolesFeature
 import dev.inmo.wishlist.features.users.common.repo.UsersRepo
 import kotlinx.serialization.json.Json
@@ -52,6 +56,9 @@ object Plugin : StartPlugin {
             getOrNull<EmailsService>() ?.let {
                 EmailFeatureService(it, get<UsersRepo>(), get<SimpleRolesFeature>())
             } ?: DisabledEmailFeature(get<UsersRepo>())
+        }
+        singleRequirement {
+            FeatureRolesRegistry.Requirement(EmailConstants.sendTestFunctionalityId, SuperAdminRole)
         }
         singleWithRandomQualifier<ApplicationRoutingConfigurator.Element> {
             EmailRoutingsConfigurator(get())

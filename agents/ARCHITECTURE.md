@@ -198,9 +198,12 @@ The entire application (both client and server) is initialized via `StartLaunche
 1. **`Module.setupDI(config: JsonObject)`** — registers dependencies into the Koin DI module.
 2. **`suspend startPlugin(koin: Koin)`** — async startup using the built DI container.
 
-### DI Aggregation Across Features
+### Role requirement placement
 
-A feature may contribute typed entries into a cross-feature aggregator without a direct module dependency, via the Koin `singleWithRandomQualifier` + `getAllDistinct` pattern (see `agents/CODING.md` "DI Aggregation"). This allows decoupled contributions: contributors register their entries with random qualifiers to avoid collisions, and the aggregator collects them all. Today this pattern powers two aggregators: `InternalApplicationRoutingConfigurator` for routes (in `features/common/server`) and `MapFeatureRolesRegistry` for role requirements (in `features/roles/common`).
+The `roles` feature owns only the aggregation mechanism (`FeatureRolesRegistry` / `MapFeatureRolesRegistry`, built via `getAllDistinct`), never the individual gates. Two placement rules are in force:
+
+- **A role requirement lives in the feature it gates.** Register each `FeatureRolesRegistry.Requirement` — via `singleRequirement { ... }` — from the `setupDI` of the module that owns the gated functionality (e.g. the email test-send requirement is registered in `features/email/server`, the avatar-change requirement in `features/files/server`), never centrally in `features/roles`. `MapFeatureRolesRegistry` aggregates every contributed requirement regardless of declaring module. See `agents/CODING.md` "Roles requirements handling".
+- **A `FunctionalityId` lives in its owning module's `Constants` file.** Declare each id as a `val` in that feature's constants object (e.g. `EmailConstants.sendTestFunctionalityId`, `Constants.avatarChangeForOthersFunctionalityId`), never in a shared roles-side list.
 
 ---
 
