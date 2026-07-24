@@ -3,60 +3,64 @@ package dev.inmo.wishlist.features.roles.common
 import dev.inmo.kroles.roles.BaseRole
 
 /**
- * Central registry mapping a symbolic feature/capability id to the [BaseRole] required to access it
- * (issue #68 point 4's "aggregator of features and required role for them"). Every role-gated
- * capability's requirement is recorded here — currently populated from [Plugin.setupDI] — so "what
- * requires what" lives in one inspectable place, consulted by the route-guard helper
- * ([dev.inmo.wishlist.features.roles.server.utils.requireRole]). See `roles/README.md` Architecture
- * Notes for why this registry currently has real data but the guard helper has no production caller
- * yet — the three concrete privilege-check replacements this issue makes (`admin`, `email`, `files`)
- * call `SimpleRolesFeature.isSuperAdmin` directly instead, per the issue's own literal text.
+ * Aggregator of role-gated functionalities and the [BaseRole] each one requires (issue #68 point 4).
+ * Every [Requirement] contributed into Koin (via [singleRequirement]) is folded into one inspectable
+ * place, consulted by the route-guard helper
+ * ([dev.inmo.wishlist.features.roles.server.utils.requireRole]).
+ *
+ * The realization ([MapFeatureRolesRegistry]) is built from the DI-collected requirements rather than
+ * from a mutable process-wide singleton: a feature declares its own gate requirement from its own
+ * `setupDI`, and the registry is assembled from all of them at resolution time. See `roles/README.md`
+ * Architecture Notes.
  */
-object FeatureRolesRegistry {
-    /** Backing `featureId -> required BaseRole` map, populated by [register] and read by [requiredRole]. */
-    private val requirements = mutableMapOf<String, BaseRole>()
+interface FeatureRolesRegistry {
+    /**
+     * One functionality→role requirement contributed into the registry. Registered into Koin with
+     * [singleRequirement] and collected by [MapFeatureRolesRegistry] via `getAllDistinct`.
+     *
+     * @property functionalityId Gated capability (see [RoleGatedFeatureIds]).
+     * @property role [BaseRole] a caller must hold to access [functionalityId].
+     */
+    data class Requirement(
+        val functionalityId: FunctionalityId,
+        val role: BaseRole
+    )
 
     /**
-     * Registers that [featureId] requires [role]. Idempotent for re-registration with the *same*
-     * role (safe to call more than once, e.g. from a `setupDI` that could run more than once in
-     * tests); throws on a conflicting re-registration — two features must never silently disagree on
-     * one id's required role.
+     * Looks up the role required to access [functionalityId].
      *
-     * @param featureId Symbolic id of the gated capability (see [RoleGatedFeatureIds]).
-     * @param role Role required to access [featureId].
-     * @throws IllegalStateException when [featureId] is already registered with a different role.
+     * @param functionalityId Gated capability to resolve.
+     * @return Required [BaseRole], or `null` when [functionalityId] has no registered requirement —
+     *   treated as "deny" by [dev.inmo.wishlist.features.roles.server.utils.requireRole]
+     *   (fail-closed on an unregistered id / typo).
      */
-    fun register(featureId: String, role: BaseRole) {
-        val existing = requirements[featureId]
-        check(existing == null || existing == role) {
-            "Feature '$featureId' already registered with role '${existing?.plain}', " +
-                "cannot re-register with '${role.plain}'"
-        }
-        requirements[featureId] = role
-    }
-
-    /**
-     * Looks up the role required to access [featureId].
-     *
-     * @param featureId Symbolic id previously passed to [register].
-     * @return The required [BaseRole], or `null` when [featureId] was never registered — treated as
-     *   "deny" by [dev.inmo.wishlist.features.roles.server.utils.requireRole] (fail-closed on a typo).
-     */
-    fun requiredRole(featureId: String): BaseRole? = requirements[featureId]
+    fun requiredRole(functionalityId: FunctionalityId): BaseRole?
 }
 
 /**
- * Symbolic feature ids registered against [FeatureRolesRegistry]. One `const val` per gated
- * capability, named after the capability rather than the file/class that happens to enforce it today,
- * so the id survives future refactors of the enforcing code.
+ * In-memory [FeatureRolesRegistry] built from the [requirements] collected out of Koin (via
+ * `getAllDistinct<FeatureRolesRegistry.Requirement>()`). Folds the contributions into a single
+ * `FunctionalityId -> BaseRole` map at construction, failing fast if two requirements disagree on the
+ * role for one [FunctionalityId]. Exact-duplicate requirements are harmless — already collapsed by
+ * `getAllDistinct` — so re-declaring the same requirement in two places is safe.
+ *
+ * @param requirements All functionality→role requirements contributed across the app.
+ * @throws IllegalStateException when two requirements assign different roles to the same
+ *   [FunctionalityId].
  */
-object RoleGatedFeatureIds {
-    /** The whole `/admin/...` route surface (`AdminRoutingsConfigurator`). */
-    const val adminPanel = "admin.panel"
+class MapFeatureRolesRegistry(
+    requirements: List<FeatureRolesRegistry.Requirement>
+) : FeatureRolesRegistry {
+    private val rolesByFunctionalityId: Map<FunctionalityId, BaseRole> = buildMap {
+        requirements.forEach { requirement ->
+            val existing = put(requirement.functionalityId, requirement.role)
+            check(existing == null || existing == requirement.role) {
+                "Functionality '${requirement.functionalityId.string}' already required role " +
+                    "'${existing?.plain}', cannot also require '${requirement.role.plain}'"
+            }
+        }
+    }
 
-    /** Changing another user's avatar via `PUT /files/avatar/{userId}` (`FilesRoutingsConfigurator`). */
-    const val filesAvatarChangeForOthers = "files.avatarChangeForOthers"
-
-    /** Sending a test email via `POST /email/sendTest` (`EmailFeatureService.sendTestEmail`). */
-    const val emailSendTest = "email.sendTest"
+    override fun requiredRole(functionalityId: FunctionalityId): BaseRole? =
+        rolesByFunctionalityId[functionalityId]
 }

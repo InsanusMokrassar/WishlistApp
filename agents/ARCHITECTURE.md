@@ -198,6 +198,10 @@ The entire application (both client and server) is initialized via `StartLaunche
 1. **`Module.setupDI(config: JsonObject)`** — registers dependencies into the Koin DI module.
 2. **`suspend startPlugin(koin: Koin)`** — async startup using the built DI container.
 
+### DI Aggregation Across Features
+
+A feature may contribute typed entries into a cross-feature aggregator without a direct module dependency, via the Koin `singleWithRandomQualifier` + `getAllDistinct` pattern (see `agents/CODING.md` "DI Aggregation"). This allows decoupled contributions: contributors register their entries with random qualifiers to avoid collisions, and the aggregator collects them all. Today this pattern powers two aggregators: `InternalApplicationRoutingConfigurator` for routes (in `features/common/server`) and `MapFeatureRolesRegistry` for role requirements (in `features/roles/common`).
+
 ---
 
 ## Server Architecture

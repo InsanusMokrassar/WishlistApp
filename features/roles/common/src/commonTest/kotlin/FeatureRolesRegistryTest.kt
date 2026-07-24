@@ -6,47 +6,59 @@ import kotlin.test.assertFailsWith
 import kotlin.test.assertNull
 
 /**
- * Verifies [FeatureRolesRegistry]: registration/lookup round-trip, same-role re-registration
- * idempotency, conflicting-role re-registration failure, and the "never registered" `null` case.
- * Every test uses its own unique `featureId` so tests remain independent of execution order within
- * this process-wide singleton.
+ * Verifies [MapFeatureRolesRegistry] (the [FeatureRolesRegistry] realization): requirement→role
+ * lookup, tolerance of exact-duplicate requirements, fail-fast on a conflicting requirement, and the
+ * "never registered" `null` case. Each test constructs its own registry from an explicit requirement
+ * list, so there is no shared mutable state between tests.
  */
 class FeatureRolesRegistryTest {
 
-    /** `register` then `requiredRole` round-trips the same role. */
-    @Test
-    fun registerThenRequiredRoleRoundTrips() {
-        val featureId = "featureRolesRegistryTest.roundTrip"
-        FeatureRolesRegistry.register(featureId, SuperAdminRole)
+    private val functionalityId = FunctionalityId("featureRolesRegistryTest.roundTrip")
 
-        assertEquals(SuperAdminRole, FeatureRolesRegistry.requiredRole(featureId))
+    /** A registered requirement is resolved back to its role. */
+    @Test
+    fun requiredRoleReturnsRegisteredRole() {
+        val registry = MapFeatureRolesRegistry(
+            listOf(FeatureRolesRegistry.Requirement(functionalityId, SuperAdminRole))
+        )
+
+        assertEquals(SuperAdminRole, registry.requiredRole(functionalityId))
     }
 
-    /** Re-registering the same id with the same role does not throw. */
+    /** Two identical requirements for one id (same role) fold cleanly — no throw. */
     @Test
-    fun reRegisteringSameRoleDoesNotThrow() {
-        val featureId = "featureRolesRegistryTest.sameRoleTwice"
-        FeatureRolesRegistry.register(featureId, UserRole)
+    fun duplicateSameRoleRequirementDoesNotThrow() {
+        val id = FunctionalityId("featureRolesRegistryTest.sameRoleTwice")
+        val registry = MapFeatureRolesRegistry(
+            listOf(
+                FeatureRolesRegistry.Requirement(id, UserRole),
+                FeatureRolesRegistry.Requirement(id, UserRole)
+            )
+        )
 
-        FeatureRolesRegistry.register(featureId, UserRole)
-
-        assertEquals(UserRole, FeatureRolesRegistry.requiredRole(featureId))
+        assertEquals(UserRole, registry.requiredRole(id))
     }
 
-    /** Re-registering the same id with a different role throws. */
+    /** Two requirements assigning different roles to one id fail construction fast. */
     @Test
-    fun reRegisteringDifferentRoleThrows() {
-        val featureId = "featureRolesRegistryTest.conflictingRole"
-        FeatureRolesRegistry.register(featureId, UserRole)
+    fun conflictingRoleRequirementThrows() {
+        val id = FunctionalityId("featureRolesRegistryTest.conflictingRole")
 
         assertFailsWith<IllegalStateException> {
-            FeatureRolesRegistry.register(featureId, SuperAdminRole)
+            MapFeatureRolesRegistry(
+                listOf(
+                    FeatureRolesRegistry.Requirement(id, UserRole),
+                    FeatureRolesRegistry.Requirement(id, SuperAdminRole)
+                )
+            )
         }
     }
 
     /** A never-registered id resolves to `null`. */
     @Test
     fun requiredRoleForNeverRegisteredIdIsNull() {
-        assertNull(FeatureRolesRegistry.requiredRole("featureRolesRegistryTest.neverRegistered"))
+        val registry = MapFeatureRolesRegistry(emptyList())
+
+        assertNull(registry.requiredRole(FunctionalityId("featureRolesRegistryTest.neverRegistered")))
     }
 }

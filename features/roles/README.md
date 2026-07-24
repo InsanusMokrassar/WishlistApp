@@ -23,9 +23,13 @@ None. This feature has no HTTP surface; the only client-facing capability derive
 |------|--------|-------------|
 | `SuperAdminRole` | `roles/common` | `BaseRole("SuperAdmin")` constant — the single, hardcoded, root-only administrative role. |
 | `UserRole` | `roles/common` | `BaseRole("User")` constant — granted to every registered user. |
-| `FeatureRolesRegistry` | `roles/common` | In-memory `featureId -> BaseRole` map; `register`/`requiredRole`. Populated by `roles/common/Plugin.setupDI`. |
-| `RoleGatedFeatureIds` | `roles/common` | `const val` symbolic ids registered against `FeatureRolesRegistry` (`adminPanel`, `filesAvatarChangeForOthers`, `emailSendTest`). |
-| `requireRole` / `isRoleRequirementSatisfied` | `roles/server/utils` | Route-guard helper (`RoutingContext.requireRole`) and its pure allow/deny decision function. |
+| `FunctionalityId` | `roles/common` | `@JvmInline value class FunctionalityId(val string: String)` — strongly-typed id for a capability, replacing raw `String` feature ids. |
+| `FeatureRolesRegistry` | `roles/common` | Interface — aggregator of `FunctionalityId -> BaseRole` mappings; `requiredRole(functionalityId): BaseRole?`; realized by `MapFeatureRolesRegistry(getAllDistinct())`. |
+| `FeatureRolesRegistry.Requirement` | `roles/common` | `data class Requirement(val functionalityId: FunctionalityId, val role: BaseRole)` — one functionality→role pair contributed via `singleRequirement` into Koin. |
+| `MapFeatureRolesRegistry` | `roles/common` | In-memory realization of `FeatureRolesRegistry` built from DI-collected requirements; folds them into a `FunctionalityId -> BaseRole` map at construction; throws `IllegalStateException` if two requirements assign different roles to the same `FunctionalityId`. |
+| `singleRequirement` | `roles/common` | Koin `Module` extension — `singleRequirement(createdAtStart: Boolean = false, block: Definition<FeatureRolesRegistry.Requirement>)` — registers one `Requirement` via `singleWithRandomQualifier` so any number can be contributed without qualifier collisions. |
+| `RoleGatedFeatureIds` | `roles/common` | `FunctionalityId` vals — symbolic ids for role-gated capabilities (`adminPanel = FunctionalityId("admin.panel")`, `filesAvatarChangeForOthers = FunctionalityId("files.avatarChangeForOthers")`, `emailSendTest = FunctionalityId("email.sendTest")`). |
+| `requireRole` / `isRoleRequirementSatisfied` | `roles/server/utils` | Route-guard helper (`RoutingContext.requireRole(functionalityId, registry, rolesRepo)`) and its pure allow/deny decision function (`isRoleRequirementSatisfied(registry, functionalityId, callerId, rolesRepo)`); now take a `FeatureRolesRegistry` instance + `FunctionalityId` (was: static object + `String featureId`). |
 | `RolesRepo` (kroles) | `roles/common` (JVM) | kroles' own `RolesRepo` (`dev.inmo.kroles.repos`), bound in Koin as the Exposed+cache-backed implementation — see Architecture Notes. |
 | `roles` table | Postgres | Two text columns, `subject` (JSON-encoded `BaseRoleSubject`) and `role` (`BaseRole.plain`); one-to-many, via `ExposedKeyValuesRepo`. |
 
@@ -68,16 +72,19 @@ None. This feature has no HTTP surface; the only client-facing capability derive
   However, issue #68 point 8's three concrete replacements (`admin`, `email`, `files`) call
   `SimpleRolesFeature.isSuperAdmin` directly instead of `requireRole`, per the issue's own literal
   text and to keep those three modules scoped to `simpleRoles`'s narrow surface rather than the
-  general `roles` `RolesRepo`. `requireRole` is a real, tested, ready-to-use guard for the next
-  role-gated route — this gap between "registry has data" and "guard has a caller" is intentional,
-  not an oversight.
-- **Registration is centralized, not self-registered.** `FeatureRolesRegistry.register(...)` calls for
-  all three of today's role-gated capabilities live in `roles/common/Plugin.setupDI`, not in each of
-  `admin/server`/`files/server`/`email/server`'s own `Plugin.setupDI`. This avoids giving those three
-  otherwise-unrelated modules a new Gradle dependency on `roles/common` purely for a registration
-  side-effect, when point 8 already gives them a dependency on `simpleRoles/server` instead — keeping
-  the security-sensitive call-site-replacement change minimal. A future feature that actually calls
-  `requireRole` for its own gating should self-register from its own `Plugin.setupDI` at that point.
+  general `roles` `RolesRepo`. Requirements are contributed via `singleRequirement { ... }` and
+  collected by `MapFeatureRolesRegistry(getAllDistinct())`; `requireRole` is a real, tested,
+  ready-to-use guard for the next role-gated route — this gap between "registry has data" and
+  "guard has a caller" is intentional, not an oversight.
+- **Registration is via DI aggregation, not mutable `register()`.** Requirements are contributed with
+  `singleRequirement { FeatureRolesRegistry.Requirement(...) }` and collected by
+  `MapFeatureRolesRegistry(getAllDistinct())`, mirroring the precedent of `ApplicationRoutingConfigurator.Element`s
+  aggregated by `InternalApplicationRoutingConfigurator` (see `agents/CODING.md` "DI Aggregation"). Today's three
+  role-gated capabilities (`admin`, `email`, `files`) declare their requirements centrally in `roles/common/Plugin.setupDI`,
+  avoiding a new Gradle dependency on `roles/common` in those three modules purely for a registration side-effect — keeping
+  the security-sensitive call-site-replacement change minimal. However, any feature MAY now self-contribute its own
+  `Requirement` from its own `setupDI` (via `singleRequirement`), and the registry aggregates all contributors regardless of
+  declaring module. A future feature that actually calls `requireRole` for its own gating should self-register at that point.
 - **Why `Database`/`CoroutineScope` are resolved by plain `get()`, not a `with(...) { setupDI }` call:**
   `roles/common/JVMPlugin` does not call `features.common.server.JVMPlugin.setupDI` — per
   `agents/CODING.md`'s Plugin rule ("a plugin can't call `setupDI`/`startPlugin` of another plugin

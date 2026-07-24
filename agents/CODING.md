@@ -255,6 +255,28 @@ For a dependency with a public read-only view backed by a private mutable instan
 
 ---
 
+## DI Aggregation (many contributors → one aggregator)
+
+When many independently-declared contributions of one type `T` must be collected into a single consumer, register each with `singleWithRandomQualifier<T> { ... }` (or a thin named wrapper like `singleRequirement`) and have the aggregator resolve them with `getAllDistinct<T>()` from `dev.inmo.micro_utils.koin.getAllDistinct`. Contributors may live in different modules/plugins; the aggregator does not need to know who contributed. `getAllDistinct` de-dups exact duplicates, so re-declaring an identical contribution is safe.
+
+Two concrete instances of this pattern in the codebase:
+
+1. **`ApplicationRoutingConfigurator.Element`** (precedent in `features/common/server`): feature routes are registered via `singleWithRandomQualifier<ApplicationRoutingConfigurator.Element> { ... }` in each feature's server plugin, then aggregated by `single<ApplicationRoutingConfigurator> { InternalApplicationRoutingConfigurator(getAllDistinct<ApplicationRoutingConfigurator.Element>()) }`.
+
+2. **`FeatureRolesRegistry.Requirement`** (new in `features/roles/common`): role requirements are contributed via the `singleRequirement` Module extension, then aggregated by `single<FeatureRolesRegistry> { MapFeatureRolesRegistry(getAllDistinct<FeatureRolesRegistry.Requirement>()) }`.
+
+Example shape:
+
+```kotlin
+// Contributor (any feature's Plugin.setupDI)
+singleWithRandomQualifier { MyContribution(...) }
+
+// Aggregator (a central location)
+single { AggregatorImpl(getAllDistinct<MyContribution>()) }
+```
+
+---
+
 ## Ktor Client Realization Rule
 
 `KtorXxxFeature` classes must **only** call HTTP endpoints and return the result. They must not implement any additional logic — no storage writes, no caching, no business rules. If such logic is needed, wrap `KtorXxxFeature` in a service class (e.g. `MyFeatureService`) that holds the storage and delegates HTTP calls to the Ktor realization. Register the service as the `MyFeature` binding in Koin, not the Ktor class directly.
