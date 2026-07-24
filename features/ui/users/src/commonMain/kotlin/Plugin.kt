@@ -4,13 +4,15 @@ import dev.inmo.micro_utils.common.MPPFile
 import dev.inmo.micro_utils.koin.singleWithRandomQualifier
 import dev.inmo.micro_utils.startup.plugin.StartPlugin
 import dev.inmo.wishlist.features.admin.client.AdminFeature
+import dev.inmo.wishlist.features.admin.common.Constants as AdminConstants
 import dev.inmo.wishlist.features.auth.client.AuthCredentialsStorage
 import dev.inmo.wishlist.features.auth.client.meStateFlow
 import dev.inmo.wishlist.features.auth.common.models.Password
 import dev.inmo.wishlist.features.common.client.models.ViewConfig
 import dev.inmo.wishlist.features.files.client.FilesClientService
+import dev.inmo.wishlist.features.files.common.Constants as FilesConstants
 import dev.inmo.wishlist.features.files.common.models.FileId
-import dev.inmo.wishlist.features.simpleRoles.client.CacheSimpleRolesFeature
+import dev.inmo.wishlist.features.roles.client.RolesFeature
 import dev.inmo.wishlist.features.users.client.UsersFeature
 import dev.inmo.wishlist.features.users.common.models.NewUser
 import dev.inmo.wishlist.features.users.common.models.UserId
@@ -24,9 +26,11 @@ import dev.inmo.wishlist.features.ui.users.ui.UsersListViewConfig
 import dev.inmo.wishlist.features.ui.users.ui.UsersListViewModel
 import dev.inmo.wishlist.features.ui.users.ui.UsersModel
 import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.flow.mapLatest
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.modules.SerializersModule
@@ -42,6 +46,7 @@ import org.koin.core.module.Module
  * [FilesClientService].
  */
 object Plugin : StartPlugin {
+    @OptIn(ExperimentalCoroutinesApi::class)
     override fun Module.setupDI(config: JsonObject) {
         singleWithRandomQualifier {
             SerializersModule {
@@ -63,6 +68,7 @@ object Plugin : StartPlugin {
             val filesService = get<FilesClientService>()
             val scope = get<CoroutineScope>()
             val credentialsStorage = get<AuthCredentialsStorage>()
+            val rolesFeature = get<RolesFeature>()
             object : UsersModel {
                 override val userAuthorisedState = credentialsStorage.userAuthorised
 
@@ -75,7 +81,18 @@ object Plugin : StartPlugin {
                     meState.map { it?.id }.stateIn(scope, SharingStarted.Eagerly, meState.value?.id)
 
                 override val isCurrentUserRootFlow: StateFlow<Boolean> =
-                    get<CacheSimpleRolesFeature>().isSuperAdminStateFlow
+                    meState
+                        .mapLatest { me ->
+                            me != null && rolesFeature.isFunctionalityAvailable(AdminConstants.adminPanelFunctionalityId)
+                        }
+                        .stateIn(scope, SharingStarted.Eagerly, false)
+
+                override val canChangeAvatarForOthersFlow: StateFlow<Boolean> =
+                    meState
+                        .mapLatest { me ->
+                            me != null && rolesFeature.isFunctionalityAvailable(FilesConstants.avatarChangeForOthersFunctionalityId)
+                        }
+                        .stateIn(scope, SharingStarted.Eagerly, false)
 
                 override suspend fun updateUsername(id: UserId, username: Username): Boolean =
                     adminFeature.usersManagement.update(id, NewUser(username))

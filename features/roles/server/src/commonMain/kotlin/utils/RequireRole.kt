@@ -40,9 +40,10 @@ internal suspend fun isRoleRequirementSatisfied(
  * chain further logic, mirroring `AdminRoutingsConfigurator.requireAdmin()`'s existing `UserId?`
  * return shape.
  *
- * No production route calls this yet in issue #68's scope — point 8's three replacements call
- * `SimpleRolesFeature.isSuperAdmin` directly instead (see `roles/README.md` Architecture Notes for
- * why); this establishes a tested, ready-to-use guard for the next role-gated route.
+ * No production route calls this guard directly yet — the gated call sites go through
+ * [dev.inmo.wishlist.features.roles.server.RolesFeature.isFunctionalityAvailable] instead (same
+ * underlying [isRoleRequirementSatisfied] decision); this `RoutingContext` guard establishes a
+ * tested, ready-to-use form for the next role-gated route.
  *
  * @param functionalityId Gated capability looked up in [registry].
  * @param registry Registry resolving [functionalityId] to its required role.

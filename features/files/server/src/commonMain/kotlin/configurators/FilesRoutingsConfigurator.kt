@@ -6,7 +6,7 @@ import dev.inmo.wishlist.features.files.common.Constants
 import dev.inmo.wishlist.features.files.common.models.FileId
 import dev.inmo.wishlist.features.files.common.models.FinalizeFileRequest
 import dev.inmo.wishlist.features.files.server.services.FilesService
-import dev.inmo.wishlist.features.simpleRoles.server.SimpleRolesFeature
+import dev.inmo.wishlist.features.roles.server.RolesFeature
 import dev.inmo.wishlist.features.users.common.models.UserId
 import io.ktor.http.ContentDisposition
 import io.ktor.http.ContentType
@@ -40,12 +40,12 @@ import io.ktor.server.routing.route
  * MicroUtils `TemporalFilesRoutingConfigurator` in the feature [dev.inmo.wishlist.features.files.server.Plugin].
  *
  * @param filesService Service performing storage, metadata and ownership work.
- * @param simpleRolesFeature Used to resolve whether the authenticated caller holds the SuperAdmin role
- * when authorizing avatar changes for another user.
+ * @param rolesFeature Used to resolve whether the authenticated caller may change another user's
+ * avatar (the `files.avatarChangeForOthers` functionality).
  */
 class FilesRoutingsConfigurator(
     private val filesService: FilesService,
-    private val simpleRolesFeature: SimpleRolesFeature
+    private val rolesFeature: RolesFeature
 ) : ApplicationRoutingConfigurator.Element {
     override fun Route.invoke() {
         route(Constants.filesPrefixPathPart) {
@@ -110,7 +110,7 @@ class FilesRoutingsConfigurator(
                         call.respond(HttpStatusCode.BadRequest)
                         return@put
                     }
-                    if (callerId != userId && !simpleRolesFeature.isSuperAdmin(callerId)) {
+                    if (callerId != userId && !rolesFeature.isFunctionalityAvailable(callerId, Constants.avatarChangeForOthersFunctionalityId)) {
                         call.respond(HttpStatusCode.Forbidden)
                         return@put
                     }

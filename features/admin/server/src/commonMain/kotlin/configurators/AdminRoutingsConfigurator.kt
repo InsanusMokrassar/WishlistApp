@@ -10,7 +10,7 @@ import dev.inmo.wishlist.features.admin.common.models.asAdminWishlistItem
 import dev.inmo.wishlist.features.admin.server.AdminFeature
 import dev.inmo.wishlist.features.auth.common.models.Password
 import dev.inmo.wishlist.features.auth.server.utils.getCallerUserIdOrAnswerUnauthorized
-import dev.inmo.wishlist.features.simpleRoles.server.SimpleRolesFeature
+import dev.inmo.wishlist.features.roles.server.RolesFeature
 import dev.inmo.wishlist.features.users.common.models.NewUser
 import dev.inmo.wishlist.features.users.common.models.UserId
 import dev.inmo.wishlist.features.users.common.repo.ReadUsersRepo
@@ -67,12 +67,12 @@ class AdminRoutingsConfigurator(
     private val wishlistService: WishlistService,
     private val wishlistRepo: WishlistRepo,
     private val wishlistItemRepo: WishlistItemRepo,
-    private val simpleRolesFeature: SimpleRolesFeature
+    private val rolesFeature: RolesFeature
 ) : ApplicationRoutingConfigurator.Element {
 
     private suspend fun RoutingContext.requireAdmin(): UserId? {
         val callerId = getCallerUserIdOrAnswerUnauthorized() ?: return null
-        if (!simpleRolesFeature.isSuperAdmin(callerId)) {
+        if (!rolesFeature.isFunctionalityAvailable(callerId, Constants.adminPanelFunctionalityId)) {
             call.respond(HttpStatusCode.Forbidden)
             return null
         }

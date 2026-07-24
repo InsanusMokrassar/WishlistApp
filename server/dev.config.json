@@ -21,8 +21,7 @@
     "dev.inmo.wishlist.features.currency.server.JVMPlugin",
     "dev.inmo.wishlist.features.booking.server.JVMPlugin",
     "dev.inmo.wishlist.features.email.server.JVMPlugin",
-    "dev.inmo.wishlist.features.roles.server.JVMPlugin",
-    "dev.inmo.wishlist.features.simpleRoles.server.JVMPlugin"
+    "dev.inmo.wishlist.features.roles.server.JVMPlugin"
   ],
   "filesFolder": "./local.uploaded_files",
   "useCache": true,

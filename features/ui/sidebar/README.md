@@ -77,6 +77,7 @@ None — client-only UI feature.
   the new `SidebarSection.Admin` mapping).
 - Security note: this only closes a UX/discoverability gap. Client-side hiding is not a new
   authorization boundary — every admin-panel server call is still independently gated by
-  `AdminRoutingsConfigurator`'s server-side SuperAdmin-role check (via `simpleRoles.server`'s
-  `SimpleRolesFeature.isSuperAdmin`, issue #68 — replaced the previous inline `rootUsername`
-  comparison), matching the pattern already relied on by `UserEditViewModel.isRootState`.
+  `AdminRoutingsConfigurator`'s server-side SuperAdmin-role check (via `roles.server`'s
+  `RolesFeature.isFunctionalityAvailable(callerId, adminPanelFunctionalityId)`, issue #68 — replaced the
+  previous inline `rootUsername` comparison), matching the pattern already relied on by
+  `UserEditViewModel.isRootState`.

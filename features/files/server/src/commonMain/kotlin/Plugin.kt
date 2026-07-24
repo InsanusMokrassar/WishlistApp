@@ -11,7 +11,7 @@ import dev.inmo.wishlist.features.files.server.services.TimedTemporalFilesUtiliz
 import dev.inmo.wishlist.features.roles.common.FeatureRolesRegistry
 import dev.inmo.wishlist.features.roles.common.SuperAdminRole
 import dev.inmo.wishlist.features.roles.common.singleRequirement
-import dev.inmo.wishlist.features.simpleRoles.server.SimpleRolesFeature
+import dev.inmo.wishlist.features.roles.server.RolesFeature
 import kotlinx.serialization.json.JsonObject
 import org.koin.core.Koin
 import org.koin.core.module.Module
@@ -51,7 +51,7 @@ object Plugin : StartPlugin {
             FeatureRolesRegistry.Requirement(Constants.avatarChangeForOthersFunctionalityId, SuperAdminRole)
         }
         singleWithRandomQualifier<ApplicationRoutingConfigurator.Element> {
-            FilesRoutingsConfigurator(get(), get<SimpleRolesFeature>())
+            FilesRoutingsConfigurator(get(), get<RolesFeature>())
         }
     }
 

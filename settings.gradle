@@ -49,10 +49,6 @@ String[] includes = [
     ":features:roles:server",
     ":features:roles:client",
 
-    ":features:simpleRoles:common",
-    ":features:simpleRoles:server",
-    ":features:simpleRoles:client",
-
     ":features:ui:sample",
     ":features:ui:auth",
     ":features:ui:wishlist",

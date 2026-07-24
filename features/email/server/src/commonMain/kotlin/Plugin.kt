@@ -11,7 +11,7 @@ import dev.inmo.wishlist.features.email.server.services.SmtpEmailService
 import dev.inmo.wishlist.features.roles.common.FeatureRolesRegistry
 import dev.inmo.wishlist.features.roles.common.SuperAdminRole
 import dev.inmo.wishlist.features.roles.common.singleRequirement
-import dev.inmo.wishlist.features.simpleRoles.server.SimpleRolesFeature
+import dev.inmo.wishlist.features.roles.server.RolesFeature
 import dev.inmo.wishlist.features.users.common.repo.UsersRepo
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonElement
@@ -54,7 +54,7 @@ object Plugin : StartPlugin {
         }
         single<EmailFeature> {
             getOrNull<EmailsService>() ?.let {
-                EmailFeatureService(it, get<UsersRepo>(), get<SimpleRolesFeature>())
+                EmailFeatureService(it, get<UsersRepo>(), get<RolesFeature>())
             } ?: DisabledEmailFeature(get<UsersRepo>())
         }
         singleRequirement {

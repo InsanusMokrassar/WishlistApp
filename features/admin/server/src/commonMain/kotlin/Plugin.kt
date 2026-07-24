@@ -9,7 +9,7 @@ import dev.inmo.wishlist.features.auth.server.services.AuthFeatureService
 import dev.inmo.wishlist.features.roles.common.FeatureRolesRegistry
 import dev.inmo.wishlist.features.roles.common.SuperAdminRole
 import dev.inmo.wishlist.features.roles.common.singleRequirement
-import dev.inmo.wishlist.features.simpleRoles.server.SimpleRolesFeature
+import dev.inmo.wishlist.features.roles.server.RolesFeature
 import dev.inmo.wishlist.features.users.common.repo.UsersRepo
 import dev.inmo.wishlist.features.wishlist.common.repo.WishlistItemRepo
 import dev.inmo.wishlist.features.wishlist.common.repo.WishlistRepo
@@ -41,7 +41,7 @@ object Plugin : StartPlugin {
                 wishlistService = get<WishlistService>(),
                 wishlistRepo = get<WishlistRepo>(),
                 wishlistItemRepo = get<WishlistItemRepo>(),
-                simpleRolesFeature = get<SimpleRolesFeature>()
+                rolesFeature = get<RolesFeature>()
             )
         }
     }

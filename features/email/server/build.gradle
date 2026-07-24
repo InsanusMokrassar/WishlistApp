@@ -13,7 +13,7 @@ kotlin {
                 api project(":wishlist.features.common.server")
                 api project(":wishlist.features.users.common")
                 api project(":wishlist.features.auth.server")
-                api project(":wishlist.features.simpleRoles.server")
+                api project(":wishlist.features.roles.server")
                 api libs.angus.mail
             }
         }

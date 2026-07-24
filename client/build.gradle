@@ -28,7 +28,7 @@ kotlin {
                 api project(":wishlist.features.booking.client")
                 api project(":wishlist.features.email.client")
                 api project(":wishlist.features.deeplinks.client")
-                api project(":wishlist.features.simpleRoles.client")
+                api project(":wishlist.features.roles.client")
                 api project(":wishlist.features.ui.sample")
                 api project(":wishlist.features.ui.auth")
                 api project(":wishlist.features.ui.wishlist")

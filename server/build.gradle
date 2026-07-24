@@ -24,7 +24,6 @@ dependencies {
     api project(":wishlist.features.email.server")
     api project(":wishlist.features.deeplinks.server")
     api project(":wishlist.features.roles.server")
-    api project(":wishlist.features.simpleRoles.server")
 
     api libs.ktor.websockets
     api libs.ktor.serialization.kotlinx.json

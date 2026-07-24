@@ -6,16 +6,18 @@
 
 ## Overview
 
-Server-only role storage feature (issue #68, points 1–6) wrapping the external `dev.inmo:kroles`
+Full-stack role storage feature (issue #68, points 1–6) wrapping the external `dev.inmo:kroles`
 library. Owns the Exposed-backed, cache-mirrored `RolesRepo`, the two hardcoded roles this app uses
 (`SuperAdmin`, `User`), the feature/role aggregator (`FeatureRolesRegistry`) and its route-guard
 helper (`requireRole`), and the bootstrap/migration that assigns `SuperAdmin` to `root` and `User` to
-every user. Nothing in this feature is exposed to any client — see Architecture Notes.
+every user. The general role graph (`RolesRepo`) is server-internal only; however, the narrow
+`isFunctionalityAvailable` check is exposed client-side — see Architecture Notes.
 
 ## Routes
 
-None. This feature has no HTTP surface; the only client-facing capability derived from it
-(`isSuperAdmin`) is exposed by the separate `features/simpleRoles` feature.
+| Method | Path | Auth | Response | Description |
+|--------|------|------|----------|-------------|
+| GET | `/roles/isFunctionalityAvailable/{functionalityId}` | Bearer | `Boolean` | Whether the authenticated caller may access the given role-gated functionality |
 
 ## Models
 
@@ -30,6 +32,12 @@ None. This feature has no HTTP surface; the only client-facing capability derive
 | `singleRequirement` | `roles/common` | Koin `Module` extension — `singleRequirement(createdAtStart: Boolean = false, block: Definition<FeatureRolesRegistry.Requirement>)` — registers one `Requirement` via `singleWithRandomQualifier` so any number can be contributed without qualifier collisions. |
 | Functionality ids | each owning feature's `Constants` | Each `FunctionalityId` is a `val` in its owning feature's constants object: `Constants.adminPanelFunctionalityId` (`admin/common`, `"admin.panel"`), `EmailConstants.sendTestFunctionalityId` (`email/common`, `"email.sendTest"`), `Constants.avatarChangeForOthersFunctionalityId` (`files/common`, `"files.avatarChangeForOthers"`). The former central `RoleGatedFeatureIds` object was removed. |
 | `requireRole` / `isRoleRequirementSatisfied` | `roles/server/utils` | Route-guard helper (`RoutingContext.requireRole(functionalityId, registry, rolesRepo)`) and its pure allow/deny decision function (`isRoleRequirementSatisfied(registry, functionalityId, callerId, rolesRepo)`); now take a `FeatureRolesRegistry` instance + `FunctionalityId` (was: static object + `String featureId`). |
+| `RolesFeature` (server) | `roles/server` | Interface: `suspend fun isFunctionalityAvailable(userId: UserId, functionalityId: FunctionalityId): Boolean`. Implemented by `RolesFeatureService`. Exposes functionality checks to the server's own routing and services. |
+| `RolesFeatureService` | `roles/server/services` | Server `RolesFeature` impl; delegates to `isRoleRequirementSatisfied(registry, functionalityId, userId, rolesRepo)` via the injected `FeatureRolesRegistry` and `RolesRepo`. Fails closed (returns `false`) for unregistered functionalities. |
+| `RolesRoutingsConfigurator` | `roles/server/configurators` | Bearer-authenticated `GET /roles/isFunctionalityAvailable/{functionalityId}` endpoint; caller resolved from token; responds `Boolean`; `400` when the path segment is missing. Registered in `roles/server` `Plugin.setupDI` via `singleWithRandomQualifier`. |
+| `RolesFeature` (client) | `roles/client` | Interface: `suspend fun isFunctionalityAvailable(functionalityId: FunctionalityId): Boolean`. Caller identity resolved server-side from bearer token. Implemented by `KtorRolesFeature`. HTTP-only, no caching — reactive per-functionality caching is a consumer (Model-layer) concern. |
+| `KtorRolesFeature` | `roles/client` | HTTP implementation of client `RolesFeature`; `GET /roles/isFunctionalityAvailable/{id}`. Fails closed on HTTP errors. |
+| `RolesConstants` | `roles/common` | Shared path-segment constants: `prefixPathPart="roles"`, `isFunctionalityAvailablePathPart="isFunctionalityAvailable"`, `functionalityIdParameter="functionalityId"`. |
 | `RolesRepo` (kroles) | `roles/common` (JVM) | kroles' own `RolesRepo` (`dev.inmo.kroles.repos`), bound in Koin as the Exposed+cache-backed implementation — see Architecture Notes. |
 | `roles` table | Postgres | Two text columns, `subject` (JSON-encoded `BaseRoleSubject`) and `role` (`BaseRole.plain`); one-to-many, via `ExposedKeyValuesRepo`. |
 
@@ -44,13 +52,14 @@ None. This feature has no HTTP surface; the only client-facing capability derive
   need round-tripping — the plain `rawValue` string alone would not disambiguate the two) and the
   plain `BaseRole.plain` string as the value, via the MicroUtils `withMapper` adapter (mirrors how
   `ExposedPasswordsRepo` wraps `ExposedKeyValueRepo<String, String>`).
-- **`roles/client` is a deliberate, permanent stub.** The module is scaffolded (this repo's tooling
-  always creates all three submodules) but is not added as a dependency of `client/build.gradle` and
-  its platform plugins are not registered in any `Main.kt`/`MainActivity.kt`. Nothing in issue #68
-  needs a client to talk to the general role graph, and kroles' own `kroles.repos.ktor.*` module
-  (which would expose the *entire* role graph read/write over HTTP with no access control) is
-  deliberately never added as a dependency anywhere in this app. The only client-facing surface
-  derived from roles data is the separate, narrow `features/simpleRoles` feature.
+- **`roles/client` is now ACTIVE.** The module is a proper client feature (IS added as a dependency
+  of `client/build.gradle` and its platform plugins ARE registered in `client/src/jsMain/kotlin/Main.kt`,
+  `client/src/jvmMain/kotlin/Main.kt`, `client/android/src/main/kotlin/MainActivity.kt`) and exposes
+  the narrow `RolesFeature.isFunctionalityAvailable(functionalityId)` capability via HTTP-only
+  `KtorRolesFeature`. The general role graph (`RolesRepo`, `kroles.repos.ktor.*`) is STILL never
+  exposed to any client — only the narrow functionality check crosses the client boundary. The former
+  separate `features/simpleRoles` feature (which narrowly exposed `isSuperAdmin` as a client boolean)
+  was REMOVED and folded into this generic `isFunctionalityAvailable` check.
 - **Subscribe-then-backfill bootstrap (issue points 5 & 6), and why:** `roles/server/JVMPlugin.startPlugin`
   subscribes to `UsersRepo.newObjectsFlow` *before* reading any snapshot, then runs a
   `VersionsRepo`-gated one-time backfill over `UsersRepo.getAll()`. This ordering is required because
@@ -66,15 +75,13 @@ None. This feature has no HTTP surface; the only client-facing capability derive
   `SuperAdmin` when `username == "root"`) is shared by both paths and is idempotent (kroles'
   `RolesRepo.includeDirect` is a no-op when already granted), so double-granting in the overlap window
   between the two paths is harmless.
-- **`FeatureRolesRegistry` has real data but `requireRole` has no production caller yet.** The
-  registry is populated with today's one real mapping (all three role-gated capabilities require
-  `SuperAdmin`), and `requireRole`/`isRoleRequirementSatisfied` are fully implemented and unit-tested.
-  However, issue #68 point 8's three concrete replacements (`admin`, `email`, `files`) call
-  `SimpleRolesFeature.isSuperAdmin` directly instead of `requireRole`, per the issue's own literal
-  text and to keep those three modules scoped to `simpleRoles`'s narrow surface rather than the
-  general `roles` `RolesRepo`. The requirements themselves ARE registered (see next bullet);
-  `requireRole` is a real, tested, ready-to-use guard for the next role-gated route — this gap between
-  "requirement registered" and "guard has a caller" is intentional, not an oversight.
+- **`FeatureRolesRegistry` has real data.** The registry is populated with today's three real
+  mappings (all role-gated capabilities require `SuperAdmin`), and `requireRole`/`isRoleRequirementSatisfied`
+  are fully implemented and unit-tested. The gated call sites (`admin`, `email`, `files` on the server
+  side) now go through `RolesFeature.isFunctionalityAvailable(userId, functionalityId)`, which delegates
+  to `isRoleRequirementSatisfied(registry, functionalityId, userId, rolesRepo)` for the same allow/deny
+  decision. The `requireRole` `RoutingContext` guard specifically is still not called by any production
+  route.
 - **Requirements are placed in the feature they gate, not in `roles`.** Each
   `FeatureRolesRegistry.Requirement` is contributed with `singleRequirement { ... }` from the
   `setupDI` of the owning feature — `admin.panel` in `admin/server`, `email.sendTest` in
@@ -95,4 +102,4 @@ None. This feature has no HTTP surface; the only client-facing capability derive
   `features/common/common`) `microutils.repos.exposed`/`microutils.coroutines`/kotlinx-serialization.
   `roles/server` depends on `roles/common`, `features/common/server`, `features/users/common` (for
   `UsersRepo`/`RegisteredUser`), and `features/auth/server` (for `getCallerUserIdOrAnswerUnauthorized`,
-  used by `requireRole`).
+  used by `requireRole`). `roles/client` depends on `roles/common` and `features/common/client`.
