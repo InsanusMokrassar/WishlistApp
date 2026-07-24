@@ -13,6 +13,7 @@ import dev.inmo.kroles.roles.BaseRole
  * call `SimpleRolesFeature.isSuperAdmin` directly instead, per the issue's own literal text.
  */
 object FeatureRolesRegistry {
+    /** Backing `featureId -> required BaseRole` map, populated by [register] and read by [requiredRole]. */
     private val requirements = mutableMapOf<String, BaseRole>()
 
     /**

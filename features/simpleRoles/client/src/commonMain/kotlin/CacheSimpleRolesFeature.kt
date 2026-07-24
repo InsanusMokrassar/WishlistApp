@@ -1,6 +1,5 @@
 package dev.inmo.wishlist.features.simpleRoles.client
 
-import dev.inmo.micro_utils.coroutines.runCatchingLogging
 import dev.inmo.micro_utils.coroutines.subscribeLoggingDropExceptions
 import dev.inmo.wishlist.features.users.common.models.RegisteredUser
 import kotlinx.coroutines.CoroutineScope
@@ -30,14 +29,19 @@ class CacheSimpleRolesFeature(
     private val meState: StateFlow<RegisteredUser?>,
     scope: CoroutineScope
 ) : SimpleRolesFeature {
+    /**
+     * In-memory cache of the caller's SuperAdmin answer, refreshed on every [meState] emission and
+     * exposed reactively through [isSuperAdminStateFlow]. Defaults to `false` (fail-closed) until the
+     * first refresh completes.
+     */
     private val cached = MutableStateFlow(false)
 
     /** Read-only view of the cached answer, for consumers that need reactive access (e.g. `ui/users`). */
-    val isSuperAdminStateFlow: StateFlow<Boolean> get() = cached.asStateFlow()
+    val isSuperAdminStateFlow: StateFlow<Boolean> = cached.asStateFlow()
 
     init {
         merge(flowOf(Unit), meState).subscribeLoggingDropExceptions(scope) {
-            cached.value = runCatchingLogging { delegate.isSuperAdmin() }.getOrDefault(false)
+            cached.value = delegate.isSuperAdmin()
         }
     }
 

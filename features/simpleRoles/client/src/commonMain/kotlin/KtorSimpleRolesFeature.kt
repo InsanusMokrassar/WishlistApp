@@ -14,6 +14,7 @@ import io.ktor.http.isSuccess
  * @param client Shared app-wide [HttpClient].
  */
 class KtorSimpleRolesFeature(private val client: HttpClient) : SimpleRolesFeature {
+    /** Relative path of the superadmin-status endpoint (`simpleRoles/isSuperAdmin`), built from the shared [Constants]. */
     private val isSuperAdminPath = "${Constants.prefixPathPart}/${Constants.isSuperAdminPathPart}"
 
     /**
