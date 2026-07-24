@@ -1,12 +1,16 @@
 package dev.inmo.wishlist.features.files.common
 
 import dev.inmo.micro_utils.ktor.common.DefaultTemporalFilesSubPath
+import dev.inmo.wishlist.features.roles.common.FunctionalityId
 
 /**
  * URL path segment constants for the files feature, shared between the server routing
  * configurator and the client HTTP implementation to avoid out-of-sync strings.
  */
 object Constants {
+    /** Role-gated functionality id for changing another user's avatar (`PUT /files/avatar/{userId}`). */
+    val avatarChangeForOthersFunctionalityId = FunctionalityId("files.avatarChangeForOthers")
+
     /** Root path segment for all files routes: `/files/...`. */
     const val filesPrefixPathPart = "files"
 

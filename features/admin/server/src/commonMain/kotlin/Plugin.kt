@@ -3,8 +3,13 @@ package dev.inmo.wishlist.features.admin.server
 import dev.inmo.micro_utils.koin.singleWithRandomQualifier
 import dev.inmo.micro_utils.ktor.server.configurators.ApplicationRoutingConfigurator
 import dev.inmo.micro_utils.startup.plugin.StartPlugin
+import dev.inmo.wishlist.features.admin.common.Constants
 import dev.inmo.wishlist.features.admin.server.configurators.AdminRoutingsConfigurator
 import dev.inmo.wishlist.features.auth.server.services.AuthFeatureService
+import dev.inmo.wishlist.features.roles.common.FeatureRolesRegistry
+import dev.inmo.wishlist.features.roles.common.SuperAdminRole
+import dev.inmo.wishlist.features.roles.common.singleRequirement
+import dev.inmo.wishlist.features.roles.server.RolesFeature
 import dev.inmo.wishlist.features.users.common.repo.UsersRepo
 import dev.inmo.wishlist.features.wishlist.common.repo.WishlistItemRepo
 import dev.inmo.wishlist.features.wishlist.common.repo.WishlistRepo
@@ -25,13 +30,18 @@ object Plugin : StartPlugin {
         }
         single { AdminFeature(get()) }
 
+        singleRequirement {
+            FeatureRolesRegistry.Requirement(Constants.adminPanelFunctionalityId, SuperAdminRole)
+        }
+
         singleWithRandomQualifier<ApplicationRoutingConfigurator.Element> {
             AdminRoutingsConfigurator(
                 adminFeature = get(),
                 usersRepo = get<UsersRepo>(),
                 wishlistService = get<WishlistService>(),
                 wishlistRepo = get<WishlistRepo>(),
-                wishlistItemRepo = get<WishlistItemRepo>()
+                wishlistItemRepo = get<WishlistItemRepo>(),
+                rolesFeature = get<RolesFeature>()
             )
         }
     }

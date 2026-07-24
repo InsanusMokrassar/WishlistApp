@@ -45,6 +45,10 @@ String[] includes = [
     ":features:deeplinks:server",
     ":features:deeplinks:client",
 
+    ":features:roles:common",
+    ":features:roles:server",
+    ":features:roles:client",
+
     ":features:ui:sample",
     ":features:ui:auth",
     ":features:ui:wishlist",

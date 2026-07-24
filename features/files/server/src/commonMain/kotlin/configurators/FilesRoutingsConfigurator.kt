@@ -6,8 +6,8 @@ import dev.inmo.wishlist.features.files.common.Constants
 import dev.inmo.wishlist.features.files.common.models.FileId
 import dev.inmo.wishlist.features.files.common.models.FinalizeFileRequest
 import dev.inmo.wishlist.features.files.server.services.FilesService
+import dev.inmo.wishlist.features.roles.server.RolesFeature
 import dev.inmo.wishlist.features.users.common.models.UserId
-import dev.inmo.wishlist.features.users.common.repo.ReadUsersRepo
 import io.ktor.http.ContentDisposition
 import io.ktor.http.ContentType
 import io.ktor.http.HttpHeaders
@@ -40,19 +40,13 @@ import io.ktor.server.routing.route
  * MicroUtils `TemporalFilesRoutingConfigurator` in the feature [dev.inmo.wishlist.features.files.server.Plugin].
  *
  * @param filesService Service performing storage, metadata and ownership work.
- * @param usersRepo Used to resolve whether the authenticated caller is the `root` user when
- * authorizing avatar changes for another user.
+ * @param rolesFeature Used to resolve whether the authenticated caller may change another user's
+ * avatar (the `files.avatarChangeForOthers` functionality).
  */
 class FilesRoutingsConfigurator(
     private val filesService: FilesService,
-    private val usersRepo: ReadUsersRepo
+    private val rolesFeature: RolesFeature
 ) : ApplicationRoutingConfigurator.Element {
-    private val rootUsername = "root"
-
-    /** `true` when [callerId] resolves to the `root` user. */
-    private suspend fun isRoot(callerId: UserId): Boolean =
-        usersRepo.getById(callerId)?.username?.string == rootUsername
-
     override fun Route.invoke() {
         route(Constants.filesPrefixPathPart) {
             get("${Constants.metaPathPart}/{id}") {
@@ -116,7 +110,7 @@ class FilesRoutingsConfigurator(
                         call.respond(HttpStatusCode.BadRequest)
                         return@put
                     }
-                    if (callerId != userId && !isRoot(callerId)) {
+                    if (callerId != userId && !rolesFeature.isFunctionalityAvailable(callerId, Constants.avatarChangeForOthersFunctionalityId)) {
                         call.respond(HttpStatusCode.Forbidden)
                         return@put
                     }

@@ -26,6 +26,7 @@ fun main() {
                         dev.inmo.wishlist.features.booking.client.JSPlugin,
                         dev.inmo.wishlist.features.email.client.JSPlugin,
                         dev.inmo.wishlist.features.deeplinks.client.JSPlugin,
+                        dev.inmo.wishlist.features.roles.client.JSPlugin,
 
                         dev.inmo.wishlist.features.ui.sample.JSPlugin,
                         dev.inmo.wishlist.features.ui.auth.JSPlugin,

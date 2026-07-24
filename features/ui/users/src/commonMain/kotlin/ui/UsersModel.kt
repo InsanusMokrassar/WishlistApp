@@ -12,8 +12,9 @@ import kotlinx.coroutines.flow.StateFlow
  * Model facade consumed by every users UI screen (list, profile view, profile edit).
  *
  * Hides the underlying `features/users/client` (public read), `features/auth/client`
- * (current caller + root check), `features/admin/client` (root-only mutations) and
- * `features/files/client` (avatar storage) feature surfaces behind one interface.
+ * (current caller), `features/roles/client` (functionality-availability checks),
+ * `features/admin/client` (admin-panel mutations) and `features/files/client` (avatar storage)
+ * feature surfaces behind one interface.
  */
 interface UsersModel {
     /**
@@ -49,13 +50,21 @@ interface UsersModel {
     val currentUserIdFlow: StateFlow<UserId?>
 
     /**
-     * Reactive flag: `true` while the authenticated caller is the `root` user — the only identity
-     * permitted to edit arbitrary user fields or delete users.
-     *
-     * Backed by the auth "me" [StateFlow] (same self-correcting guarantee as [currentUserIdFlow]);
-     * `false` while anonymous or not yet resolved.
+     * Reactive flag: `true` while the authenticated caller may access the admin panel
+     * (`admin.panel` functionality) — the identity permitted to edit arbitrary user fields or delete
+     * users. Backed by `features/roles/client`'s functionality check over the auth "me" [StateFlow]
+     * (same self-correcting guarantee as [currentUserIdFlow]); `false` while anonymous or not yet
+     * resolved. Name kept for continuity (SuperAdmin is architecturally fixed to `root`).
      */
     val isCurrentUserRootFlow: StateFlow<Boolean>
+
+    /**
+     * Reactive flag: `true` while the authenticated caller may change another user's avatar
+     * (`files.avatarChangeForOthers` functionality). Gates the avatar uploader when editing a profile
+     * that is not the caller's own. Backed by `features/roles/client`; `false` while anonymous or not
+     * yet resolved.
+     */
+    val canChangeAvatarForOthersFlow: StateFlow<Boolean>
 
     /**
      * Updates the username of user [id] (root-only on the server).

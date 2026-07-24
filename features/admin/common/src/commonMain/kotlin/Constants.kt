@@ -1,6 +1,11 @@
 package dev.inmo.wishlist.features.admin.common
 
+import dev.inmo.wishlist.features.roles.common.FunctionalityId
+
 object Constants {
+    /** Role-gated functionality id for the whole `/admin/...` route surface (`AdminRoutingsConfigurator`). */
+    val adminPanelFunctionalityId = FunctionalityId("admin.panel")
+
     const val adminPrefixPathPart = "admin"
 
     const val usersPathPart = "users"

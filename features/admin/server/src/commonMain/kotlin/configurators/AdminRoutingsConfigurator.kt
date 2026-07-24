@@ -10,6 +10,7 @@ import dev.inmo.wishlist.features.admin.common.models.asAdminWishlistItem
 import dev.inmo.wishlist.features.admin.server.AdminFeature
 import dev.inmo.wishlist.features.auth.common.models.Password
 import dev.inmo.wishlist.features.auth.server.utils.getCallerUserIdOrAnswerUnauthorized
+import dev.inmo.wishlist.features.roles.server.RolesFeature
 import dev.inmo.wishlist.features.users.common.models.NewUser
 import dev.inmo.wishlist.features.users.common.models.UserId
 import dev.inmo.wishlist.features.users.common.repo.ReadUsersRepo
@@ -37,8 +38,8 @@ import io.ktor.server.routing.route
 /**
  * Ktor routing configurator that registers all admin CRUD endpoints under `/admin`.
  *
- * All routes require a valid bearer token AND the authenticated caller must be the `root` user.
- * Non-root callers receive `403 Forbidden`.
+ * All routes require a valid bearer token AND the authenticated caller must hold the SuperAdmin role.
+ * Non-SuperAdmin callers receive `403 Forbidden`.
  *
  * **Users management routes** (`/admin/users/...`):
  * - `GET    /admin/users/getAll`         — list all registered users
@@ -65,15 +66,13 @@ class AdminRoutingsConfigurator(
     private val usersRepo: ReadUsersRepo,
     private val wishlistService: WishlistService,
     private val wishlistRepo: WishlistRepo,
-    private val wishlistItemRepo: WishlistItemRepo
+    private val wishlistItemRepo: WishlistItemRepo,
+    private val rolesFeature: RolesFeature
 ) : ApplicationRoutingConfigurator.Element {
-
-    private val rootUsername = "root"
 
     private suspend fun RoutingContext.requireAdmin(): UserId? {
         val callerId = getCallerUserIdOrAnswerUnauthorized() ?: return null
-        val user = usersRepo.getById(callerId)
-        if (user == null || user.username.string != rootUsername) {
+        if (!rolesFeature.isFunctionalityAvailable(callerId, Constants.adminPanelFunctionalityId)) {
             call.respond(HttpStatusCode.Forbidden)
             return null
         }

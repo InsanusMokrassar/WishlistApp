@@ -1,8 +1,10 @@
 package dev.inmo.wishlist.features.email.server.services
 
+import dev.inmo.wishlist.features.email.common.EmailConstants
 import dev.inmo.wishlist.features.email.common.models.Email
 import dev.inmo.wishlist.features.email.server.EmailFeature
 import dev.inmo.wishlist.features.email.server.EmailsService
+import dev.inmo.wishlist.features.roles.server.RolesFeature
 import dev.inmo.wishlist.features.users.common.models.UserId
 import dev.inmo.wishlist.features.users.common.repo.UsersRepo
 
@@ -14,22 +16,21 @@ import dev.inmo.wishlist.features.users.common.repo.UsersRepo
  * registered (SMTP not configured), [DisabledEmailFeature] is substituted for the whole [EmailFeature]
  * binding instead. Because of that, [isFeatureEnabled] always returns `true`.
  *
- * Resolves the caller's user record from [usersRepo] to enforce access rules and to perform
- * email-address storage updates:
- * - [sendTestEmail] verifies [callerId] is root before delegating SMTP delivery via [emailsService].
+ * - [sendTestEmail] verifies [callerId] may access the `email.sendTest` functionality (via
+ *   [rolesFeature]) before delegating SMTP delivery via [emailsService].
  * - [setMyEmail] updates the caller's stored email address via [updateStoredEmail] — independent of
- *   [emailsService].
+ *   [emailsService] and of role status.
  *
  * @param emailsService SMTP delivery service used for sends. Always non-null — see class doc.
- * @param usersRepo User repository used for privilege checking and email-address persistence.
+ * @param usersRepo User repository used for email-address persistence.
+ * @param rolesFeature Functionality-availability check used to gate [sendTestEmail]; see
+ *   `features/roles` (issue #68).
  */
 class EmailFeatureService(
     private val emailsService: EmailsService,
-    private val usersRepo: UsersRepo
+    private val usersRepo: UsersRepo,
+    private val rolesFeature: RolesFeature
 ) : EmailFeature {
-
-    /** Username [sendTestEmail] compares the caller's username against to gate test-email sends to the root account. */
-    private val rootUsername = "root"
 
     /**
      * Returns whether an SMTP delivery service is available.
@@ -40,18 +41,15 @@ class EmailFeatureService(
     override suspend fun isFeatureEnabled(): Boolean = true
 
     /**
-     * Sends a test email to [recipient] if [callerId] belongs to the root account.
+     * Sends a test email to [recipient] if [callerId] may access the `email.sendTest` functionality.
      *
-     * Returns `false` immediately when the caller is not found or is not root.
-     *
-     * @param callerId Caller whose username is checked against the root account.
+     * @param callerId Caller checked against [rolesFeature].
      * @param recipient Target address for the test message.
      * @return `true` when delivery succeeded; `false` when the caller lacks privilege or SMTP
      *   delivery fails.
      */
     override suspend fun sendTestEmail(callerId: UserId, recipient: Email): Boolean {
-        val caller = usersRepo.getById(callerId) ?: return false
-        if (caller.username.string != rootUsername) return false
+        if (!rolesFeature.isFunctionalityAvailable(callerId, EmailConstants.sendTestFunctionalityId)) return false
         return emailsService.sendText(
             recipient = recipient,
             subject = "Test email from WishlistApp",

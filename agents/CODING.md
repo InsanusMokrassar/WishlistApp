@@ -255,6 +255,26 @@ For a dependency with a public read-only view backed by a private mutable instan
 
 ---
 
+## Roles requirements handling
+
+Register a role requirement from the `setupDI` of the feature that owns the gated functionality, using `singleRequirement`:
+
+```kotlin
+// features/email/server Plugin.setupDI — email owns its own gate
+singleRequirement {
+    FeatureRolesRegistry.Requirement(EmailConstants.sendTestFunctionalityId, SuperAdminRole)
+}
+```
+
+Use `FeatureRolesRegistry` through the `requireRole` route guard, which resolves the required role and answers `403`/`null` when the caller lacks it:
+
+```kotlin
+// inside a Ktor routing handler; registry + rolesRepo injected into the configurator
+val callerId = requireRole(EmailConstants.sendTestFunctionalityId, registry, rolesRepo) ?: return@post
+```
+
+---
+
 ## Ktor Client Realization Rule
 
 `KtorXxxFeature` classes must **only** call HTTP endpoints and return the result. They must not implement any additional logic — no storage writes, no caching, no business rules. If such logic is needed, wrap `KtorXxxFeature` in a service class (e.g. `MyFeatureService`) that holds the storage and delegates HTTP calls to the Ktor realization. Register the service as the `MyFeature` binding in Koin, not the Ktor class directly.
