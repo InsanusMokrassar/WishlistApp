@@ -26,15 +26,16 @@ import kotlinx.coroutines.flow.takeWhile
  * ViewModel for the user profile edit screen.
  *
  * Access rules mirror the requirement:
- * - The screen is reachable by the profile **owner** and **root**; both may upload an avatar.
- * - A non-root owner has **no editable text fields** ([isRootState] is `false`): only the avatar
- *   uploader is shown.
- * - **root** ([isRootState] is `true`) may edit the username and set a new password (with a
- *   confirmation field that must match) and delete the user. The user id is never editable.
+ * - The screen is reachable by the profile **owner** and an admin-panel caller; the avatar uploader
+ *   is shown when [canUploadAvatarState] is `true` (the owner, or a caller holding the
+ *   `files.avatarChangeForOthers` functionality).
+ * - A non-privileged owner has **no editable text fields** ([isRootState] is `false`).
+ * - An admin-panel caller ([isRootState] is `true`) may edit the username and set a new password
+ *   (with a confirmation field that must match) and delete the user. The user id is never editable.
  *
- * Username/password mutations go through the root-only admin endpoints; the avatar upload goes
- * through the files feature (allowed for the owner or root). Server-side authorization is the
- * source of truth — the field gating here is purely presentational.
+ * Username/password mutations go through the admin-panel endpoints; the avatar upload goes through
+ * the files feature (allowed for the owner or the `files.avatarChangeForOthers` functionality).
+ * Server-side authorization is the source of truth — the gating here is purely presentational.
  *
  * On logout this screen exits unconditionally to the underlying profile (read) view via
  * [UserEditViewInteractor.onNavigateBack], bypassing the dirty-changes confirm dialog.
@@ -128,6 +129,15 @@ class UserEditViewModel(
             isRoot && username.isNotBlank() && !loading && passwordOk
         }.stateIn(scope, SharingStarted.Eagerly, false)
 
+    /**
+     * `true` when the avatar uploader should be available: the caller is the profile owner, or holds
+     * the `files.avatarChangeForOthers` functionality. Mirrors the server-side avatar-change guard.
+     */
+    val canUploadAvatarState: StateFlow<Boolean> =
+        combine(model.currentUserIdFlow, model.canChangeAvatarForOthersFlow) { currentUserId, canForOthers ->
+            currentUserId == userId || canForOthers
+        }.stateIn(scope, SharingStarted.Eagerly, false)
+
     init {
         var inited = false
         merge(flowOf(Unit), node.onResumeFlow).takeWhile { !inited }.subscribeLoggingDropExceptions(scope) {
@@ -176,12 +186,14 @@ class UserEditViewModel(
     }
 
     /**
-     * Uploads [file] and sets it as this user's avatar (owner or root). Refreshes [avatarIdState] on
-     * success. Avatar changes persist immediately and do not affect [isDirtyState].
+     * Uploads [file] and sets it as this user's avatar (owner or `files.avatarChangeForOthers`).
+     * No-op unless [canUploadAvatarState] is `true`. Refreshes [avatarIdState] on success. Avatar
+     * changes persist immediately and do not affect [isDirtyState].
      *
      * @param file Image chosen by the user on the current platform.
      */
     fun onAvatarPicked(file: MPPFile) {
+        if (!canUploadAvatarState.value) return
         scope.launchLoggingDropExceptions {
             _uploadingAvatarState.value = true
             try {

@@ -73,6 +73,7 @@ class UserEditView(
         val loading by viewModel.loadingState.collectAsState()
         val mismatch by viewModel.passwordMismatchState.collectAsState()
         val canSave by viewModel.canSaveState.collectAsState()
+        val canUploadAvatar by viewModel.canUploadAvatarState.collectAsState()
         val showDiscard by viewModel.showConfirmDialogState.collectAsState()
         val showDelete by viewModel.showDeleteDialogState.collectAsState()
         val scope = rememberCoroutineScope()
@@ -107,7 +108,7 @@ class UserEditView(
             )
 
             CalmForm {
-                // Avatar section — available to owner and root.
+                // Avatar section — image shown to all; uploader gated by the avatar-change functionality.
                 FieldSet(label = UsersListStrings.avatarLabel.translation()) {
                     Div({ classes(UserEditViewStylesheet.avatarWrap) }) {
                         val id = avatarId
@@ -123,12 +124,14 @@ class UserEditView(
                             )
                         }
                     }
-                    CalmButton(
-                        text = if (uploading) UsersListStrings.uploadingPhoto.translation()
-                            else UsersListStrings.uploadPhotoButton.translation(),
-                        onClick = { scope.launch { pickImageFile()?.let { viewModel.onAvatarPicked(it) } } },
-                        disabled = loading || uploading,
-                    )
+                    if (canUploadAvatar) {
+                        CalmButton(
+                            text = if (uploading) UsersListStrings.uploadingPhoto.translation()
+                                else UsersListStrings.uploadPhotoButton.translation(),
+                            onClick = { scope.launch { pickImageFile()?.let { viewModel.onAvatarPicked(it) } } },
+                            disabled = loading || uploading,
+                        )
+                    }
                 }
 
                 if (isRoot) {

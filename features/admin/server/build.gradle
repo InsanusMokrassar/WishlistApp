@@ -12,6 +12,7 @@ kotlin {
                 api project(":wishlist.features.admin.common")
                 api project(":wishlist.features.auth.server")
                 api project(":wishlist.features.wishlist.server")
+                api project(":wishlist.features.roles.server")
             }
         }
     }

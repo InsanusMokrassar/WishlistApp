@@ -61,6 +61,7 @@ class UserEditView(
         val loading by viewModel.loadingState.collectAsState()
         val mismatch by viewModel.passwordMismatchState.collectAsState()
         val canSave by viewModel.canSaveState.collectAsState()
+        val canUploadAvatar by viewModel.canUploadAvatarState.collectAsState()
         val showDiscard by viewModel.showConfirmDialogState.collectAsState()
         val showDelete by viewModel.showDeleteDialogState.collectAsState()
         val scope = rememberCoroutineScope()
@@ -117,7 +118,7 @@ class UserEditView(
                 modifier = Modifier.fillMaxWidth()
             )
 
-            // Avatar — owner and root.
+            // Avatar — image shown to all; uploader gated by the avatar-change functionality.
             Text(UsersListStrings.avatarLabel.translation(), style = MaterialTheme.typography.subtitle1)
             val avatarFileId = avatarId
             if (avatarFileId != null) {
@@ -133,15 +134,17 @@ class UserEditView(
                     contentDescription = UsersListStrings.avatarPlaceholderAlt.translation()
                 )
             }
-            OutlinedButton(
-                onClick = { scope.launch { pickImageFile()?.let { viewModel.onAvatarPicked(it) } } },
-                enabled = !loading && !uploading,
-                modifier = Modifier.fillMaxWidth()
-            ) {
-                Text(
-                    if (uploading) UsersListStrings.uploadingPhoto.translation()
-                    else UsersListStrings.uploadPhotoButton.translation()
-                )
+            if (canUploadAvatar) {
+                OutlinedButton(
+                    onClick = { scope.launch { pickImageFile()?.let { viewModel.onAvatarPicked(it) } } },
+                    enabled = !loading && !uploading,
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Text(
+                        if (uploading) UsersListStrings.uploadingPhoto.translation()
+                        else UsersListStrings.uploadPhotoButton.translation()
+                    )
+                }
             }
 
             if (isRoot) {

@@ -198,6 +198,13 @@ The entire application (both client and server) is initialized via `StartLaunche
 1. **`Module.setupDI(config: JsonObject)`** — registers dependencies into the Koin DI module.
 2. **`suspend startPlugin(koin: Koin)`** — async startup using the built DI container.
 
+### Role requirement placement
+
+The `roles` feature owns only the aggregation mechanism (`FeatureRolesRegistry` / `MapFeatureRolesRegistry`, built via `getAllDistinct`), never the individual gates. Two placement rules are in force:
+
+- **A role requirement lives in the feature it gates.** Register each `FeatureRolesRegistry.Requirement` — via `singleRequirement { ... }` — from the `setupDI` of the module that owns the gated functionality (e.g. the email test-send requirement is registered in `features/email/server`, the avatar-change requirement in `features/files/server`), never centrally in `features/roles`. `MapFeatureRolesRegistry` aggregates every contributed requirement regardless of declaring module. See `agents/CODING.md` "Roles requirements handling".
+- **A `FunctionalityId` lives in its owning module's `Constants` file.** Declare each id as a `val` in that feature's constants object (e.g. `EmailConstants.sendTestFunctionalityId`, `Constants.avatarChangeForOthersFunctionalityId`), never in a shared roles-side list.
+
 ---
 
 ## Server Architecture
@@ -373,6 +380,33 @@ The client uses a navigation stack from `dev.inmo.navigation.mvvm`.
 | `ViewModel<C>` | Business logic layer; extends `dev.inmo.navigation.mvvm.ViewModel<ViewConfig>`, exposes `StateFlow`s |
 | `ComposeView<C, ViewConfig, VM>` | Compose UI per platform; extends `dev.inmo.navigation.mvvm.compose.ComposeView`, observes ViewModel |
 | `SampleModel` | Interface for data access / business rules; injected into ViewModel |
+
+---
+
+## Access & Layering Rule (Full-Stack Feature)
+
+Every full-stack feature is accessed through a single top-to-bottom chain of layers. Each layer talks only to the next one down. Syntax key: `[Notes] Name of part (place of registration in DI)`.
+
+1. View (Client, Per target, target Plugin) →
+2. ViewModel (Client, Common Plugin) →
+3. Model (Client, Common Plugin) →
+4. Client Feature (Client, Common Plugin) →
+5. Ktor Client Feature (Client, Common Plugin) →
+6. Server Ktor Routings Configurator (Server, JVM Plugin) →
+7. Server Feature (Server, Common Plugin) →
+8. Realization of Server Feature (Server, Common or JVM Plugin (depend on existence of platform-specific dependencies)) →
+9. [if and which required] Repositories (Server, Common Plugin) →
+10. (for each repository) [Optionally, but preferred] Fully cached repository (Server, Common Plugin) →
+11. (for each repository) Exposed repository (Server, JVM Plugin)
+
+**Each part MUST be declared in the same module where it is registered, always.**
+
+### Exceptions & clarifications
+
+- UI-only features (`features/ui/*`) have no server half (see the `features/ui` description above): the chain stops at Model, and the Model itself is optional.
+- When the client and server feature interfaces are structurally identical, they may collapse into ONE interface placed in `features/FEATURE_NAME/common/commonMain` instead of two separate Client Feature / Server Feature hops (per `agents/patterns/full-stack-feature.md`).
+- Ktor Client Feature is HTTP-only — no storage, no caching, no business rules (per `agents/CODING.md` "Ktor Client Realization Rule"). Any client-side caching/logic lives in the layer that wraps it: the Client Feature service bound as the feature interface.
+- The fully cached repository (step 10) is the preferred default for CRUD repos — cache over Exposed, per `agents/patterns/crud-repo.md`. A non-CRUD / key-value repository may bind its Exposed repo directly, with no cache layer.
 
 ---
 

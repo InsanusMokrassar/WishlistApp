@@ -6,7 +6,8 @@ kotlin-coroutines = "1.11.0"
 
 krontab = "2.9.0"
 navigation = "0.7.5"
-microutils = "0.29.4"
+microutils = "0.30.0"
+kroles = "0.0.2"
 compose = "1.11.0"
 kslog = "1.6.1"
 
@@ -133,6 +134,9 @@ microutils-selector = { module = "dev.inmo:micro_utils.selector.common", version
 microutils-resources = { module = "dev.inmo:micro_utils.resources", version.ref = "microutils" }
 microutils-colors-common = { module = "dev.inmo:micro_utils.colors.common", version.ref = "microutils" }
 microutils-transactions = { module = "dev.inmo:micro_utils.transactions", version.ref = "microutils" }
+
+kroles-roles = { module = "dev.inmo:kroles.roles", version.ref = "kroles" }
+kroles-repos = { module = "dev.inmo:kroles.repos", version.ref = "kroles" }
 
 
 # buildscript classpaths
