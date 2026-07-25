@@ -11,6 +11,6 @@ object RolesConstants {
     /** Path segment for the functionality-availability probe: `/roles/isFunctionalityAvailable/{functionalityId}`. */
     const val isFunctionalityAvailablePathPart = "isFunctionalityAvailable"
 
-    /** Name of the path parameter carrying the [FunctionalityId] string. */
+    /** Name of the path parameter carrying the [dev.inmo.wishlist.features.roles.common.models.FunctionalityId] string. */
     const val functionalityIdParameter = "functionalityId"
 }

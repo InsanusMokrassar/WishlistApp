@@ -9,8 +9,8 @@ import dev.inmo.wishlist.features.email.server.services.DisabledEmailFeature
 import dev.inmo.wishlist.features.email.server.services.EmailFeatureService
 import dev.inmo.wishlist.features.email.server.services.SmtpEmailService
 import dev.inmo.wishlist.features.roles.common.FeatureRolesRegistry
-import dev.inmo.wishlist.features.roles.common.SuperAdminRole
-import dev.inmo.wishlist.features.roles.common.singleRequirement
+import dev.inmo.wishlist.features.roles.common.models.SuperAdminRole
+import dev.inmo.wishlist.features.roles.common.utils.singleRequirement
 import dev.inmo.wishlist.features.roles.server.RolesFeature
 import dev.inmo.wishlist.features.users.common.repo.UsersRepo
 import kotlinx.serialization.json.Json

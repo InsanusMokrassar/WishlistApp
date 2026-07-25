@@ -1,17 +1,18 @@
 package dev.inmo.wishlist.features.roles.common
 
 import dev.inmo.kroles.roles.BaseRole
+import dev.inmo.wishlist.features.roles.common.models.FunctionalityId
 
 /**
  * In-memory [FeatureRolesRegistry] built from the [requirements] collected out of Koin (via
  * `getAllDistinct<FeatureRolesRegistry.Requirement>()`). Folds the contributions into a single
  * `FunctionalityId -> Requirement` map at construction, failing fast if two requirements disagree on
- * the role for one [FunctionalityId]. Exact-duplicate requirements are harmless — already collapsed by
+ * the role for one [dev.inmo.wishlist.features.roles.common.models.FunctionalityId]. Exact-duplicate requirements are harmless — already collapsed by
  * `getAllDistinct` — so re-declaring the same requirement in two places is safe.
  *
  * @param requirements All functionality→role requirements contributed across the app.
  * @throws IllegalStateException when two requirements assign different roles to the same
- *   [FunctionalityId].
+ *   [dev.inmo.wishlist.features.roles.common.models.FunctionalityId].
  */
 class MapFeatureRolesRegistry(
     requirements: List<FeatureRolesRegistry.Requirement>

@@ -8,6 +8,7 @@ import dev.inmo.kroles.roles.BaseRole
 import dev.inmo.micro_utils.coroutines.SmartRWLocker
 import dev.inmo.micro_utils.repos.exposed.onetomany.ExposedKeyValuesRepo
 import dev.inmo.micro_utils.repos.mappers.withMapper
+import dev.inmo.wishlist.features.roles.common.utils.RolesSubjectsSerializer
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.serialization.json.Json
 import org.jetbrains.exposed.v1.jdbc.Database
@@ -31,8 +32,8 @@ fun exposedRoleSubjectToRoleRepo(database: Database) = ExposedKeyValuesRepo<Stri
     valueColumnAllocator = { text("role") },
     tableName = "roles"
 ).withMapper<BaseRoleSubject, BaseRole, String, String>(
-    keyFromToTo = { Json.encodeToString(BaseRoleSubject.serializer(), this) },
-    keyToToFrom = { Json.decodeFromString(BaseRoleSubject.serializer(), this) },
+    keyFromToTo = { Json.encodeToString(RolesSubjectsSerializer, this) },
+    keyToToFrom = { Json.decodeFromString(RolesSubjectsSerializer, this) },
     valueFromToTo = { plain },
     valueToToFrom = { BaseRole(this) },
 )

@@ -1,7 +1,7 @@
 package dev.inmo.wishlist.features.roles.client
 
 import dev.inmo.micro_utils.coroutines.runCatchingLogging
-import dev.inmo.wishlist.features.roles.common.FunctionalityId
+import dev.inmo.wishlist.features.roles.common.models.FunctionalityId
 import dev.inmo.wishlist.features.roles.common.RolesConstants
 import io.ktor.client.HttpClient
 import io.ktor.client.call.body

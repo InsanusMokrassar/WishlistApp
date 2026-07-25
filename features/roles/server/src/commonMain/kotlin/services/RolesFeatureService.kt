@@ -2,7 +2,7 @@ package dev.inmo.wishlist.features.roles.server.services
 
 import dev.inmo.kroles.repos.ReadRolesRepo
 import dev.inmo.wishlist.features.roles.common.FeatureRolesRegistry
-import dev.inmo.wishlist.features.roles.common.FunctionalityId
+import dev.inmo.wishlist.features.roles.common.models.FunctionalityId
 import dev.inmo.wishlist.features.roles.server.RolesFeature
 import dev.inmo.wishlist.features.roles.server.utils.isRoleRequirementSatisfied
 import dev.inmo.wishlist.features.users.common.models.UserId

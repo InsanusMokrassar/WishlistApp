@@ -1,8 +1,8 @@
 package dev.inmo.wishlist.features.roles.server
 
 import dev.inmo.kroles.repos.BaseRoleSubject
-import dev.inmo.wishlist.features.roles.common.SuperAdminRole
-import dev.inmo.wishlist.features.roles.common.UserRole
+import dev.inmo.wishlist.features.roles.common.models.SuperAdminRole
+import dev.inmo.wishlist.features.roles.common.models.UserRole
 import dev.inmo.wishlist.features.users.common.models.NewUser
 import dev.inmo.wishlist.features.users.common.models.RegisteredUser
 import dev.inmo.wishlist.features.users.common.models.UserId

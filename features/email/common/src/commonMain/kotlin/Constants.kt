@@ -1,6 +1,6 @@
 package dev.inmo.wishlist.features.email.common
 
-import dev.inmo.wishlist.features.roles.common.FunctionalityId
+import dev.inmo.wishlist.features.roles.common.models.FunctionalityId
 
 /**
  * Shared URL path segment constants for the email feature.

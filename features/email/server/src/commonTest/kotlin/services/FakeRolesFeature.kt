@@ -1,6 +1,6 @@
 package dev.inmo.wishlist.features.email.server.services
 
-import dev.inmo.wishlist.features.roles.common.FunctionalityId
+import dev.inmo.wishlist.features.roles.common.models.FunctionalityId
 import dev.inmo.wishlist.features.roles.server.RolesFeature
 import dev.inmo.wishlist.features.users.common.models.UserId
 

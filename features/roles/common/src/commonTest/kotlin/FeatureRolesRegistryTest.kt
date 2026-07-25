@@ -1,5 +1,8 @@
 package dev.inmo.wishlist.features.roles.common
 
+import dev.inmo.wishlist.features.roles.common.models.FunctionalityId
+import dev.inmo.wishlist.features.roles.common.models.SuperAdminRole
+import dev.inmo.wishlist.features.roles.common.models.UserRole
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFailsWith

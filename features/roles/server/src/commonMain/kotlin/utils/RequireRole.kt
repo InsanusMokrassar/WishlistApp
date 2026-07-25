@@ -5,7 +5,7 @@ import dev.inmo.kroles.repos.ReadRolesRepo
 import dev.inmo.kroles.roles.BaseRole
 import dev.inmo.wishlist.features.auth.server.utils.getCallerUserIdOrAnswerUnauthorized
 import dev.inmo.wishlist.features.roles.common.FeatureRolesRegistry
-import dev.inmo.wishlist.features.roles.common.FunctionalityId
+import dev.inmo.wishlist.features.roles.common.models.FunctionalityId
 import dev.inmo.wishlist.features.users.common.models.UserId
 import io.ktor.http.HttpStatusCode
 import io.ktor.server.response.respond

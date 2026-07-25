@@ -1,4 +1,4 @@
-package dev.inmo.wishlist.features.roles.common
+package dev.inmo.wishlist.features.roles.common.models
 
 import dev.inmo.kroles.roles.BaseRole
 

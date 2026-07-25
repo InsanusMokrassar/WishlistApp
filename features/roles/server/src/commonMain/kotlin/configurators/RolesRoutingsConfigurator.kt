@@ -2,7 +2,7 @@ package dev.inmo.wishlist.features.roles.server.configurators
 
 import dev.inmo.micro_utils.ktor.server.configurators.ApplicationRoutingConfigurator
 import dev.inmo.wishlist.features.auth.server.utils.getCallerUserIdOrAnswerUnauthorized
-import dev.inmo.wishlist.features.roles.common.FunctionalityId
+import dev.inmo.wishlist.features.roles.common.models.FunctionalityId
 import dev.inmo.wishlist.features.roles.common.RolesConstants
 import dev.inmo.wishlist.features.roles.server.RolesFeature
 import io.ktor.http.HttpStatusCode

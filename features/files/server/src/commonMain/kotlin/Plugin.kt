@@ -9,8 +9,8 @@ import dev.inmo.wishlist.features.files.server.configurators.FilesRoutingsConfig
 import dev.inmo.wishlist.features.files.server.services.FilesService
 import dev.inmo.wishlist.features.files.server.services.TimedTemporalFilesUtilizer
 import dev.inmo.wishlist.features.roles.common.FeatureRolesRegistry
-import dev.inmo.wishlist.features.roles.common.SuperAdminRole
-import dev.inmo.wishlist.features.roles.common.singleRequirement
+import dev.inmo.wishlist.features.roles.common.models.SuperAdminRole
+import dev.inmo.wishlist.features.roles.common.utils.singleRequirement
 import dev.inmo.wishlist.features.roles.server.RolesFeature
 import kotlinx.serialization.json.JsonObject
 import org.koin.core.Koin

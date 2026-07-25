@@ -1,6 +1,6 @@
 package dev.inmo.wishlist.features.admin.common
 
-import dev.inmo.wishlist.features.roles.common.FunctionalityId
+import dev.inmo.wishlist.features.roles.common.models.FunctionalityId
 
 object Constants {
     /** Role-gated functionality id for the whole `/admin/...` route surface (`AdminRoutingsConfigurator`). */

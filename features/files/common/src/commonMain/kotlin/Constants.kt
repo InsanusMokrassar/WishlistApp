@@ -1,7 +1,7 @@
 package dev.inmo.wishlist.features.files.common
 
 import dev.inmo.micro_utils.ktor.common.DefaultTemporalFilesSubPath
-import dev.inmo.wishlist.features.roles.common.FunctionalityId
+import dev.inmo.wishlist.features.roles.common.models.FunctionalityId
 
 /**
  * URL path segment constants for the files feature, shared between the server routing

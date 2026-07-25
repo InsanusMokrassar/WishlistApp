@@ -3,7 +3,7 @@ package dev.inmo.wishlist.features.roles.server.utils
 import dev.inmo.kroles.repos.BaseRoleSubject
 import dev.inmo.kroles.roles.BaseRole
 import dev.inmo.wishlist.features.roles.common.FeatureRolesRegistry
-import dev.inmo.wishlist.features.roles.common.FunctionalityId
+import dev.inmo.wishlist.features.roles.common.models.FunctionalityId
 import dev.inmo.wishlist.features.roles.common.MapFeatureRolesRegistry
 import dev.inmo.wishlist.features.roles.server.FakeRolesRepo
 import dev.inmo.wishlist.features.users.common.models.UserId

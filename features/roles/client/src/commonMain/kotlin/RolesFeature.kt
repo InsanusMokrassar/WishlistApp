@@ -1,6 +1,6 @@
 package dev.inmo.wishlist.features.roles.client
 
-import dev.inmo.wishlist.features.roles.common.FunctionalityId
+import dev.inmo.wishlist.features.roles.common.models.FunctionalityId
 
 /**
  * Client-side roles capability: whether the currently authenticated caller may access a role-gated

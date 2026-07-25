@@ -1,11 +1,12 @@
 package dev.inmo.wishlist.features.roles.common
 
 import dev.inmo.kroles.roles.BaseRole
+import dev.inmo.wishlist.features.roles.common.models.FunctionalityId
 import kotlinx.serialization.Serializable
 
 /**
  * Aggregator of role-gated functionalities and the [BaseRole] each one requires (issue #68 point 4).
- * Every [Requirement] contributed into Koin (via [singleRequirement]) is folded into one inspectable
+ * Every [Requirement] contributed into Koin (via [dev.inmo.wishlist.features.roles.common.utils.singleRequirement]) is folded into one inspectable
  * place, consulted by the route-guard helper
  * ([dev.inmo.wishlist.features.roles.server.utils.requireRole]).
  *
@@ -17,7 +18,7 @@ import kotlinx.serialization.Serializable
 interface FeatureRolesRegistry {
     /**
      * One functionality→role requirement contributed into the registry. Registered into Koin with
-     * [singleRequirement] and collected by [MapFeatureRolesRegistry] via `getAllDistinct`.
+     * [dev.inmo.wishlist.features.roles.common.utils.singleRequirement] and collected by [MapFeatureRolesRegistry] via `getAllDistinct`.
      * `@Serializable`, and registered polymorphic-to-`Any` in `roles/common` `Plugin.setupDI`.
      *
      * @property functionalityId Gated capability (declared in its owning feature's `Constants`).
