@@ -35,7 +35,7 @@ End-to-end bearer-token authentication. Handles login (BCrypt password check), o
 | `RegisterRequest` | Wire DTO: `username: Username`, `password: Password`, `email: Email?` — used for registration |
 | `RefreshRequest` | Wire DTO: `refreshToken: RefreshToken` |
 | `AuthFeatureUser` | `@Serializable` feature model returned by `getMe`/`getUser`/the "me" state flow: `id: UserId`, `username: Username`, `email: Email?`. Deliberately keeps `email` — this is the authenticated caller's own record, not a public listing; see its class KDoc. |
-| `AuthFeature` | Shared interface: `login`, `refresh`, `register`, `isRegistrationAvailable` |
+| `AuthFeature` | Shared interface: `login`, `refresh`, `register`, `getConfig(): AuthConfig`, `isRegistrationAvailable`; `getConfig()` defaults to the legacy availability flag plus optional-email policy |
 | `RegistrationEmailSender` | Server hook invoked after a required-email account is persisted; successful registration credentials are returned only after the hook succeeds |
 | `ClientAuthFeature` | Client-only extension: `logout`, `getMe(): AuthFeatureUser?` |
 | `ServerAuthFeature` | Server-only extension: `logout`, `getUser(token): AuthFeatureUser?` |
@@ -50,7 +50,7 @@ End-to-end bearer-token authentication. Handles login (BCrypt password check), o
 - `BearerAuthHttpClientConfigurator` installs Ktor `Auth` plugin on `HttpClient`; `refreshTokens` calls the refresh endpoint using the inner `client` (avoids recursion).
 - `sendWithoutRequest` skips preemptive auth for `/auth/login`, `/auth/refresh`, `/auth/register`, and `/auth/is_registration_available` endpoints.
 - `Config.enableRegistration` (default `false`) gates the register endpoint; disabled → service returns `null` → router responds 400.
-- `Config.requireEmailForRegistration` (default `false`) requires a validated `Email` in `RegisterRequest`. Required-email registration stores the account, assigns the pending role through `features/roles`, invokes `RegistrationEmailSender`, and returns credentials only when invite delivery succeeds. Missing sender/SMTP/deeplink infrastructure fails closed without exposing successful credentials. Optional-email registration preserves the previous flow while storing a supplied email.
+- `Config.requireEmailForRegistration` (default `false`) requires a validated `Email` in `RegisterRequest`. Required-email registration stores the account, assigns the pending role through `features/roles`, invokes `RegistrationEmailSender`, and returns credentials only when invite delivery succeeds. Missing sender/SMTP/deeplink infrastructure fails closed, removes the stored password and newly created user, and does not expose successful credentials; the same username can be retried after a failed invite. Optional-email registration preserves the previous flow while storing a supplied email.
 - `AuthFeatureService.register` enforces a password length policy (8..72): too-short/empty passwords are refused, and the upper bound avoids BCrypt silently ignoring input past 72 bytes. Returns `null` (→ 400) on violation. Admin-set passwords (root-only path) are not subject to this check.
 - `AuthFeature.isRegistrationAvailable()` is the cross-cutting flag; server impl returns `enableRegistration` directly; client impl calls `GET /auth/is_registration_available` and deserializes the `Boolean` body.
 - `GET /auth/config` returns the common `AuthConfig` DTO, allowing JS/JVM/Android registration forms to show and validate the email field consistently. The legacy boolean availability route remains for compatibility.

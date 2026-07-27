@@ -34,6 +34,7 @@ internal class FakeUsersRepo(
     initialUsers: Map<UserId, RegisteredUser> = emptyMap()
 ) : UsersRepo, MapCRUDRepo<RegisteredUser, UserId, NewUser>(initialUsers.toMutableMap()) {
 
+    /** Next identifier assigned to a newly created fixture user. */
     private var nextId: Long = (initialUsers.keys.maxOfOrNull { it.long } ?: 0L) + 1L
 
     override suspend fun updateObject(newValue: NewUser, id: UserId, old: RegisteredUser): RegisteredUser =
@@ -53,16 +54,25 @@ internal class FakeUsersRepo(
  */
 internal class FakePasswordsRepo : PasswordsRepo, dev.inmo.micro_utils.repos.KeyValueRepo<UserId, Password> by MapKeyValueRepo()
 
-/** Records required-email registration deliveries in auth service tests. */
+/**
+ * Records required-email registration deliveries in auth service tests.
+ *
+ * @param results Delivery outcomes returned in attempt order.
+ */
 private class FakeRegistrationEmailSender(
-    private val result: Boolean,
+    private vararg val results: Boolean,
 ) : RegistrationEmailSender {
+    /** Number of delivery attempts already consumed from [results]. */
+    private var attemptCount = 0
+
     /** Accounts passed to the sender, in registration order. */
     val users = mutableListOf<RegisteredUser>()
 
-    /** Records the account and returns the configured delivery result. */
+    /** Records the account and returns the next configured delivery result. */
     override suspend fun sendRegistrationEmail(user: RegisteredUser): Boolean {
         users += user
+        val result = results.getOrNull(attemptCount) ?: results.lastOrNull() ?: false
+        attemptCount++
         return result
     }
 }
@@ -74,9 +84,13 @@ private class FakeRegistrationEmailSender(
  */
 class AuthFeatureServiceTest {
 
+    /** Seeded account fixture used by token-to-user tests. */
     private val userWithEmail = RegisteredUser(UserId(7L), Username("bob"), Email("bob@example.com"))
+
+    /** Password fixture long enough to satisfy self-service registration policy. */
     private val plainPassword = Password("s3cret-pw")
 
+    /** Builds an auth service with in-memory repositories and the requested registration policy. */
     private fun buildService(
         usersRepo: FakeUsersRepo,
         passwordsRepo: FakePasswordsRepo = FakePasswordsRepo(),
@@ -165,6 +179,31 @@ class AuthFeatureServiceTest {
 
         assertNull(service.register(Username("alice"), plainPassword, Email("alice@example.com")))
         assertTrue(sender.users.isNotEmpty())
+    }
+
+    /** A failed invite removes the account and password so a same-username retry can succeed. */
+    @Test
+    fun requiredEmailRegistrationCleansUpFailedInviteAndAllowsRetry() = runTest {
+        val usersRepo = FakeUsersRepo()
+        val passwordsRepo = FakePasswordsRepo()
+        val sender = FakeRegistrationEmailSender(false, true)
+        val service = buildService(
+            usersRepo = usersRepo,
+            passwordsRepo = passwordsRepo,
+            enableRegistration = true,
+            requireEmailForRegistration = true,
+            registrationEmailSender = sender,
+        )
+        val username = Username("alice")
+        val email = Email("alice@example.com")
+
+        assertNull(service.register(username, plainPassword, email))
+        assertNull(usersRepo.getUserByUsername(username))
+        assertTrue(passwordsRepo.getAll().isEmpty())
+
+        assertNotNull(service.register(username, plainPassword, email))
+        assertNotNull(usersRepo.getUserByUsername(username))
+        assertEquals(1, passwordsRepo.getAll().size)
     }
 
     /** A valid, unexpired token resolves to an [AuthFeatureUser] carrying the seeded user's email. */

@@ -10,7 +10,10 @@ import dev.inmo.wishlist.features.users.common.models.UserId
 import dev.inmo.wishlist.features.users.common.models.Username
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.test.StandardTestDispatcher
 import kotlinx.coroutines.test.UnconfinedTestDispatcher
+import kotlinx.coroutines.test.advanceUntilIdle
+import kotlinx.coroutines.test.runCurrent
 import kotlinx.coroutines.test.runTest
 import kotlin.test.Test
 import kotlin.test.assertEquals
@@ -27,7 +30,10 @@ import kotlin.test.assertTrue
  */
 class RolesBootstrapTest {
 
+    /** Root account fixture used to verify the privileged approved-role state. */
     private val rootUser = RegisteredUser(UserId(1L), Username("root"))
+
+    /** Non-root account fixture used to verify pending and approved transitions. */
     private val plainUser = RegisteredUser(UserId(2L), Username("alice"))
 
     /** Non-root user → only User is granted, never SuperAdmin. */
@@ -140,6 +146,37 @@ class RolesBootstrapTest {
         promoteNewUserToUser(rolesRepo, plainUser.id)
 
         assertEquals(setOf(UserRole), rolesRepo.getDirectRoles(subject).toSet())
+    }
+
+    /**
+     * Approval completed before a delayed required-email callback leaves exactly [UserRole] after
+     * the callback resumes, proving that the shared transition lock and approved-role guard close the
+     * asynchronous role-ordering race.
+     */
+    @OptIn(ExperimentalCoroutinesApi::class)
+    @Test
+    fun delayedRequiredEmailCallbackCannotReaddPendingRoleAfterPromotion() = runTest {
+        val callbackDispatcher = StandardTestDispatcher(testScheduler)
+        val usersRepo = FakeUsersRepo()
+        val rolesRepo = FakeRolesRepo()
+        val callbackJob = launch(callbackDispatcher) {
+            usersRepo.newObjectsFlow.collect { user ->
+                grantDefaultRoles(rolesRepo, user, requireEmailForRegistration = true)
+            }
+        }
+        runCurrent()
+
+        usersRepo.create(listOf(NewUser(Username("bob"))))
+        val createdUser = usersRepo.getUserByUsername(Username("bob"))!!
+        promoteNewUserToUser(rolesRepo, createdUser.id)
+
+        advanceUntilIdle()
+
+        assertEquals(
+            setOf(UserRole),
+            rolesRepo.getDirectRoles(BaseRoleSubject.Direct(createdUser.id.long.toString())).toSet()
+        )
+        callbackJob.cancel()
     }
 
     /**

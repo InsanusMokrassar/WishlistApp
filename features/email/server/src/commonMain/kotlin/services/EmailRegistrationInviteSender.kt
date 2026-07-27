@@ -45,11 +45,18 @@ class EmailRegistrationInviteSender(
             EmailVerificationPayload(user.id)
         )
         val url = buildEmailVerificationUrl(scheme, publicHost, port, deeplinkId)
-        return emails.sendText(
-            recipient = recipient,
-            subject = subject,
-            text = "Open this link to verify your WishlistApp account:\n$url"
-        )
+        val delivered = try {
+            emails.sendText(
+                recipient = recipient,
+                subject = subject,
+                text = "Open this link to verify your WishlistApp account:\n$url"
+            )
+        } catch (_: Exception) {
+            false
+        }
+        if (delivered) return true
+        links.removeDeepLink(deeplinkId)
+        return false
     }
 }
 

@@ -81,6 +81,8 @@ Key data types:
   their own server plugin; the dispatch infra in `deeplinks/server` collects them.
 - **In-process create, no public POST.** `createDeepLink` is a server-only Kotlin API; minting a
   link is not exposed over HTTP to avoid unauthenticated link creation.
+- **Failure cleanup is in-process.** A feature that mints a link and then fails its downstream
+  operation removes the link through `removeDeepLink`; public callers cannot delete or mint links.
 - **Empty handler list is correct.** With zero handlers registered, `handle` returns `Unhandled`
   (→ `404`) for any stored link until a feature provides a handler. This is expected infra behavior.
 - **Email verification handler:** `features/email/server` registers `email.registration_verification`

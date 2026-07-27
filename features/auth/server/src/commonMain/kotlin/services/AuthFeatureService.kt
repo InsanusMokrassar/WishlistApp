@@ -6,6 +6,7 @@ import dev.inmo.micro_utils.coroutines.withReadAcquire
 import dev.inmo.micro_utils.coroutines.withWriteLock
 import dev.inmo.micro_utils.repos.MapKeyValueRepo
 import dev.inmo.micro_utils.repos.create
+import dev.inmo.micro_utils.repos.deleteById
 import dev.inmo.micro_utils.repos.set
 import dev.inmo.micro_utils.repos.unset
 import korlibs.time.DateTime
@@ -129,8 +130,16 @@ class AuthFeatureService(
             val hashed = BCrypt.hashpw(password.string, BCrypt.gensalt())
             passwordsRepo.set(created.id to Password(hashed))
             if (requireEmailForRegistration) {
-                val sender = registrationEmailSender ?: return null
-                if (!sender.sendRegistrationEmail(created)) return null
+                val delivered = try {
+                    registrationEmailSender?.sendRegistrationEmail(created) == true
+                } catch (_: Exception) {
+                    false
+                }
+                if (!delivered) {
+                    passwordsRepo.unset(created.id)
+                    writeUsersRepo.deleteById(created.id)
+                    return null
+                }
             }
             return issueCredentialsFor(created.id)
         }

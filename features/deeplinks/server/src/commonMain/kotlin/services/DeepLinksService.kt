@@ -2,6 +2,7 @@ package dev.inmo.wishlist.features.deeplinks.server.services
 
 import com.benasher44.uuid.uuid4
 import dev.inmo.micro_utils.repos.set
+import dev.inmo.micro_utils.repos.unset
 import dev.inmo.wishlist.features.deeplinks.common.DeepLinkHandler
 import dev.inmo.wishlist.features.deeplinks.common.models.DeepLinkHandlerId
 import dev.inmo.wishlist.features.deeplinks.common.models.DeepLinkHandlerInfo
@@ -56,6 +57,15 @@ class DeepLinksService(
         val id = DeepLinkId(uuid4().toString())
         repo.set(id, DeepLinkHandlerInfo(handlerId, value))
         return id
+    }
+
+    /**
+     * Removes a previously minted deeplink after the owning operation fails.
+     *
+     * @param deeplinkId Identifier of the deeplink to remove.
+     */
+    suspend fun removeDeepLink(deeplinkId: DeepLinkId) {
+        repo.unset(deeplinkId)
     }
 
     /**

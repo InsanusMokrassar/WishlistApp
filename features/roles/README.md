@@ -7,11 +7,12 @@
 ## Overview
 
 Full-stack role storage feature (issue #68, points 1–6) wrapping the external `dev.inmo:kroles`
-library. Owns the Exposed-backed, cache-mirrored `RolesRepo`, the two hardcoded roles this app uses
-(`SuperAdmin`, `User`), the feature/role aggregator (`FeatureRolesRegistry`) and its route-guard
-helper (`requireRole`), and the bootstrap/migration that assigns `SuperAdmin` to `root` and `User` to
-every user. Required-email registration additionally assigns `NewUser` to new non-root accounts until
-email verification promotes the account to `User`. The general role graph (`RolesRepo`) is server-internal only; however, the narrow
+library. Owns the Exposed-backed, cache-mirrored `RolesRepo`, the three hardcoded roles this app uses
+(`SuperAdmin`, approved `User`, and pending `NewUser`), the feature/role aggregator
+(`FeatureRolesRegistry`) and its route-guard helper (`requireRole`), and the bootstrap/migration that
+assigns `SuperAdmin` to `root` and approved `User` to every pre-existing user. Required-email
+registration additionally assigns `NewUser` to new non-root accounts until email verification
+promotes the account to `User`. The general role graph (`RolesRepo`) is server-internal only; however, the narrow
 `isFunctionalityAvailable` check is exposed client-side — see Architecture Notes.
 
 ## Routes
@@ -73,16 +74,18 @@ email verification promotes the account to `User`. The general role graph (`Role
   finished creating the `root` user, the migration would see zero users, mark itself permanently done,
   and never see `root` again. Subscribing first closes that race: any user created concurrently by
   another plugin (including `root`) is caught by the live subscription even if it beats the backfill's
-  snapshot read. The actual per-user grant rule (`grantDefaultRoles` — grant `User` always, plus
-  `SuperAdmin` when `username == "root"`) is shared by both paths and is idempotent (kroles'
-  `RolesRepo.includeDirect` is a no-op when already granted), so double-granting in the overlap window
-  between the two paths is harmless.
+  snapshot read. The actual per-user grant rule is shared by both paths: `root` receives `User` and
+  `SuperAdmin`; an optional-registration non-root account receives `User`; a required-email non-root
+  account receives `NewUser` only when `User` is absent. The check/modify sequence shares a process-local
+  mutex with verification promotion, so asynchronous callback ordering cannot leave both `NewUser` and
+  `User` on an approved account.
 - **Required-email transition (issue #73):** the reactive new-user path reads `auth/server.Config`. Root
   always receives `User` and `SuperAdmin`; a new non-root account receives `NewUser` when
   `requireEmailForRegistration=true`, otherwise `User`. The versioned backfill always grants `User` to
   existing accounts and never downgrades an existing account to `NewUser`, even when the option is later
-  enabled. `promoteNewUserToUser` excludes `NewUser` and includes `User` idempotently when the email
-  verification deeplink is opened.
+  enabled. `grantDefaultRoles` and `promoteNewUserToUser` use one process-local mutex; required-email
+  default assignment checks for `User` before granting `NewUser`, and promotion excludes `NewUser` then
+  includes `User`. The approved non-root invariant is exactly `User` without `NewUser`.
 - **`FeatureRolesRegistry` has real data.** The registry is populated with today's three real
   mappings (all role-gated capabilities require `SuperAdmin`), and `requireRole`/`isRoleRequirementSatisfied`
   are fully implemented and unit-tested. The gated call sites (`admin`, `email`, `files` on the server

@@ -20,8 +20,9 @@ import org.koin.core.module.Module
  *    created concurrently by another plugin's `startPlugin` (e.g. `features/auth/server`'s root
  *    bootstrap; top-level plugins' `startPlugin`s run **concurrently**, not in `sample.config.json`
  *    list order — see `roles/README.md` Architecture Notes) is caught by this live subscription even
- *    if it races ahead of step 2's snapshot read. [grantDefaultRoles] is idempotent, so
- *    double-granting in the overlap window between steps 1 and 2 is harmless.
+ *    if it races ahead of step 2's snapshot read. [grantDefaultRoles] and [promoteNewUserToUser]
+ *    share a transition lock, and required-email default assignment checks for an existing
+ *    `UserRole` before adding `NewUserRole`.
  * 2. Runs the one-time [backfillDefaultRoles] migration (issue point 6), gated by [VersionsRepo] so
  *    it executes exactly once across the app's lifetime, independent of restarts.
  *
