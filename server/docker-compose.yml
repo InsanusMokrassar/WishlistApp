@@ -10,3 +10,10 @@ services:
       POSTGRES_DB: "test"
     ports:
       - "8501:5432"
+
+  wishlist_mailpit:
+    image: axllent/mailpit:latest
+    container_name: wishlist_mailpit
+    ports:
+      - "1025:1025"
+      - "8025:8025"

@@ -7,5 +7,6 @@ object Constants {
     const val logoutPathPart = "logout"
     const val getMePathPart = "getMe"
     const val registerPathPart = "register"
+    const val configPathPart = "config"
     const val isRegistrationAvailablePathPart = "is_registration_available"
 }

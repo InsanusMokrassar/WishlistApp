@@ -18,6 +18,10 @@ object AuthStrings {
     val passwordPlaceholder = buildStringResource("Password") {
         IetfLang.Russian("Пароль")
     }
+    /** Email input placeholder shown during registration. */
+    val emailPlaceholder = buildStringResource("Email") {
+        IetfLang.Russian("Электронная почта")
+    }
     /** Caption of the button that opens the login form (collapsed state). */
     val loginButton = buildStringResource("Log in") {
         IetfLang.Russian("Войти")

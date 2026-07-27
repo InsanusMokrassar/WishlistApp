@@ -25,7 +25,9 @@ object Plugin : StartPlugin {
                 passwordsRepo = get(),
                 tokenTtl = config.tokenTtl,
                 refreshTokenTtl = config.refreshTokenTtl,
-                enableRegistration = config.enableRegistration
+                enableRegistration = config.enableRegistration,
+                requireEmailForRegistration = config.requireEmailForRegistration,
+                registrationEmailSender = getOrNull<RegistrationEmailSender>(),
             )
         }
         single<ServerAuthFeature> { get<AuthFeatureService>() }

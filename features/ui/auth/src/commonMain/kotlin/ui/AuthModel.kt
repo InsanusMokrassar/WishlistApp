@@ -1,6 +1,8 @@
 package dev.inmo.wishlist.features.ui.auth.ui
 
+import dev.inmo.wishlist.features.auth.common.models.AuthConfig
 import dev.inmo.wishlist.features.auth.common.models.Password
+import dev.inmo.wishlist.features.email.common.models.Email
 import dev.inmo.wishlist.features.users.common.models.Username
 import kotlinx.coroutines.flow.StateFlow
 
@@ -46,9 +48,16 @@ interface AuthModel {
     suspend fun isRegistrationEnabled(): Boolean
 
     /**
+     * Loads the auth configuration used by registration UI.
+     *
+     * @return Public registration flags.
+     */
+    suspend fun getConfig(): AuthConfig
+
+    /**
      * Attempts to create a new account with the given credentials.
      *
      * @return `true` when the account was created and credentials are persisted.
      */
-    suspend fun register(username: Username, password: Password): Boolean
+    suspend fun register(username: Username, password: Password, email: Email? = null): Boolean
 }

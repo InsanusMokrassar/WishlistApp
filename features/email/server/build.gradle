@@ -14,6 +14,8 @@ kotlin {
                 api project(":wishlist.features.users.common")
                 api project(":wishlist.features.auth.server")
                 api project(":wishlist.features.roles.server")
+                api project(":wishlist.features.deeplinks.common")
+                api project(":wishlist.features.deeplinks.server")
                 api libs.angus.mail
             }
         }

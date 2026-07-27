@@ -10,7 +10,8 @@ Full-stack role storage feature (issue #68, points 1–6) wrapping the external 
 library. Owns the Exposed-backed, cache-mirrored `RolesRepo`, the two hardcoded roles this app uses
 (`SuperAdmin`, `User`), the feature/role aggregator (`FeatureRolesRegistry`) and its route-guard
 helper (`requireRole`), and the bootstrap/migration that assigns `SuperAdmin` to `root` and `User` to
-every user. The general role graph (`RolesRepo`) is server-internal only; however, the narrow
+every user. Required-email registration additionally assigns `NewUser` to new non-root accounts until
+email verification promotes the account to `User`. The general role graph (`RolesRepo`) is server-internal only; however, the narrow
 `isFunctionalityAvailable` check is exposed client-side — see Architecture Notes.
 
 ## Routes
@@ -25,6 +26,7 @@ every user. The general role graph (`RolesRepo`) is server-internal only; howeve
 |------|--------|-------------|
 | `SuperAdminRole` | `roles/common` | `BaseRole("SuperAdmin")` constant — the single, hardcoded, root-only administrative role. |
 | `UserRole` | `roles/common` | `BaseRole("User")` constant — granted to every registered user. |
+| `NewUserRole` | `roles/common` | `BaseRole("NewUser")` constant — assigned to new non-root accounts while required-email registration awaits verification. |
 | `FunctionalityId` | `roles/common` | `@Serializable @JvmInline value class FunctionalityId(val string: String)` — strongly-typed capability id (serializes as its underlying string). Each concrete id is declared in its owning feature's `Constants` file, not here. |
 | `FeatureRolesRegistry` | `roles/common` | Interface — aggregator of `FunctionalityId -> BaseRole` mappings; `requiredRole(functionalityId): BaseRole?`; realized by `MapFeatureRolesRegistry(getAllDistinct())`. |
 | `FeatureRolesRegistry.Requirement` | `roles/common` | `@Serializable data class Requirement(val functionalityId: FunctionalityId, val role: BaseRole)` — one functionality→role pair contributed via `singleRequirement` into Koin. Registered polymorphic-to-`Any` in `roles/common` `Plugin.setupDI`. |
@@ -75,6 +77,12 @@ every user. The general role graph (`RolesRepo`) is server-internal only; howeve
   `SuperAdmin` when `username == "root"`) is shared by both paths and is idempotent (kroles'
   `RolesRepo.includeDirect` is a no-op when already granted), so double-granting in the overlap window
   between the two paths is harmless.
+- **Required-email transition (issue #73):** the reactive new-user path reads `auth/server.Config`. Root
+  always receives `User` and `SuperAdmin`; a new non-root account receives `NewUser` when
+  `requireEmailForRegistration=true`, otherwise `User`. The versioned backfill always grants `User` to
+  existing accounts and never downgrades an existing account to `NewUser`, even when the option is later
+  enabled. `promoteNewUserToUser` excludes `NewUser` and includes `User` idempotently when the email
+  verification deeplink is opened.
 - **`FeatureRolesRegistry` has real data.** The registry is populated with today's three real
   mappings (all role-gated capabilities require `SuperAdmin`), and `requireRole`/`isRoleRequirementSatisfied`
   are fully implemented and unit-tested. The gated call sites (`admin`, `email`, `files` on the server

@@ -8,6 +8,9 @@
 
 The email feature provides SMTP-backed transactional email delivery and per-user email address storage. It is structured as a standard full-stack feature with `common`, `server`, and `client` modules.
 
+Required-email registration also uses this feature's server-only invite sender. The sender mints an
+existing deeplink, emails its absolute URL, and lets the deeplink handler approve the account.
+
 **Two independent capabilities:**
 - **Email storage** (`PUT /email/myEmail`) — any authenticated user can store or clear their own email address; does NOT require SMTP to be configured.
 - **Email delivery** (`POST /email/sendTest`) — root-only action to verify SMTP configuration by sending a test message to a supplied address; requires SMTP to be configured.
@@ -41,6 +44,9 @@ When no `"email"` object is present in the server config (the key is entirely ab
 | `EmailFeatureService` | `email/server` | Server `EmailFeature` impl; wraps a non-nullable `EmailsService` + `UsersRepo` + `RolesFeature`. `isFeatureEnabled()` always returns `true` — this class is only ever constructed by `Plugin` when a real `EmailsService` exists; `sendTestEmail` enforces a SuperAdmin-only check via `rolesFeature.isFunctionalityAvailable(callerId, sendTestFunctionalityId)` (issue #68) before delegating; `setMyEmail` persists the caller's email address. See `DisabledEmailFeature` for the substituted no-op implementation used when SMTP is not configured. |
 | `DisabledEmailFeature` | `email/server` | No-op `EmailFeature` substituted in DI (`Plugin.kt`) whenever no `EmailsService` is registered (SMTP unconfigured): `isFeatureEnabled`/`sendTestEmail` return `false`; `setMyEmail` still persists via `UsersRepo` (storage stays independent of SMTP, per the feature's own architecture rule). |
 | `EmailsService` | `email/server` | Server-only send interface (no HTTP exposure): `sendText(recipient, subject, text)`, `sendTextWithAttachments(recipient, subject, text, attachments)`, `sendHtml(recipient, subject, html)` — all `suspend`, all return `Boolean` (`false` when SMTP is disabled or on error). Implemented by `SmtpEmailService`; bound in Koin only when SMTP is configured. |
+| `EmailVerificationPayload` | `email/server` | Server-only polymorphic deeplink payload carrying the pending `UserId`. |
+| `EmailRegistrationInviteSender` | `email/server` | Auth registration hook that creates a verification deeplink and sends its absolute URL; returns `false` when SMTP or deeplink infrastructure is unavailable. |
+| `EmailVerificationDeepLinkHandler` | `email/server` | Deeplink handler that removes `NewUser` and grants `User` for an existing account; repeated opens are safe. |
 | `EmailAttachment` | `email/server` | Attachment model for `sendTextWithAttachments`: `fileName`, `mimeType` (default `application/octet-stream`), `content: suspend () -> InputStream`. The provider may be invoked multiple times and must return a fresh stream on each call; content is streamed, never buffered as a whole `ByteArray`. |
 | `KtorEmailFeature` | `email/client` | Client `EmailFeature` impl; HTTP-only, no caching or business logic. |
 
@@ -58,6 +64,7 @@ When no `"email"` object is present in the server config (the key is entirely ab
 - **Public `GET /enabled`:** Lives outside the `authenticate { }` block so callers without a bearer token can check availability.
 - **DI placement:** Server Plugin wires `EmailConfig → SmtpEmailService → EmailsService` as one conditional trio (see above), always registers `EmailFeature` (`EmailFeatureService` or `DisabledEmailFeature`, selected inline by a `getOrNull<EmailsService>()` check in the `single<EmailFeature>` block), and registers `EmailRoutingsConfigurator` (with random qualifier) unconditionally. `jvmMain/JVMPlugin` is a thin delegator listed in `sample.config.json`. The `"email"`-key-presence check is implemented as a small `internal` pure function (`emailConfigElementOrNull`) in `Plugin.kt` specifically so it can be unit-tested (`PluginTest.kt`) without a Koin test harness — this repo has none. The `EmailFeature`-implementation choice (`getOrNull<EmailsService>()?.let { EmailFeatureService(it, get(), get()) } ?: DisabledEmailFeature(get())`) is simple enough that it stays inline rather than being extracted to its own testable helper.
 - **Client:** `KtorEmailFeature` is transport-only; no service wrapper needed (no memoization). Platform plugins (JS/JVM/Android) delegate to the shared `Plugin`.
+- **Registration invites (issue #73):** `EmailRegistrationInviteSender` depends on `EmailsService` and `DeepLinksService`, while `EmailVerificationDeepLinkHandler` depends on `ReadUsersRepo` and `RolesRepo`. The handler id is `email.registration_verification`; the invite URL is `http(s)://{publicHost}:{port}/api/links/{deeplink_uuid}`. `email/server` registers the payload serializer and handler without changing the deeplinks core. Required-email registration fails when any delivery dependency is unavailable.
 - **Sample config SMTP block (enabled in `sample.config.json`; omit the whole `"email"` key to disable):**
   ```json
   "email": {

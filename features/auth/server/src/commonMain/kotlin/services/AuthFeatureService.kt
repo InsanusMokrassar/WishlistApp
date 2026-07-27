@@ -11,12 +11,14 @@ import dev.inmo.micro_utils.repos.unset
 import korlibs.time.DateTime
 import org.mindrot.jbcrypt.BCrypt
 import dev.inmo.wishlist.features.auth.server.ServerAuthFeature
-import dev.inmo.wishlist.features.auth.server.models.AuthConfig
+import dev.inmo.wishlist.features.auth.server.RegistrationEmailSender
+import dev.inmo.wishlist.features.auth.common.models.AuthConfig
 import dev.inmo.wishlist.features.auth.common.models.AuthCredentials
 import dev.inmo.wishlist.features.auth.common.models.AuthFeatureUser
 import dev.inmo.wishlist.features.auth.common.models.Password
 import dev.inmo.wishlist.features.auth.common.models.RefreshToken
 import dev.inmo.wishlist.features.auth.common.models.Token
+import dev.inmo.wishlist.features.email.common.models.Email
 import dev.inmo.wishlist.features.auth.server.repo.PasswordsRepo
 import dev.inmo.wishlist.features.auth.common.models.asAuthFeatureUser
 import dev.inmo.wishlist.features.users.common.models.NewUser
@@ -37,6 +39,8 @@ class AuthFeatureService(
     private val tokenTtl: Duration = 15.minutes,
     private val refreshTokenTtl: Duration = 7.days,
     private val enableRegistration: Boolean = false,
+    private val requireEmailForRegistration: Boolean = false,
+    private val registrationEmailSender: RegistrationEmailSender? = null,
 ) : ServerAuthFeature {
     private data class Entry(val id: UserId, val issued: DateTime)
     private val locker = SmartRWLocker()
@@ -110,18 +114,37 @@ class AuthFeatureService(
         }
     }
 
-    override suspend fun register(username: Username, password: Password): AuthCredentials? {
+    override suspend fun register(
+        username: Username,
+        password: Password,
+        email: Email?
+    ): AuthCredentials? {
         if (enableRegistration == false) return null
         if (!isAcceptablePassword(password)) return null
+        if (requireEmailForRegistration && email == null) return null
 
         locker.withWriteLock {
             if (usersRepo.getUserByUsername(username) != null) return null
-            val created = writeUsersRepo.create(listOf(NewUser(username))).firstOrNull() ?: return null
+            val created = writeUsersRepo.create(listOf(NewUser(username, email))).firstOrNull() ?: return null
             val hashed = BCrypt.hashpw(password.string, BCrypt.gensalt())
             passwordsRepo.set(created.id to Password(hashed))
+            if (requireEmailForRegistration) {
+                val sender = registrationEmailSender ?: return null
+                if (!sender.sendRegistrationEmail(created)) return null
+            }
             return issueCredentialsFor(created.id)
         }
     }
+
+    /**
+     * Returns the configured public auth flags.
+     *
+     * @return Registration configuration exposed by the auth config route.
+     */
+    override suspend fun getConfig(): AuthConfig = AuthConfig(
+        enableRegistration = enableRegistration,
+        requireEmailForRegistration = requireEmailForRegistration,
+    )
 
     override suspend fun isRegistrationAvailable(): Boolean = enableRegistration
 

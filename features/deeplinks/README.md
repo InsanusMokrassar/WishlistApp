@@ -10,6 +10,9 @@ Server-only feature. It stores declared deeplink UUIDs together with attached ha
 deeplinks in-process, and resolves an opened `links/{deeplink_uuid}` by dispatching it to the handler
 registered under the stored `DeepLinkHandlerId`.
 
+The email feature provides the first concrete handler: registration verification links carry an
+`EmailVerificationPayload` and promote the referenced account from `NewUser` to `User`.
+
 The feature ships **zero** concrete handlers — it only declares the `DeepLinkHandler` interface and
 the dispatch infrastructure. Other features provide their own handlers (registered in their own
 server plugins) and mint links via the in-process `DeepLinksService.createDeepLink` API.
@@ -80,3 +83,6 @@ Key data types:
   link is not exposed over HTTP to avoid unauthenticated link creation.
 - **Empty handler list is correct.** With zero handlers registered, `handle` returns `Unhandled`
   (→ `404`) for any stored link until a feature provides a handler. This is expected infra behavior.
+- **Email verification handler:** `features/email/server` registers `email.registration_verification`
+  and its polymorphic payload when the email plugin is loaded. The deeplinks core remains generic; the
+  handler checks that the referenced user exists and performs the idempotent role transition.

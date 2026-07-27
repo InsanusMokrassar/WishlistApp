@@ -2,6 +2,7 @@ package dev.inmo.wishlist.features.roles.server
 
 import dev.inmo.kroles.repos.BaseRoleSubject
 import dev.inmo.wishlist.features.roles.common.models.SuperAdminRole
+import dev.inmo.wishlist.features.roles.common.models.NewUserRole
 import dev.inmo.wishlist.features.roles.common.models.UserRole
 import dev.inmo.wishlist.features.users.common.models.NewUser
 import dev.inmo.wishlist.features.users.common.models.RegisteredUser
@@ -68,17 +69,43 @@ class RolesBootstrapTest {
         )
     }
 
+    /** Required-email registration assigns NewUser to a new non-root account. */
+    @Test
+    fun grantDefaultRolesAssignsNewUserWhenEmailIsRequired() = runTest {
+        val rolesRepo = FakeRolesRepo()
+
+        grantDefaultRoles(rolesRepo, plainUser, requireEmailForRegistration = true)
+
+        val subject = BaseRoleSubject.Direct(plainUser.id.long.toString())
+        assertTrue(rolesRepo.contains(subject, NewUserRole))
+        assertFalse(rolesRepo.contains(subject, UserRole))
+    }
+
+    /** Root remains fully privileged when required-email registration is enabled. */
+    @Test
+    fun grantDefaultRolesKeepsRootApprovedWhenEmailIsRequired() = runTest {
+        val rolesRepo = FakeRolesRepo()
+
+        grantDefaultRoles(rolesRepo, rootUser, requireEmailForRegistration = true)
+
+        val subject = BaseRoleSubject.Direct(rootUser.id.long.toString())
+        assertTrue(rolesRepo.contains(subject, UserRole))
+        assertTrue(rolesRepo.contains(subject, SuperAdminRole))
+        assertFalse(rolesRepo.contains(subject, NewUserRole))
+    }
+
     /** [backfillDefaultRoles] grants User to every pre-existing user and SuperAdmin only to `root`. */
     @Test
     fun backfillDefaultRolesGrantsRolesToAllPreExistingUsers() = runTest {
         val usersRepo = FakeUsersRepo(mapOf(rootUser.id to rootUser, plainUser.id to plainUser))
         val rolesRepo = FakeRolesRepo()
 
-        backfillDefaultRoles(usersRepo, rolesRepo)
+        backfillDefaultRoles(usersRepo, rolesRepo, requireEmailForRegistration = true)
 
         assertTrue(rolesRepo.contains(BaseRoleSubject.Direct(rootUser.id.long.toString()), SuperAdminRole))
         assertTrue(rolesRepo.contains(BaseRoleSubject.Direct(rootUser.id.long.toString()), UserRole))
         assertTrue(rolesRepo.contains(BaseRoleSubject.Direct(plainUser.id.long.toString()), UserRole))
+        assertFalse(rolesRepo.contains(BaseRoleSubject.Direct(plainUser.id.long.toString()), NewUserRole))
         assertFalse(rolesRepo.contains(BaseRoleSubject.Direct(plainUser.id.long.toString()), SuperAdminRole))
     }
 
@@ -100,6 +127,19 @@ class RolesBootstrapTest {
         val afterSecondRun = rolesRepo.getAll().mapValues { it.value.toSet() }
 
         assertEquals(afterFirstRun, afterSecondRun)
+    }
+
+    /** Verification promotion removes NewUser and grants User, including on repeated calls. */
+    @Test
+    fun promoteNewUserToUserIsIdempotent() = runTest {
+        val rolesRepo = FakeRolesRepo()
+        val subject = BaseRoleSubject.Direct(plainUser.id.long.toString())
+        rolesRepo.includeDirect(subject, NewUserRole)
+
+        promoteNewUserToUser(rolesRepo, plainUser.id)
+        promoteNewUserToUser(rolesRepo, plainUser.id)
+
+        assertEquals(setOf(UserRole), rolesRepo.getDirectRoles(subject).toSet())
     }
 
     /**

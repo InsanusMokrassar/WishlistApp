@@ -55,6 +55,7 @@ class AuthView(
         val registrationEnabled by viewModel.registrationEnabledState.collectAsState()
         val username by viewModel.usernameState.collectAsState()
         val password by viewModel.passwordState.collectAsState()
+        val email by viewModel.emailState.collectAsState()
         val loading by viewModel.loadingState.collectAsState()
         val error by viewModel.errorState.collectAsState()
         val loginEnabled by viewModel.loginEnabledState.collectAsState()
@@ -105,6 +106,21 @@ class AuthView(
                         }),
                         modifier = Modifier.fillMaxWidth()
                     )
+                    if (registerMode) {
+                        OutlinedTextField(
+                            value = email,
+                            onValueChange = { viewModel.onEmailChanged(it) },
+                            placeholder = { Text(AuthStrings.emailPlaceholder.translation()) },
+                            singleLine = true,
+                            enabled = !loading,
+                            keyboardOptions = KeyboardOptions(
+                                keyboardType = KeyboardType.Email,
+                                imeAction = ImeAction.Done
+                            ),
+                            keyboardActions = KeyboardActions(onDone = { viewModel.onRegister() }),
+                            modifier = Modifier.fillMaxWidth()
+                        )
+                    }
                     OutlinedTextField(
                         value = password,
                         onValueChange = { viewModel.onPasswordChanged(it) },

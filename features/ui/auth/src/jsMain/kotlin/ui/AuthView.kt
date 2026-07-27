@@ -49,6 +49,7 @@ class AuthView(
         val registrationEnabled by viewModel.registrationEnabledState.collectAsState()
         val username by viewModel.usernameState.collectAsState()
         val password by viewModel.passwordState.collectAsState()
+        val email by viewModel.emailState.collectAsState()
         val loading by viewModel.loadingState.collectAsState()
         val error by viewModel.errorState.collectAsState()
         val loginEnabled by viewModel.loginEnabledState.collectAsState()
@@ -126,6 +127,16 @@ class AuthView(
                         disabled = loading,
                         id = "auth-password",
                     )
+                    if (registerMode) {
+                        CalmTextField(
+                            value = email,
+                            onValueChange = { viewModel.onEmailChanged(it) },
+                            label = AuthStrings.emailPlaceholder.translation(),
+                            placeholder = AuthStrings.emailPlaceholder.translation(),
+                            disabled = loading,
+                            id = "auth-email",
+                        )
+                    }
                     if (error) {
                         FormHint(
                             text = if (registerMode) AuthStrings.errorRegisterFailed.translation()

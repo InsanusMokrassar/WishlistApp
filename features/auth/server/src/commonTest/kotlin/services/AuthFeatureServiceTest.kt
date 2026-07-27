@@ -3,8 +3,10 @@ package dev.inmo.wishlist.features.auth.server.services
 import dev.inmo.micro_utils.repos.MapCRUDRepo
 import dev.inmo.micro_utils.repos.MapKeyValueRepo
 import dev.inmo.wishlist.features.auth.common.models.AuthFeatureUser
+import dev.inmo.wishlist.features.auth.common.models.AuthConfig
 import dev.inmo.wishlist.features.auth.common.models.Password
 import dev.inmo.wishlist.features.auth.common.models.Token
+import dev.inmo.wishlist.features.auth.server.RegistrationEmailSender
 import dev.inmo.wishlist.features.auth.server.repo.PasswordsRepo
 import dev.inmo.wishlist.features.email.common.models.Email
 import dev.inmo.wishlist.features.users.common.models.NewUser
@@ -15,7 +17,9 @@ import dev.inmo.wishlist.features.users.common.repo.UsersRepo
 import kotlinx.coroutines.test.runTest
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertNotNull
 import kotlin.test.assertNull
+import kotlin.test.assertTrue
 import kotlin.time.Duration
 import kotlin.time.Duration.Companion.minutes
 
@@ -49,6 +53,20 @@ internal class FakeUsersRepo(
  */
 internal class FakePasswordsRepo : PasswordsRepo, dev.inmo.micro_utils.repos.KeyValueRepo<UserId, Password> by MapKeyValueRepo()
 
+/** Records required-email registration deliveries in auth service tests. */
+private class FakeRegistrationEmailSender(
+    private val result: Boolean,
+) : RegistrationEmailSender {
+    /** Accounts passed to the sender, in registration order. */
+    val users = mutableListOf<RegisteredUser>()
+
+    /** Records the account and returns the configured delivery result. */
+    override suspend fun sendRegistrationEmail(user: RegisteredUser): Boolean {
+        users += user
+        return result
+    }
+}
+
 /**
  * Verifies [AuthFeatureService.getUser]: a valid, unexpired token resolves to an [AuthFeatureUser]
  * that preserves [RegisteredUser.email] — a regression check that B-V1's own-record surface does
@@ -62,13 +80,92 @@ class AuthFeatureServiceTest {
     private fun buildService(
         usersRepo: FakeUsersRepo,
         passwordsRepo: FakePasswordsRepo = FakePasswordsRepo(),
-        tokenTtl: Duration = 15.minutes
+        tokenTtl: Duration = 15.minutes,
+        enableRegistration: Boolean = false,
+        requireEmailForRegistration: Boolean = false,
+        registrationEmailSender: RegistrationEmailSender? = null,
     ) = AuthFeatureService(
         usersRepo = usersRepo,
         writeUsersRepo = usersRepo,
         passwordsRepo = passwordsRepo,
-        tokenTtl = tokenTtl
+        tokenTtl = tokenTtl,
+        enableRegistration = enableRegistration,
+        requireEmailForRegistration = requireEmailForRegistration,
+        registrationEmailSender = registrationEmailSender,
     )
+
+    /** Auth config exposes both registration flags without server-only types. */
+    @Test
+    fun getConfigReturnsConfiguredRegistrationFlags() = runTest {
+        val service = buildService(
+            usersRepo = FakeUsersRepo(),
+            enableRegistration = true,
+            requireEmailForRegistration = true,
+        )
+
+        assertEquals(AuthConfig(true, true), service.getConfig())
+    }
+
+    /** Required-email registration rejects a missing address before creating a user. */
+    @Test
+    fun requiredEmailRegistrationRejectsMissingEmail() = runTest {
+        val usersRepo = FakeUsersRepo()
+        val service = buildService(
+            usersRepo = usersRepo,
+            enableRegistration = true,
+            requireEmailForRegistration = true,
+            registrationEmailSender = FakeRegistrationEmailSender(true),
+        )
+
+        assertNull(service.register(Username("alice"), plainPassword))
+        assertNull(usersRepo.getUserByUsername(Username("alice")))
+    }
+
+    /** Optional-email registration accepts and persists a supplied address. */
+    @Test
+    fun optionalEmailRegistrationPersistsSuppliedEmail() = runTest {
+        val usersRepo = FakeUsersRepo()
+        val email = Email("alice@example.com")
+        val service = buildService(usersRepo, enableRegistration = true)
+
+        assertNotNull(service.register(Username("alice"), plainPassword, email))
+        assertEquals(email, usersRepo.getUserByUsername(Username("alice"))?.email)
+    }
+
+    /** Required-email registration returns credentials only after the sender accepts the invite. */
+    @Test
+    fun requiredEmailRegistrationSendsInviteBeforeReturningCredentials() = runTest {
+        val usersRepo = FakeUsersRepo()
+        val sender = FakeRegistrationEmailSender(true)
+        val email = Email("alice@example.com")
+        val service = buildService(
+            usersRepo = usersRepo,
+            enableRegistration = true,
+            requireEmailForRegistration = true,
+            registrationEmailSender = sender,
+        )
+
+        assertNotNull(service.register(Username("alice"), plainPassword, email))
+        assertEquals(
+            listOfNotNull(usersRepo.getUserByUsername(Username("alice"))),
+            sender.users
+        )
+    }
+
+    /** Required-email registration fails closed when invite delivery reports failure. */
+    @Test
+    fun requiredEmailRegistrationHidesCredentialsWhenInviteFails() = runTest {
+        val sender = FakeRegistrationEmailSender(false)
+        val service = buildService(
+            usersRepo = FakeUsersRepo(),
+            enableRegistration = true,
+            requireEmailForRegistration = true,
+            registrationEmailSender = sender,
+        )
+
+        assertNull(service.register(Username("alice"), plainPassword, Email("alice@example.com")))
+        assertTrue(sender.users.isNotEmpty())
+    }
 
     /** A valid, unexpired token resolves to an [AuthFeatureUser] carrying the seeded user's email. */
     @Test

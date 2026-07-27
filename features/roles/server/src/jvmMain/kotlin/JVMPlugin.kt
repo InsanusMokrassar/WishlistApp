@@ -5,6 +5,7 @@ import dev.inmo.micro_utils.coroutines.subscribeLoggingDropExceptions
 import dev.inmo.micro_utils.repos.versions.VersionsRepo
 import dev.inmo.micro_utils.startup.plugin.StartPlugin
 import dev.inmo.wishlist.features.users.common.repo.UsersRepo
+import dev.inmo.wishlist.features.auth.server.Config as AuthConfig
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.serialization.json.JsonObject
 import org.jetbrains.exposed.v1.jdbc.Database
@@ -49,16 +50,17 @@ object JVMPlugin : StartPlugin {
         val rolesRepo = koin.get<RolesRepo>()
         val scope = koin.get<CoroutineScope>()
         val versionsRepo = koin.get<VersionsRepo<Database>>()
+        val requireEmailForRegistration = koin.get<AuthConfig>().requireEmailForRegistration
 
         usersRepo.newObjectsFlow.subscribeLoggingDropExceptions(scope) { user ->
-            grantDefaultRoles(rolesRepo, user)
+            grantDefaultRoles(rolesRepo, user, requireEmailForRegistration)
         }
 
         versionsRepo.setTableVersion(
             tableName = userRoleBackfillTableName,
             version = userRoleBackfillVersion,
             onUpdate = { _, _ ->
-                backfillDefaultRoles(usersRepo, rolesRepo)
+                backfillDefaultRoles(usersRepo, rolesRepo, requireEmailForRegistration)
             }
         )
     }

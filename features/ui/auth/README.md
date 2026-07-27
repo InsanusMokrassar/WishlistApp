@@ -6,7 +6,7 @@
 
 ## Overview
 
-Compact login/register widget rendered within the top navigation bar. When logged in, displays a "Log out" button. When logged out and collapsed, displays "Log in" (and "Register" when server has `enableRegistration=true`). When expanded, the credentials form appears in a modal dialog — on JS as a Bootstrap modal overlay with header (title + close button), body (inputs + error), and footer (Cancel + Submit); on JVM/Android as a `androidx.compose.ui.window.Dialog` wrapping a Surface-based form with Cancel/Submit buttons. Server URL storage is owned by `features/ui/serverUrl`. Depends on `features/auth/client`.
+Compact login/register widget rendered within the top navigation bar. When logged in, displays a "Log out" button. When logged out and collapsed, displays "Log in" (and "Register" when server has `enableRegistration=true`). When expanded, the credentials form appears in a modal dialog — on JS as a Bootstrap modal overlay with header (title + close button), body (inputs + error), and footer (Cancel + Submit); on JVM/Android as a `androidx.compose.ui.window.Dialog` wrapping a Surface-based form with Cancel/Submit buttons. Registration adds an email field and validates it according to `requireEmailForRegistration`; login ignores the field. Server URL storage is owned by `features/ui/serverUrl`. Depends on `features/auth/client`.
 
 ## Routes
 
@@ -17,9 +17,9 @@ None. Client-only feature; no server component.
 | Type | Description |
 |------|-------------|
 | `AuthViewConfig` | Empty `@Serializable class` — embedded in top navigation bar via `InjectNavigationChain` |
-| `AuthModel` | Interface: `isAlreadyLoggedIn()`, `login(username, password): Boolean`, `logout()`, `userAuthorisedState: StateFlow<Boolean>`, `isRegistrationEnabled(): Boolean`, `register(username, password): Boolean` |
+| `AuthModel` | Interface: `isAlreadyLoggedIn()`, `login(username, password): Boolean`, `logout()`, `userAuthorisedState: StateFlow<Boolean>`, `getConfig(): AuthConfig`, `isRegistrationEnabled(): Boolean`, `register(username, password, email?): Boolean` |
 | `AuthViewInteractor` | Interface: `onUserLoggedIn(node)`, `onUserLoggedOut()` — implemented in `client/ClientPlugin` |
-| `AuthViewModel` | Holds `usernameState`, `passwordState`, `loadingState`, `errorState`, `formExpandedState`, `registerModeState`, `registrationEnabledState`, `loggedInState`, `loginEnabledState`; methods: `onToggleForm()`, `onToggleRegisterForm()`, `onCancelForm()`, `onAuthorize()`, `onRegister()`, `onLogout()` |
+| `AuthViewModel` | Holds `usernameState`, `passwordState`, `emailState`, `loadingState`, `errorState`, `formExpandedState`, `registerModeState`, `registrationEnabledState`, `requireEmailForRegistrationState`, `loggedInState`, `loginEnabledState`; methods: `onToggleForm()`, `onToggleRegisterForm()`, `onCancelForm()`, `onAuthorize()`, `onRegister()`, `onEmailChanged()`, `onLogout()` |
 
 ## Architecture Notes
 
@@ -27,8 +27,8 @@ None. Client-only feature; no server component.
 - **Modal dialog behavior:** `AuthView` per platform (JS/JVM/Android) renders log in/register trigger buttons in the navbar. When `formExpandedState` is true, the credentials form renders inside a modal dialog (Bootstrap modal overlay on JS; `androidx.compose.ui.window.Dialog` + Surface on JVM/Android), dismissable via `onCancelForm`. The navbar buttons remain visible while the dialog is open.
 - **Model interface:** `AuthModel.userAuthorisedState: StateFlow<Boolean>` mirrors login state; `logout()` method clears credentials. `getServerAddress()`/`saveServerAddress()` removed — delegated to `features/ui/serverUrl`.
 - **ViewModel:** `loggedInState` derived from `model.userAuthorisedState`; `formExpandedState` tracks collapse/expand toggle; `onToggleForm()` toggles collapse state; `onLogout()` calls `model.logout()`.
-- `loginEnabledState` is a derived `StateFlow<Boolean>` from `combine(usernameState, passwordState, loadingState)` — all inputs non-blank and no request in flight. Shared for both login and register submit buttons.
-- `registrationEnabledState` is loaded async in VM `init` from `model.isRegistrationEnabled()` (defaults to `false` until resolved).
+- `loginEnabledState` is a derived `StateFlow<Boolean>` from username, password, email, loading, register mode, and required-email policy. Login requires only username/password; registration permits a blank optional email, rejects malformed nonblank email, and requires a valid nonblank email when policy is enabled.
+- `registrationEnabledState` and `requireEmailForRegistrationState` are loaded asynchronously from `model.getConfig()` (both default to `false` until resolved).
 - `registerModeState` distinguishes expanded-login from expanded-register; `onToggleRegisterForm()` sets it to `true`; `onToggleForm()` sets it to `false`; `onCancelForm()` collapses and resets both.
 - **Enter-to-submit (classic form behavior):** no dedicated VM method — each platform view dispatches Enter to the existing `onRegister()`/`onAuthorize()` per `registerModeState`. JS wraps the credentials inputs in a `Form` whose `onSubmit` (triggered by the `type=submit` primary button or Enter) calls `preventDefault()` then the mode-appropriate method; the cancel button is `type=button`. JVM/Android wire `KeyboardOptions(imeAction = ImeAction.Done)` + `KeyboardActions(onDone = { if (registerMode) onRegister() else onAuthorize() })` on both fields. On JS the `Form.onSubmit` handler early-returns when `loginEnabledState` is `false`, so Enter mirrors the disabled submit button (ignored while a request is in flight or any field is blank); JVM/Android `onDone` still rely on `onAuthorize()`/`onRegister()` self-guarding blank credentials.
 - `AuthViewInteractor` implementation lives in `client/ClientPlugin` (not in this feature's `Plugin.kt`) — it needs access to the root `NavigationChain<ViewConfig>`.

@@ -1,9 +1,11 @@
 package dev.inmo.wishlist.features.auth.client
 
 import dev.inmo.wishlist.features.auth.common.models.AuthCredentials
+import dev.inmo.wishlist.features.auth.common.models.AuthConfig
 import dev.inmo.wishlist.features.auth.common.models.AuthFeatureUser
 import dev.inmo.wishlist.features.auth.common.models.Password
 import dev.inmo.wishlist.features.auth.common.models.RefreshToken
+import dev.inmo.wishlist.features.email.common.models.Email
 import dev.inmo.wishlist.features.users.common.models.Username
 
 class AuthFeatureService(
@@ -27,11 +29,13 @@ class AuthFeatureService(
         storage.save(null)
     }
 
-    override suspend fun register(username: Username, password: Password): AuthCredentials? {
-        val credentials = feature.register(username, password) ?: return null
+    override suspend fun register(username: Username, password: Password, email: Email?): AuthCredentials? {
+        val credentials = feature.register(username, password, email) ?: return null
         storage.save(credentials)
         return credentials
     }
+
+    override suspend fun getConfig(): AuthConfig = feature.getConfig()
 
     override suspend fun isRegistrationAvailable(): Boolean = feature.isRegistrationAvailable()
 

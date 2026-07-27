@@ -3,6 +3,7 @@ package dev.inmo.wishlist.features.roles.server
 import dev.inmo.kroles.repos.BaseRoleSubject
 import dev.inmo.kroles.repos.RolesRepo
 import dev.inmo.wishlist.features.roles.common.models.SuperAdminRole
+import dev.inmo.wishlist.features.roles.common.models.NewUserRole
 import dev.inmo.wishlist.features.roles.common.models.UserRole
 import dev.inmo.wishlist.features.users.common.models.RegisteredUser
 import dev.inmo.wishlist.features.users.common.repo.ReadUsersRepo
@@ -11,8 +12,9 @@ import dev.inmo.wishlist.features.users.common.repo.ReadUsersRepo
 internal const val rootUsername = "root"
 
 /**
- * Grants the User role to [user] and, when [user] is the `root` account, additionally grants the
- * SuperAdmin role. Idempotent — kroles' `RolesRepo.includeDirect` is a no-op (returns `false`, no
+ * Grants the configured default role to [user] and, when [user] is the `root` account, additionally
+ * grants the SuperAdmin role. A non-root account receives [NewUserRole] while required-email
+ * registration is enabled, otherwise [UserRole]. Idempotent — kroles' `RolesRepo.includeDirect` is a no-op (returns `false`, no
  * error) when the subject already holds the role — so this is safe to call more than once for the
  * same user (see `roles/README.md` Architecture Notes on the subscribe-then-backfill overlap window).
  *
@@ -21,13 +23,38 @@ internal const val rootUsername = "root"
  *
  * @param rolesRepo Repo roles are granted through.
  * @param user User to grant default roles to.
+ * @param requireEmailForRegistration Whether new non-root accounts await email verification.
  */
-internal suspend fun grantDefaultRoles(rolesRepo: RolesRepo, user: RegisteredUser) {
+internal suspend fun grantDefaultRoles(
+    rolesRepo: RolesRepo,
+    user: RegisteredUser,
+    requireEmailForRegistration: Boolean = false,
+) {
     val subject = BaseRoleSubject.Direct(user.id.long.toString())
-    rolesRepo.includeDirect(subject, UserRole)
     if (user.username.string == rootUsername) {
+        rolesRepo.includeDirect(subject, UserRole)
         rolesRepo.includeDirect(subject, SuperAdminRole)
+    } else {
+        rolesRepo.includeDirect(
+            subject,
+            if (requireEmailForRegistration) NewUserRole else UserRole
+        )
     }
+}
+
+/**
+ * Promotes a verified account to the normal user role.
+ *
+ * Exclusion and inclusion are both idempotent, so repeated verification-link opens converge on
+ * exactly the approved role state.
+ *
+ * @param rolesRepo Repo roles are updated through.
+ * @param userId Account being approved.
+ */
+suspend fun promoteNewUserToUser(rolesRepo: RolesRepo, userId: dev.inmo.wishlist.features.users.common.models.UserId) {
+    val subject = BaseRoleSubject.Direct(userId.long.toString())
+    rolesRepo.excludeDirect(subject, NewUserRole)
+    rolesRepo.includeDirect(subject, UserRole)
 }
 
 /**
@@ -39,7 +66,15 @@ internal suspend fun grantDefaultRoles(rolesRepo: RolesRepo, user: RegisteredUse
  *
  * @param usersRepo Source of all currently-existing users.
  * @param rolesRepo Repo roles are granted through.
+ * @param requireEmailForRegistration Ignored for existing accounts; existing accounts are always
+ *   backfilled with [UserRole] and are never downgraded to [NewUserRole].
  */
-internal suspend fun backfillDefaultRoles(usersRepo: ReadUsersRepo, rolesRepo: RolesRepo) {
-    usersRepo.getAll().values.forEach { user -> grantDefaultRoles(rolesRepo, user) }
+internal suspend fun backfillDefaultRoles(
+    usersRepo: ReadUsersRepo,
+    rolesRepo: RolesRepo,
+    requireEmailForRegistration: Boolean = false,
+) {
+    usersRepo.getAll().values.forEach { user ->
+        grantDefaultRoles(rolesRepo, user, requireEmailForRegistration = false)
+    }
 }

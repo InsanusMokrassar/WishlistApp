@@ -21,6 +21,7 @@
     "dev.inmo.wishlist.features.currency.server.JVMPlugin",
     "dev.inmo.wishlist.features.booking.server.JVMPlugin",
     "dev.inmo.wishlist.features.email.server.JVMPlugin",
+    "dev.inmo.wishlist.features.deeplinks.server.JVMPlugin",
     "dev.inmo.wishlist.features.roles.server.JVMPlugin"
   ],
   "filesFolder": "./local.uploaded_files",
@@ -28,6 +29,16 @@
   "tokenTtl": "PT15M",
   "refreshTokenTtl": "P7D",
   "enableRegistration": true,
+  "requireEmailForRegistration": true,
+  "email": {
+    "smtp": {
+      "host": "127.0.0.1",
+      "port": 1025,
+      "from": "noreply@wishlist.local",
+      "useTls": false,
+      "useSsl": false
+    }
+  },
   "openExchangeRatesAppId": null,
   "openExchangeRatesRefreshTTLMillis": 3600000
 }

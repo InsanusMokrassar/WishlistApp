@@ -40,6 +40,7 @@
   "tokenTtl": "PT15M",
   "refreshTokenTtl": "P7D",
   "enableRegistration": true,
+  "requireEmailForRegistration": false,
   "openExchangeRatesAppId": null,
   "openExchangeRatesRefreshTTLMillis": 3600000
 }

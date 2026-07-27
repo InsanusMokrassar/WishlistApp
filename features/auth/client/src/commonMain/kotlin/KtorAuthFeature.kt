@@ -12,6 +12,7 @@ import io.ktor.client.statement.HttpResponse
 import io.ktor.http.HttpStatusCode
 import io.ktor.http.isSuccess
 import dev.inmo.wishlist.features.auth.common.Constants
+import dev.inmo.wishlist.features.auth.common.models.AuthConfig
 import dev.inmo.wishlist.features.auth.common.models.AuthCredentials
 import dev.inmo.wishlist.features.auth.common.models.LoginRequest
 import dev.inmo.wishlist.features.auth.common.models.Password
@@ -19,6 +20,7 @@ import dev.inmo.wishlist.features.auth.common.models.RefreshRequest
 import dev.inmo.wishlist.features.auth.common.models.RefreshToken
 import dev.inmo.wishlist.features.auth.common.models.AuthFeatureUser
 import dev.inmo.wishlist.features.auth.common.models.RegisterRequest
+import dev.inmo.wishlist.features.email.common.models.Email
 import dev.inmo.wishlist.features.users.common.models.Username
 
 class KtorAuthFeature(
@@ -29,6 +31,7 @@ class KtorAuthFeature(
     private val logoutPath = "${Constants.prefixPathPart}/${Constants.logoutPathPart}"
     private val getMePath = "${Constants.prefixPathPart}/${Constants.getMePathPart}"
     private val registerPath = "${Constants.prefixPathPart}/${Constants.registerPathPart}"
+    private val configPath = "${Constants.prefixPathPart}/${Constants.configPathPart}"
     private val isRegistrationAvailablePath = "${Constants.prefixPathPart}/${Constants.isRegistrationAvailablePathPart}"
 
     override suspend fun login(username: Username, password: Password): AuthCredentials? {
@@ -49,12 +52,18 @@ class KtorAuthFeature(
         client.post(logoutPath)
     }
 
-    override suspend fun register(username: Username, password: Password): AuthCredentials? {
+    override suspend fun register(username: Username, password: Password, email: Email?): AuthCredentials? {
         val response: HttpResponse = client.post(registerPath) {
-            setBody(RegisterRequest(username, password))
+            setBody(RegisterRequest(username, password, email))
         }
         return if (response.status.isSuccess()) response.body() else null
     }
+
+    override suspend fun getConfig(): AuthConfig = runCatchingLogging {
+        val response = client.get(configPath)
+        if (!response.status.isSuccess()) return@runCatchingLogging AuthConfig()
+        response.body()
+    }.getOrDefault(AuthConfig())
 
     override suspend fun isRegistrationAvailable(): Boolean = runCatchingLogging {
         val response = client.get(isRegistrationAvailablePath)

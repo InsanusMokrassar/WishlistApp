@@ -15,7 +15,8 @@ End-to-end bearer-token authentication. Handles login (BCrypt password check), o
 | Method | Path | Auth | Body / Response | Description |
 |--------|------|------|-----------------|-------------|
 | GET | `/auth/is_registration_available` | None | `→ Boolean` | Returns `true` when self-service registration is open |
-| POST | `/auth/register` | None | `RegisterRequest → AuthCredentials \| 400` | Creates account; 400 when disabled, username taken, or password length is outside 8..72 |
+| GET | `/auth/config` | None | `→ AuthConfig` | Returns registration availability and email-policy flags |
+| POST | `/auth/register` | None | `RegisterRequest → AuthCredentials \| 400` | Creates account; `email` is optional unless required-email registration is enabled; 400 covers unavailable registration, invalid fields, duplicate values, and failed invite delivery |
 | POST | `/auth/login` | None | `LoginRequest → AuthCredentials \| 401` | Validates credentials, returns token + refreshToken |
 | POST | `/auth/refresh` | None | `RefreshRequest → AuthCredentials \| 401` | Exchanges refreshToken for new credentials |
 | POST | `/auth/logout` | Bearer | `→ 200` | Invalidates the bearer token |
@@ -29,12 +30,13 @@ End-to-end bearer-token authentication. Handles login (BCrypt password check), o
 | `RefreshToken` | `@JvmInline value class(String)` — long-lived refresh token |
 | `Password` | `@JvmInline value class(String)` — BCrypt-hashed at rest |
 | `AuthCredentials` | Wire DTO: `token: Token`, `refreshToken: RefreshToken` |
-| `AuthConfig` | **Server-only** DTO: `enableRegistration: Boolean` — in `features/auth/server/models/` |
+| `AuthConfig` | Common wire DTO: `enableRegistration: Boolean`, `requireEmailForRegistration: Boolean` |
 | `LoginRequest` | Wire DTO: `username: Username`, `password: Password` |
-| `RegisterRequest` | Wire DTO: `username: Username`, `password: Password` — used for registration |
+| `RegisterRequest` | Wire DTO: `username: Username`, `password: Password`, `email: Email?` — used for registration |
 | `RefreshRequest` | Wire DTO: `refreshToken: RefreshToken` |
 | `AuthFeatureUser` | `@Serializable` feature model returned by `getMe`/`getUser`/the "me" state flow: `id: UserId`, `username: Username`, `email: Email?`. Deliberately keeps `email` — this is the authenticated caller's own record, not a public listing; see its class KDoc. |
 | `AuthFeature` | Shared interface: `login`, `refresh`, `register`, `isRegistrationAvailable` |
+| `RegistrationEmailSender` | Server hook invoked after a required-email account is persisted; successful registration credentials are returned only after the hook succeeds |
 | `ClientAuthFeature` | Client-only extension: `logout`, `getMe(): AuthFeatureUser?` |
 | `ServerAuthFeature` | Server-only extension: `logout`, `getUser(token): AuthFeatureUser?` |
 | `ServerUrlStorage` | Client-side interface: `getServerUrl / saveServerUrl` (platform-specific impls) |
@@ -48,13 +50,14 @@ End-to-end bearer-token authentication. Handles login (BCrypt password check), o
 - `BearerAuthHttpClientConfigurator` installs Ktor `Auth` plugin on `HttpClient`; `refreshTokens` calls the refresh endpoint using the inner `client` (avoids recursion).
 - `sendWithoutRequest` skips preemptive auth for `/auth/login`, `/auth/refresh`, `/auth/register`, and `/auth/is_registration_available` endpoints.
 - `Config.enableRegistration` (default `false`) gates the register endpoint; disabled → service returns `null` → router responds 400.
+- `Config.requireEmailForRegistration` (default `false`) requires a validated `Email` in `RegisterRequest`. Required-email registration stores the account, assigns the pending role through `features/roles`, invokes `RegistrationEmailSender`, and returns credentials only when invite delivery succeeds. Missing sender/SMTP/deeplink infrastructure fails closed without exposing successful credentials. Optional-email registration preserves the previous flow while storing a supplied email.
 - `AuthFeatureService.register` enforces a password length policy (8..72): too-short/empty passwords are refused, and the upper bound avoids BCrypt silently ignoring input past 72 bytes. Returns `null` (→ 400) on violation. Admin-set passwords (root-only path) are not subject to this check.
 - `AuthFeature.isRegistrationAvailable()` is the cross-cutting flag; server impl returns `enableRegistration` directly; client impl calls `GET /auth/is_registration_available` and deserializes the `Boolean` body.
-- `AuthConfig` is server-only (package `dev.inmo.wishlist.features.auth.server.models`) — client never imports it.
+- `GET /auth/config` returns the common `AuthConfig` DTO, allowing JS/JVM/Android registration forms to show and validate the email field consistently. The legacy boolean availability route remains for compatibility.
 - `AuthFeatureService` (server) requires `WriteUsersRepo` in addition to `ReadUsersRepo` to create accounts during registration.
 - `AuthFeatureService.purgeUser(userId)` (server-only) removes the stored password hash and every active access/refresh session for a user; used by the admin user-delete cascade (`features/admin`).
 - **Feature Interface Return Model Rule:** `getMe`/`getUser` and the "me" state flow now return `AuthFeatureUser` (a `common/models/` feature model) instead of the persistence entity `RegisteredUser` directly, per `agents/CODING.md`'s Feature Interface Return Model Rule. `AuthFeatureUser` deliberately keeps `email` (own-record surface); contrast with `features/users`' `UsersFeatureUser`, which drops it on the public listing.
-- Role assignment for newly created/bootstrapped users (issue #68) is handled separately by `features/roles` — see `roles/README.md`.
+- Role assignment for newly created/bootstrapped users (issue #68 and #73) is handled separately by `features/roles` — see `roles/README.md`.
 - `SerializationConfigurator` sets `defaultRequest { contentType(ContentType.Application.Json) }` so individual request builders need not repeat it.
 - `ServerUrlStorage` and `AuthCredentialsStorage` use `SmartRWLocker` for concurrent access safety.
 - JS `LocalStorageServerUrlStorage` takes `useFallbackToWindowAddress` (default `true`): when no URL is stored in `localStorage`, `getServerUrl()` falls back to `window.location.origin` so a web client served from the same host as the API works without explicit configuration. Pass `false` to disable and return `null` on absence.

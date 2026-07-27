@@ -1,19 +1,28 @@
 package dev.inmo.wishlist.features.email.server
 
-import dev.inmo.micro_utils.koin.singleWithRandomQualifier
 import dev.inmo.micro_utils.ktor.server.configurators.ApplicationRoutingConfigurator
 import dev.inmo.micro_utils.startup.plugin.StartPlugin
+import dev.inmo.micro_utils.koin.singleWithRandomQualifier
+import dev.inmo.wishlist.features.auth.server.RegistrationEmailSender
+import dev.inmo.wishlist.features.common.server.models.Config as ServerConfig
+import dev.inmo.wishlist.features.deeplinks.common.DeepLinkHandler
+import dev.inmo.wishlist.features.deeplinks.server.services.DeepLinksService
 import dev.inmo.wishlist.features.email.common.EmailConstants
 import dev.inmo.wishlist.features.email.server.configurators.EmailRoutingsConfigurator
 import dev.inmo.wishlist.features.email.server.services.DisabledEmailFeature
 import dev.inmo.wishlist.features.email.server.services.EmailFeatureService
 import dev.inmo.wishlist.features.email.server.services.SmtpEmailService
+import dev.inmo.wishlist.features.email.server.services.EmailRegistrationInviteSender
+import dev.inmo.wishlist.features.email.server.services.EmailVerificationDeepLinkHandler
+import dev.inmo.wishlist.features.email.server.models.EmailVerificationPayload
 import dev.inmo.wishlist.features.roles.common.FeatureRolesRegistry
 import dev.inmo.wishlist.features.roles.common.models.SuperAdminRole
 import dev.inmo.wishlist.features.roles.common.utils.singleRequirement
 import dev.inmo.wishlist.features.roles.server.RolesFeature
 import dev.inmo.wishlist.features.users.common.repo.UsersRepo
 import kotlinx.serialization.json.Json
+import kotlinx.serialization.modules.SerializersModule
+import kotlinx.serialization.modules.polymorphic
 import kotlinx.serialization.json.JsonElement
 import kotlinx.serialization.json.JsonNull
 import kotlinx.serialization.json.JsonObject
@@ -47,6 +56,8 @@ import org.koin.core.module.Module
 object Plugin : StartPlugin {
     override fun Module.setupDI(config: JsonObject) {
         val emailConfigElement = emailConfigElementOrNull(config)
+        val serverConfig = Json { ignoreUnknownKeys = true }
+            .decodeFromJsonElement(ServerConfig.serializer(), config)
         if (emailConfigElement != null) {
             single { get<Json>().decodeFromJsonElement(EmailConfig.serializer(), emailConfigElement) }
             single { SmtpEmailService(get<EmailConfig>()) }
@@ -56,6 +67,23 @@ object Plugin : StartPlugin {
             getOrNull<EmailsService>() ?.let {
                 EmailFeatureService(it, get<UsersRepo>(), get<RolesFeature>())
             } ?: DisabledEmailFeature(get<UsersRepo>())
+        }
+        singleWithRandomQualifier {
+            SerializersModule {
+                polymorphic(Any::class, EmailVerificationPayload::class, EmailVerificationPayload.serializer())
+            }
+        }
+        singleWithRandomQualifier<DeepLinkHandler> {
+            EmailVerificationDeepLinkHandler(get(), get())
+        }
+        single<RegistrationEmailSender> {
+            EmailRegistrationInviteSender(
+                emailsService = getOrNull(),
+                deepLinksService = getOrNull<DeepLinksService>(),
+                scheme = if (serverConfig.wss) "https" else "http",
+                publicHost = serverConfig.publicHost,
+                port = serverConfig.port,
+            )
         }
         singleRequirement {
             FeatureRolesRegistry.Requirement(EmailConstants.sendTestFunctionalityId, SuperAdminRole)
