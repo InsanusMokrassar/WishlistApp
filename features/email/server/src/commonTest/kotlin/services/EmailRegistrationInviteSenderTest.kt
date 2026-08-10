@@ -6,7 +6,9 @@ import dev.inmo.wishlist.features.deeplinks.common.models.DeepLinkId
 import dev.inmo.wishlist.features.deeplinks.common.repo.DeepLinksRepo
 import dev.inmo.wishlist.features.deeplinks.server.services.DeepLinksService
 import dev.inmo.wishlist.features.email.common.models.Email
+import dev.inmo.wishlist.features.email.server.EmailConfig
 import dev.inmo.wishlist.features.email.server.EmailsService
+import dev.inmo.wishlist.features.email.server.SmtpConfig
 import dev.inmo.wishlist.features.email.server.models.EmailAttachment
 import dev.inmo.wishlist.features.email.server.models.EmailVerification
 import dev.inmo.wishlist.features.email.server.models.EmailVerificationPayload
@@ -46,33 +48,6 @@ class EmailRegistrationInviteSenderTest {
         /** Throws because the operation is not used by the invite sender. */
         override suspend fun sendHtml(recipient: Email, subject: String, html: String): Boolean =
             error("SMTP failure")
-    }
-
-    /** SMTP double that suspends after link creation until the registration job is cancelled. */
-    private class SuspendingEmailsService : EmailsService {
-        /** Completes when the send phase has begun. */
-        val started = CompletableDeferred<Unit>()
-
-        /** Never-completed result used to keep delivery suspended. */
-        private val result = CompletableDeferred<Boolean>()
-
-        /** Announces the send phase and suspends. */
-        override suspend fun sendText(recipient: Email, subject: String, text: String): Boolean {
-            started.complete(Unit)
-            return result.await()
-        }
-
-        /** Unused attachment operation. */
-        override suspend fun sendTextWithAttachments(
-            recipient: Email,
-            subject: String,
-            text: String,
-            attachments: List<EmailAttachment>,
-        ): Boolean = error("Not used")
-
-        /** Unused HTML operation. */
-        override suspend fun sendHtml(recipient: Email, subject: String, html: String): Boolean =
-            error("Not used")
     }
 
     /** Account fixture with a valid address for invite tests. */
@@ -177,15 +152,28 @@ class EmailRegistrationInviteSenderTest {
         assertFalse(sender.sendRegistrationEmail(user))
     }
 
-    /** Cancellation propagates only after the already-minted deeplink is removed. */
+    /** Production SMTP cancellation propagates only after the already-minted deeplink is removed. */
     @Test
     fun senderCancellationRemovesMintedDeepLinkAndPropagates() = runTest {
         val repo = FakeDeepLinksRepo()
         val links = DeepLinksService(repo, emptyList())
-        val emails = SuspendingEmailsService()
+        val transportStarted = CompletableDeferred<Unit>()
+        val transportResult = CompletableDeferred<Unit>()
+        val emails = SmtpEmailService.withTransport(
+            config = EmailConfig(
+                smtp = SmtpConfig(
+                    host = "smtp.example.com",
+                    from = Email("noreply@example.com"),
+                ),
+            ),
+            transportSend = {
+                transportStarted.complete(Unit)
+                transportResult.await()
+            },
+        )
         val sender = EmailRegistrationInviteSender(emails, links, "http://localhost:8196")
         val delivery = async { sender.sendRegistrationEmail(user) }
-        emails.started.await()
+        transportStarted.await()
         assertEquals(1, repo.getAll().size)
 
         delivery.cancel()
