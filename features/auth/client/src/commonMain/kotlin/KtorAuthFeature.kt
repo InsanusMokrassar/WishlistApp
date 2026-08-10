@@ -52,6 +52,10 @@ class KtorAuthFeature(
         client.post(logoutPath)
     }
 
+    /** Delegates the legacy registration surface to the email-aware request. */
+    override suspend fun register(username: Username, password: Password): AuthCredentials? =
+        register(username, password, null)
+
     override suspend fun register(username: Username, password: Password, email: Email?): AuthCredentials? {
         val response: HttpResponse = client.post(registerPath) {
             setBody(RegisterRequest(username, password, email))
@@ -59,11 +63,17 @@ class KtorAuthFeature(
         return if (response.status.isSuccess()) response.body() else null
     }
 
-    override suspend fun getConfig(): AuthConfig = runCatchingLogging {
-        val response = client.get(configPath)
-        if (!response.status.isSuccess()) return@runCatchingLogging AuthConfig()
-        response.body()
-    }.getOrDefault(AuthConfig())
+    override suspend fun getConfig(): AuthConfig {
+        val config = runCatchingLogging {
+            val response = client.get(configPath)
+            if (!response.status.isSuccess()) return@runCatchingLogging null
+            response.body<AuthConfig>()
+        }.getOrNull()
+        return config ?: AuthConfig(
+            enableRegistration = isRegistrationAvailable(),
+            requireEmailForRegistration = false,
+        )
+    }
 
     override suspend fun isRegistrationAvailable(): Boolean = runCatchingLogging {
         val response = client.get(isRegistrationAvailablePath)

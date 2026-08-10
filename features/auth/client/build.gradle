@@ -17,5 +17,10 @@ kotlin {
                 api libs.ktor.client.auth
             }
         }
+        commonTest {
+            dependencies {
+                implementation libs.ktor.client.mock
+            }
+        }
     }
 }

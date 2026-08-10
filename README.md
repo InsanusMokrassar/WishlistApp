@@ -89,6 +89,7 @@ template (see [Production deployment](#production-deployment)). Key fields:
 |-------|---------|
 | `host` / `port` | bind address and port (default `8196`) |
 | `publicHost` | host advertised to clients |
+| `publicHttpOrigin` | complete externally reachable HTTP(S) origin used in invite links; defaults to `http://{publicHost}:{port}` for compatibility; set an explicit reverse-proxy origin such as `https://wishlist.example` in production |
 | `staticFolders` | static content roots (serves the web client bundle) |
 | `database` | JDBC `url`, `username`, `password` for PostgreSQL |
 | `plugins` | fully-qualified server feature plugins loaded by reflection |
@@ -113,7 +114,7 @@ never commit the result.
 
 | File | Role | What to change before use |
 |------|------|---------------------------|
-| `server/sample.config.json` | Production server config template. Serves the web bundle from `/static`, stores uploads under `/data/uploaded_files`, and points the database at the `postgres` service host. | Replace the `database` `url` / `username` / `password` (placeholders `TEST_DB` / `TEST_USERNAME` / `TEST_PASSWORD`), set `publicHost` to your real public address, set `openExchangeRatesAppId` if you use the currency feature, configure the `email` SMTP block, and review both registration flags. Set `requireEmailForRegistration` to `true` only with working SMTP and deeplinks. Mount the finished file into the container at `/config.json`. |
+| `server/sample.config.json` | Production server config template. Serves the web bundle from `/static`, stores uploads under `/data/uploaded_files`, and points the database at the `postgres` service host. | Replace the `database` `url` / `username` / `password` (placeholders `TEST_DB` / `TEST_USERNAME` / `TEST_PASSWORD`), set `publicHost` as needed by clients and `publicHttpOrigin` to the externally reachable reverse-proxy origin (for example `https://wishlist.example`, with no internal bind port), set `openExchangeRatesAppId` if you use the currency feature, configure the `email` SMTP block, and review both registration flags. Set `requireEmailForRegistration` to `true` only with working SMTP and deeplinks. Mount the finished file into the container at `/config.json`. |
 | `server/sample.docker-compose.yml` | Production Docker Compose template. Runs the published `insanusmokrassar/wishlists` image plus a PostgreSQL service, mounts `./config.json:/config.json:ro` and `./data/uploaded_files/`, and publishes port `8196`. | Copy to `docker-compose.yml`, replace the `POSTGRES_USER` / `POSTGRES_PASSWORD` / `POSTGRES_DB` placeholders (match them to your config's `database` block), and provide your filled-in `config.json` next to it. |
 | `server/Dockerfile` | Builds the server image (`amazoncorretto:21`). Unpacks the web production bundle into `/static` and the server distribution, and runs the entrypoint against `/config.json`. | Usually unchanged; used by `deploy.sh`. |
 | `server/deploy.sh` | Build-and-publish script: packs the web `productionExecutable` bundle, then builds, tags, and pushes the Docker image to the registry. | Set `app` / `version` / `server` (registry account) to your own. Build the client (`./gradlew :wishlist.client:jsBrowserDistribution`) and server distribution tar first. |
@@ -121,6 +122,7 @@ never commit the result.
 Hardening notes for production:
 
 - The server speaks plain HTTP — terminate TLS with a reverse proxy in front of it.
+- Set `publicHttpOrigin` to that proxy's public HTTP(S) origin so verification messages do not expose the internal Ktor bind port.
 - Replace every `TEST_*` placeholder; the sample files ship with placeholders only.
 - On first start, watch the server log for the generated `root` password and store it.
 

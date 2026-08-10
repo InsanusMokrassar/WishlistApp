@@ -10,9 +10,10 @@ Full-stack role storage feature (issue #68, points 1–6) wrapping the external 
 library. Owns the Exposed-backed, cache-mirrored `RolesRepo`, the three hardcoded roles this app uses
 (`SuperAdmin`, approved `User`, and pending `NewUser`), the feature/role aggregator
 (`FeatureRolesRegistry`) and its route-guard helper (`requireRole`), and the bootstrap/migration that
-assigns `SuperAdmin` to `root` and approved `User` to every pre-existing user. Required-email
-registration additionally assigns `NewUser` to new non-root accounts until email verification
-promotes the account to `User`. The general role graph (`RolesRepo`) is server-internal only; however, the narrow
+assigns `SuperAdmin` to `root` and approved `User` to every pre-existing user. Generic and
+administrator-created accounts receive `User`; required-email self-registration explicitly replaces
+that role with `NewUser` until email verification promotes the account. The general role graph
+(`RolesRepo`) is server-internal only; however, the narrow
 `isFunctionalityAvailable` check is exposed client-side — see Architecture Notes.
 
 ## Routes
@@ -74,18 +75,19 @@ promotes the account to `User`. The general role graph (`RolesRepo`) is server-i
   finished creating the `root` user, the migration would see zero users, mark itself permanently done,
   and never see `root` again. Subscribing first closes that race: any user created concurrently by
   another plugin (including `root`) is caught by the live subscription even if it beats the backfill's
-  snapshot read. The actual per-user grant rule is shared by both paths: `root` receives `User` and
-  `SuperAdmin`; an optional-registration non-root account receives `User`; a required-email non-root
-  account receives `NewUser` only when `User` is absent. The check/modify sequence shares a process-local
-  mutex with verification promotion, so asynchronous callback ordering cannot leave both `NewUser` and
-  `User` on an approved account.
-- **Required-email transition (issue #73):** the reactive new-user path reads `auth/server.Config`. Root
-  always receives `User` and `SuperAdmin`; a new non-root account receives `NewUser` when
-  `requireEmailForRegistration=true`, otherwise `User`. The versioned backfill always grants `User` to
-  existing accounts and never downgrades an existing account to `NewUser`, even when the option is later
-  enabled. `grantDefaultRoles` and `promoteNewUserToUser` use one process-local mutex; required-email
-  default assignment checks for `User` before granting `NewUser`, and promotion excludes `NewUser` then
-  includes `User`. The approved non-root invariant is exactly `User` without `NewUser`.
+  snapshot read. The live callback checks that the emitted user still exists while holding the
+  role-transition mutex before granting anything. A second subscription, installed before backfill,
+  removes every direct role emitted by `deletedObjectsIdsFlow` under the same mutex. Callback-before-delete
+  is cleaned by the deletion event; delete-before-callback is rejected by the existence check, so neither
+  order leaves an orphan subject.
+- **Required-email transition (issue #73):** generic creation no longer reads the global auth email
+  policy. Root receives `User` and `SuperAdmin`; every other generic/admin-created account receives
+  `User` unless it already explicitly holds `NewUser`. Required self-registration alone calls the
+  roles-owned `RegistrationRoleLifecycle`, which excludes `User` and includes `NewUser`. Generic grant,
+  pending marking, verification promotion, and compensation cleanup share one process-local mutex:
+  callback-before-pending is replaced by `NewUser`, pending-before-callback is preserved, and a callback
+  delayed until after promotion idempotently retains exactly `User`. Backfill uses the generic rule and
+  preserves an already explicit pending state.
 - **`FeatureRolesRegistry` has real data.** The registry is populated with today's three real
   mappings (all role-gated capabilities require `SuperAdmin`), and `requireRole`/`isRoleRequirementSatisfied`
   are fully implemented and unit-tested. The gated call sites (`admin`, `email`, `files` on the server

@@ -2,6 +2,7 @@
   "host": "0.0.0.0",
   "port": 8196,
   "publicHost": "0.0.0.0",
+  "publicHttpOrigin": "https://wishlist.example",
   "staticFolders": {
     "": "/static"
   },

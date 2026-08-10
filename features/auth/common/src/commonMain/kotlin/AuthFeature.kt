@@ -13,10 +13,25 @@ interface AuthFeature {
     suspend fun refresh(refreshToken: RefreshToken): AuthCredentials?
 
     /**
-     * Creates a new account and returns credentials on success, or `null` when
-     * registration is disabled or the username is already taken.
+     * Creates a new account through the pre-email registration surface.
+     *
+     * @param username Requested account name.
+     * @param password Requested account password.
+     * @return Credentials on success, or `null` when registration fails.
      */
-    suspend fun register(username: Username, password: Password, email: Email? = null): AuthCredentials?
+    suspend fun register(username: Username, password: Password): AuthCredentials?
+
+    /**
+     * Creates a new account with an optional email address. The default bridge preserves source
+     * compatibility for implementations of the original two-argument registration contract.
+     *
+     * @param username Requested account name.
+     * @param password Requested account password.
+     * @param email Address associated with the account, when supplied.
+     * @return Credentials on success, or `null` when registration fails.
+     */
+    suspend fun register(username: Username, password: Password, email: Email?): AuthCredentials? =
+        register(username, password)
 
     /**
      * Returns public registration configuration, retaining optional-email compatibility for legacy

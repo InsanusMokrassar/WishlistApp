@@ -29,6 +29,10 @@ class AuthFeatureService(
         storage.save(null)
     }
 
+    /** Delegates the legacy registration surface to the email-aware service flow. */
+    override suspend fun register(username: Username, password: Password): AuthCredentials? =
+        register(username, password, null)
+
     override suspend fun register(username: Username, password: Password, email: Email?): AuthCredentials? {
         val credentials = feature.register(username, password, email) ?: return null
         storage.save(credentials)

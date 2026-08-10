@@ -80,9 +80,7 @@ object Plugin : StartPlugin {
             EmailRegistrationInviteSender(
                 emailsService = getOrNull(),
                 deepLinksService = getOrNull<DeepLinksService>(),
-                scheme = if (serverConfig.wss) "https" else "http",
-                publicHost = serverConfig.publicHost,
-                port = serverConfig.port,
+                publicHttpOrigin = serverConfig.publicHttpOrigin,
             )
         }
         singleRequirement {

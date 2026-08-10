@@ -29,6 +29,7 @@ Cross-cutting infrastructure loaded by every consumer. Provides: shared domain m
 ## Architecture Notes
 
 - `common/server/JVMPlugin` is the **root server plugin**: connects PostgreSQL, creates `VersionsRepo`, registers all Ktor configurators, builds `EmbeddedServer<Netty>`.
+- Server `Config.publicHttpOrigin` is the complete externally reachable HTTP(S) origin used for absolute links such as registration verification. Omission preserves compatibility by deriving `http://{publicHost}:{port}`; reverse-proxy deployments should set an explicit value such as `https://wishlist.example` or `https://wishlist.example:9443`, without a path, query, or fragment.
 - `HttpClient` is built once in `common/client/Plugin.kt` by collecting all `HttpClientConfigurator` instances registered via `singleWithRandomQualifier`. Features add configurators (bearer auth, default URL) without touching the client construction.
 - `fillAbsentPartsWith` (`utils/MergeUrlBuilders.kt`) merges a stored base URL into per-request URLs — only fills absent components, never overrides already-set ones.
 - `Amount` stores value as two `Long` fields (integer and decimal parts) to avoid floating-point precision issues. DB columns: `approx_price_int BIGINT NULL`, `approx_price_dec BIGINT NULL`.

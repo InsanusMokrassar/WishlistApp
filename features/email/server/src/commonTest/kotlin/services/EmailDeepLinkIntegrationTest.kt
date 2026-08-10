@@ -9,6 +9,7 @@ import dev.inmo.wishlist.features.deeplinks.server.models.HandleResult
 import dev.inmo.wishlist.features.deeplinks.server.services.DeepLinksService
 import dev.inmo.wishlist.features.email.server.models.EmailVerification
 import dev.inmo.wishlist.features.email.server.models.EmailVerificationPayload
+import dev.inmo.wishlist.features.email.common.models.Email
 import dev.inmo.wishlist.features.roles.common.models.NewUserRole
 import dev.inmo.wishlist.features.roles.common.models.UserRole
 import dev.inmo.wishlist.features.users.common.models.RegisteredUser
@@ -30,7 +31,7 @@ class EmailDeepLinkIntegrationTest {
         dev.inmo.micro_utils.repos.KeyValueRepo<DeepLinkId, DeepLinkHandlerInfo> by MapKeyValueRepo()
 
     /** Existing account fixture used by the verification handler. */
-    private val user = RegisteredUser(UserId(11L), Username("alice"))
+    private val user = RegisteredUser(UserId(11L), Username("alice"), Email("alice@example.com"))
 
     /** The registered application serializer module round-trips the polymorphic verification value. */
     @Test
@@ -47,13 +48,21 @@ class EmailDeepLinkIntegrationTest {
         }
         val info = DeepLinkHandlerInfo(
             handlerId = EmailVerification.handlerId,
-            value = EmailVerificationPayload(user.id),
+            value = EmailVerificationPayload(user.id, user.email),
         )
 
         val decoded = json.decodeFromString<DeepLinkHandlerInfo>(json.encodeToString(info))
 
         assertEquals(EmailVerification.handlerId, decoded.handlerId)
-        assertEquals(EmailVerificationPayload(user.id), decoded.value)
+        assertEquals(EmailVerificationPayload(user.id, user.email), decoded.value)
+    }
+
+    /** The pre-email payload shape remains decodable with a null address for fail-closed handling. */
+    @Test
+    fun legacyPayloadDecodesWithNullEmail() {
+        val decoded = Json.decodeFromString<EmailVerificationPayload>("{\"userId\":11}")
+
+        assertEquals(EmailVerificationPayload(user.id), decoded)
     }
 
     /** A minted verification link is dispatched through the handler and leaves exactly UserRole. */
@@ -69,7 +78,7 @@ class EmailDeepLinkIntegrationTest {
         val service = DeepLinksService(FakeDeepLinksRepo(), listOf(handler))
         val deeplinkId = service.createDeepLink(
             EmailVerification.handlerId,
-            EmailVerificationPayload(user.id),
+            EmailVerificationPayload(user.id, user.email),
         )
 
         assertEquals(HandleResult.Handled, service.handle(deeplinkId))

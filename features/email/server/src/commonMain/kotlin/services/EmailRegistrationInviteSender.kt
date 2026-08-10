@@ -7,6 +7,10 @@ import dev.inmo.wishlist.features.email.server.EmailsService
 import dev.inmo.wishlist.features.email.server.models.EmailVerification
 import dev.inmo.wishlist.features.email.server.models.EmailVerificationPayload
 import dev.inmo.wishlist.features.users.common.models.RegisteredUser
+import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.NonCancellable
+import kotlinx.coroutines.withContext
+import java.net.URI
 
 /**
  * Creates an email-verification deeplink and delivers its absolute URL through SMTP.
@@ -16,19 +20,18 @@ import dev.inmo.wishlist.features.users.common.models.RegisteredUser
  *
  * @param emailsService Optional SMTP transport.
  * @param deepLinksService Optional deeplink minting service.
- * @param scheme Public URL scheme, normally `http` or `https`.
- * @param publicHost Public hostname advertised to invite recipients.
- * @param port Public server port.
+ * @param publicHttpOrigin Externally reachable absolute HTTP origin.
  */
 class EmailRegistrationInviteSender(
     private val emailsService: EmailsService?,
     private val deepLinksService: DeepLinksService?,
-    private val scheme: String,
-    private val publicHost: String,
-    private val port: Int,
+    publicHttpOrigin: String,
 ) : RegistrationEmailSender {
     /** Subject used for new-account verification invites. */
     private val subject = "Verify your WishlistApp account"
+
+    /** Validated origin without a trailing slash, path, query, fragment, or credentials. */
+    private val publicHttpOrigin = normalizePublicHttpOrigin(publicHttpOrigin)
 
     /**
      * Mints the verification deeplink and sends a plain-text invitation.
@@ -42,15 +45,24 @@ class EmailRegistrationInviteSender(
         val emails = emailsService ?: return false
         val deeplinkId = links.createDeepLink(
             EmailVerification.handlerId,
-            EmailVerificationPayload(user.id)
+            EmailVerificationPayload(user.id, recipient)
         )
-        val url = buildEmailVerificationUrl(scheme, publicHost, port, deeplinkId)
+        val url = buildEmailVerificationUrl(publicHttpOrigin, deeplinkId)
         val delivered = try {
             emails.sendText(
                 recipient = recipient,
                 subject = subject,
                 text = "Open this link to verify your WishlistApp account:\n$url"
             )
+        } catch (error: CancellationException) {
+            try {
+                withContext(NonCancellable) {
+                    links.removeDeepLink(deeplinkId)
+                }
+            } catch (cleanupError: Exception) {
+                error.addSuppressed(cleanupError)
+            }
+            throw error
         } catch (_: Exception) {
             false
         }
@@ -63,15 +75,39 @@ class EmailRegistrationInviteSender(
 /**
  * Builds the absolute HTTP URL used in a registration invite.
  *
- * @param scheme URL scheme without `://`.
- * @param publicHost Public hostname without a path.
- * @param port Public server port.
+ * @param publicHttpOrigin Externally reachable absolute HTTP origin.
  * @param deeplinkId Persisted deeplink identifier.
  * @return Absolute URL routed through `/api/links/{id}`.
  */
 internal fun buildEmailVerificationUrl(
-    scheme: String,
-    publicHost: String,
-    port: Int,
+    publicHttpOrigin: String,
     deeplinkId: DeepLinkId,
-): String = "${scheme.trimEnd(':')}://${publicHost.trimEnd('/')}:$port/api/links/${deeplinkId.string}"
+): String = "${normalizePublicHttpOrigin(publicHttpOrigin)}/api/links/${deeplinkId.string}"
+
+/**
+ * Validates and normalizes the public origin used in verification messages.
+ *
+ * @param publicHttpOrigin Candidate absolute origin.
+ * @return Origin normalized without a trailing slash.
+ * @throws IllegalArgumentException When the value is not a plain absolute HTTP(S) origin.
+ */
+internal fun normalizePublicHttpOrigin(publicHttpOrigin: String): String {
+    require(publicHttpOrigin.isNotBlank()) { "publicHttpOrigin must not be blank" }
+    val uri = try {
+        URI(publicHttpOrigin)
+    } catch (error: Exception) {
+        throw IllegalArgumentException("publicHttpOrigin must be a valid absolute URI", error)
+    }
+    val scheme = uri.scheme?.lowercase()
+    require(scheme == "http" || scheme == "https") {
+        "publicHttpOrigin must use http or https"
+    }
+    require(!uri.host.isNullOrBlank()) { "publicHttpOrigin must contain a host" }
+    require(uri.rawUserInfo == null) { "publicHttpOrigin must not contain credentials" }
+    require(uri.rawQuery == null) { "publicHttpOrigin must not contain a query" }
+    require(uri.rawFragment == null) { "publicHttpOrigin must not contain a fragment" }
+    require(uri.rawPath.isNullOrEmpty() || uri.rawPath == "/") {
+        "publicHttpOrigin must not contain a path"
+    }
+    return "$scheme://${uri.rawAuthority}"
+}

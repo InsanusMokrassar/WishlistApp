@@ -13,9 +13,13 @@ import dev.inmo.wishlist.features.email.server.models.EmailVerificationPayload
 import dev.inmo.wishlist.features.users.common.models.RegisteredUser
 import dev.inmo.wishlist.features.users.common.models.UserId
 import dev.inmo.wishlist.features.users.common.models.Username
+import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.CompletableDeferred
+import kotlinx.coroutines.async
 import kotlinx.coroutines.test.runTest
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertFailsWith
 import kotlin.test.assertFalse
 import kotlin.test.assertTrue
 
@@ -44,16 +48,76 @@ class EmailRegistrationInviteSenderTest {
             error("SMTP failure")
     }
 
+    /** SMTP double that suspends after link creation until the registration job is cancelled. */
+    private class SuspendingEmailsService : EmailsService {
+        /** Completes when the send phase has begun. */
+        val started = CompletableDeferred<Unit>()
+
+        /** Never-completed result used to keep delivery suspended. */
+        private val result = CompletableDeferred<Boolean>()
+
+        /** Announces the send phase and suspends. */
+        override suspend fun sendText(recipient: Email, subject: String, text: String): Boolean {
+            started.complete(Unit)
+            return result.await()
+        }
+
+        /** Unused attachment operation. */
+        override suspend fun sendTextWithAttachments(
+            recipient: Email,
+            subject: String,
+            text: String,
+            attachments: List<EmailAttachment>,
+        ): Boolean = error("Not used")
+
+        /** Unused HTML operation. */
+        override suspend fun sendHtml(recipient: Email, subject: String, html: String): Boolean =
+            error("Not used")
+    }
+
     /** Account fixture with a valid address for invite tests. */
     private val user = RegisteredUser(UserId(7L), Username("alice"), Email("alice@example.com"))
 
-    /** The URL builder uses scheme, host, port, API prefix, and the persisted id. */
+    /** The URL builder preserves a configured external port and appends the API path. */
     @Test
     fun urlBuilderUsesConfiguredAddress() {
         assertEquals(
             "https://wishlist.example:9443/api/links/link-7",
-            buildEmailVerificationUrl("https:", "wishlist.example/", 9443, DeepLinkId("link-7"))
+            buildEmailVerificationUrl("https://wishlist.example:9443", DeepLinkId("link-7"))
         )
+    }
+
+    /** Default HTTPS and development origins do not gain an internal or implicit port. */
+    @Test
+    fun urlBuilderUsesOnlyTheConfiguredPublicOrigin() {
+        assertEquals(
+            "https://wishlist.example/api/links/link-7",
+            buildEmailVerificationUrl("https://wishlist.example/", DeepLinkId("link-7")),
+        )
+        assertEquals(
+            "http://127.0.0.1:8196/api/links/link-7",
+            buildEmailVerificationUrl("http://127.0.0.1:8196", DeepLinkId("link-7")),
+        )
+    }
+
+    /** Invalid schemes, authority parts, and non-origin URL components fail at construction. */
+    @Test
+    fun senderRejectsInvalidPublicOrigins() {
+        val invalidOrigins = listOf(
+            "",
+            "ftp://wishlist.example",
+            "https:///missing-host",
+            "https://user:password@wishlist.example",
+            "https://wishlist.example/path",
+            "https://wishlist.example?query=true",
+            "https://wishlist.example#fragment",
+        )
+
+        invalidOrigins.forEach { origin ->
+            assertFailsWith<IllegalArgumentException>(origin) {
+                EmailRegistrationInviteSender(null, null, origin)
+            }
+        }
     }
 
     /** A configured sender creates the expected payload and sends its absolute URL. */
@@ -62,7 +126,7 @@ class EmailRegistrationInviteSenderTest {
         val repo = FakeDeepLinksRepo()
         val links = DeepLinksService(repo, emptyList())
         val emails = FakeEmailsService()
-        val sender = EmailRegistrationInviteSender(emails, links, "http", "localhost", 8196)
+        val sender = EmailRegistrationInviteSender(emails, links, "http://localhost:8196")
 
         assertTrue(sender.sendRegistrationEmail(user))
 
@@ -72,7 +136,7 @@ class EmailRegistrationInviteSenderTest {
         val stored = repo.getAll().values.single()
         assertEquals(EmailVerification.handlerId, stored.handlerId)
         assertEquals("email.registration_verification", stored.handlerId.string)
-        assertEquals(EmailVerificationPayload(user.id), stored.value)
+        assertEquals(EmailVerificationPayload(user.id, user.email), stored.value)
     }
 
     /** A false SMTP result removes the deeplink minted for the failed invite. */
@@ -83,9 +147,7 @@ class EmailRegistrationInviteSenderTest {
         val sender = EmailRegistrationInviteSender(
             emailsService = FakeEmailsService(result = false),
             deepLinksService = links,
-            scheme = "http",
-            publicHost = "localhost",
-            port = 8196,
+            publicHttpOrigin = "http://localhost:8196",
         )
 
         assertFalse(sender.sendRegistrationEmail(user))
@@ -100,9 +162,7 @@ class EmailRegistrationInviteSenderTest {
         val sender = EmailRegistrationInviteSender(
             emailsService = ThrowingEmailsService,
             deepLinksService = links,
-            scheme = "http",
-            publicHost = "localhost",
-            port = 8196,
+            publicHttpOrigin = "http://localhost:8196",
         )
 
         assertFalse(sender.sendRegistrationEmail(user))
@@ -112,8 +172,25 @@ class EmailRegistrationInviteSenderTest {
     /** Missing SMTP or deeplink infrastructure fails without attempting a delivery. */
     @Test
     fun senderReturnsFalseWhenDependenciesAreMissing() = runTest {
-        val sender = EmailRegistrationInviteSender(null, null, "http", "localhost", 8196)
+        val sender = EmailRegistrationInviteSender(null, null, "http://localhost:8196")
 
         assertFalse(sender.sendRegistrationEmail(user))
+    }
+
+    /** Cancellation propagates only after the already-minted deeplink is removed. */
+    @Test
+    fun senderCancellationRemovesMintedDeepLinkAndPropagates() = runTest {
+        val repo = FakeDeepLinksRepo()
+        val links = DeepLinksService(repo, emptyList())
+        val emails = SuspendingEmailsService()
+        val sender = EmailRegistrationInviteSender(emails, links, "http://localhost:8196")
+        val delivery = async { sender.sendRegistrationEmail(user) }
+        emails.started.await()
+        assertEquals(1, repo.getAll().size)
+
+        delivery.cancel()
+        assertFailsWith<CancellationException> { delivery.await() }
+
+        assertTrue(repo.getAll().isEmpty())
     }
 }

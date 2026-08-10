@@ -23,7 +23,7 @@ class EmailVerificationDeepLinkHandler(
     override val id: DeepLinkHandlerId = EmailVerification.handlerId
 
     /**
-     * Promotes the payload's account when the payload type and account still exist.
+     * Promotes the payload's account only while the stored address still matches the invited one.
      *
      * @param deeplinkId Opened deeplink identifier; retained for the handler contract.
      * @param value Decoded polymorphic payload.
@@ -31,7 +31,9 @@ class EmailVerificationDeepLinkHandler(
      */
     override suspend fun tryHandle(deeplinkId: DeepLinkId, value: Any): Boolean {
         val payload = value as? EmailVerificationPayload ?: return false
-        usersRepo.getById(payload.userId) ?: return false
+        val invitedEmail = payload.email ?: return false
+        val user = usersRepo.getById(payload.userId) ?: return false
+        if (user.email != invitedEmail) return false
         promoteNewUserToUser(rolesRepo, payload.userId)
         return true
     }

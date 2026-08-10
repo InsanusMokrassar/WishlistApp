@@ -1,6 +1,7 @@
 package dev.inmo.wishlist.features.roles.server
 
 import dev.inmo.kroles.repos.BaseRoleSubject
+import dev.inmo.micro_utils.repos.deleteById
 import dev.inmo.wishlist.features.roles.common.models.SuperAdminRole
 import dev.inmo.wishlist.features.roles.common.models.NewUserRole
 import dev.inmo.wishlist.features.roles.common.models.UserRole
@@ -75,24 +76,24 @@ class RolesBootstrapTest {
         )
     }
 
-    /** Required-email registration assigns NewUser to a new non-root account. */
+    /** Generic user creation remains approved regardless of self-registration email policy elsewhere. */
     @Test
-    fun grantDefaultRolesAssignsNewUserWhenEmailIsRequired() = runTest {
+    fun genericAdministratorCreationGrantsApprovedUserRole() = runTest {
         val rolesRepo = FakeRolesRepo()
 
-        grantDefaultRoles(rolesRepo, plainUser, requireEmailForRegistration = true)
+        grantDefaultRoles(rolesRepo, plainUser)
 
         val subject = BaseRoleSubject.Direct(plainUser.id.long.toString())
-        assertTrue(rolesRepo.contains(subject, NewUserRole))
-        assertFalse(rolesRepo.contains(subject, UserRole))
+        assertTrue(rolesRepo.contains(subject, UserRole))
+        assertFalse(rolesRepo.contains(subject, NewUserRole))
     }
 
-    /** Root remains fully privileged when required-email registration is enabled. */
+    /** Root remains fully privileged under the generic creation rule. */
     @Test
-    fun grantDefaultRolesKeepsRootApprovedWhenEmailIsRequired() = runTest {
+    fun grantDefaultRolesKeepsRootApproved() = runTest {
         val rolesRepo = FakeRolesRepo()
 
-        grantDefaultRoles(rolesRepo, rootUser, requireEmailForRegistration = true)
+        grantDefaultRoles(rolesRepo, rootUser)
 
         val subject = BaseRoleSubject.Direct(rootUser.id.long.toString())
         assertTrue(rolesRepo.contains(subject, UserRole))
@@ -106,7 +107,7 @@ class RolesBootstrapTest {
         val usersRepo = FakeUsersRepo(mapOf(rootUser.id to rootUser, plainUser.id to plainUser))
         val rolesRepo = FakeRolesRepo()
 
-        backfillDefaultRoles(usersRepo, rolesRepo, requireEmailForRegistration = true)
+        backfillDefaultRoles(usersRepo, rolesRepo)
 
         assertTrue(rolesRepo.contains(BaseRoleSubject.Direct(rootUser.id.long.toString()), SuperAdminRole))
         assertTrue(rolesRepo.contains(BaseRoleSubject.Direct(rootUser.id.long.toString()), UserRole))
@@ -148,10 +149,35 @@ class RolesBootstrapTest {
         assertEquals(setOf(UserRole), rolesRepo.getDirectRoles(subject).toSet())
     }
 
+    /** Generic grant followed by the registration-specific marker converges on exactly NewUser. */
+    @Test
+    fun pendingTransitionWinsAfterGenericGrant() = runTest {
+        val rolesRepo = FakeRolesRepo()
+        val lifecycle = RolesRegistrationRoleLifecycle(rolesRepo)
+        val subject = BaseRoleSubject.Direct(plainUser.id.long.toString())
+
+        grantDefaultRoles(rolesRepo, plainUser)
+        assertTrue(lifecycle.markPending(plainUser.id))
+
+        assertEquals(setOf(NewUserRole), rolesRepo.getDirectRoles(subject).toSet())
+    }
+
+    /** A delayed generic callback preserves a pending state established first. */
+    @Test
+    fun genericGrantPreservesPendingTransitionEstablishedFirst() = runTest {
+        val rolesRepo = FakeRolesRepo()
+        val lifecycle = RolesRegistrationRoleLifecycle(rolesRepo)
+        val subject = BaseRoleSubject.Direct(plainUser.id.long.toString())
+
+        assertTrue(lifecycle.markPending(plainUser.id))
+        grantDefaultRoles(rolesRepo, plainUser)
+
+        assertEquals(setOf(NewUserRole), rolesRepo.getDirectRoles(subject).toSet())
+    }
+
     /**
-     * Approval completed before a delayed required-email callback leaves exactly [UserRole] after
-     * the callback resumes, proving that the shared transition lock and approved-role guard close the
-     * asynchronous role-ordering race.
+     * Approval completed before a delayed generic callback leaves exactly [UserRole] after the
+     * callback resumes.
      */
     @OptIn(ExperimentalCoroutinesApi::class)
     @Test
@@ -161,7 +187,7 @@ class RolesBootstrapTest {
         val rolesRepo = FakeRolesRepo()
         val callbackJob = launch(callbackDispatcher) {
             usersRepo.newObjectsFlow.collect { user ->
-                grantDefaultRoles(rolesRepo, user, requireEmailForRegistration = true)
+                grantDefaultRolesIfUserExists(usersRepo, rolesRepo, user)
             }
         }
         runCurrent()
@@ -177,6 +203,45 @@ class RolesBootstrapTest {
             rolesRepo.getDirectRoles(BaseRoleSubject.Direct(createdUser.id.long.toString())).toSet()
         )
         callbackJob.cancel()
+    }
+
+    /** Backfill preserves an explicitly pending account instead of silently approving it. */
+    @Test
+    fun backfillPreservesExistingPendingRole() = runTest {
+        val usersRepo = FakeUsersRepo(mapOf(plainUser.id to plainUser))
+        val rolesRepo = FakeRolesRepo()
+        val subject = BaseRoleSubject.Direct(plainUser.id.long.toString())
+        rolesRepo.includeDirect(subject, NewUserRole)
+
+        backfillDefaultRoles(usersRepo, rolesRepo)
+
+        assertEquals(setOf(NewUserRole), rolesRepo.getDirectRoles(subject).toSet())
+    }
+
+    /** A creation callback that runs after deletion observes absence and creates no orphan roles. */
+    @Test
+    fun deletedUserIsRejectedByDelayedCreationCallback() = runTest {
+        val usersRepo = FakeUsersRepo(mapOf(plainUser.id to plainUser))
+        val rolesRepo = FakeRolesRepo()
+        val subject = BaseRoleSubject.Direct(plainUser.id.long.toString())
+
+        usersRepo.deleteById(plainUser.id)
+        grantDefaultRolesIfUserExists(usersRepo, rolesRepo, plainUser)
+
+        assertTrue(rolesRepo.getDirectRoles(subject).isEmpty())
+    }
+
+    /** Deletion cleanup removes roles granted before the account disappears and is idempotent. */
+    @Test
+    fun deletionCleanupRemovesAlreadyGrantedRoles() = runTest {
+        val rolesRepo = FakeRolesRepo()
+        val subject = BaseRoleSubject.Direct(plainUser.id.long.toString())
+        grantDefaultRoles(rolesRepo, plainUser)
+
+        removeDirectUserRoles(rolesRepo, plainUser.id)
+        removeDirectUserRoles(rolesRepo, plainUser.id)
+
+        assertTrue(rolesRepo.getDirectRoles(subject).isEmpty())
     }
 
     /**
@@ -196,7 +261,9 @@ class RolesBootstrapTest {
         val rolesRepo = FakeRolesRepo()
 
         val job = launch {
-            usersRepo.newObjectsFlow.collect { user -> grantDefaultRoles(rolesRepo, user) }
+            usersRepo.newObjectsFlow.collect { user ->
+                grantDefaultRolesIfUserExists(usersRepo, rolesRepo, user)
+            }
         }
 
         usersRepo.create(listOf(NewUser(Username("root"))))
@@ -211,5 +278,35 @@ class RolesBootstrapTest {
         assertFalse(rolesRepo.contains(BaseRoleSubject.Direct(createdBob.id.long.toString()), SuperAdminRole))
 
         job.cancel()
+    }
+
+    /** Real create/delete flows eventually remove every generic or pending direct role. */
+    @OptIn(ExperimentalCoroutinesApi::class)
+    @Test
+    fun reactiveDeletionFlowRemovesAllDirectRoles() = runTest(UnconfinedTestDispatcher()) {
+        val usersRepo = FakeUsersRepo()
+        val rolesRepo = FakeRolesRepo()
+        val lifecycle = RolesRegistrationRoleLifecycle(rolesRepo)
+        val creationJob = launch {
+            usersRepo.newObjectsFlow.collect { user ->
+                grantDefaultRolesIfUserExists(usersRepo, rolesRepo, user)
+            }
+        }
+        val deletionJob = launch {
+            usersRepo.deletedObjectsIdsFlow.collect { userId ->
+                removeDirectUserRoles(rolesRepo, userId)
+            }
+        }
+
+        usersRepo.create(listOf(NewUser(Username("bob"))))
+        val created = usersRepo.getUserByUsername(Username("bob"))!!
+        assertTrue(lifecycle.markPending(created.id))
+        usersRepo.deleteById(created.id)
+
+        assertTrue(
+            rolesRepo.getDirectRoles(BaseRoleSubject.Direct(created.id.long.toString())).isEmpty()
+        )
+        creationJob.cancel()
+        deletionJob.cancel()
     }
 }

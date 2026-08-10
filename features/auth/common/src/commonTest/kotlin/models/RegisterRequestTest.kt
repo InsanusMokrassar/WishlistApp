@@ -9,20 +9,23 @@ import kotlinx.serialization.decodeFromString
 import kotlin.test.Test
 import kotlin.test.assertEquals
 
-/** Legacy-style auth implementation used to verify the default configuration method. */
+/** Pre-email auth implementation used to verify source-compatible default bridges. */
 private class LegacyAuthFeature : AuthFeature {
+    /** Registration arguments observed through the original two-argument method. */
+    var lastRegistration: Pair<Username, Password>? = null
+        private set
+
     /** Legacy login surface has no transport behavior in this compatibility fixture. */
     override suspend fun login(username: Username, password: Password): AuthCredentials? = null
 
     /** Legacy refresh surface has no transport behavior in this compatibility fixture. */
     override suspend fun refresh(refreshToken: RefreshToken): AuthCredentials? = null
 
-    /** Legacy registration surface has no transport behavior in this compatibility fixture. */
-    override suspend fun register(
-        username: Username,
-        password: Password,
-        email: Email?,
-    ): AuthCredentials? = null
+    /** Legacy registration surface records calls without knowing about email. */
+    override suspend fun register(username: Username, password: Password): AuthCredentials? {
+        lastRegistration = username to password
+        return null
+    }
 
     /** Legacy implementation still provides the registration availability flag. */
     override suspend fun isRegistrationAvailable(): Boolean = true
@@ -72,5 +75,17 @@ class RegisterRequestTest {
     @Test
     fun legacyAuthFeatureUsesDefaultConfigCompatibility() = kotlinx.coroutines.test.runTest {
         assertEquals(AuthConfig(enableRegistration = true), LegacyAuthFeature().getConfig())
+    }
+
+    /** The email-aware overload delegates to a legacy implementation's original method. */
+    @Test
+    fun emailAwareRegistrationDelegatesToLegacyImplementation() = kotlinx.coroutines.test.runTest {
+        val feature = LegacyAuthFeature()
+        val username = Username("legacy")
+        val password = Password("password")
+
+        feature.register(username, password, Email("legacy@example.com"))
+
+        assertEquals(username to password, feature.lastRegistration)
     }
 }

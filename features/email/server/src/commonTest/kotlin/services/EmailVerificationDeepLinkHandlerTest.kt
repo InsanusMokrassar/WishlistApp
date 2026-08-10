@@ -3,6 +3,7 @@ package dev.inmo.wishlist.features.email.server.services
 import dev.inmo.kroles.repos.BaseRoleSubject
 import dev.inmo.wishlist.features.deeplinks.common.models.DeepLinkId
 import dev.inmo.wishlist.features.email.server.models.EmailVerificationPayload
+import dev.inmo.wishlist.features.email.common.models.Email
 import dev.inmo.wishlist.features.roles.common.models.NewUserRole
 import dev.inmo.wishlist.features.roles.common.models.UserRole
 import dev.inmo.wishlist.features.users.common.models.RegisteredUser
@@ -15,7 +16,7 @@ import kotlin.test.assertTrue
 
 /** Verifies email approval handler type, existence, and idempotent role behavior. */
 class EmailVerificationDeepLinkHandlerTest {
-    private val user = RegisteredUser(UserId(7L), Username("alice"))
+    private val user = RegisteredUser(UserId(7L), Username("alice"), Email("alice@example.com"))
     private val deeplinkId = DeepLinkId("verification-7")
 
     /** Wrong payload type is unhandled. */
@@ -31,7 +32,7 @@ class EmailVerificationDeepLinkHandlerTest {
     fun missingUserIsRejected() = runTest {
         val handler = EmailVerificationDeepLinkHandler(FakeUsersRepo(), FakeRolesRepo())
 
-        assertFalse(handler.tryHandle(deeplinkId, EmailVerificationPayload(user.id)))
+        assertFalse(handler.tryHandle(deeplinkId, EmailVerificationPayload(user.id, user.email)))
     }
 
     /** Existing pending accounts become approved and remain approved on repeated opens. */
@@ -42,9 +43,50 @@ class EmailVerificationDeepLinkHandlerTest {
         roles.includeDirect(subject, NewUserRole)
         val handler = EmailVerificationDeepLinkHandler(FakeUsersRepo(mapOf(user.id to user)), roles)
 
-        assertTrue(handler.tryHandle(deeplinkId, EmailVerificationPayload(user.id)))
-        assertTrue(handler.tryHandle(deeplinkId, EmailVerificationPayload(user.id)))
+        assertTrue(handler.tryHandle(deeplinkId, EmailVerificationPayload(user.id, user.email)))
+        assertTrue(handler.tryHandle(deeplinkId, EmailVerificationPayload(user.id, user.email)))
         assertTrue(roles.contains(subject, UserRole))
         assertFalse(roles.contains(subject, NewUserRole))
+    }
+
+    /** A link sent to an earlier address cannot approve an account after the address changes. */
+    @Test
+    fun changedEmailRejectsStaleVerificationLink() = runTest {
+        val roles = FakeRolesRepo()
+        val subject = BaseRoleSubject.Direct(user.id.long.toString())
+        roles.includeDirect(subject, NewUserRole)
+        val changed = user.copy(email = Email("changed@example.com"))
+        val handler = EmailVerificationDeepLinkHandler(FakeUsersRepo(mapOf(user.id to changed)), roles)
+
+        assertFalse(handler.tryHandle(deeplinkId, EmailVerificationPayload(user.id, user.email)))
+        assertTrue(roles.contains(subject, NewUserRole))
+        assertFalse(roles.contains(subject, UserRole))
+    }
+
+    /** Clearing the stored address leaves the pending account unapproved. */
+    @Test
+    fun clearedEmailRejectsVerificationLink() = runTest {
+        val roles = FakeRolesRepo()
+        val subject = BaseRoleSubject.Direct(user.id.long.toString())
+        roles.includeDirect(subject, NewUserRole)
+        val cleared = user.copy(email = null)
+        val handler = EmailVerificationDeepLinkHandler(FakeUsersRepo(mapOf(user.id to cleared)), roles)
+
+        assertFalse(handler.tryHandle(deeplinkId, EmailVerificationPayload(user.id, user.email)))
+        assertTrue(roles.contains(subject, NewUserRole))
+        assertFalse(roles.contains(subject, UserRole))
+    }
+
+    /** Persisted user-id-only payloads decode compatibly but fail closed at handling time. */
+    @Test
+    fun legacyPayloadWithoutEmailIsRejected() = runTest {
+        val roles = FakeRolesRepo()
+        val subject = BaseRoleSubject.Direct(user.id.long.toString())
+        roles.includeDirect(subject, NewUserRole)
+        val handler = EmailVerificationDeepLinkHandler(FakeUsersRepo(mapOf(user.id to user)), roles)
+
+        assertFalse(handler.tryHandle(deeplinkId, EmailVerificationPayload(user.id)))
+        assertTrue(roles.contains(subject, NewUserRole))
+        assertFalse(roles.contains(subject, UserRole))
     }
 }

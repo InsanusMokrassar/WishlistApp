@@ -2,6 +2,7 @@
   "host": "0.0.0.0",
   "port": 8196,
   "publicHost": "127.0.0.1",
+  "publicHttpOrigin": "http://127.0.0.1:8196",
   "staticFolders": {
     "": "../client/build/dist/js/developmentExecutable"
   },

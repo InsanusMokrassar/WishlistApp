@@ -5,7 +5,6 @@ import dev.inmo.micro_utils.coroutines.subscribeLoggingDropExceptions
 import dev.inmo.micro_utils.repos.versions.VersionsRepo
 import dev.inmo.micro_utils.startup.plugin.StartPlugin
 import dev.inmo.wishlist.features.users.common.repo.UsersRepo
-import dev.inmo.wishlist.features.auth.server.Config as AuthConfig
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.serialization.json.JsonObject
 import org.jetbrains.exposed.v1.jdbc.Database
@@ -20,9 +19,9 @@ import org.koin.core.module.Module
  *    created concurrently by another plugin's `startPlugin` (e.g. `features/auth/server`'s root
  *    bootstrap; top-level plugins' `startPlugin`s run **concurrently**, not in `sample.config.json`
  *    list order — see `roles/README.md` Architecture Notes) is caught by this live subscription even
- *    if it races ahead of step 2's snapshot read. [grantDefaultRoles] and [promoteNewUserToUser]
- *    share a transition lock, and required-email default assignment checks for an existing
- *    `UserRole` before adding `NewUserRole`.
+ *    if it races ahead of step 2's snapshot read. The callback checks that the emitted user still
+ *    exists while holding the role transition lock. A deletion subscription removes every direct
+ *    role under the same lock, so either callback order converges without orphan role subjects.
  * 2. Runs the one-time [backfillDefaultRoles] migration (issue point 6), gated by [VersionsRepo] so
  *    it executes exactly once across the app's lifetime, independent of restarts.
  *
@@ -51,17 +50,19 @@ object JVMPlugin : StartPlugin {
         val rolesRepo = koin.get<RolesRepo>()
         val scope = koin.get<CoroutineScope>()
         val versionsRepo = koin.get<VersionsRepo<Database>>()
-        val requireEmailForRegistration = koin.get<AuthConfig>().requireEmailForRegistration
 
         usersRepo.newObjectsFlow.subscribeLoggingDropExceptions(scope) { user ->
-            grantDefaultRoles(rolesRepo, user, requireEmailForRegistration)
+            grantDefaultRolesIfUserExists(usersRepo, rolesRepo, user)
+        }
+        usersRepo.deletedObjectsIdsFlow.subscribeLoggingDropExceptions(scope) { userId ->
+            removeDirectUserRoles(rolesRepo, userId)
         }
 
         versionsRepo.setTableVersion(
             tableName = userRoleBackfillTableName,
             version = userRoleBackfillVersion,
             onUpdate = { _, _ ->
-                backfillDefaultRoles(usersRepo, rolesRepo, requireEmailForRegistration)
+                backfillDefaultRoles(usersRepo, rolesRepo)
             }
         )
     }

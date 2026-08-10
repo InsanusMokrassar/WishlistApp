@@ -5,6 +5,7 @@ import dev.inmo.micro_utils.ktor.server.configurators.ApplicationRoutingConfigur
 import dev.inmo.micro_utils.startup.plugin.StartPlugin
 import dev.inmo.wishlist.features.roles.server.configurators.RolesRoutingsConfigurator
 import dev.inmo.wishlist.features.roles.server.services.RolesFeatureService
+import dev.inmo.wishlist.features.auth.server.RegistrationRoleLifecycle
 import kotlinx.serialization.json.JsonObject
 import org.koin.core.Koin
 import org.koin.core.module.Module
@@ -19,6 +20,7 @@ import org.koin.core.module.Module
  */
 object Plugin : StartPlugin {
     override fun Module.setupDI(config: JsonObject) {
+        single<RegistrationRoleLifecycle> { RolesRegistrationRoleLifecycle(get()) }
         single<RolesFeature> { RolesFeatureService(get(), get()) }
         singleWithRandomQualifier<ApplicationRoutingConfigurator.Element> {
             RolesRoutingsConfigurator(get())
