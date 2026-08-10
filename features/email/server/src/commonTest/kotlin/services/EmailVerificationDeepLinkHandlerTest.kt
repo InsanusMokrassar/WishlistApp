@@ -19,18 +19,37 @@ class EmailVerificationDeepLinkHandlerTest {
     private val user = RegisteredUser(UserId(7L), Username("alice"), Email("alice@example.com"))
     private val deeplinkId = DeepLinkId("verification-7")
 
+    /**
+     * Builds a handler using one coordinator for [usersRepo] and [rolesRepo].
+     *
+     * @param usersRepo User state read by verification.
+     * @param rolesRepo Role state updated by verification.
+     * @return Handler backed by the shared coordinator.
+     */
+    private fun createHandler(
+        usersRepo: FakeUsersRepo,
+        rolesRepo: FakeRolesRepo,
+    ): EmailVerificationDeepLinkHandler = EmailVerificationDeepLinkHandler(
+        EmailVerificationAccountCoordinator(usersRepo, rolesRepo),
+    )
+
     /** Wrong payload type is unhandled. */
     @Test
     fun wrongPayloadTypeIsRejected() = runTest {
-        val handler = EmailVerificationDeepLinkHandler(FakeUsersRepo(mapOf(user.id to user)), FakeRolesRepo())
+        val roles = FakeRolesRepo()
+        val subject = BaseRoleSubject.Direct(user.id.long.toString())
+        roles.includeDirect(subject, NewUserRole)
+        val handler = createHandler(FakeUsersRepo(mapOf(user.id to user)), roles)
 
         assertFalse(handler.tryHandle(deeplinkId, "wrong"))
+        assertTrue(roles.contains(subject, NewUserRole))
+        assertFalse(roles.contains(subject, UserRole))
     }
 
     /** A missing account is unhandled. */
     @Test
     fun missingUserIsRejected() = runTest {
-        val handler = EmailVerificationDeepLinkHandler(FakeUsersRepo(), FakeRolesRepo())
+        val handler = createHandler(FakeUsersRepo(), FakeRolesRepo())
 
         assertFalse(handler.tryHandle(deeplinkId, EmailVerificationPayload(user.id, user.email)))
     }
@@ -41,7 +60,7 @@ class EmailVerificationDeepLinkHandlerTest {
         val roles = FakeRolesRepo()
         val subject = BaseRoleSubject.Direct(user.id.long.toString())
         roles.includeDirect(subject, NewUserRole)
-        val handler = EmailVerificationDeepLinkHandler(FakeUsersRepo(mapOf(user.id to user)), roles)
+        val handler = createHandler(FakeUsersRepo(mapOf(user.id to user)), roles)
 
         assertTrue(handler.tryHandle(deeplinkId, EmailVerificationPayload(user.id, user.email)))
         assertTrue(handler.tryHandle(deeplinkId, EmailVerificationPayload(user.id, user.email)))
@@ -56,7 +75,7 @@ class EmailVerificationDeepLinkHandlerTest {
         val subject = BaseRoleSubject.Direct(user.id.long.toString())
         roles.includeDirect(subject, NewUserRole)
         val changed = user.copy(email = Email("changed@example.com"))
-        val handler = EmailVerificationDeepLinkHandler(FakeUsersRepo(mapOf(user.id to changed)), roles)
+        val handler = createHandler(FakeUsersRepo(mapOf(user.id to changed)), roles)
 
         assertFalse(handler.tryHandle(deeplinkId, EmailVerificationPayload(user.id, user.email)))
         assertTrue(roles.contains(subject, NewUserRole))
@@ -70,7 +89,7 @@ class EmailVerificationDeepLinkHandlerTest {
         val subject = BaseRoleSubject.Direct(user.id.long.toString())
         roles.includeDirect(subject, NewUserRole)
         val cleared = user.copy(email = null)
-        val handler = EmailVerificationDeepLinkHandler(FakeUsersRepo(mapOf(user.id to cleared)), roles)
+        val handler = createHandler(FakeUsersRepo(mapOf(user.id to cleared)), roles)
 
         assertFalse(handler.tryHandle(deeplinkId, EmailVerificationPayload(user.id, user.email)))
         assertTrue(roles.contains(subject, NewUserRole))
@@ -83,7 +102,7 @@ class EmailVerificationDeepLinkHandlerTest {
         val roles = FakeRolesRepo()
         val subject = BaseRoleSubject.Direct(user.id.long.toString())
         roles.includeDirect(subject, NewUserRole)
-        val handler = EmailVerificationDeepLinkHandler(FakeUsersRepo(mapOf(user.id to user)), roles)
+        val handler = createHandler(FakeUsersRepo(mapOf(user.id to user)), roles)
 
         assertFalse(handler.tryHandle(deeplinkId, EmailVerificationPayload(user.id)))
         assertTrue(roles.contains(subject, NewUserRole))

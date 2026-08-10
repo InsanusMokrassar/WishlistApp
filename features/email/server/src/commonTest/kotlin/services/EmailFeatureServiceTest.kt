@@ -19,8 +19,8 @@ import kotlin.test.assertTrue
  * for the SMTP-disabled no-op path); [EmailFeatureService.sendTestEmail] delegates the privilege check
  * to `RolesFeature.isFunctionalityAvailable(callerId, email.sendTest)` before delegating exactly one
  * `EmailsService.sendText` call (an unknown `UserId` takes the same "not available" branch as any other
- * non-privileged caller); [EmailFeatureService.setMyEmail] persists via `UsersRepo` for a found user,
- * unaffected by the role check.
+ * non-privileged caller); [EmailFeatureService.setMyEmail] persists through the shared coordinator
+ * for a found user, unaffected by the role check.
  */
 class EmailFeatureServiceTest {
 
@@ -30,10 +30,28 @@ class EmailFeatureServiceTest {
     /** Shared test-email recipient used by every `sendTestEmail` assertion. */
     private val recipient = Email("recipient@example.com")
 
+    /**
+     * Builds the SMTP-enabled feature around one coordinator for the supplied user repository.
+     *
+     * @param emailsService Delivery double used by send-test behavior.
+     * @param usersRepo User-state double owned by the coordinator.
+     * @param rolesFeature Authorization double used by send-test behavior.
+     * @return SMTP-enabled feature using the supplied doubles.
+     */
+    private fun createService(
+        emailsService: FakeEmailsService = FakeEmailsService(),
+        usersRepo: FakeUsersRepo = FakeUsersRepo(),
+        rolesFeature: FakeRolesFeature = FakeRolesFeature(),
+    ): EmailFeatureService = EmailFeatureService(
+        emailsService = emailsService,
+        accountCoordinator = EmailVerificationAccountCoordinator(usersRepo, FakeRolesRepo()),
+        rolesFeature = rolesFeature,
+    )
+
     /** `isFeatureEnabled` unconditionally returns `true` — `emailsService` is a non-nullable constructor parameter, so this class is only ever constructed with a real transport. */
     @Test
     fun isFeatureEnabledAlwaysReturnsTrue() = runTest {
-        val service = EmailFeatureService(FakeEmailsService(), FakeUsersRepo(), FakeRolesFeature())
+        val service = createService()
         assertTrue(service.isFeatureEnabled())
     }
 
@@ -42,7 +60,7 @@ class EmailFeatureServiceTest {
     fun sendTestEmailDelegatesToSendTextForSuperAdminCallerAndReturnsTrueResult() = runTest {
         val emailsService = FakeEmailsService(result = true)
         val rolesFeature = FakeRolesFeature(result = true)
-        val service = EmailFeatureService(emailsService, FakeUsersRepo(), rolesFeature)
+        val service = createService(emailsService, FakeUsersRepo(), rolesFeature)
 
         val result = service.sendTestEmail(plainUser.id, recipient)
 
@@ -62,7 +80,7 @@ class EmailFeatureServiceTest {
     @Test
     fun sendTestEmailDelegatesToSendTextForSuperAdminCallerAndReturnsFalseResult() = runTest {
         val emailsService = FakeEmailsService(result = false)
-        val service = EmailFeatureService(emailsService, FakeUsersRepo(), FakeRolesFeature(result = true))
+        val service = createService(emailsService, FakeUsersRepo(), FakeRolesFeature(result = true))
 
         val result = service.sendTestEmail(plainUser.id, recipient)
 
@@ -75,7 +93,7 @@ class EmailFeatureServiceTest {
     fun sendTestEmailReturnsFalseWhenCallerIsNotSuperAdminAndDoesNotCallSendText() = runTest {
         val emailsService = FakeEmailsService()
         val rolesFeature = FakeRolesFeature(result = false)
-        val service = EmailFeatureService(emailsService, FakeUsersRepo(), rolesFeature)
+        val service = createService(emailsService, FakeUsersRepo(), rolesFeature)
 
         val result = service.sendTestEmail(UserId(999L), recipient)
 
@@ -88,7 +106,7 @@ class EmailFeatureServiceTest {
     @Test
     fun setMyEmailPersistsViaUsersRepoForFoundUser() = runTest {
         val repo = FakeUsersRepo(mapOf(plainUser.id to plainUser))
-        val service = EmailFeatureService(FakeEmailsService(), repo, FakeRolesFeature())
+        val service = createService(usersRepo = repo)
         val newEmail = Email("alice@example.com")
 
         val result = service.setMyEmail(plainUser.id, newEmail)
@@ -100,7 +118,7 @@ class EmailFeatureServiceTest {
     /** Caller id resolves to no user → `setMyEmail` returns `false`. */
     @Test
     fun setMyEmailReturnsFalseWhenUserNotFound() = runTest {
-        val service = EmailFeatureService(FakeEmailsService(), FakeUsersRepo(), FakeRolesFeature())
+        val service = createService()
 
         assertFalse(service.setMyEmail(UserId(999L), Email("alice@example.com")))
     }
@@ -111,7 +129,7 @@ class EmailFeatureServiceTest {
         val takenEmail = Email("taken@example.com")
         val ownerUser = plainUser.copy(id = UserId(1L), email = takenEmail)
         val repo = FakeUsersRepo(mapOf(ownerUser.id to ownerUser, plainUser.id to plainUser))
-        val service = EmailFeatureService(FakeEmailsService(), repo, FakeRolesFeature())
+        val service = createService(usersRepo = repo)
 
         assertFailsWith<DuplicateUserFieldException> {
             service.setMyEmail(plainUser.id, takenEmail)

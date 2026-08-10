@@ -11,12 +11,9 @@ import kotlin.test.assertNull
 
 /**
  * Verifies `emailConfigElementOrNull` — the pure decision function `Plugin.kt` uses to drive its
- * conditional Koin wiring for whether the `"email"` config block is present. Pure — no Koin
- * container is constructed anywhere in this file. The `single { }` registration calls that wire
- * this function's result (and the inline `EmailFeature`-selection logic) into Koin are
- * intentionally not separately unit tested — see
- * `agents/task/10.07.2026_06.40.48-2407c3c3-e09a-4139-976a-305652d931a3/003-architecturing.md`'s
- * "Testability decision" section.
+ * conditional Koin wiring for whether the `"email"` config block is present. This file keeps the
+ * pure config-slice coverage; `EmailVerificationAccountCoordinatorTest` separately constructs both
+ * real Koin graph shapes and verifies their singleton coordination behavior.
  */
 class PluginTest {
 

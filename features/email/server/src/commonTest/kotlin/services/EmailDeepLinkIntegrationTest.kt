@@ -72,8 +72,10 @@ class EmailDeepLinkIntegrationTest {
         val subject = BaseRoleSubject.Direct(user.id.long.toString())
         rolesRepo.includeDirect(subject, NewUserRole)
         val handler = EmailVerificationDeepLinkHandler(
-            usersRepo = FakeUsersRepo(mapOf(user.id to user)),
-            rolesRepo = rolesRepo,
+            accountCoordinator = EmailVerificationAccountCoordinator(
+                usersRepo = FakeUsersRepo(mapOf(user.id to user)),
+                rolesRepo = rolesRepo,
+            ),
         )
         val service = DeepLinksService(FakeDeepLinksRepo(), listOf(handler))
         val deeplinkId = service.createDeepLink(

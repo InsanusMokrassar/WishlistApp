@@ -3,7 +3,6 @@ package dev.inmo.wishlist.features.email.server.services
 import dev.inmo.wishlist.features.email.common.models.Email
 import dev.inmo.wishlist.features.email.server.EmailFeature
 import dev.inmo.wishlist.features.users.common.models.UserId
-import dev.inmo.wishlist.features.users.common.repo.UsersRepo
 
 /**
  * No-op [EmailFeature] implementation used when SMTP is not configured (no
@@ -14,13 +13,15 @@ import dev.inmo.wishlist.features.users.common.repo.UsersRepo
  * returns `null`. [isFeatureEnabled] and [sendTestEmail] are pure no-ops — there is no SMTP
  * transport to send through. [setMyEmail] is deliberately NOT a no-op: per `features/email/README.md`,
  * per-user email-address storage is intentionally independent of SMTP configuration, so this class
- * still persists the caller's address via [usersRepo], identically to [EmailFeatureService.setMyEmail]
- * (both delegate to the shared [updateStoredEmail] helper).
+ * still persists the caller's address via [accountCoordinator], identically to
+ * [EmailFeatureService.setMyEmail]. The shared coordinator also makes mutation atomic with
+ * verification approval.
  *
- * @param usersRepo User repository used to persist the caller's stored email address.
+ * @param accountCoordinator Shared coordinator used for email-address persistence and verification
+ *   atomicity.
  */
 class DisabledEmailFeature(
-    private val usersRepo: UsersRepo
+    private val accountCoordinator: EmailVerificationAccountCoordinator,
 ) : EmailFeature {
 
     /**
@@ -42,16 +43,16 @@ class DisabledEmailFeature(
     /**
      * Updates or clears the stored email address for [callerId].
      *
-     * Delegates to [updateStoredEmail] — identical behavior to [EmailFeatureService.setMyEmail],
-     * since storage is independent of SMTP configuration.
+     * Delegates to [EmailVerificationAccountCoordinator.updateStoredEmail] — identical behavior to
+     * [EmailFeatureService.setMyEmail], since storage is independent of SMTP configuration.
      *
      * @param callerId User whose record is updated.
      * @param email New address to store, or `null` to clear the current address.
      * @return `true` when the update was persisted; `false` when the user was not found.
      * @throws dev.inmo.wishlist.features.users.common.repo.exceptions.DuplicateUserFieldException
      *   when [email] is already stored for a different user; propagates unchanged from
-     *   [updateStoredEmail] / `UsersRepo.update` — this method does not catch it.
+     *   [EmailVerificationAccountCoordinator.updateStoredEmail] — this method does not catch it.
      */
     override suspend fun setMyEmail(callerId: UserId, email: Email?): Boolean =
-        updateStoredEmail(usersRepo, callerId, email)
+        accountCoordinator.updateStoredEmail(callerId, email)
 }

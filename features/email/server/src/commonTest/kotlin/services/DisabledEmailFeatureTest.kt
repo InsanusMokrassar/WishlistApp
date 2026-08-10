@@ -16,7 +16,7 @@ import kotlin.test.assertTrue
 /**
  * Verifies [DisabledEmailFeature]: [DisabledEmailFeature.isFeatureEnabled]/
  * [DisabledEmailFeature.sendTestEmail] are hard no-ops; [DisabledEmailFeature.setMyEmail] still
- * persists via `UsersRepo` — storage stays independent of SMTP configuration.
+ * persists through the shared coordinator — storage stays independent of SMTP configuration.
  */
 class DisabledEmailFeatureTest {
 
@@ -26,10 +26,19 @@ class DisabledEmailFeatureTest {
     /** Fixture user whose username is an ordinary, non-root account. */
     private val plainUser = RegisteredUser(UserId(2L), Username("alice"))
 
+    /**
+     * Builds the SMTP-disabled feature around one coordinator for [usersRepo].
+     *
+     * @param usersRepo User-state double owned by the coordinator.
+     * @return SMTP-disabled feature using [usersRepo].
+     */
+    private fun createFeature(usersRepo: FakeUsersRepo = FakeUsersRepo()): DisabledEmailFeature =
+        DisabledEmailFeature(EmailVerificationAccountCoordinator(usersRepo, FakeRolesRepo()))
+
     /** Always `false` — trivial no-op. */
     @Test
     fun isFeatureEnabledReturnsFalse() = runTest {
-        val feature = DisabledEmailFeature(FakeUsersRepo())
+        val feature = createFeature()
         assertFalse(feature.isFeatureEnabled())
     }
 
@@ -37,7 +46,7 @@ class DisabledEmailFeatureTest {
     @Test
     fun sendTestEmailReturnsFalseForRootCaller() = runTest {
         val repo = FakeUsersRepo(mapOf(rootUser.id to rootUser))
-        val feature = DisabledEmailFeature(repo)
+        val feature = createFeature(repo)
 
         assertFalse(feature.sendTestEmail(rootUser.id, Email("recipient@example.com")))
     }
@@ -46,7 +55,7 @@ class DisabledEmailFeatureTest {
     @Test
     fun sendTestEmailReturnsFalseForNonRootOrMissingCaller() = runTest {
         val repo = FakeUsersRepo(mapOf(plainUser.id to plainUser))
-        val feature = DisabledEmailFeature(repo)
+        val feature = createFeature(repo)
 
         assertFalse(feature.sendTestEmail(plainUser.id, Email("recipient@example.com")))
         assertFalse(feature.sendTestEmail(UserId(999L), Email("recipient@example.com")))
@@ -56,7 +65,7 @@ class DisabledEmailFeatureTest {
     @Test
     fun setMyEmailPersistsViaUsersRepoWhenUserFound() = runTest {
         val repo = FakeUsersRepo(mapOf(plainUser.id to plainUser))
-        val feature = DisabledEmailFeature(repo)
+        val feature = createFeature(repo)
         val newEmail = Email("alice@example.com")
 
         val result = feature.setMyEmail(plainUser.id, newEmail)
@@ -70,7 +79,7 @@ class DisabledEmailFeatureTest {
     fun setMyEmailClearsStoredEmailWhenPassedNull() = runTest {
         val userWithEmail = plainUser.copy(email = Email("alice@example.com"))
         val repo = FakeUsersRepo(mapOf(userWithEmail.id to userWithEmail))
-        val feature = DisabledEmailFeature(repo)
+        val feature = createFeature(repo)
 
         val result = feature.setMyEmail(userWithEmail.id, null)
 
@@ -81,7 +90,7 @@ class DisabledEmailFeatureTest {
     /** A caller id that doesn't resolve to any user reports failure and updates nothing. */
     @Test
     fun setMyEmailReturnsFalseWhenUserNotFound() = runTest {
-        val feature = DisabledEmailFeature(FakeUsersRepo())
+        val feature = createFeature()
 
         assertFalse(feature.setMyEmail(UserId(999L), Email("alice@example.com")))
     }
@@ -92,7 +101,7 @@ class DisabledEmailFeatureTest {
         val takenEmail = Email("taken@example.com")
         val ownerUser = rootUser.copy(email = takenEmail)
         val repo = FakeUsersRepo(mapOf(ownerUser.id to ownerUser, plainUser.id to plainUser))
-        val feature = DisabledEmailFeature(repo)
+        val feature = createFeature(repo)
 
         assertFailsWith<DuplicateUserFieldException> {
             feature.setMyEmail(plainUser.id, takenEmail)
