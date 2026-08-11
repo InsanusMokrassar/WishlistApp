@@ -9,6 +9,8 @@ import dev.inmo.micro_utils.repos.create
 import dev.inmo.micro_utils.repos.deleteById
 import dev.inmo.micro_utils.repos.set
 import dev.inmo.micro_utils.repos.unset
+import dev.inmo.micro_utils.transactions.doSuspendTransaction
+import dev.inmo.micro_utils.transactions.rollableBackOperation
 import korlibs.time.DateTime
 import org.mindrot.jbcrypt.BCrypt
 import dev.inmo.wishlist.features.auth.server.ServerAuthFeature
@@ -49,6 +51,9 @@ class AuthFeatureService(
     private val registrationEmailSender: RegistrationEmailSender? = null,
     private val registrationRoleLifecycle: RegistrationRoleLifecycle? = null,
 ) : ServerAuthFeature {
+    /** Signals an expected post-reservation refusal that must trigger provisional-account cleanup. */
+    private class RequiredEmailRegistrationRejected : Exception()
+
     private data class Entry(val id: UserId, val issued: DateTime)
     private val locker = SmartRWLocker()
 
@@ -168,69 +173,56 @@ class AuthFeatureService(
         email: Email,
         sender: RegistrationEmailSender,
         roleLifecycle: RegistrationRoleLifecycle,
-    ): AuthCredentials? {
-        var reservedUserId: UserId? = null
-        val provisionalUser = try {
-            locker.withWriteLock {
-                if (usersRepo.getUserByUsername(username) != null) return null
-                val created = createUserOrNull(username, email) ?: return null
-                reservedUserId = created.id
-                val pending = try {
-                    roleLifecycle.markPending(created.id)
-                } catch (error: CancellationException) {
-                    throw error
-                } catch (_: Exception) {
-                    false
-                }
-                created.takeIf { pending }
+    ): AuthCredentials? = doSuspendTransaction {
+        val provisionalUser = locker.withWriteLock {
+            if (usersRepo.getUserByUsername(username) != null) return@withWriteLock null
+            val created = createUserOrNull(username, email) ?: return@withWriteLock null
+            rollableBackOperation(
+                rollback = {
+                    try {
+                        compensateRequiredRegistration(actionResult.id, roleLifecycle)
+                    } catch (cleanupError: Throwable) {
+                        error.addSuppressed(cleanupError)
+                    }
+                },
+                action = { created },
+            )
+            val pending = try {
+                roleLifecycle.markPending(created.id)
+            } catch (error: CancellationException) {
+                throw error
+            } catch (_: Exception) {
+                false
             }
-        } catch (error: CancellationException) {
-            compensateAfterCancellation(reservedUserId, roleLifecycle, error)
-        }
+            if (pending == false) throw RequiredEmailRegistrationRejected()
+            created
+        } ?: return@doSuspendTransaction null
 
-        if (provisionalUser == null) {
-            reservedUserId?.let { compensateRequiredRegistration(it, roleLifecycle) }
-            return null
-        }
-
-        val hashedPassword = try {
-            Password(BCrypt.hashpw(password.string, BCrypt.gensalt()))
-        } catch (error: CancellationException) {
-            compensateAfterCancellation(provisionalUser.id, roleLifecycle, error)
-        } catch (error: Exception) {
-            compensateRequiredRegistration(provisionalUser.id, roleLifecycle)
-            throw error
-        }
-
+        val hashedPassword = Password(BCrypt.hashpw(password.string, BCrypt.gensalt()))
         val delivered = try {
             sender.sendRegistrationEmail(provisionalUser)
         } catch (error: CancellationException) {
-            compensateAfterCancellation(provisionalUser.id, roleLifecycle, error)
+            throw error
         } catch (_: Exception) {
             false
         }
-        if (!delivered) {
-            compensateRequiredRegistration(provisionalUser.id, roleLifecycle)
-            return null
-        }
+        if (delivered == false) throw RequiredEmailRegistrationRejected()
 
-        val credentials = try {
-            locker.withWriteLock {
-                val storedUser = usersRepo.getById(provisionalUser.id)
-                if (storedUser?.email != email) return@withWriteLock null
-                passwordsRepo.set(provisionalUser.id to hashedPassword)
-                issueCredentialsFor(provisionalUser.id)
+        locker.withWriteLock {
+            val storedUser = usersRepo.getById(provisionalUser.id)
+            if (storedUser?.email != email) throw RequiredEmailRegistrationRejected()
+            passwordsRepo.set(provisionalUser.id to hashedPassword)
+            issueCredentialsFor(provisionalUser.id)
+        }
+    }.getOrElse { error ->
+        when (error) {
+            is RequiredEmailRegistrationRejected -> {
+                val cleanupError = error.suppressed.firstOrNull()
+                if (cleanupError != null) throw cleanupError
+                null
             }
-        } catch (error: CancellationException) {
-            compensateAfterCancellation(provisionalUser.id, roleLifecycle, error)
-        } catch (error: Exception) {
-            compensateRequiredRegistration(provisionalUser.id, roleLifecycle)
-            throw error
+            else -> throw error
         }
-        if (credentials == null) {
-            compensateRequiredRegistration(provisionalUser.id, roleLifecycle)
-        }
-        return credentials
     }
 
     /**
@@ -255,24 +247,6 @@ class AuthFeatureService(
             purgeUserWhileLocked(userId)
             roleLifecycle.removeRoles(userId)
         }
-    }
-
-    /**
-     * Completes non-cancellable compensation and then propagates the initiating cancellation.
-     */
-    private suspend fun compensateAfterCancellation(
-        userId: UserId?,
-        roleLifecycle: RegistrationRoleLifecycle,
-        error: CancellationException,
-    ): Nothing {
-        if (userId != null) {
-            try {
-                compensateRequiredRegistration(userId, roleLifecycle)
-            } catch (cleanupError: Exception) {
-                error.addSuppressed(cleanupError)
-            }
-        }
-        throw error
     }
 
     /**

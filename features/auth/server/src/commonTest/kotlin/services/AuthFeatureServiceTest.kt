@@ -28,6 +28,7 @@ import kotlin.test.assertFailsWith
 import kotlin.test.assertFalse
 import kotlin.test.assertNotNull
 import kotlin.test.assertNull
+import kotlin.test.assertSame
 import kotlin.test.assertTrue
 import kotlin.time.Duration
 import kotlin.time.Duration.Companion.minutes
@@ -68,6 +69,31 @@ internal class FakeUsersRepo(
  * In-memory [PasswordsRepo] test double delegating entirely to [MapKeyValueRepo].
  */
 internal class FakePasswordsRepo : PasswordsRepo, dev.inmo.micro_utils.repos.KeyValueRepo<UserId, Password> by MapKeyValueRepo()
+
+/** Password storage that exposes a known finalization failure without retaining a password. */
+private class ThrowingPasswordsRepo(
+    /** Failure raised when required-email finalization attempts to persist a password. */
+    private val failure: Throwable,
+) : PasswordsRepo, dev.inmo.micro_utils.repos.KeyValueRepo<UserId, Password> by MapKeyValueRepo() {
+    override suspend fun set(toSet: Map<UserId, Password>) {
+        throw failure
+    }
+}
+
+/** Password storage that records whether compensation purged authentication state. */
+private class TrackingPasswordsRepo(
+    /** Storage that handles operations other than the intercepted purge. */
+    private val delegate: PasswordsRepo = FakePasswordsRepo(),
+) : PasswordsRepo by delegate {
+    /** Number of batch password-removal calls issued by compensation. */
+    var unsetCalls = 0
+        private set
+
+    override suspend fun unset(toUnset: List<UserId>) {
+        unsetCalls++
+        delegate.unset(toUnset)
+    }
+}
 
 /**
  * Records required-email registration deliveries in auth service tests.
@@ -114,6 +140,14 @@ private object ThrowingRegistrationEmailSender : RegistrationEmailSender {
         error("SMTP failure")
 }
 
+/** Sender that propagates a caller-provided delivery cancellation. */
+private class CancelingRegistrationEmailSender(
+    /** Cancellation raised while the provisional account waits for delivery. */
+    private val cancellation: CancellationException,
+) : RegistrationEmailSender {
+    override suspend fun sendRegistrationEmail(user: RegisteredUser): Boolean = throw cancellation
+}
+
 /** Records registration-specific pending and compensation transitions. */
 private class FakeRegistrationRoleLifecycle(
     private val markResult: Boolean = true,
@@ -143,6 +177,30 @@ private class FakeRegistrationRoleLifecycle(
     }
 }
 
+/** Role lifecycle whose compensation phase fails after auth cleanup has started. */
+private class CleanupFailingRegistrationRoleLifecycle(
+    /** Failure raised when compensation tries to remove direct roles. */
+    private val cleanupFailure: Throwable,
+) : RegistrationRoleLifecycle {
+    /** Number of successful provisional pending-role transitions. */
+    var markCalls = 0
+        private set
+
+    /** Number of attempted direct-role compensations. */
+    var removeCalls = 0
+        private set
+
+    override suspend fun markPending(userId: UserId): Boolean {
+        markCalls++
+        return true
+    }
+
+    override suspend fun removeRoles(userId: UserId) {
+        removeCalls++
+        throw cleanupFailure
+    }
+}
+
 /**
  * Verifies [AuthFeatureService.getUser]: a valid, unexpired token resolves to an [AuthFeatureUser]
  * that preserves [RegisteredUser.email] — a regression check that B-V1's own-record surface does
@@ -159,7 +217,7 @@ class AuthFeatureServiceTest {
     /** Builds an auth service with in-memory repositories and the requested registration policy. */
     private fun buildService(
         usersRepo: FakeUsersRepo,
-        passwordsRepo: FakePasswordsRepo = FakePasswordsRepo(),
+        passwordsRepo: PasswordsRepo = FakePasswordsRepo(),
         tokenTtl: Duration = 15.minutes,
         enableRegistration: Boolean = false,
         requireEmailForRegistration: Boolean = false,
@@ -358,6 +416,32 @@ class AuthFeatureServiceTest {
         assertTrue(lifecycle.directRoleUserIds.isEmpty())
     }
 
+    /** A final password-store failure propagates only after provisional state is compensated. */
+    @Test
+    fun requiredEmailRegistrationPropagatesUnexpectedFinalizationFailureAfterCompensation() = runTest {
+        val failure = IllegalStateException("password storage unavailable")
+        val usersRepo = FakeUsersRepo()
+        val passwordsRepo = ThrowingPasswordsRepo(failure)
+        val lifecycle = FakeRegistrationRoleLifecycle()
+        val service = buildService(
+            usersRepo = usersRepo,
+            passwordsRepo = passwordsRepo,
+            enableRegistration = true,
+            requireEmailForRegistration = true,
+            registrationEmailSender = FakeRegistrationEmailSender(true),
+            registrationRoleLifecycle = lifecycle,
+        )
+
+        val thrown = assertFailsWith<IllegalStateException> {
+            service.register(Username("alice"), plainPassword, Email("alice@example.com"))
+        }
+
+        assertSame(failure, thrown)
+        assertTrue(usersRepo.getAll().isEmpty())
+        assertTrue(passwordsRepo.getAll().isEmpty())
+        assertTrue(lifecycle.directRoleUserIds.isEmpty())
+    }
+
     /** External delivery does not block unrelated auth and leaves the provisional account unusable. */
     @Test
     fun requiredEmailDeliveryRunsOutsideGlobalAuthLock() = runTest {
@@ -418,6 +502,36 @@ class AuthFeatureServiceTest {
         assertTrue(usersRepo.getAll().isEmpty())
         assertTrue(passwordsRepo.getAll().isEmpty())
         assertTrue(lifecycle.directRoleUserIds.isEmpty())
+    }
+
+    /** Delivery cancellation retains a cleanup failure after user and auth-state compensation runs. */
+    @Test
+    fun requiredEmailRegistrationCancellationRetainsCleanupFailure() = runTest {
+        val cancellation = CancellationException("delivery cancelled")
+        val cleanupFailure = IllegalStateException("role cleanup unavailable")
+        val usersRepo = FakeUsersRepo()
+        val passwordsRepo = TrackingPasswordsRepo()
+        val lifecycle = CleanupFailingRegistrationRoleLifecycle(cleanupFailure)
+        val service = buildService(
+            usersRepo = usersRepo,
+            passwordsRepo = passwordsRepo,
+            enableRegistration = true,
+            requireEmailForRegistration = true,
+            registrationEmailSender = CancelingRegistrationEmailSender(cancellation),
+            registrationRoleLifecycle = lifecycle,
+        )
+
+        val thrown = assertFailsWith<CancellationException> {
+            service.register(Username("alice"), plainPassword, Email("alice@example.com"))
+        }
+
+        assertSame(cancellation, thrown)
+        assertTrue(thrown.suppressed.single() is IllegalStateException)
+        assertEquals(cleanupFailure.message, thrown.suppressed.single().message)
+        assertTrue(usersRepo.getAll().isEmpty())
+        assertEquals(1, passwordsRepo.unsetCalls)
+        assertEquals(1, lifecycle.markCalls)
+        assertEquals(1, lifecycle.removeCalls)
     }
 
     /** A duplicate email maps to null without invoking delivery or role transitions. */
