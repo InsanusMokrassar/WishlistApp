@@ -16,7 +16,7 @@ End-to-end bearer-token authentication. Handles login (BCrypt password check), o
 |--------|------|------|-----------------|-------------|
 | GET | `/auth/is_registration_available` | None | `→ Boolean` | Returns `true` when self-service registration is open |
 | GET | `/auth/config` | None | `→ AuthConfig` | Returns registration availability and email-policy flags |
-| POST | `/auth/register` | None | `RegisterRequest → AuthCredentials \| 400` | Creates account; `email` is optional unless required-email registration is enabled; 400 covers unavailable registration, invalid fields, duplicate values, and failed invite delivery |
+| POST | `/auth/register` | None | `RegisterRequest → RegistrationResult \| 400` | Creates an approved account or a pending required-email account; 400 covers unavailable registration, invalid fields, duplicate values, and failed invite delivery |
 | POST | `/auth/login` | None | `LoginRequest → AuthCredentials \| 401` | Validates credentials, returns token + refreshToken |
 | POST | `/auth/refresh` | None | `RefreshRequest → AuthCredentials \| 401` | Exchanges refreshToken for new credentials |
 | POST | `/auth/logout` | Bearer | `→ 200` | Invalidates the bearer token |
@@ -30,6 +30,7 @@ End-to-end bearer-token authentication. Handles login (BCrypt password check), o
 | `RefreshToken` | `@JvmInline value class(String)` — long-lived refresh token |
 | `Password` | `@JvmInline value class(String)` — BCrypt-hashed at rest |
 | `AuthCredentials` | Wire DTO: `token: Token`, `refreshToken: RefreshToken` |
+| `RegistrationResult` | Polymorphic successful-registration DTO: `authorized` wraps `AuthCredentials`; credential-free `pendingEmailVerification` means the password was stored and email verification is still required. |
 | `AuthConfig` | Common wire DTO: `enableRegistration: Boolean`, `requireEmailForRegistration: Boolean` |
 | `LoginRequest` | Wire DTO: `username: Username`, `password: Password` |
 | `RegisterRequest` | Wire DTO: `username: Username`, `password: Password`, `email: Email?` — used for registration |
@@ -38,6 +39,7 @@ End-to-end bearer-token authentication. Handles login (BCrypt password check), o
 | `AuthFeature` | Shared interface: `login`, `refresh`, two-argument legacy `register`, email-aware `register`, `getConfig(): AuthConfig`, `isRegistrationAvailable`; the email-aware overload and `getConfig()` default to the legacy surfaces for source compatibility |
 | `RegistrationEmailSender` | Server hook invoked for a provisional required-email account; successful registration credentials are installed and returned only after the hook succeeds |
 | `RegistrationRoleLifecycle` | Auth-owned dependency-inversion contract implemented by `features/roles`; marks a required self-registration pending and removes direct roles during compensation |
+| `UserRoleAuthorization` | Auth-owned server port implemented by `features/roles`; synchronously ensures optional registration has direct `User` and checks current direct `User` membership. Missing binding denies access. |
 | `ClientAuthFeature` | Client-only extension: `logout`, `getMe(): AuthFeatureUser?` |
 | `ServerAuthFeature` | Server-only extension: `logout`, `getUser(token): AuthFeatureUser?` |
 | `ServerUrlStorage` | Client-side interface: `getServerUrl / saveServerUrl` (platform-specific impls) |
@@ -51,7 +53,8 @@ End-to-end bearer-token authentication. Handles login (BCrypt password check), o
 - `BearerAuthHttpClientConfigurator` installs Ktor `Auth` plugin on `HttpClient`; `refreshTokens` calls the refresh endpoint using the inner `client` (avoids recursion).
 - `sendWithoutRequest` skips preemptive auth for `/auth/login`, `/auth/refresh`, `/auth/register`, and `/auth/is_registration_available` endpoints.
 - `Config.enableRegistration` (default `false`) gates the register endpoint; disabled → service returns `null` → router responds 400.
-- `Config.requireEmailForRegistration` (default `false`) requires a validated `Email` in `RegisterRequest`. Required-email registration is a compensated two-phase flow: under the global auth write lock it creates a provisional user without a password/session and marks the id pending through `RegistrationRoleLifecycle`; BCrypt hashing and `RegistrationEmailSender` delivery then run outside that lock; a final locked phase verifies the same user and email still exist before installing the password and issuing tokens. Missing infrastructure, a false/ordinary failed delivery, or a failed pending transition removes the user, auth state, and direct roles so the same username can be retried. Cancellation performs cleanup in a non-cancellable context and then propagates. Optional-email registration preserves the original single-lock flow while storing a supplied email.
+- `Config.requireEmailForRegistration` (default `false`) requires a validated `Email` in `RegisterRequest`. Required-email registration is a compensated two-phase flow: under the global auth write lock it creates a provisional user without a password/session and marks the id pending through `RegistrationRoleLifecycle`; BCrypt hashing and `RegistrationEmailSender` delivery then run outside that lock; a final locked phase verifies the same user and email still exist before installing the password and returns credential-free `pendingEmailVerification`. Missing infrastructure, a false/ordinary failed delivery, or a failed pending transition removes the user, auth state, and direct roles so the same username can be retried. Cancellation performs cleanup in a non-cancellable context and then propagates. Optional-email registration synchronously ensures direct `User` through `UserRoleAuthorization`, then returns `authorized` only after guarded credential issuance.
+- Every credential issuance plus login, refresh, bearer authentication, and token-to-user lookup requires current direct `User` membership through `UserRoleAuthorization`. The absent bridge fails closed; role checks are not cached in token entries, so revocation invalidates still-unexpired bearer tokens immediately.
 - `DuplicateUserFieldException` from the narrow registration create call maps to the existing `null`/HTTP 400 failure contract without disclosing whether username or email collided; other repository failures still propagate.
 - `AuthFeatureService.register` enforces a password length policy (8..72): too-short/empty passwords are refused, and the upper bound avoids BCrypt silently ignoring input past 72 bytes. Returns `null` (→ 400) on violation. Admin-set passwords (root-only path) are not subject to this check.
 - `AuthFeature.isRegistrationAvailable()` is the cross-cutting flag; server impl returns `enableRegistration` directly; client impl calls `GET /auth/is_registration_available` and deserializes the `Boolean` body.

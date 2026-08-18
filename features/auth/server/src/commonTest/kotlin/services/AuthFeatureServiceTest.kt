@@ -5,9 +5,12 @@ import dev.inmo.micro_utils.repos.MapKeyValueRepo
 import dev.inmo.wishlist.features.auth.common.models.AuthFeatureUser
 import dev.inmo.wishlist.features.auth.common.models.AuthConfig
 import dev.inmo.wishlist.features.auth.common.models.Password
+import dev.inmo.wishlist.features.auth.common.models.RefreshToken
+import dev.inmo.wishlist.features.auth.common.models.RegistrationResult
 import dev.inmo.wishlist.features.auth.common.models.Token
 import dev.inmo.wishlist.features.auth.server.RegistrationEmailSender
 import dev.inmo.wishlist.features.auth.server.RegistrationRoleLifecycle
+import dev.inmo.wishlist.features.auth.server.UserRoleAuthorization
 import dev.inmo.wishlist.features.auth.server.repo.PasswordsRepo
 import dev.inmo.wishlist.features.email.common.models.Email
 import dev.inmo.wishlist.features.users.common.models.NewUser
@@ -201,6 +204,38 @@ private class CleanupFailingRegistrationRoleLifecycle(
     }
 }
 
+/** Configurable direct-role authorization fixture for credential-path tests. */
+private class FakeUserRoleAuthorization(
+    private var allowEnsure: Boolean = true,
+    private var allowCheck: Boolean = true,
+) : UserRoleAuthorization {
+    /** Users for which optional registration requested synchronous authorization. */
+    val ensuredUserIds = mutableListOf<UserId>()
+
+    /** Users checked by credential issuance and bearer/token resolution. */
+    val checkedUserIds = mutableListOf<UserId>()
+
+    /** Changes direct-role check outcomes during a test. */
+    fun setDirectRolePresent(present: Boolean) {
+        allowCheck = present
+    }
+
+    /** Controls whether optional registration can establish direct approved membership. */
+    fun setEnsureAllowed(allowed: Boolean) {
+        allowEnsure = allowed
+    }
+
+    override suspend fun ensureUserRole(userId: UserId): Boolean {
+        ensuredUserIds += userId
+        return allowEnsure
+    }
+
+    override suspend fun hasUserRole(userId: UserId): Boolean {
+        checkedUserIds += userId
+        return allowCheck
+    }
+}
+
 /**
  * Verifies [AuthFeatureService.getUser]: a valid, unexpired token resolves to an [AuthFeatureUser]
  * that preserves [RegisteredUser.email] — a regression check that B-V1's own-record surface does
@@ -223,6 +258,7 @@ class AuthFeatureServiceTest {
         requireEmailForRegistration: Boolean = false,
         registrationEmailSender: RegistrationEmailSender? = null,
         registrationRoleLifecycle: RegistrationRoleLifecycle? = null,
+        userRoleAuthorization: UserRoleAuthorization? = FakeUserRoleAuthorization(),
     ) = AuthFeatureService(
         usersRepo = usersRepo,
         writeUsersRepo = usersRepo,
@@ -232,6 +268,7 @@ class AuthFeatureServiceTest {
         requireEmailForRegistration = requireEmailForRegistration,
         registrationEmailSender = registrationEmailSender,
         registrationRoleLifecycle = registrationRoleLifecycle,
+        userRoleAuthorization = userRoleAuthorization,
     )
 
     /** Auth config exposes both registration flags without server-only types. */
@@ -262,20 +299,48 @@ class AuthFeatureServiceTest {
         assertNull(usersRepo.getUserByUsername(Username("alice")))
     }
 
-    /** Optional-email registration accepts and persists a supplied address. */
+    /** Optional-email registration synchronously establishes direct membership before authorizing. */
     @Test
-    fun optionalEmailRegistrationPersistsSuppliedEmail() = runTest {
+    fun optionalRegistrationEnsuresUserRoleBeforeReturningAuthorized() = runTest {
         val usersRepo = FakeUsersRepo()
         val email = Email("alice@example.com")
-        val service = buildService(usersRepo, enableRegistration = true)
+        val authorization = FakeUserRoleAuthorization()
+        val passwords = FakePasswordsRepo()
+        val service = buildService(
+            usersRepo = usersRepo,
+            passwordsRepo = passwords,
+            enableRegistration = true,
+            userRoleAuthorization = authorization,
+        )
 
-        assertNotNull(service.register(Username("alice"), plainPassword, email))
+        val result = service.register(Username("alice"), plainPassword, email)
+
+        assertTrue(result is RegistrationResult.Authorized)
         assertEquals(email, usersRepo.getUserByUsername(Username("alice"))?.email)
+        assertEquals(1, authorization.ensuredUserIds.size)
+        assertEquals(1, passwords.getAll().size)
     }
 
-    /** Required-email registration returns credentials only after the sender accepts the invite. */
+    /** Missing authorization infrastructure rejects optional registration before account creation. */
     @Test
-    fun requiredEmailRegistrationSendsInviteBeforeReturningCredentials() = runTest {
+    fun optionalRegistrationWithoutRoleBridgeFailsBeforeCreatingUser() = runTest {
+        val usersRepo = FakeUsersRepo()
+        val passwords = FakePasswordsRepo()
+        val service = buildService(
+            usersRepo = usersRepo,
+            passwordsRepo = passwords,
+            enableRegistration = true,
+            userRoleAuthorization = null,
+        )
+
+        assertNull(service.register(Username("alice"), plainPassword))
+        assertTrue(usersRepo.getAll().isEmpty())
+        assertTrue(passwords.getAll().isEmpty())
+    }
+
+    /** Required-email registration stores a password but returns a credential-free pending result. */
+    @Test
+    fun requiredEmailRegistrationReturnsPendingAfterInviteAndPasswordStorage() = runTest {
         val usersRepo = FakeUsersRepo()
         val sender = FakeRegistrationEmailSender(true)
         val lifecycle = FakeRegistrationRoleLifecycle()
@@ -288,12 +353,45 @@ class AuthFeatureServiceTest {
             registrationRoleLifecycle = lifecycle,
         )
 
-        assertNotNull(service.register(Username("alice"), plainPassword, email))
+        assertEquals(
+            RegistrationResult.PendingEmailVerification,
+            service.register(Username("alice"), plainPassword, email),
+        )
         assertEquals(
             listOfNotNull(usersRepo.getUserByUsername(Username("alice"))),
             sender.users
         )
         assertEquals(sender.users.map { it.id }.toSet(), lifecycle.directRoleUserIds)
+    }
+
+    /** Current direct-role removal invalidates login, refresh, bearer, and token-to-user resolution. */
+    @Test
+    fun directUserRoleGatesEveryCredentialPath() = runTest {
+        val authorization = FakeUserRoleAuthorization()
+        val usersRepo = FakeUsersRepo(mapOf(userWithEmail.id to userWithEmail))
+        val service = buildService(usersRepo, userRoleAuthorization = authorization)
+        service.setPassword(userWithEmail.id, plainPassword)
+        val credentials = checkNotNull(service.login(userWithEmail.username, plainPassword))
+
+        authorization.setDirectRolePresent(false)
+
+        assertNull(service.login(userWithEmail.username, plainPassword))
+        assertNull(service.refresh(credentials.refreshToken))
+        assertNull(service.authenticate(credentials.token))
+        assertNull(service.getUser(credentials.token))
+    }
+
+    /** A missing bridge fails closed for every credential and bearer lookup surface. */
+    @Test
+    fun missingRoleBridgeFailsClosedForLoginRefreshAuthenticateAndGetUser() = runTest {
+        val usersRepo = FakeUsersRepo(mapOf(userWithEmail.id to userWithEmail))
+        val service = buildService(usersRepo, userRoleAuthorization = null)
+        service.setPassword(userWithEmail.id, plainPassword)
+
+        assertNull(service.login(userWithEmail.username, plainPassword))
+        assertNull(service.refresh(RefreshToken("unknown")))
+        assertNull(service.authenticate(Token("unknown")))
+        assertNull(service.getUser(Token("unknown")))
     }
 
     /** Required-email registration fails closed when invite delivery reports failure. */

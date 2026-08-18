@@ -2,6 +2,7 @@ package dev.inmo.wishlist.features.ui.auth.ui
 
 import dev.inmo.wishlist.features.auth.common.models.AuthConfig
 import dev.inmo.wishlist.features.auth.common.models.Password
+import dev.inmo.wishlist.features.auth.common.models.RegistrationResult
 import dev.inmo.wishlist.features.email.common.models.Email
 import dev.inmo.wishlist.features.users.common.models.Username
 import kotlinx.coroutines.flow.StateFlow
@@ -57,7 +58,7 @@ interface AuthModel {
     /**
      * Attempts to create a new account with the given credentials.
      *
-     * @return `true` when the account was created and credentials are persisted.
+     * @return The server's registration outcome, or `null` when registration fails.
      */
-    suspend fun register(username: Username, password: Password, email: Email? = null): Boolean
+    suspend fun register(username: Username, password: Password, email: Email? = null): RegistrationResult?
 }

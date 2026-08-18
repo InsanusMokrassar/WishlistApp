@@ -86,6 +86,27 @@ internal suspend fun markNewUserPending(rolesRepo: RolesRepo, userId: UserId): B
 }
 
 /**
+ * Synchronously grants and confirms direct approved-user membership for optional registration.
+ *
+ * A pending account remains pending and is never upgraded by this helper. The shared transition
+ * mutex makes this mutually exclusive with the required-email pending transition.
+ */
+internal suspend fun ensureDirectUserRole(rolesRepo: RolesRepo, userId: UserId): Boolean {
+    return roleTransitionMutex.withLock {
+        val subject = roleSubject(userId)
+        if (rolesRepo.contains(subject, NewUserRole)) return@withLock false
+        rolesRepo.includeDirect(subject, UserRole)
+        UserRole in rolesRepo.getDirectRoles(subject)
+    }
+}
+
+/** Returns whether [userId] currently has direct approved-user membership. */
+internal suspend fun hasDirectUserRole(rolesRepo: RolesRepo, userId: UserId): Boolean =
+    roleTransitionMutex.withLock {
+        UserRole in rolesRepo.getDirectRoles(roleSubject(userId))
+    }
+
+/**
  * Removes every direct role for one user under the shared transition lock.
  *
  * @param rolesRepo Repo roles are removed through.

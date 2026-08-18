@@ -20,6 +20,7 @@ import dev.inmo.wishlist.features.auth.common.models.RefreshRequest
 import dev.inmo.wishlist.features.auth.common.models.RefreshToken
 import dev.inmo.wishlist.features.auth.common.models.AuthFeatureUser
 import dev.inmo.wishlist.features.auth.common.models.RegisterRequest
+import dev.inmo.wishlist.features.auth.common.models.RegistrationResult
 import dev.inmo.wishlist.features.email.common.models.Email
 import dev.inmo.wishlist.features.users.common.models.Username
 
@@ -53,10 +54,10 @@ class KtorAuthFeature(
     }
 
     /** Delegates the legacy registration surface to the email-aware request. */
-    override suspend fun register(username: Username, password: Password): AuthCredentials? =
+    override suspend fun register(username: Username, password: Password): RegistrationResult? =
         register(username, password, null)
 
-    override suspend fun register(username: Username, password: Password, email: Email?): AuthCredentials? {
+    override suspend fun register(username: Username, password: Password, email: Email?): RegistrationResult? {
         val response: HttpResponse = client.post(registerPath) {
             setBody(RegisterRequest(username, password, email))
         }

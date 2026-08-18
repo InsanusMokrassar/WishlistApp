@@ -53,6 +53,7 @@ class AuthView(
         val loading by viewModel.loadingState.collectAsState()
         val error by viewModel.errorState.collectAsState()
         val loginEnabled by viewModel.loginEnabledState.collectAsState()
+        val pendingEmailVerification by viewModel.pendingEmailVerificationState.collectAsState()
 
         if (loggedIn) {
             CalmButton(
@@ -76,6 +77,11 @@ class AuthView(
                 variant = CalmButtonVariant.Primary,
             )
         }
+
+        PendingEmailVerificationDialog(
+            visible = pendingEmailVerification,
+            onDismiss = viewModel::onDismissPendingEmailVerification,
+        )
 
         if (!expanded) return
 
@@ -164,6 +170,28 @@ class AuthView(
                     )
                 }
             }
+        }
+    }
+}
+
+/** Renders the standalone required-email confirmation with no authenticated-session implication. */
+@Composable
+internal fun PendingEmailVerificationDialog(visible: Boolean, onDismiss: () -> Unit) {
+    if (!visible) return
+    CalmModal(onDismiss = onDismiss) {
+        ModalHeader(AuthStrings.pendingEmailVerificationTitle.translation())
+        ModalBody {
+            FormHint(
+                text = AuthStrings.pendingEmailVerificationMessage.translation(),
+                error = false,
+            )
+        }
+        ModalFooter {
+            CalmButton(
+                text = AuthStrings.pendingEmailVerificationDismissButton.translation(),
+                onClick = onDismiss,
+                variant = CalmButtonVariant.Primary,
+            )
         }
     }
 }

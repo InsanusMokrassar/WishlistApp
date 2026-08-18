@@ -22,7 +22,7 @@ private class LegacyAuthFeature : AuthFeature {
     override suspend fun refresh(refreshToken: RefreshToken): AuthCredentials? = null
 
     /** Legacy registration surface records calls without knowing about email. */
-    override suspend fun register(username: Username, password: Password): AuthCredentials? {
+    override suspend fun register(username: Username, password: Password): RegistrationResult? {
         lastRegistration = username to password
         return null
     }

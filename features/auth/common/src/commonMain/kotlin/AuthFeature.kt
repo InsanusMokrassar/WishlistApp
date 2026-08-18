@@ -4,6 +4,7 @@ import dev.inmo.wishlist.features.auth.common.models.AuthCredentials
 import dev.inmo.wishlist.features.auth.common.models.AuthConfig
 import dev.inmo.wishlist.features.auth.common.models.Password
 import dev.inmo.wishlist.features.auth.common.models.RefreshToken
+import dev.inmo.wishlist.features.auth.common.models.RegistrationResult
 import dev.inmo.wishlist.features.email.common.models.Email
 import dev.inmo.wishlist.features.users.common.models.Username
 
@@ -17,9 +18,9 @@ interface AuthFeature {
      *
      * @param username Requested account name.
      * @param password Requested account password.
-     * @return Credentials on success, or `null` when registration fails.
+     * @return An authorized or pending-verification success result, or `null` when registration fails.
      */
-    suspend fun register(username: Username, password: Password): AuthCredentials?
+    suspend fun register(username: Username, password: Password): RegistrationResult?
 
     /**
      * Creates a new account with an optional email address. The default bridge preserves source
@@ -28,9 +29,9 @@ interface AuthFeature {
      * @param username Requested account name.
      * @param password Requested account password.
      * @param email Address associated with the account, when supplied.
-     * @return Credentials on success, or `null` when registration fails.
+     * @return An authorized or pending-verification success result, or `null` when registration fails.
      */
-    suspend fun register(username: Username, password: Password, email: Email?): AuthCredentials? =
+    suspend fun register(username: Username, password: Password, email: Email?): RegistrationResult? =
         register(username, password)
 
     /**

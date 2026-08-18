@@ -59,6 +59,7 @@ class AuthView(
         val loading by viewModel.loadingState.collectAsState()
         val error by viewModel.errorState.collectAsState()
         val loginEnabled by viewModel.loginEnabledState.collectAsState()
+        val pendingEmailVerification by viewModel.pendingEmailVerificationState.collectAsState()
 
         if (loggedIn) {
             Button(
@@ -81,6 +82,11 @@ class AuthView(
                 }
             }
         }
+
+        PendingEmailVerificationDialog(
+            visible = pendingEmailVerification,
+            onDismiss = viewModel::onDismissPendingEmailVerification,
+        )
 
         if (!expanded) return
 
@@ -163,6 +169,26 @@ class AuthView(
                             ) { Text(AuthStrings.submitButton.translation()) }
                         }
                     }
+                }
+            }
+        }
+    }
+}
+
+/** Renders the standalone required-email confirmation on Compose Desktop. */
+@Composable
+internal fun PendingEmailVerificationDialog(visible: Boolean, onDismiss: () -> Unit) {
+    if (!visible) return
+    Dialog(onDismissRequest = onDismiss) {
+        Surface {
+            Column(
+                modifier = Modifier.padding(16.dp),
+                verticalArrangement = Arrangement.spacedBy(8.dp),
+            ) {
+                Text(AuthStrings.pendingEmailVerificationTitle.translation())
+                Text(AuthStrings.pendingEmailVerificationMessage.translation())
+                Button(onClick = onDismiss) {
+                    Text(AuthStrings.pendingEmailVerificationDismissButton.translation())
                 }
             }
         }

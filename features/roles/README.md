@@ -43,6 +43,7 @@ that role with `NewUser` until email verification promotes the account. The gene
 | `KtorRolesFeature` | `roles/client` | HTTP implementation of client `RolesFeature`; `GET /roles/isFunctionalityAvailable/{id}`. Fails closed on HTTP errors. |
 | `RolesConstants` | `roles/common` | Shared path-segment constants: `prefixPathPart="roles"`, `isFunctionalityAvailablePathPart="isFunctionalityAvailable"`, `functionalityIdParameter="functionalityId"`. |
 | `RolesRepo` (kroles) | `roles/common` (JVM) | kroles' own `RolesRepo` (`dev.inmo.kroles.repos`), bound in Koin as the Exposed+cache-backed implementation — see Architecture Notes. |
+| `RolesUserRoleAuthorization` | `roles/server` | Roles-owned implementation of Auth's `UserRoleAuthorization` port. Ensures and checks only direct `UserRole`, never inherited roles, `NewUserRole`, or `SuperAdminRole`. |
 | `roles` table | Postgres | Two text columns, `subject` (JSON-encoded `BaseRoleSubject`) and `role` (`BaseRole.plain`); one-to-many, via `ExposedKeyValuesRepo`. |
 
 ## Architecture Notes
@@ -88,6 +89,11 @@ that role with `NewUser` until email verification promotes the account. The gene
   callback-before-pending is replaced by `NewUser`, pending-before-callback is preserved, and a callback
   delayed until after promotion idempotently retains exactly `User`. Backfill uses the generic rule and
   preserves an already explicit pending state.
+- **Auth authorization bridge:** `roles/server` binds one `RolesUserRoleAuthorization` as Auth's
+  `UserRoleAuthorization` port. Optional self-registration uses the same `roleTransitionMutex` to
+  synchronously add and confirm direct `UserRole`, while current authorization checks inspect only
+  direct membership under that mutex. A pending `NewUserRole` is preserved and refuses the ensure
+  operation. Auth consumers fail closed when the binding is absent.
 - **`FeatureRolesRegistry` has real data.** The registry is populated with today's three real
   mappings (all role-gated capabilities require `SuperAdmin`), and `requireRole`/`isRoleRequirementSatisfied`
   are fully implemented and unit-tested. The gated call sites (`admin`, `email`, `files` on the server

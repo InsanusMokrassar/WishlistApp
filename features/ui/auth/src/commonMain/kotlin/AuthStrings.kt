@@ -52,4 +52,18 @@ object AuthStrings {
     val errorRegisterFailed = buildStringResource("Registration failed. The username may already be taken.") {
         IetfLang.Russian("Не удалось зарегистрироваться. Возможно, имя пользователя уже занято.")
     }
+    /** Heading of the confirmation shown after required-email registration. */
+    val pendingEmailVerificationTitle = buildStringResource("Check your email") {
+        IetfLang.Russian("Проверьте электронную почту")
+    }
+    /** Explains that verification is required before a first login can create a session. */
+    val pendingEmailVerificationMessage = buildStringResource(
+        "Check the submitted email and verify your account before logging in.",
+    ) {
+        IetfLang.Russian("Проверьте указанную почту и подтвердите аккаунт перед входом.")
+    }
+    /** Caption for closing the pending-email confirmation. */
+    val pendingEmailVerificationDismissButton = buildStringResource("Close") {
+        IetfLang.Russian("Закрыть")
+    }
 }

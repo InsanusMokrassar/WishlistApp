@@ -29,6 +29,7 @@ object Plugin : StartPlugin {
                 requireEmailForRegistration = config.requireEmailForRegistration,
                 registrationEmailSender = getOrNull<RegistrationEmailSender>(),
                 registrationRoleLifecycle = getOrNull<RegistrationRoleLifecycle>(),
+                userRoleAuthorization = getOrNull<UserRoleAuthorization>(),
             )
         }
         single<ServerAuthFeature> { get<AuthFeatureService>() }

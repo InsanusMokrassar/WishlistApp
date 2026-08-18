@@ -9,7 +9,10 @@
 The email feature provides SMTP-backed transactional email delivery and per-user email address storage. It is structured as a standard full-stack feature with `common`, `server`, and `client` modules.
 
 Required-email registration also uses this feature's server-only invite sender. The sender mints an
-existing deeplink, emails its absolute URL, and lets the deeplink handler approve the account.
+existing deeplink, emails its absolute URL, and lets the deeplink handler approve the account. A
+successful required-email registration remains logged out: it stores a password but produces no
+credentials until verification promotes `NewUser` to `User`; a later normal login is the first
+credential-producing step.
 
 **Two independent capabilities:**
 - **Email storage** (`PUT /email/myEmail`) — any authenticated user can store or clear their own email address; does NOT require SMTP to be configured.
@@ -66,6 +69,7 @@ When no `"email"` object is present in the server config (the key is entirely ab
 - **DI placement:** `EmailVerificationAccountCoordinator` is registered unconditionally with `single` and owns the shared `UsersRepo`/`RolesRepo` concurrency boundary. The conditional `EmailFeature` definition passes that exact singleton to either `EmailFeatureService` or `DisabledEmailFeature`, and the qualified `EmailVerificationDeepLinkHandler` receives the same singleton. Thus SMTP-enabled and SMTP-disabled graphs each contain exactly one coordinator shared by mutation and verification.
 - **Client:** `KtorEmailFeature` is transport-only; no service wrapper needed (no memoization). Platform plugins (JS/JVM/Android) delegate to the shared `Plugin`.
 - **Registration invites (issue #73):** Every new payload stores the pending user id and exact recipient email; legacy null-email payloads remain decodable but fail closed. Self-service email mutation and equality-check-plus-promotion share one coordinator mutex. If mutation to B linearizes first, verification of A observes the mismatch and leaves `NewUserRole`; if verification linearizes first, promotion completes while A is current and a waiting post-approval edit to B may then succeed. Wrong payload type, missing user, cleared email, and mismatch remain unhandled. This preserves post-approval editing while preventing B from being written between a successful A comparison and promotion. Invite URL validation and false/error/cancellation cleanup remain unchanged.
+- Verification promotes only direct `NewUserRole` to direct `UserRole`; it does not issue Auth credentials. The account remains logged out until a normal password login follows promotion.
 - **Sample config SMTP block (enabled in `sample.config.json`; omit the whole `"email"` key to disable):**
   ```json
   "email": {

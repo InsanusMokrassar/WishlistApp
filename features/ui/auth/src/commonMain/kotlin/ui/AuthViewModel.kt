@@ -5,6 +5,7 @@ import dev.inmo.micro_utils.coroutines.launchLoggingDropExceptions
 import dev.inmo.navigation.core.NavigationNode
 import dev.inmo.navigation.mvvm.ViewModel
 import dev.inmo.wishlist.features.auth.common.models.Password
+import dev.inmo.wishlist.features.auth.common.models.RegistrationResult
 import dev.inmo.wishlist.features.email.common.models.Email
 import dev.inmo.wishlist.features.common.client.models.ViewConfig
 import dev.inmo.wishlist.features.users.common.models.Username
@@ -65,6 +66,11 @@ class AuthViewModel(
 
     /** `true` when the login/register form is currently expanded. */
     val formExpandedState = _formExpandedState.asStateFlow()
+
+    private val _pendingEmailVerificationState = MutableRedeliverStateFlow(false)
+
+    /** `true` while the separate check-email confirmation is visible. */
+    val pendingEmailVerificationState = _pendingEmailVerificationState.asStateFlow()
 
     private val _registerModeState = MutableRedeliverStateFlow(false)
 
@@ -134,6 +140,7 @@ class AuthViewModel(
 
     /** Expands the form in login mode. */
     fun onToggleForm() {
+        _pendingEmailVerificationState.value = false
         _registerModeState.value = false
         _formExpandedState.value = !_formExpandedState.value
         if (!_formExpandedState.value) {
@@ -143,6 +150,7 @@ class AuthViewModel(
 
     /** Expands the form in registration mode. */
     fun onToggleRegisterForm() {
+        _pendingEmailVerificationState.value = false
         _registerModeState.value = true
         _formExpandedState.value = true
         _errorState.value = false
@@ -153,6 +161,7 @@ class AuthViewModel(
      * login/register modal so the "Log in" tab is idempotent when already expanded.
      */
     fun onShowLoginForm() {
+        _pendingEmailVerificationState.value = false
         _registerModeState.value = false
         _formExpandedState.value = true
         _errorState.value = false
@@ -163,6 +172,11 @@ class AuthViewModel(
         _formExpandedState.value = false
         _registerModeState.value = false
         _errorState.value = false
+    }
+
+    /** Dismisses the check-email confirmation without changing credentials or form inputs. */
+    fun onDismissPendingEmailVerification() {
+        _pendingEmailVerificationState.value = false
     }
 
     /** Submits the entered credentials as a login request. */
@@ -203,16 +217,18 @@ class AuthViewModel(
             _loadingState.value = true
             _errorState.value = false
             try {
-                val success = model.register(Username(username), Password(password), email)
-                if (success) {
-                    _usernameState.value = ""
-                    _passwordState.value = ""
-                    _emailState.value = ""
-                    _formExpandedState.value = false
-                    _registerModeState.value = false
-                    interactor.onUserLoggedIn(node)
-                } else {
-                    _errorState.value = true
+                when (val result = model.register(Username(username), Password(password), email)) {
+                    is RegistrationResult.Authorized -> {
+                        clearRegistrationForm()
+                        _pendingEmailVerificationState.value = false
+                        interactor.onUserLoggedIn(node)
+                    }
+                    RegistrationResult.PendingEmailVerification -> {
+                        clearRegistrationForm()
+                        _errorState.value = false
+                        _pendingEmailVerificationState.value = true
+                    }
+                    null -> _errorState.value = true
                 }
             } finally {
                 _loadingState.value = false
@@ -230,6 +246,15 @@ class AuthViewModel(
                 _loadingState.value = false
             }
         }
+    }
+
+    /** Clears inputs and closes registration mode after either successful registration outcome. */
+    private fun clearRegistrationForm() {
+        _usernameState.value = ""
+        _passwordState.value = ""
+        _emailState.value = ""
+        _formExpandedState.value = false
+        _registerModeState.value = false
     }
 }
 

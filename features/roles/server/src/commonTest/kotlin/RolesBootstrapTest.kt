@@ -37,6 +37,31 @@ class RolesBootstrapTest {
     /** Non-root account fixture used to verify pending and approved transitions. */
     private val plainUser = RegisteredUser(UserId(2L), Username("alice"))
 
+    /** Optional registration receives exactly direct approved-user membership. */
+    @Test
+    fun ensureUserRoleGrantsAndConfirmsDirectUserRole() = runTest {
+        val rolesRepo = FakeRolesRepo()
+        val authorization = RolesUserRoleAuthorization(rolesRepo)
+        val subject = BaseRoleSubject.Direct(plainUser.id.long.toString())
+
+        assertTrue(authorization.ensureUserRole(plainUser.id))
+        assertTrue(authorization.hasUserRole(plainUser.id))
+        assertEquals(setOf(UserRole), rolesRepo.getDirectRoles(subject).toSet())
+    }
+
+    /** Pending accounts cannot be synchronously approved by optional-registration authorization. */
+    @Test
+    fun ensureUserRolePreservesPendingAndReturnsFalse() = runTest {
+        val rolesRepo = FakeRolesRepo()
+        val authorization = RolesUserRoleAuthorization(rolesRepo)
+        val subject = BaseRoleSubject.Direct(plainUser.id.long.toString())
+        rolesRepo.includeDirect(subject, NewUserRole)
+
+        assertFalse(authorization.ensureUserRole(plainUser.id))
+        assertFalse(authorization.hasUserRole(plainUser.id))
+        assertEquals(setOf(NewUserRole), rolesRepo.getDirectRoles(subject).toSet())
+    }
+
     /** Non-root user → only User is granted, never SuperAdmin. */
     @Test
     fun grantDefaultRolesGrantsOnlyUserRoleForNonRootUser() = runTest {

@@ -18,11 +18,13 @@ import org.mindrot.jbcrypt.BCrypt
 import dev.inmo.wishlist.features.auth.server.ServerAuthFeature
 import dev.inmo.wishlist.features.auth.server.RegistrationEmailSender
 import dev.inmo.wishlist.features.auth.server.RegistrationRoleLifecycle
+import dev.inmo.wishlist.features.auth.server.UserRoleAuthorization
 import dev.inmo.wishlist.features.auth.common.models.AuthConfig
 import dev.inmo.wishlist.features.auth.common.models.AuthCredentials
 import dev.inmo.wishlist.features.auth.common.models.AuthFeatureUser
 import dev.inmo.wishlist.features.auth.common.models.Password
 import dev.inmo.wishlist.features.auth.common.models.RefreshToken
+import dev.inmo.wishlist.features.auth.common.models.RegistrationResult
 import dev.inmo.wishlist.features.auth.common.models.Token
 import dev.inmo.wishlist.features.email.common.models.Email
 import dev.inmo.wishlist.features.auth.server.repo.PasswordsRepo
@@ -52,6 +54,7 @@ class AuthFeatureService(
     private val requireEmailForRegistration: Boolean = false,
     private val registrationEmailSender: RegistrationEmailSender? = null,
     private val registrationRoleLifecycle: RegistrationRoleLifecycle? = null,
+    private val userRoleAuthorization: UserRoleAuthorization? = null,
 ) : ServerAuthFeature {
     /** Signals an expected post-reservation refusal that must trigger provisional-account cleanup. */
     private class RequiredEmailRegistrationRejected : Exception()
@@ -110,6 +113,7 @@ class AuthFeatureService(
         locker.withReadAcquire {
             val entry = tokens.get(token) ?: return null
             if (entry.issued + tokenTtl > DateTime.now()) {
+                if (!hasUserRole(entry.id)) return null
                 return usersRepo.getById(entry.id)?.asAuthFeatureUser()
             }
             return null
@@ -124,19 +128,19 @@ class AuthFeatureService(
                 tokenToRefreshToken.unset(token)
                 return null
             }
-            return entry.id
+            return entry.id.takeIf { hasUserRole(it) }
         }
     }
 
     /** Delegates the legacy registration surface to the email-aware implementation. */
-    override suspend fun register(username: Username, password: Password): AuthCredentials? =
+    override suspend fun register(username: Username, password: Password): RegistrationResult? =
         register(username, password, null)
 
     override suspend fun register(
         username: Username,
         password: Password,
         email: Email?
-    ): AuthCredentials? {
+    ): RegistrationResult? {
         if (enableRegistration == false) return null
         if (!isAcceptablePassword(password)) return null
         return when {
@@ -157,17 +161,20 @@ class AuthFeatureService(
         username: Username,
         password: Password,
         email: Email?,
-    ): AuthCredentials? = locker.withWriteLock {
+    ): RegistrationResult? = locker.withWriteLock {
+        val authorization = userRoleAuthorization ?: return@withWriteLock null
         if (usersRepo.getUserByUsername(username) != null) return null
         val created = createUserOrNull(username, email) ?: return null
+        if (!authorization.ensureUserRole(created.id)) return null
         val hashed = BCrypt.hashpw(password.string, BCrypt.gensalt())
         passwordsRepo.set(created.id to Password(hashed))
-        issueCredentialsFor(created.id)
+        issueCredentialsFor(created.id)?.let(RegistrationResult::Authorized)
     }
 
     /**
      * Reserves a non-authenticating account, performs invite delivery without the global auth lock,
-     * and installs credentials only after successful delivery.
+     * and stores a password only after successful delivery, remaining unauthenticated until email
+     * verification promotes the pending account.
      */
     private suspend fun registerWithRequiredEmail(
         username: Username,
@@ -175,13 +182,14 @@ class AuthFeatureService(
         email: Email,
         sender: RegistrationEmailSender,
         roleLifecycle: RegistrationRoleLifecycle,
-    ): AuthCredentials? = doSuspendTransaction {
+    ): RegistrationResult? = doSuspendTransaction {
         val provisionalUser =
             locker.withWriteLock {
                 val userByUsername = usersRepo.getUserByUsername(username)
                 if (userByUsername != null) return@withWriteLock null
 
 
+                val createdUser = createUserOrNull(username, email) ?: return@withWriteLock null
                 val created = rollableBackOperation(
                     rollback = {
                         try {
@@ -190,14 +198,10 @@ class AuthFeatureService(
                             error.addSuppressed(cleanupError)
                         }
                     },
-                    action = {
-                        createUserOrNull(username, email) ?: error("Unable to create user $username")
-                    },
+                    action = { createdUser },
                 )
                 val pending = rollableBackOperation(
-                    {
-                        roleLifecycle.removeRoles(created.id)
-                    }
+                    { Unit }
                 ) {
                     roleLifecycle.markPending(created.id)
                 }
@@ -220,7 +224,7 @@ class AuthFeatureService(
             val storedUser = usersRepo.getById(provisionalUser.id)
             if (storedUser?.email != email) throw RequiredEmailRegistrationRejected()
             passwordsRepo.set(provisionalUser.id to hashedPassword)
-            issueCredentialsFor(provisionalUser.id)
+            RegistrationResult.PendingEmailVerification
         }
     }.getOrElse { error ->
         when (error) {
@@ -305,7 +309,9 @@ class AuthFeatureService(
         }
     }
 
-    private suspend fun issueCredentialsFor(id: UserId): AuthCredentials {
+    /** Returns credentials only when [id] currently has the required direct user role. */
+    private suspend fun issueCredentialsFor(id: UserId): AuthCredentials? {
+        if (!hasUserRole(id)) return null
         val now = DateTime.now()
         val token = Token(uuid4().toString())
         val refreshToken = RefreshToken(uuid4().toString())
@@ -314,4 +320,8 @@ class AuthFeatureService(
         tokenToRefreshToken.set(token to refreshToken)
         return AuthCredentials(token, refreshToken)
     }
+
+    /** Fails closed when the Roles-owned authorization bridge is absent. */
+    private suspend fun hasUserRole(userId: UserId): Boolean =
+        userRoleAuthorization?.hasUserRole(userId) ?: false
 }

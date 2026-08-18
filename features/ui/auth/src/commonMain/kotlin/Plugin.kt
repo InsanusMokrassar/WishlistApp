@@ -6,6 +6,7 @@ import dev.inmo.wishlist.features.auth.client.AuthCredentialsStorage
 import dev.inmo.wishlist.features.auth.client.ClientAuthFeature
 import dev.inmo.wishlist.features.auth.common.models.AuthConfig
 import dev.inmo.wishlist.features.auth.common.models.Password
+import dev.inmo.wishlist.features.auth.common.models.RegistrationResult
 import dev.inmo.wishlist.features.email.common.models.Email
 import dev.inmo.wishlist.features.common.client.models.ViewConfig
 import dev.inmo.wishlist.features.ui.auth.ui.AuthModel
@@ -67,7 +68,7 @@ object Plugin : StartPlugin {
                     username: Username,
                     password: Password,
                     email: Email?
-                ): Boolean = authFeature.register(username, password, email) != null
+                ): RegistrationResult? = authFeature.register(username, password, email)
             }
         }
     }
