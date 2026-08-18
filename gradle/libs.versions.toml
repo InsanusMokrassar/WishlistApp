@@ -7,7 +7,7 @@ kotlin-coroutines = "1.11.0"
 krontab = "2.9.0"
 navigation = "0.7.5"
 microutils = "0.30.0"
-kroles = "0.0.2"
+kroles = "0.0.3"
 compose = "1.11.0"
 kslog = "1.6.1"
 

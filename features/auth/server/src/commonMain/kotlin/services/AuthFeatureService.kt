@@ -1,6 +1,8 @@
 package dev.inmo.wishlist.features.auth.server.services
 
 import com.benasher44.uuid.uuid4
+import dev.inmo.kslog.common.logger
+import dev.inmo.kslog.common.w
 import dev.inmo.micro_utils.coroutines.SmartRWLocker
 import dev.inmo.micro_utils.coroutines.withReadAcquire
 import dev.inmo.micro_utils.coroutines.withWriteLock
@@ -174,36 +176,42 @@ class AuthFeatureService(
         sender: RegistrationEmailSender,
         roleLifecycle: RegistrationRoleLifecycle,
     ): AuthCredentials? = doSuspendTransaction {
-        val provisionalUser = locker.withWriteLock {
-            if (usersRepo.getUserByUsername(username) != null) return@withWriteLock null
-            val created = createUserOrNull(username, email) ?: return@withWriteLock null
-            rollableBackOperation(
-                rollback = {
-                    try {
-                        compensateRequiredRegistration(actionResult.id, roleLifecycle)
-                    } catch (cleanupError: Throwable) {
-                        error.addSuppressed(cleanupError)
+        val provisionalUser =
+            locker.withWriteLock {
+                val userByUsername = usersRepo.getUserByUsername(username)
+                if (userByUsername != null) return@withWriteLock null
+
+
+                val created = rollableBackOperation(
+                    rollback = {
+                        try {
+                            compensateRequiredRegistration(actionResult.id, roleLifecycle)
+                        } catch (cleanupError: Throwable) {
+                            error.addSuppressed(cleanupError)
+                        }
+                    },
+                    action = {
+                        createUserOrNull(username, email) ?: error("Unable to create user $username")
+                    },
+                )
+                val pending = rollableBackOperation(
+                    {
+                        roleLifecycle.removeRoles(created.id)
                     }
-                },
-                action = { created },
-            )
-            val pending = try {
-                roleLifecycle.markPending(created.id)
-            } catch (error: CancellationException) {
-                throw error
-            } catch (_: Exception) {
-                false
-            }
-            if (pending == false) throw RequiredEmailRegistrationRejected()
-            created
-        } ?: return@doSuspendTransaction null
+                ) {
+                    roleLifecycle.markPending(created.id)
+                }
+                if (pending == false) throw RequiredEmailRegistrationRejected()
+                created
+            } ?: return@doSuspendTransaction null
 
         val hashedPassword = Password(BCrypt.hashpw(password.string, BCrypt.gensalt()))
+
         val delivered = try {
             sender.sendRegistrationEmail(provisionalUser)
         } catch (error: CancellationException) {
             throw error
-        } catch (_: Exception) {
+        } catch (e: Exception) {
             false
         }
         if (delivered == false) throw RequiredEmailRegistrationRejected()
@@ -230,9 +238,12 @@ class AuthFeatureService(
      */
     private suspend fun createUserOrNull(username: Username, email: Email?): dev.inmo.wishlist.features.users.common.models.RegisteredUser? =
         try {
-            writeUsersRepo.create(listOf(NewUser(username, email))).firstOrNull()
+            writeUsersRepo.create(NewUser(username, email)).firstOrNull()
         } catch (_: DuplicateUserFieldException) {
             null
+        } catch (e: Throwable) {
+            logger.w("Unable to create user with data '$username' and '$email'")
+            throw e
         }
 
     /**

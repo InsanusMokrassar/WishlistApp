@@ -76,13 +76,14 @@ private suspend fun grantDefaultRolesWhileLocked(rolesRepo: RolesRepo, user: Reg
  * @param userId Provisional account awaiting verification.
  * @return `true` when the final direct state contains only the pending user role.
  */
-internal suspend fun markNewUserPending(rolesRepo: RolesRepo, userId: UserId): Boolean =
-    roleTransitionMutex.withLock {
+internal suspend fun markNewUserPending(rolesRepo: RolesRepo, userId: UserId): Boolean {
+    return roleTransitionMutex.withLock {
         val subject = roleSubject(userId)
         rolesRepo.excludeDirect(subject, UserRole)
         rolesRepo.includeDirect(subject, NewUserRole)
         rolesRepo.contains(subject, NewUserRole) && !rolesRepo.contains(subject, UserRole)
     }
+}
 
 /**
  * Removes every direct role for one user under the shared transition lock.
