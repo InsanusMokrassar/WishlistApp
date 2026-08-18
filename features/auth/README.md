@@ -37,7 +37,7 @@ End-to-end bearer-token authentication. Handles login (BCrypt password check), o
 | `RefreshRequest` | Wire DTO: `refreshToken: RefreshToken` |
 | `AuthFeatureUser` | `@Serializable` feature model returned by `getMe`/`getUser`/the "me" state flow: `id: UserId`, `username: Username`, `email: Email?`. Deliberately keeps `email` — this is the authenticated caller's own record, not a public listing; see its class KDoc. |
 | `AuthFeature` | Shared interface: `login`, `refresh`, two-argument legacy `register`, email-aware `register`, `getConfig(): AuthConfig`, `isRegistrationAvailable`; the email-aware overload and `getConfig()` default to the legacy surfaces for source compatibility |
-| `RegistrationEmailSender` | Server hook invoked for a provisional required-email account; successful registration credentials are installed and returned only after the hook succeeds |
+| `RegistrationEmailSender` | Server hook invoked for a provisional required-email account; after a successful invite the password is stored and registration returns credential-free `pendingEmailVerification`; normal login after verification is the first credential-producing step. |
 | `RegistrationRoleLifecycle` | Auth-owned dependency-inversion contract implemented by `features/roles`; marks a required self-registration pending and removes direct roles during compensation |
 | `UserRoleAuthorization` | Auth-owned server port implemented by `features/roles`; synchronously ensures optional registration has direct `User` and checks current direct `User` membership. Missing binding denies access. |
 | `ClientAuthFeature` | Client-only extension: `logout`, `getMe(): AuthFeatureUser?` |
