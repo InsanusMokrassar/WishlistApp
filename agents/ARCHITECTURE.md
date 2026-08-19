@@ -184,10 +184,10 @@ The `gradle/templates/` directory contains 24 reusable `.gradle` scripts. The `e
 
 ### Choosing the Right Template
 
-- **Feature `common/` module** (shared models, no UI): `mppJvmJsAndroid` (add `com.android.library` plugin)
+- **Feature `common/` module** (shared models, no UI): `mppJvmJsAndroid` (add `com.android.kotlin.multiplatform.library` plugin)
 - **Feature `server/` module** (JVM only, Ktor routes, Exposed tables): `mppJavaProject`
-- **Feature `client/` module** (shared UI, Compose): `mppJvmJsAndroidWithCompose` (add `com.android.library` + compose plugins)
-- **UI-only feature** (views, viewmodels, Compose): `mppJvmJsAndroidWithCompose` (add `com.android.library` + compose plugins)
+- **Feature `client/` module** (shared UI, Compose): `mppJvmJsAndroidWithCompose` (add `com.android.kotlin.multiplatform.library` + compose plugins)
+- **UI-only feature** (views, viewmodels, Compose): `mppJvmJsAndroidWithCompose` (add `com.android.kotlin.multiplatform.library` + compose plugins)
 
 ---
 
