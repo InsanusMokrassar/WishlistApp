@@ -34,7 +34,7 @@ class EmailRegistrationInviteSender(
     private val publicHttpOrigin = normalizePublicHttpOrigin(publicHttpOrigin)
 
     /**
-     * Mints the verification deeplink and sends a plain-text invitation.
+     * Mints the verification deeplink and sends an HTML invitation with a labeled anchor.
      *
      * @param user Newly persisted account.
      * @return `true` only when a recipient, deeplink service, and SMTP transport all succeed.
@@ -49,10 +49,10 @@ class EmailRegistrationInviteSender(
         )
         val url = buildEmailVerificationUrl(publicHttpOrigin, deeplinkId)
         val delivered = try {
-            emails.sendText(
+            emails.sendHtml(
                 recipient = recipient,
                 subject = subject,
-                text = "Open this link to verify your WishlistApp account:\n$url"
+                html = "<p>Verify your WishlistApp account by <a href=\"$url\">Verify email address</a>.</p>"
             )
         } catch (error: CancellationException) {
             try {

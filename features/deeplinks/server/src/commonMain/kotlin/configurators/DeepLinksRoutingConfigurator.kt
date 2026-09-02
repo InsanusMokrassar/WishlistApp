@@ -3,10 +3,11 @@ package dev.inmo.wishlist.features.deeplinks.server.configurators
 import dev.inmo.micro_utils.ktor.server.configurators.ApplicationRoutingConfigurator
 import dev.inmo.wishlist.features.deeplinks.common.DeepLinksConstants
 import dev.inmo.wishlist.features.deeplinks.common.models.DeepLinkId
-import dev.inmo.wishlist.features.deeplinks.server.models.HandleResult
+import dev.inmo.wishlist.features.deeplinks.common.models.HandleResult
 import dev.inmo.wishlist.features.deeplinks.server.services.DeepLinksService
 import io.ktor.http.HttpStatusCode
 import io.ktor.server.response.respond
+import io.ktor.server.response.respondRedirect
 import io.ktor.server.routing.Route
 import io.ktor.server.routing.get
 import io.ktor.server.routing.route
@@ -17,7 +18,7 @@ import io.ktor.server.routing.route
  * [ApplicationRoutingConfigurator.Element] under the global `/api` prefix.
  *
  * Status mapping: blank/missing id -> 400; [HandleResult.NotFound]/[HandleResult.Unhandled] -> 404;
- * [HandleResult.Handled] -> 200. A present-but-bogus id is a normal lookup miss (404), since
+ * [HandleResult.Handled.Common] -> 200; [HandleResult.Handled.Redirect] -> 302. A present-but-bogus id is a normal lookup miss (404), since
  * [DeepLinkId] is an opaque string and UUID format is not validated.
  *
  * @param service Server-only service that resolves an opened deeplink to a [HandleResult].
@@ -35,12 +36,12 @@ class DeepLinksRoutingConfigurator(
                         call.respond(HttpStatusCode.BadRequest)
                         return@get
                     }
-                val status = when (service.handle(deeplinkId)) {
-                    HandleResult.Handled -> HttpStatusCode.OK
-                    HandleResult.NotFound -> HttpStatusCode.NotFound
-                    HandleResult.Unhandled -> HttpStatusCode.NotFound
+                when (val result = service.handle(deeplinkId)) {
+                    HandleResult.Handled.Common -> call.respond(HttpStatusCode.OK)
+                    is HandleResult.Handled.Redirect -> call.respondRedirect(result.url, permanent = false)
+                    HandleResult.NotFound,
+                    HandleResult.Unhandled -> call.respond(HttpStatusCode.NotFound)
                 }
-                call.respond(status)
             }
         }
     }

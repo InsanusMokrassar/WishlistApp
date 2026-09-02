@@ -7,8 +7,8 @@ import dev.inmo.wishlist.features.deeplinks.common.DeepLinkHandler
 import dev.inmo.wishlist.features.deeplinks.common.models.DeepLinkHandlerId
 import dev.inmo.wishlist.features.deeplinks.common.models.DeepLinkHandlerInfo
 import dev.inmo.wishlist.features.deeplinks.common.models.DeepLinkId
+import dev.inmo.wishlist.features.deeplinks.common.models.HandleResult
 import dev.inmo.wishlist.features.deeplinks.common.repo.DeepLinksRepo
-import dev.inmo.wishlist.features.deeplinks.server.models.HandleResult
 
 /**
  * Server-only, in-process API for the deeplinks feature: mints deeplinks with attached handler info
@@ -74,8 +74,8 @@ class DeepLinksService(
      * Loads the stored [DeepLinkHandlerInfo]; if absent returns [HandleResult.NotFound]. Otherwise looks
      * the owning handler up by [DeepLinkHandlerInfo.handlerId]; if no handler is registered under that id
      * returns [HandleResult.Unhandled]. Otherwise passes the stored [DeepLinkHandlerInfo.value] (without
-     * the id) to [DeepLinkHandler.tryHandle], returning [HandleResult.Handled] on `true` and
-     * [HandleResult.Unhandled] on `false`.
+     * the id) to [DeepLinkHandler.tryHandle], preserving its successful subtype exactly and returning
+     * [HandleResult.Unhandled] when the handler returns `null`.
      *
      * @param deeplinkId Identifier of the opened deeplink.
      * @return The dispatch outcome.
@@ -83,9 +83,6 @@ class DeepLinksService(
     suspend fun handle(deeplinkId: DeepLinkId): HandleResult {
         val info = repo.get(deeplinkId) ?: return HandleResult.NotFound
         val handler = handlersById[info.handlerId] ?: return HandleResult.Unhandled
-        return when (handler.tryHandle(deeplinkId, info.value)) {
-            true -> HandleResult.Handled
-            false -> HandleResult.Unhandled
-        }
+        return handler.tryHandle(deeplinkId, info.value) ?: HandleResult.Unhandled
     }
 }

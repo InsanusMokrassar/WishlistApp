@@ -36,7 +36,7 @@ When no `"email"` object is present in the server config (the key is entirely ab
 |------|--------|-------------|
 | `Email` | `email/common` | `@JvmInline value class` wrapping a validated RFC-ish email string. Private constructor; constructed via `Email(value)` (throws `IllegalArgumentException`) or `Email.parse(value): Result<Email>` (non-throwing). Serializes as a bare JSON string; re-validates on decode. |
 | `EmailSerializer` | `email/common` | `KSerializer<Email>` using `PrimitiveKind.STRING`; used via `@Serializable(with = EmailSerializer::class)`. |
-| `EmailConstants` | `email/common` | Shared path-segment constants: `prefixPathPart`, `enabledPathPart`, `sendTestPathPart`, `myEmailPathPart`. |
+| `EmailConstants` | `email/common` | Shared path-segment and email-approval redirect constants: `prefixPathPart`, `enabledPathPart`, `sendTestPathPart`, `myEmailPathPart`, `approvalQueryParameter`, `approvalQueryValue`, `approvalRedirectPath`. |
 | `EmailFeature` (server) | `email/server` | Server-side interface: `isFeatureEnabled()`, `sendTestEmail(callerId, recipient)`, `setMyEmail(callerId, email?)` — every caller-scoped method receives the authenticated `UserId` explicitly. Implemented by `EmailFeatureService`. |
 | `EmailFeature` (client) | `email/client` | Client-side interface: `isFeatureEnabled()`, `sendTestEmail(recipient)`, `setMyEmail(email?)` — caller identity is resolved server-side from the bearer token. Implemented by `KtorEmailFeature`. |
 | `TestEmailRequest` | `email/common` | `@Serializable data class(recipient: Email)` — body for `POST /email/sendTest`. |
@@ -49,8 +49,8 @@ When no `"email"` object is present in the server config (the key is entirely ab
 | `DisabledEmailFeature` | `email/server` | SMTP-disabled `EmailFeature` implementation; sending remains disabled while `setMyEmail` uses the same shared coordinator, so storage behavior and verification atomicity do not depend on SMTP configuration. |
 | `EmailsService` | `email/server` | Server-only send interface (no HTTP exposure): `sendText(recipient, subject, text)`, `sendTextWithAttachments(recipient, subject, text, attachments)`, `sendHtml(recipient, subject, html)` — all `suspend`, all return `Boolean` (`false` when SMTP is disabled or on error). Implemented by `SmtpEmailService`; bound in Koin only when SMTP is configured. |
 | `EmailVerificationPayload` | `email/server` | Server-only polymorphic deeplink payload carrying the pending `UserId` and invited `Email`; the email is nullable only so persisted pre-change payloads decode and fail closed. |
-| `EmailRegistrationInviteSender` | `email/server` | Auth registration hook that creates an email-bound verification deeplink and sends an absolute URL below validated `publicHttpOrigin`; removes the link on false/ordinary failure and non-cancellably removes it before propagating cancellation. |
-| `EmailVerificationDeepLinkHandler` | `email/server` | Deeplink handler that delegates nullable invited-email validation, current-user lookup, exact email comparison, and role promotion to the shared coordinator; wrong payload types remain unhandled. |
+| `EmailRegistrationInviteSender` | `email/server` | Auth registration hook that creates an email-bound verification deeplink and sends a labeled HTML anchor below validated `publicHttpOrigin`; removes the link on false/ordinary failure and non-cancellably removes it before propagating cancellation. |
+| `EmailVerificationDeepLinkHandler` | `email/server` | Deeplink handler that delegates nullable invited-email validation, current-user lookup, exact email comparison, and role promotion to the shared coordinator; successful handling attempts a plain-text approval confirmation and returns the fixed root redirect marker. Wrong payload types remain unhandled. |
 | `EmailAttachment` | `email/server` | Attachment model for `sendTextWithAttachments`: `fileName`, `mimeType` (default `application/octet-stream`), `content: suspend () -> InputStream`. The provider may be invoked multiple times and must return a fresh stream on each call; content is streamed, never buffered as a whole `ByteArray`. |
 | `KtorEmailFeature` | `email/client` | Client `EmailFeature` impl; HTTP-only, no caching or business logic. |
 
@@ -70,6 +70,15 @@ When no `"email"` object is present in the server config (the key is entirely ab
 - **Client:** `KtorEmailFeature` is transport-only; no service wrapper needed (no memoization). Platform plugins (JS/JVM/Android) delegate to the shared `Plugin`.
 - **Registration invites (issue #73):** Every new payload stores the pending user id and exact recipient email; legacy null-email payloads remain decodable but fail closed. Self-service email mutation and equality-check-plus-promotion share one coordinator mutex. If mutation to B linearizes first, verification of A observes the mismatch and leaves `NewUserRole`; if verification linearizes first, promotion completes while A is current and a waiting post-approval edit to B may then succeed. Wrong payload type, missing user, cleared email, and mismatch remain unhandled. This preserves post-approval editing while preventing B from being written between a successful A comparison and promotion. Invite URL validation and false/error/cancellation cleanup remain unchanged.
 - Verification promotes only direct `NewUserRole` to direct `UserRole`; it does not issue Auth credentials. The account remains logged out until a normal password login follows promotion.
+- **Approval feedback and confirmation:** Registration invites use HTML with a visible `Verify email
+  address` anchor rather than displaying URL markup. After a successful promotion, verification
+  attempts a plain-text approval confirmation to the exact invited address and redirects to
+  `/?emailApproval=approved`. Missing SMTP, a `false` result, or an ordinary delivery exception do
+  not undo promotion or suppress the redirect; cancellation still propagates. Reopening a valid link
+  deliberately retries the confirmation attempt because no durable delivery receipt exists. At JS
+  startup the root shell consumes only this fixed marker, shows `Email has been approved.` through the
+  existing toast host, and removes the marker with `history.replaceState` before navigation begins so
+  refresh does not replay the message.
 - **Sample config SMTP block (enabled in `sample.config.json`; omit the whole `"email"` key to disable):**
   ```json
   "email": {

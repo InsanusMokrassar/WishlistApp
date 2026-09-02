@@ -2,6 +2,7 @@ package dev.inmo.wishlist.features.deeplinks.common
 
 import dev.inmo.wishlist.features.deeplinks.common.models.DeepLinkHandlerId
 import dev.inmo.wishlist.features.deeplinks.common.models.DeepLinkId
+import dev.inmo.wishlist.features.deeplinks.common.models.HandleResult
 
 /**
  * Contract a feature implements to react when one of ITS deeplinks is opened.
@@ -28,12 +29,13 @@ interface DeepLinkHandler {
      * [value] is this handler's own already-decoded polymorphic payload (the
      * [dev.inmo.wishlist.features.deeplinks.common.models.DeepLinkHandlerInfo.value], without the id).
      * The handler casts it to its concrete type (`value as? T`), performs its side-effect, and returns
-     * `true` if processed; it returns `false` if it cannot process the value (e.g. the cast fails or
-     * the current state is invalid), in which case the service reports the deeplink as unhandled.
+     * a [HandleResult.Handled] subtype if processed. It returns `null` if it cannot process the value
+     * (for example, because the cast fails or current state is invalid), in which case the service
+     * reports the deeplink as unhandled.
      *
      * @param deeplinkId Identifier of the opened deeplink.
      * @param value This handler's own decoded payload, passed as `Any`.
-     * @return `true` if this handler processed the deeplink, `false` otherwise.
+     * @return The successful outcome, or `null` when the deeplink remains unhandled.
      */
-    suspend fun tryHandle(deeplinkId: DeepLinkId, value: Any): Boolean
+    suspend fun tryHandle(deeplinkId: DeepLinkId, value: Any): HandleResult.Handled?
 }

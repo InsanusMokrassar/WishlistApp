@@ -23,4 +23,13 @@ object EmailConstants {
 
     /** Path segment for the self-service email-update action: `/email/myEmail`. */
     const val myEmailPathPart = "myEmail"
+
+    /** Query parameter consumed by the web shell after a successful email approval redirect. */
+    const val approvalQueryParameter = "emailApproval"
+
+    /** Fixed [approvalQueryParameter] value representing a successful approval. */
+    const val approvalQueryValue = "approved"
+
+    /** Same-origin root redirect emitted after a successful email approval. */
+    const val approvalRedirectPath = "/?emailApproval=approved"
 }

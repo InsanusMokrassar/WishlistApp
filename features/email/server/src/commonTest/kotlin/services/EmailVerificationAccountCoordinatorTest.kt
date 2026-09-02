@@ -5,6 +5,8 @@ import dev.inmo.kroles.repos.RolesRepo
 import dev.inmo.kroles.roles.BaseRole
 import dev.inmo.wishlist.features.deeplinks.common.DeepLinkHandler
 import dev.inmo.wishlist.features.deeplinks.common.models.DeepLinkId
+import dev.inmo.wishlist.features.deeplinks.common.models.HandleResult
+import dev.inmo.wishlist.features.email.common.EmailConstants
 import dev.inmo.wishlist.features.email.common.models.Email
 import dev.inmo.wishlist.features.email.server.EmailFeature
 import dev.inmo.wishlist.features.email.server.Plugin
@@ -186,7 +188,10 @@ class EmailVerificationAccountCoordinatorTest {
         assertEquals(invitedEmail, usersRepo.getById(user.id)?.email)
 
         rolesRepo.releasePromotion.complete(Unit)
-        assertTrue(verification.await())
+        assertEquals(
+            HandleResult.Handled.Redirect(EmailConstants.approvalRedirectPath),
+            verification.await(),
+        )
         assertEquals(invitedEmail, rolesRepo.emailAtUserRoleGrant)
         assertTrue(update.await())
         assertEquals(changedEmail, usersRepo.getById(user.id)?.email)
@@ -314,7 +319,7 @@ class EmailVerificationAccountCoordinatorTest {
         val handler = EmailVerificationDeepLinkHandler(coordinator)
 
         assertTrue(feature.setMyEmail(user.id, changedEmail))
-        assertFalse(handler.tryHandle(deeplinkId, EmailVerificationPayload(user.id, invitedEmail)))
+        assertEquals(null, handler.tryHandle(deeplinkId, EmailVerificationPayload(user.id, invitedEmail)))
 
         assertEquals(changedEmail, usersRepo.getById(user.id)?.email)
         assertEquals(setOf(NewUserRole), rolesRepo.getDirectRoles(subject).toSet())

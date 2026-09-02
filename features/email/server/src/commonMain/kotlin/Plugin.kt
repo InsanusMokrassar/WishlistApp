@@ -84,7 +84,10 @@ object Plugin : StartPlugin {
             }
         }
         singleWithRandomQualifier<DeepLinkHandler> {
-            EmailVerificationDeepLinkHandler(get<EmailVerificationAccountCoordinator>())
+            EmailVerificationDeepLinkHandler(
+                accountCoordinator = get<EmailVerificationAccountCoordinator>(),
+                emailsService = getOrNull<EmailsService>(),
+            )
         }
         single<RegistrationEmailSender> {
             EmailRegistrationInviteSender(

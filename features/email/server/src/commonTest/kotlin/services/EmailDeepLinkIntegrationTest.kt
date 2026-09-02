@@ -5,8 +5,9 @@ import dev.inmo.micro_utils.repos.MapKeyValueRepo
 import dev.inmo.wishlist.features.deeplinks.common.models.DeepLinkHandlerInfo
 import dev.inmo.wishlist.features.deeplinks.common.models.DeepLinkId
 import dev.inmo.wishlist.features.deeplinks.common.repo.DeepLinksRepo
-import dev.inmo.wishlist.features.deeplinks.server.models.HandleResult
+import dev.inmo.wishlist.features.deeplinks.common.models.HandleResult
 import dev.inmo.wishlist.features.deeplinks.server.services.DeepLinksService
+import dev.inmo.wishlist.features.email.common.EmailConstants
 import dev.inmo.wishlist.features.email.server.models.EmailVerification
 import dev.inmo.wishlist.features.email.server.models.EmailVerificationPayload
 import dev.inmo.wishlist.features.email.common.models.Email
@@ -83,7 +84,10 @@ class EmailDeepLinkIntegrationTest {
             EmailVerificationPayload(user.id, user.email),
         )
 
-        assertEquals(HandleResult.Handled, service.handle(deeplinkId))
+        assertEquals(
+            HandleResult.Handled.Redirect(EmailConstants.approvalRedirectPath),
+            service.handle(deeplinkId),
+        )
         assertEquals(setOf(UserRole), rolesRepo.getDirectRoles(subject).toSet())
     }
 }

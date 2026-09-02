@@ -95,7 +95,7 @@ class EmailRegistrationInviteSenderTest {
         }
     }
 
-    /** A configured sender creates the expected payload and sends its absolute URL. */
+    /** A configured sender creates the expected payload and sends a labeled HTML invite. */
     @Test
     fun senderCreatesDeepLinkAndSendsInvite() = runTest {
         val repo = FakeDeepLinksRepo()
@@ -105,10 +105,13 @@ class EmailRegistrationInviteSenderTest {
 
         assertTrue(sender.sendRegistrationEmail(user))
 
-        val call = emails.sendTextCalls.single()
+        val call = emails.sendHtmlCalls.single()
         assertEquals(user.email, call.recipient)
-        assertTrue(call.text.contains("http://localhost:8196/api/links/"))
         val stored = repo.getAll().values.single()
+        val url = buildEmailVerificationUrl("http://localhost:8196", repo.getAll().keys.single())
+        assertEquals("Verify your WishlistApp account", call.subject)
+        assertEquals("<p>Verify your WishlistApp account by <a href=\"$url\">Verify email address</a>.</p>", call.html)
+        assertTrue(emails.sendTextCalls.isEmpty())
         assertEquals(EmailVerification.handlerId, stored.handlerId)
         assertEquals("email.registration_verification", stored.handlerId.string)
         assertEquals(EmailVerificationPayload(user.id, user.email), stored.value)

@@ -25,7 +25,7 @@ with every other feature and compiles.
 
 | Method | Path | Auth | Body / Response | Description |
 |--------|------|------|-----------------|-------------|
-| GET | `/api/links/{deeplink_uuid}` | none | empty body; `200` handled, `404` not-found or unhandled, `400` blank/missing id | User-clickable deeplink, served under the standard `/api` prefix via a normal `ApplicationRoutingConfigurator.Element`, auto-wrapped by `InternalApplicationRoutingConfigurator`. |
+| GET | `/api/links/{deeplink_uuid}` | none | empty `200` for common handling; `302 Location` for redirects; `404` not-found or unhandled; `400` blank/missing id | User-clickable deeplink, served under the standard `/api` prefix via a normal `ApplicationRoutingConfigurator.Element`, auto-wrapped by `InternalApplicationRoutingConfigurator`. |
 
 There is **no HTTP create endpoint**. Creating a deeplink is the in-process
 `DeepLinksService.createDeepLink(handlerId, value)` API, called by other server features (avoids
@@ -47,13 +47,15 @@ Key data types:
   `SerializersModule` (all handler-providing features register their value type via
   `polymorphic(Any::class, T::class, T.serializer())`).
 - `DeepLinkHandler` — interface in `common` with `val id: DeepLinkHandlerId` and
-  `suspend fun tryHandle(deeplinkId: DeepLinkId, value: Any): Boolean`. The service selects the
-  handler by `id` (map lookup), then passes the decoded `value` (no wrapper, no id). The handler
-  casts `value` to its concrete type, performs its side-effect, and returns `true` if processed,
-  `false` otherwise.
+  `suspend fun tryHandle(deeplinkId: DeepLinkId, value: Any): HandleResult.Handled?`. The service
+  selects the handler by `id` (map lookup), then passes the decoded `value` (no wrapper, no id).
+  The handler returns `null` when it cannot process the payload, `Handled.Common` for an ordinary
+  success, or `Handled.Redirect(url)` for a trusted handler-owned redirect destination.
 - `DeepLinksRepo : KeyValueRepo<DeepLinkId, DeepLinkHandlerInfo>` — persistent store (Exposed-backed
   `ExposedDeepLinksRepo`, `deeplinks` table, JSON blob value column).
-- `HandleResult` — `@Serializable` sealed interface: `NotFound` / `Unhandled` / `Handled`; mapped to HTTP status by the route.
+- `HandleResult` — `@Serializable` sealed interface in `deeplinks/common`: `NotFound` /
+  `Unhandled` / `Handled.Common` / `Handled.Redirect(url)`; mapped to `404` / `404` / `200` /
+  temporary `302 Location` by the server route.
 
 ## Architecture Notes
 
@@ -88,3 +90,6 @@ Key data types:
 - **Email verification handler:** `features/email/server` registers `email.registration_verification`
   and its polymorphic payload when the email plugin is loaded. The deeplinks core remains generic; the
   handler checks that the referenced user exists and performs the idempotent role transition.
+- **Handler-owned redirect safety.** The dispatcher preserves `Handled.Redirect(url)` without parsing
+  or rewriting it. A concrete handler owns destination safety; the email handler emits only its fixed
+  same-origin root path, never payload-controlled text.
