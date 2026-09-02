@@ -19,6 +19,7 @@ klock = "5.4.0"
 koin = "4.2.2"
 exposed = "1.4.0"
 psql = "42.7.13"
+xerial-sql = "3.53.4.0"
 uuid = "0.8.4"
 bcrypt = "0.4"
 angusMail = "2.0.5"
@@ -58,6 +59,7 @@ material-icons = { module = "org.jetbrains.compose.material:material-icons-exten
 
 exposed-jdbc = { module = "org.jetbrains.exposed:exposed-jdbc", version.ref = "exposed" }
 psql = { module = "org.postgresql:postgresql", version.ref = "psql" }
+xerial-sql = { module = "org.xerial:sqlite-jdbc", version.ref = "xerial-sql" }
 
 # Ktor
 

@@ -7,9 +7,7 @@
     "": "/static"
   },
   "database": {
-    "url": "jdbc:postgresql://postgres:5432/TEST_DB",
-    "username": "TEST_USERNAME",
-    "password": "TEST_PASSWORD"
+    "url": "jdbc:sqlite:./local.db"
   },
   "plugins": [
     "dev.inmo.wishlist.features.common.server.JVMPlugin",
@@ -33,7 +31,7 @@
       "password": "pass",
       "from": "noreply@example.com",
       "useTls": true,
-      "useSsl": false
+      "useSsl": true
     }
   },
   "filesFolder": "/data/uploaded_files",

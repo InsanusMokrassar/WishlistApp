@@ -1,15 +1,15 @@
 version: "3.4"
 
 services:
-  wishlist_postgres:
-    image: postgres
-    container_name: wishlist_postgres
-    environment:
-      POSTGRES_USER: "test"
-      POSTGRES_PASSWORD: "test"
-      POSTGRES_DB: "test"
-    ports:
-      - "8501:5432"
+#  wishlist_postgres:
+#    image: postgres
+#    container_name: wishlist_postgres
+#    environment:
+#      POSTGRES_USER: "test"
+#      POSTGRES_PASSWORD: "test"
+#      POSTGRES_DB: "test"
+#    ports:
+#      - "8501:5432"
 
   wishlist_mailpit:
     image: axllent/mailpit:latest

@@ -227,6 +227,7 @@ class SmtpEmailService private constructor(
     private fun buildSession(smtp: SmtpConfig): Session {
         val props = Properties().apply {
             put("mail.smtp.host", smtp.host)
+            put("mail.smtp.ssl.trust", smtp.host)
             put("mail.smtp.port", smtp.port.toString())
             if (smtp.useTls) {
                 put("mail.smtp.starttls.enable", "true")

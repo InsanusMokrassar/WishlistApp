@@ -7,9 +7,7 @@
     "": "../client/build/dist/js/developmentExecutable"
   },
   "database": {
-    "url": "jdbc:postgresql://127.0.0.1:8501/test",
-    "username": "test",
-    "password": "test"
+    "url": "jdbc:sqlite:./local.db"
   },
   "plugins": [
     "dev.inmo.wishlist.features.common.server.JVMPlugin",
