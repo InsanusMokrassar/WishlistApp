@@ -9,6 +9,17 @@ kotlin {
     }
 
     sourceSets {
+        androidMain {
+            dependencies {
+                // Keep AndroidX Core compatible with the repository-owned AGP 8.13.2; remove after AGP upgrade.
+                implementation("androidx.core:core:1.18.0") {
+                    version { strictly("1.18.0") }
+                }
+                implementation("androidx.core:core-ktx:1.18.0") {
+                    version { strictly("1.18.0") }
+                }
+            }
+        }
         androidUnitTest {
             dependencies {
                 implementation kotlin('test-junit')
