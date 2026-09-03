@@ -16,10 +16,15 @@ import org.jetbrains.exposed.v1.core.statements.UpdateBuilder
 import org.jetbrains.exposed.v1.exceptions.ExposedSQLException
 import org.jetbrains.exposed.v1.jdbc.Database
 import org.jetbrains.exposed.v1.jdbc.transactions.transaction
+import org.sqlite.SQLiteErrorCode
+import org.sqlite.SQLiteException
 import java.sql.SQLException
+import java.util.ArrayDeque
+import java.util.Collections
+import java.util.IdentityHashMap
 
 /**
- * Exposed-backed implementation of [UsersRepo].
+ * Exposed-backed PostgreSQL and SQLite implementation of [UsersRepo].
  *
  * Stores users in the `users` table with an auto-increment `id`, a unique `username`, and a
  * unique, nullable `email` column. The nullable `email` column is additive — `initTable()` adds
@@ -27,10 +32,9 @@ import java.sql.SQLException
  * `NULL`; `NULL` values are exempt from the uniqueness check, so users without a stored email
  * never collide with each other.
  *
- * [update] and [create] translate a Postgres unique-violation on either unique column into
- * [DuplicateUserFieldException] (see [isUniqueViolation]) instead of letting the raw
- * [ExposedSQLException] escape — callers that need to distinguish "duplicate" from other
- * failures (e.g. HTTP route handlers responding `409 Conflict`) should catch that type.
+ * [update] and [create] translate an exact PostgreSQL or SQLite unique-violation on either unique
+ * column into [DuplicateUserFieldException] (see [isUniqueViolation]) instead of letting the raw
+ * [ExposedSQLException] escape. Other constraint and database failures retain their original type.
  *
  * @param database Exposed [Database] instance (provided by the common server plugin).
  */
@@ -115,10 +119,10 @@ class ExposedUsersRepo(
     /**
      * Persists [value] over the row identified by [id].
      *
-     * Wraps the library default (`AbstractExposedWriteCRUDRepo.update`) with translation of a
-     * Postgres unique-violation on [usernameColumn]/[emailColumn] into
-     * [DuplicateUserFieldException] — every other exception, and the plain `null` return for
-     * "no such id", are unchanged.
+     * Wraps the library default (`AbstractExposedWriteCRUDRepo.update`) with translation of an
+     * exact PostgreSQL or SQLite unique-violation on [usernameColumn]/[emailColumn] into
+     * [DuplicateUserFieldException]. Every other exception and the plain `null` return for
+     * "no such id" are unchanged.
      *
      * @param id Target user id.
      * @param value Replacement user data.
@@ -136,8 +140,8 @@ class ExposedUsersRepo(
     /**
      * Inserts [values] as new users.
      *
-     * Wraps the library default (`AbstractExposedWriteCRUDRepo.create`) with translation of a
-     * Postgres unique-violation on [usernameColumn]/[emailColumn] into
+     * Wraps the library default (`AbstractExposedWriteCRUDRepo.create`) with translation of an
+     * exact PostgreSQL or SQLite unique-violation on [usernameColumn]/[emailColumn] into
      * [DuplicateUserFieldException].
      *
      * @param values New users to insert.
@@ -158,10 +162,41 @@ class ExposedUsersRepo(
 }
 
 /**
- * Returns whether this exception represents a Postgres `unique_violation` (SQL state `23505`) —
- * i.e. a `.uniqueIndex()`-constrained column already holds the given value for a different row.
+ * Returns whether this exception graph contains PostgreSQL `unique_violation` SQL state `23505`
+ * or Xerial's exact SQLite UNIQUE/PRIMARY KEY extended constraint result code.
  *
- * A standalone, pure function (rather than inlined in [ExposedUsersRepo]'s catch blocks) so it
- * can be unit-tested directly against a plain [SQLException], without a live database.
+ * Traverses every [Throwable.cause] and [SQLException.getNextException] edge iteratively, tracking
+ * object identity so wrapper cycles terminate without merging distinct exceptions that compare
+ * equal. Generic JDBC code 19, message text, base SQLite constraints, and unrelated constraints
+ * are deliberately not classified as duplicates.
+ *
+ * @return `true` only when an exact supported unique-violation marker is reachable.
  */
-internal fun SQLException.isUniqueViolation(): Boolean = sqlState == "23505"
+internal fun SQLException.isUniqueViolation(): Boolean {
+    val pending = ArrayDeque<Throwable>()
+    val visited = Collections.newSetFromMap(IdentityHashMap<Throwable, Boolean>())
+    pending.addLast(this)
+
+    while (pending.isNotEmpty()) {
+        val current = pending.removeFirst()
+        if (!visited.add(current)) continue
+
+        if (current is SQLException) {
+            if (current.sqlState == "23505") return true
+            if (current is SQLiteException) {
+                when (current.resultCode) {
+                    SQLiteErrorCode.SQLITE_CONSTRAINT_UNIQUE,
+                    SQLiteErrorCode.SQLITE_CONSTRAINT_PRIMARYKEY -> return true
+                    else -> Unit
+                }
+            }
+        }
+
+        current.cause?.let(pending::addLast)
+        if (current is SQLException) {
+            current.nextException?.let(pending::addLast)
+        }
+    }
+
+    return false
+}
