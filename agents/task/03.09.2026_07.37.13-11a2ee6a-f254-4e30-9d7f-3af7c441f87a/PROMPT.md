@@ -12,3 +12,7 @@ Address selected review findings and explain the remaining findings:
 8. Recommend a fix for cancellation after the committed user insert but before registration compensation is installed; do not implement without a later operator decision.
 
 Preserve unrelated behavior and add focused regression coverage for implemented fixes.
+
+## Follow-up decision
+
+Implement finding 8: close the cancellation window after the user insert commits but before provisional-user compensation is enrolled. Preserve cancellation propagation and existing registration behavior, and add deterministic regression coverage. Finding 4 remains recommendation-only and must not be implemented.
