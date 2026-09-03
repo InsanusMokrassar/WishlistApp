@@ -85,6 +85,10 @@ Key data types:
   link is not exposed over HTTP to avoid unauthenticated link creation.
 - **Failure cleanup is in-process.** A feature that mints a link and then fails its downstream
   operation removes the link through `removeDeepLink`; public callers cannot delete or mint links.
+- **Required-email invite ownership:** After successful SMTP acceptance, the email feature transfers
+  exact-link rollback ownership to a request-local Auth delivery handle. The handle captures only
+  the relevant `DeepLinkId` and `DeepLinksService`; no shared user-to-link map, singleton registry,
+  or thread-local ownership state exists.
 - **Empty handler list is correct.** With zero handlers registered, `handle` returns `Unhandled`
   (→ `404`) for any stored link until a feature provides a handler. This is expected infra behavior.
 - **Email verification handler:** `features/email/server` registers `email.registration_verification`

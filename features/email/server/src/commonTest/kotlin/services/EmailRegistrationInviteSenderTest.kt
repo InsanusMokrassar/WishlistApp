@@ -117,6 +117,45 @@ class EmailRegistrationInviteSenderTest {
         assertEquals(EmailVerificationPayload(user.id, user.email), stored.value)
     }
 
+    /** A compensable delivery retains its link until the returned request-local handle rolls it back. */
+    @Test
+    fun compensableDeliveryRetainsAndRollsBackItsExactDeepLink() = runTest {
+        val repo = FakeDeepLinksRepo()
+        val sender = EmailRegistrationInviteSender(
+            emailsService = FakeEmailsService(),
+            deepLinksService = DeepLinksService(repo, emptyList()),
+            publicHttpOrigin = "http://localhost:8196",
+        )
+
+        val handle = checkNotNull(sender.sendRegistrationEmailWithCompensation(user))
+
+        assertEquals(1, repo.getAll().size)
+        handle.rollback()
+        assertTrue(repo.getAll().isEmpty())
+    }
+
+    /** Two successful deliveries receive independent handles that never overwrite one another's links. */
+    @Test
+    fun compensableDeliveryHandlesOwnOnlyTheirExactDeepLinks() = runTest {
+        val repo = FakeDeepLinksRepo()
+        val sender = EmailRegistrationInviteSender(
+            emailsService = FakeEmailsService(),
+            deepLinksService = DeepLinksService(repo, emptyList()),
+            publicHttpOrigin = "http://localhost:8196",
+        )
+        val secondUser = RegisteredUser(UserId(8L), Username("bob"), Email("bob@example.com"))
+
+        val firstHandle = checkNotNull(sender.sendRegistrationEmailWithCompensation(user))
+        val secondHandle = checkNotNull(sender.sendRegistrationEmailWithCompensation(secondUser))
+
+        firstHandle.rollback()
+
+        assertEquals(1, repo.getAll().size)
+        assertEquals(EmailVerificationPayload(secondUser.id, secondUser.email), repo.getAll().values.single().value)
+        secondHandle.rollback()
+        assertTrue(repo.getAll().isEmpty())
+    }
+
     /** A false SMTP result removes the deeplink minted for the failed invite. */
     @Test
     fun senderRemovesDeepLinkWhenEmailDeliveryFails() = runTest {

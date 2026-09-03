@@ -5,12 +5,16 @@ import kotlinx.serialization.SerializationException
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonNull
 import kotlinx.serialization.json.buildJsonObject
+import kotlinx.serialization.json.jsonObject
+import kotlinx.serialization.json.jsonPrimitive
 import kotlinx.serialization.json.put
 import kotlinx.serialization.json.putJsonObject
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertFalse
 import kotlin.test.assertFailsWith
 import kotlin.test.assertNull
+import kotlin.test.assertTrue
 
 /**
  * Verifies [EmailConfig]'s decode contract in isolation — a plain [Json] instance, no Koin/Plugin
@@ -34,6 +38,7 @@ class EmailConfigTest {
                 put("from", "noreply@example.com")
                 put("useTls", false)
                 put("useSsl", true)
+                put("unsafeSsl", true)
             }
         }
 
@@ -46,6 +51,7 @@ class EmailConfigTest {
         assertEquals(Email("noreply@example.com"), config.smtp.from)
         assertEquals(false, config.smtp.useTls)
         assertEquals(true, config.smtp.useSsl)
+        assertTrue(config.smtp.unsafeSsl)
     }
 
     /** Omitted optional `smtp` fields fall back to [SmtpConfig]'s declared defaults. */
@@ -65,6 +71,7 @@ class EmailConfigTest {
         assertNull(config.smtp.password)
         assertEquals(true, config.smtp.useTls)
         assertEquals(false, config.smtp.useSsl)
+        assertFalse(config.smtp.unsafeSsl)
     }
 
     /** [EmailConfig.smtp] has no default: an `"email"` object with no `"smtp"` key fails to decode. */
@@ -87,5 +94,25 @@ class EmailConfigTest {
         assertFailsWith<SerializationException> {
             json.decodeFromJsonElement(EmailConfig.serializer(), element)
         }
+    }
+
+    /** The sample uses STARTTLS on port 587 and preserves normal certificate validation. */
+    @Test
+    fun sampleSubmissionPortUsesStartTlsAndSafeCertificateValidation() {
+        val sampleFile = generateSequence(java.io.File(System.getProperty("user.dir")).canonicalFile) {
+            it.parentFile
+        }.map {
+            java.io.File(it, "server/sample.config.json")
+        }.firstOrNull {
+            it.isFile
+        } ?: error("server/sample.config.json not found")
+        val smtp = json.parseToJsonElement(sampleFile.readText()).jsonObject
+            .getValue("email").jsonObject
+            .getValue("smtp").jsonObject
+
+        assertEquals(587, smtp.getValue("port").jsonPrimitive.content.toInt())
+        assertTrue(smtp.getValue("useTls").jsonPrimitive.content.toBoolean())
+        assertFalse(smtp.getValue("useSsl").jsonPrimitive.content.toBoolean())
+        assertFalse(smtp.getValue("unsafeSsl").jsonPrimitive.content.toBoolean())
     }
 }

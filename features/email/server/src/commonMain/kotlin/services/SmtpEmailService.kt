@@ -26,6 +26,22 @@ import java.io.OutputStream
 import java.util.Properties
 
 /**
+ * Builds Jakarta Mail SMTP properties from [smtp] without changing certificate validation unless
+ * [SmtpConfig.unsafeSsl] is explicitly enabled.
+ *
+ * @param smtp SMTP connection and authentication settings.
+ * @return Properties accepted by [Session.getInstance].
+ */
+internal fun buildSmtpSessionProperties(smtp: SmtpConfig): Properties = Properties().apply {
+    setProperty("mail.smtp.host", smtp.host)
+    setProperty("mail.smtp.port", smtp.port.toString())
+    if (smtp.useTls) setProperty("mail.smtp.starttls.enable", "true")
+    if (smtp.useSsl) setProperty("mail.smtp.ssl.enable", "true")
+    if (smtp.username != null) setProperty("mail.smtp.auth", "true")
+    if (smtp.unsafeSsl) setProperty("mail.smtp.ssl.trust", smtp.host)
+}
+
+/**
  * SMTP delivery service backed by Jakarta Mail (Angus Mail); the server-side [EmailsService]
  * implementation.
  *
@@ -225,20 +241,7 @@ class SmtpEmailService private constructor(
      * @return Ready-to-use [Session].
      */
     private fun buildSession(smtp: SmtpConfig): Session {
-        val props = Properties().apply {
-            put("mail.smtp.host", smtp.host)
-            put("mail.smtp.ssl.trust", smtp.host)
-            put("mail.smtp.port", smtp.port.toString())
-            if (smtp.useTls) {
-                put("mail.smtp.starttls.enable", "true")
-            }
-            if (smtp.useSsl) {
-                put("mail.smtp.ssl.enable", "true")
-            }
-            if (smtp.username != null) {
-                put("mail.smtp.auth", "true")
-            }
-        }
+        val props = buildSmtpSessionProperties(smtp)
         return when {
             smtp.username != null && smtp.password != null -> {
                 Session.getInstance(props, object : jakarta.mail.Authenticator() {

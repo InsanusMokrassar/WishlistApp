@@ -16,3 +16,27 @@ fun interface RegistrationEmailSender {
      */
     suspend fun sendRegistrationEmail(user: RegisteredUser): Boolean
 }
+
+/**
+ * Request-local compensation for an invite artifact delivered during required-email registration.
+ */
+fun interface RegistrationEmailDeliveryHandle {
+    /** Removes the exact delivery artifact owned by the originating registration request. */
+    suspend fun rollback()
+}
+
+/**
+ * Optional extension of [RegistrationEmailSender] that returns request-local rollback ownership
+ * after successful delivery while preserving the legacy Boolean sender contract.
+ */
+interface CompensableRegistrationEmailSender : RegistrationEmailSender {
+    /**
+     * Sends an invite and returns its exact rollback handle only after successful delivery.
+     *
+     * @param user Newly persisted account receiving the verification invite.
+     * @return Request-local delivery handle, or `null` when delivery is unavailable or fails.
+     */
+    suspend fun sendRegistrationEmailWithCompensation(
+        user: RegisteredUser,
+    ): RegistrationEmailDeliveryHandle?
+}

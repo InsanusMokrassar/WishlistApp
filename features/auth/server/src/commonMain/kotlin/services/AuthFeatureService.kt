@@ -16,6 +16,7 @@ import dev.inmo.micro_utils.transactions.rollableBackOperation
 import korlibs.time.DateTime
 import org.mindrot.jbcrypt.BCrypt
 import dev.inmo.wishlist.features.auth.server.ServerAuthFeature
+import dev.inmo.wishlist.features.auth.server.CompensableRegistrationEmailSender
 import dev.inmo.wishlist.features.auth.server.RegistrationEmailSender
 import dev.inmo.wishlist.features.auth.server.RegistrationRoleLifecycle
 import dev.inmo.wishlist.features.auth.server.UserRoleAuthorization
@@ -212,10 +213,29 @@ class AuthFeatureService(
         val hashedPassword = Password(BCrypt.hashpw(password.string, BCrypt.gensalt()))
 
         val delivered = try {
-            sender.sendRegistrationEmail(provisionalUser)
+            when (sender) {
+                is CompensableRegistrationEmailSender -> rollableBackOperation(
+                    rollback = {
+                        val handle = actionResult
+                        if (handle != null) {
+                            try {
+                                withContext(NonCancellable) {
+                                    handle.rollback()
+                                }
+                            } catch (cleanupError: Throwable) {
+                                error.addSuppressed(cleanupError)
+                            }
+                        }
+                    },
+                    action = {
+                        sender.sendRegistrationEmailWithCompensation(provisionalUser)
+                    },
+                ) != null
+                else -> sender.sendRegistrationEmail(provisionalUser)
+            }
         } catch (error: CancellationException) {
             throw error
-        } catch (e: Exception) {
+        } catch (_: Exception) {
             false
         }
         if (delivered == false) throw RequiredEmailRegistrationRejected()

@@ -1,6 +1,7 @@
 package dev.inmo.wishlist.features.email.server.services
 
-import dev.inmo.wishlist.features.auth.server.RegistrationEmailSender
+import dev.inmo.wishlist.features.auth.server.CompensableRegistrationEmailSender
+import dev.inmo.wishlist.features.auth.server.RegistrationEmailDeliveryHandle
 import dev.inmo.wishlist.features.deeplinks.common.models.DeepLinkId
 import dev.inmo.wishlist.features.deeplinks.server.services.DeepLinksService
 import dev.inmo.wishlist.features.email.server.EmailsService
@@ -26,7 +27,7 @@ class EmailRegistrationInviteSender(
     private val emailsService: EmailsService?,
     private val deepLinksService: DeepLinksService?,
     publicHttpOrigin: String,
-) : RegistrationEmailSender {
+) : CompensableRegistrationEmailSender {
     /** Subject used for new-account verification invites. */
     private val subject = "Verify your WishlistApp account"
 
@@ -39,10 +40,22 @@ class EmailRegistrationInviteSender(
      * @param user Newly persisted account.
      * @return `true` only when a recipient, deeplink service, and SMTP transport all succeed.
      */
-    override suspend fun sendRegistrationEmail(user: RegisteredUser): Boolean {
-        val recipient = user.email ?: return false
-        val links = deepLinksService ?: return false
-        val emails = emailsService ?: return false
+    override suspend fun sendRegistrationEmail(user: RegisteredUser): Boolean =
+        sendRegistrationEmailWithCompensation(user) != null
+
+    /**
+     * Mints the verification deeplink and returns rollback ownership only after SMTP accepts the
+     * matching invite.
+     *
+     * @param user Newly persisted account.
+     * @return A handle for the exact delivered deeplink, or `null` when delivery cannot complete.
+     */
+    override suspend fun sendRegistrationEmailWithCompensation(
+        user: RegisteredUser,
+    ): RegistrationEmailDeliveryHandle? {
+        val recipient = user.email ?: return null
+        val links = deepLinksService ?: return null
+        val emails = emailsService ?: return null
         val deeplinkId = links.createDeepLink(
             EmailVerification.handlerId,
             EmailVerificationPayload(user.id, recipient)
@@ -59,16 +72,18 @@ class EmailRegistrationInviteSender(
                 withContext(NonCancellable) {
                     links.removeDeepLink(deeplinkId)
                 }
-            } catch (cleanupError: Exception) {
+            } catch (cleanupError: Throwable) {
                 error.addSuppressed(cleanupError)
             }
             throw error
         } catch (_: Exception) {
             false
         }
-        if (delivered) return true
+        if (delivered) return RegistrationEmailDeliveryHandle {
+            links.removeDeepLink(deeplinkId)
+        }
         links.removeDeepLink(deeplinkId)
-        return false
+        return null
     }
 }
 

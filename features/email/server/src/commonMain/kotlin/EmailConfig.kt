@@ -38,6 +38,8 @@ data class EmailConfig(
  *   Defaults to `true`.
  * @property useSsl Whether to use SSL/TLS on connect (`mail.smtp.ssl.enable`).
  *   Defaults to `false`. Set to `true` for port 465.
+ * @property unsafeSsl Whether to trust the configured SMTP host without normal certificate-chain
+ *   validation. Defaults to `false`; setting `true` is an explicit unsafe opt-in.
  */
 @Serializable
 data class SmtpConfig(
@@ -47,5 +49,6 @@ data class SmtpConfig(
     val password: String? = null,
     val from: Email,
     val useTls: Boolean = true,
-    val useSsl: Boolean = false
+    val useSsl: Boolean = false,
+    val unsafeSsl: Boolean = false,
 )

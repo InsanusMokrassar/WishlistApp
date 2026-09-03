@@ -31,7 +31,8 @@
       "password": "pass",
       "from": "noreply@example.com",
       "useTls": true,
-      "useSsl": true
+      "useSsl": false,
+      "unsafeSsl": false
     }
   },
   "filesFolder": "/data/uploaded_files",

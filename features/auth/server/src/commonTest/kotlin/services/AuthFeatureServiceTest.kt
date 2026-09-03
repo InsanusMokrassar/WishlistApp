@@ -8,6 +8,8 @@ import dev.inmo.wishlist.features.auth.common.models.Password
 import dev.inmo.wishlist.features.auth.common.models.RefreshToken
 import dev.inmo.wishlist.features.auth.common.models.RegistrationResult
 import dev.inmo.wishlist.features.auth.common.models.Token
+import dev.inmo.wishlist.features.auth.server.CompensableRegistrationEmailSender
+import dev.inmo.wishlist.features.auth.server.RegistrationEmailDeliveryHandle
 import dev.inmo.wishlist.features.auth.server.RegistrationEmailSender
 import dev.inmo.wishlist.features.auth.server.RegistrationRoleLifecycle
 import dev.inmo.wishlist.features.auth.server.UserRoleAuthorization
@@ -22,6 +24,7 @@ import dev.inmo.wishlist.features.users.common.repo.exceptions.DuplicateUserFiel
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.async
+import kotlinx.coroutines.awaitCancellation
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.test.runTest
 import kotlinx.coroutines.withTimeout
@@ -118,6 +121,76 @@ private class FakeRegistrationEmailSender(
         val result = results.getOrNull(attemptCount) ?: results.lastOrNull() ?: false
         attemptCount++
         return result
+    }
+}
+
+/**
+ * Records rollback calls for one request-local delivered-invite artifact.
+ *
+ * @param failure Optional cleanup failure used to prove original failures remain primary.
+ * @param yieldBeforeCompletion Whether rollback yields once before completing.
+ */
+private class TrackingRegistrationEmailDeliveryHandle(
+    private val failure: Throwable? = null,
+    private val yieldBeforeCompletion: Boolean = false,
+) : RegistrationEmailDeliveryHandle {
+    /** Number of completed rollback attempts. */
+    var rollbackCalls = 0
+        private set
+
+    /** Removes the tracked artifact or throws the configured cleanup failure. */
+    override suspend fun rollback() {
+        if (yieldBeforeCompletion) kotlinx.coroutines.yield()
+        rollbackCalls++
+        failure?.let { throw it }
+    }
+}
+
+/**
+ * Sender fixture exposing the additive compensable delivery capability.
+ *
+ * @param handle Handle returned after successful delivery; `null` represents delivery failure.
+ */
+private class FakeCompensableRegistrationEmailSender(
+    private val handle: RegistrationEmailDeliveryHandle?,
+) : CompensableRegistrationEmailSender {
+    /** Number of legacy Boolean delivery calls. */
+    var legacyCalls = 0
+        private set
+
+    /** Number of compensable delivery calls. */
+    var compensableCalls = 0
+        private set
+
+    /** Records legacy fallback use and reports whether a handle exists. */
+    override suspend fun sendRegistrationEmail(user: RegisteredUser): Boolean {
+        legacyCalls++
+        return handle != null
+    }
+
+    /** Records additive-capability use and returns the configured request-local handle. */
+    override suspend fun sendRegistrationEmailWithCompensation(
+        user: RegisteredUser,
+    ): RegistrationEmailDeliveryHandle? {
+        compensableCalls++
+        return handle
+    }
+}
+
+/** Password store that suspends finalization until the parent registration coroutine is cancelled. */
+private class SuspendingPasswordsRepo : PasswordsRepo,
+    dev.inmo.micro_utils.repos.KeyValueRepo<UserId, Password> by MapKeyValueRepo() {
+    /** Completes once required-email finalization begins storing a password. */
+    val started = CompletableDeferred<Unit>()
+
+    /**
+     * Announces finalization and waits for cancellation instead of persisting a password.
+     *
+     * @param toSet Passwords Auth requested to persist.
+     */
+    override suspend fun set(toSet: Map<UserId, Password>) {
+        started.complete(Unit)
+        awaitCancellation()
     }
 }
 
@@ -342,7 +415,8 @@ class AuthFeatureServiceTest {
     @Test
     fun requiredEmailRegistrationReturnsPendingAfterInviteAndPasswordStorage() = runTest {
         val usersRepo = FakeUsersRepo()
-        val sender = FakeRegistrationEmailSender(true)
+        val handle = TrackingRegistrationEmailDeliveryHandle()
+        val sender = FakeCompensableRegistrationEmailSender(handle)
         val lifecycle = FakeRegistrationRoleLifecycle()
         val email = Email("alice@example.com")
         val service = buildService(
@@ -357,11 +431,10 @@ class AuthFeatureServiceTest {
             RegistrationResult.PendingEmailVerification,
             service.register(Username("alice"), plainPassword, email),
         )
-        assertEquals(
-            listOfNotNull(usersRepo.getUserByUsername(Username("alice"))),
-            sender.users
-        )
-        assertEquals(sender.users.map { it.id }.toSet(), lifecycle.directRoleUserIds)
+        assertEquals(1, sender.compensableCalls)
+        assertEquals(0, sender.legacyCalls)
+        assertEquals(0, handle.rollbackCalls)
+        assertEquals(usersRepo.getAll().keys, lifecycle.directRoleUserIds)
     }
 
     /** Current direct-role removal invalidates login, refresh, bearer, and token-to-user resolution. */
@@ -521,12 +594,13 @@ class AuthFeatureServiceTest {
         val usersRepo = FakeUsersRepo()
         val passwordsRepo = ThrowingPasswordsRepo(failure)
         val lifecycle = FakeRegistrationRoleLifecycle()
+        val handle = TrackingRegistrationEmailDeliveryHandle()
         val service = buildService(
             usersRepo = usersRepo,
             passwordsRepo = passwordsRepo,
             enableRegistration = true,
             requireEmailForRegistration = true,
-            registrationEmailSender = FakeRegistrationEmailSender(true),
+            registrationEmailSender = FakeCompensableRegistrationEmailSender(handle),
             registrationRoleLifecycle = lifecycle,
         )
 
@@ -535,6 +609,38 @@ class AuthFeatureServiceTest {
         }
 
         assertSame(failure, thrown)
+        assertEquals(1, handle.rollbackCalls)
+        assertTrue(usersRepo.getAll().isEmpty())
+        assertTrue(passwordsRepo.getAll().isEmpty())
+        assertTrue(lifecycle.directRoleUserIds.isEmpty())
+    }
+
+    /** A failed link cleanup is suppressed on the original password finalization failure. */
+    @Test
+    fun requiredEmailRegistrationRetainsLinkCleanupFailureAfterFinalizationFailure() = runTest {
+        val failure = IllegalStateException("password storage unavailable")
+        val cleanupFailure = IllegalStateException("deeplink cleanup unavailable")
+        val usersRepo = FakeUsersRepo()
+        val passwordsRepo = ThrowingPasswordsRepo(failure)
+        val lifecycle = FakeRegistrationRoleLifecycle()
+        val handle = TrackingRegistrationEmailDeliveryHandle(cleanupFailure)
+        val service = buildService(
+            usersRepo = usersRepo,
+            passwordsRepo = passwordsRepo,
+            enableRegistration = true,
+            requireEmailForRegistration = true,
+            registrationEmailSender = FakeCompensableRegistrationEmailSender(handle),
+            registrationRoleLifecycle = lifecycle,
+        )
+
+        val thrown = assertFailsWith<IllegalStateException> {
+            service.register(Username("alice"), plainPassword, Email("alice@example.com"))
+        }
+
+        assertSame(failure, thrown)
+        assertEquals(1, thrown.suppressed.size)
+        assertEquals(cleanupFailure.message, thrown.suppressed.single().message)
+        assertEquals(1, handle.rollbackCalls)
         assertTrue(usersRepo.getAll().isEmpty())
         assertTrue(passwordsRepo.getAll().isEmpty())
         assertTrue(lifecycle.directRoleUserIds.isEmpty())
@@ -597,6 +703,35 @@ class AuthFeatureServiceTest {
         registration.cancel()
         assertFailsWith<CancellationException> { registration.await() }
 
+        assertTrue(usersRepo.getAll().isEmpty())
+        assertTrue(passwordsRepo.getAll().isEmpty())
+        assertTrue(lifecycle.directRoleUserIds.isEmpty())
+    }
+
+    /** Post-delivery cancellation rolls back the handle non-cancellably before provisional state. */
+    @Test
+    fun requiredEmailRegistrationCancellationRollsBackDeliveredLink() = runTest {
+        val usersRepo = FakeUsersRepo()
+        val passwordsRepo = SuspendingPasswordsRepo()
+        val lifecycle = FakeRegistrationRoleLifecycle()
+        val handle = TrackingRegistrationEmailDeliveryHandle(yieldBeforeCompletion = true)
+        val service = buildService(
+            usersRepo = usersRepo,
+            passwordsRepo = passwordsRepo,
+            enableRegistration = true,
+            requireEmailForRegistration = true,
+            registrationEmailSender = FakeCompensableRegistrationEmailSender(handle),
+            registrationRoleLifecycle = lifecycle,
+        )
+        val registration = async {
+            service.register(Username("alice"), plainPassword, Email("alice@example.com"))
+        }
+        passwordsRepo.started.await()
+
+        registration.cancel()
+        assertFailsWith<CancellationException> { registration.await() }
+
+        assertEquals(1, handle.rollbackCalls)
         assertTrue(usersRepo.getAll().isEmpty())
         assertTrue(passwordsRepo.getAll().isEmpty())
         assertTrue(lifecycle.directRoleUserIds.isEmpty())
