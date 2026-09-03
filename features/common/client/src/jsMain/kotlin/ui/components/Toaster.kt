@@ -21,10 +21,10 @@ import org.jetbrains.compose.web.dom.Text
  * the message and clears it automatically. Mirrors the design skill `app.jsx` `toast(...)` helper.
  */
 object Toaster {
-    private val _message = MutableStateFlow<String?>(null)
+    private val _message = MutableStateFlow<(@Composable () -> String)?>(null)
 
     /** Currently visible toast message, or `null` when nothing is shown. */
-    val message: StateFlow<String?> = _message.asStateFlow()
+    val message: StateFlow<(@Composable () -> String)?> = _message.asStateFlow()
 
     /**
      * Shows [text] as a transient toast. A subsequent call replaces the current message and restarts
@@ -33,7 +33,7 @@ object Toaster {
      * @param text Already-translated, sentence-case confirmation line.
      */
     fun show(text: String) {
-        _message.value = text
+        _message.value = { text }
     }
 
     /** Hides the current toast immediately. */
@@ -62,6 +62,6 @@ fun ToastHost() {
 
     Div({ if (message != null) classes(CalmStudioStyleSheet.toast, CalmStudioStyleSheet.show) else classes(CalmStudioStyleSheet.toast) }) {
         Span({ classes(CalmStudioStyleSheet.ok) }) { CalmIcon(CalmIcons.check) }
-        Text(message ?: "")
+        Text(message?.invoke() ?: "")
     }
 }
