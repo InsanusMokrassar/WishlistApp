@@ -8,15 +8,14 @@ import kotlinx.coroutines.test.TestScope
 import kotlinx.coroutines.test.runTest
 import kotlin.test.Test
 import kotlin.test.assertEquals
-import kotlin.test.assertFalse
 import kotlin.test.assertFailsWith
 import kotlin.test.assertNotNull
 import kotlin.test.assertTrue
 
 /** Builds a toast request with a stable test message provider and configurable visibility duration. */
 private fun notification(timeout: Long = 100L) = ToastNotification(
-    message = { "test" },
     timeout = timeout,
+    message = { "test" },
 )
 
 /** Starts a collector that records each visible and hidden queue transition. */
@@ -39,7 +38,7 @@ class ToasterTest {
         assertNotNull(notificationCallback)
         assertEquals(2_600L, ToastNotification(message = { "default" }).timeout)
         assertFailsWith<IllegalArgumentException> {
-            ToastNotification(message = { "invalid" }, timeout = -1L)
+            ToastNotification(timeout = -1L, message = { "invalid" })
         }
     }
 
@@ -126,24 +125,31 @@ class ToasterTest {
         secondJob.cancelAndJoin()
     }
 
-    /** Overflow removes the oldest pending notification and retains the newest notification. */
+    /** Active bursts retain pending notifications and display each one sequentially. */
     @Test
-    fun overflowDropsOldestPendingNotification() = runTest {
+    fun activeBurstQueuesAllPendingNotifications() = runTest {
         val queue = ToastQueue()
         val current = notification(timeout = 100L)
-        val dropped = notification(timeout = 200L)
-        val retained = notification(timeout = 300L)
+        val firstPending = notification(timeout = 200L)
+        val secondPending = notification(timeout = 300L)
         val transitions = mutableListOf<ToastNotification?>()
         startCollector(queue, transitions)
 
         queue.enqueue(current)
         testScheduler.runCurrent()
-        queue.enqueue(dropped)
-        queue.enqueue(retained)
+        queue.enqueue(firstPending)
+        queue.enqueue(secondPending)
 
         testScheduler.advanceTimeBy(100L)
         testScheduler.runCurrent()
-        assertEquals(listOf(current, null, retained), transitions)
-        assertFalse(transitions.contains(dropped))
+        assertEquals(listOf(current, null, firstPending), transitions)
+
+        testScheduler.advanceTimeBy(200L)
+        testScheduler.runCurrent()
+        assertEquals(listOf(current, null, firstPending, null, secondPending), transitions)
+
+        testScheduler.advanceTimeBy(300L)
+        testScheduler.runCurrent()
+        assertEquals(listOf(current, null, firstPending, null, secondPending, null), transitions)
     }
 }

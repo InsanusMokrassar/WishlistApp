@@ -11,10 +11,10 @@ import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.channels.BufferOverflow
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableSharedFlow
-import kotlinx.coroutines.flow.collect
 import org.jetbrains.compose.web.dom.Div
 import org.jetbrains.compose.web.dom.Span
 import org.jetbrains.compose.web.dom.Text
+import kotlin.Int.Companion
 
 /**
  * One toast request.
@@ -23,8 +23,8 @@ import org.jetbrains.compose.web.dom.Text
  * @property timeout Visibility duration in milliseconds; zero requests immediate hiding.
  */
 data class ToastNotification(
-    val message: @Composable () -> String,
     val timeout: Long = 2_600L,
+    val message: @Composable () -> String,
 ) {
     init {
         require(timeout >= 0L) { "timeout must be non-negative milliseconds" }
@@ -43,7 +43,7 @@ internal class ToastQueue {
     /** Holds the latest pre-host or pending notification with deterministic oldest-value dropping. */
     private val notifications = MutableSharedFlow<ToastNotification>(
         replay = 1,
-        extraBufferCapacity = 0,
+        extraBufferCapacity = Int.MAX_VALUE - 1,
         onBufferOverflow = BufferOverflow.DROP_OLDEST,
     )
 
