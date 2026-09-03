@@ -1,4 +1,4 @@
-package dev.inmo.wishlist.features.users.common.repo
+package dev.inmo.wishlist.features.common.common
 
 import org.sqlite.SQLiteErrorCode
 import org.sqlite.SQLiteException
