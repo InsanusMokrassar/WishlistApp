@@ -38,6 +38,8 @@ import dev.inmo.wishlist.features.users.common.repo.WriteUsersRepo
 import dev.inmo.wishlist.features.users.common.repo.exceptions.DuplicateUserFieldException
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.NonCancellable
+import kotlinx.coroutines.currentCoroutineContext
+import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.withContext
 import kotlin.time.Duration
 import kotlin.time.Duration.Companion.days
@@ -175,7 +177,8 @@ class AuthFeatureService(
     /**
      * Reserves a non-authenticating account, performs invite delivery without the global auth lock,
      * and stores a password only after successful delivery, remaining unauthenticated until email
-     * verification promotes the pending account.
+     * verification promotes the pending account. User creation and compensation enrollment share a
+     * bounded non-cancellable region so cancellation cannot orphan a committed provisional account.
      */
     private suspend fun registerWithRequiredEmail(
         username: Username,
@@ -184,23 +187,30 @@ class AuthFeatureService(
         sender: RegistrationEmailSender,
         roleLifecycle: RegistrationRoleLifecycle,
     ): RegistrationResult? = doSuspendTransaction {
+        val transaction = this
         val provisionalUser =
             locker.withWriteLock {
                 val userByUsername = usersRepo.getUserByUsername(username)
                 if (userByUsername != null) return@withWriteLock null
 
-
-                val createdUser = createUserOrNull(username, email) ?: return@withWriteLock null
-                val created = rollableBackOperation(
-                    rollback = {
-                        try {
-                            compensateRequiredRegistration(actionResult.id, roleLifecycle)
-                        } catch (cleanupError: Throwable) {
-                            error.addSuppressed(cleanupError)
-                        }
-                    },
-                    action = { createdUser },
-                )
+                currentCoroutineContext().ensureActive()
+                val createdOrNull = withContext(NonCancellable) {
+                    val createdUser = createUserOrNull(username, email)
+                    createdUser?.let {
+                        transaction.rollableBackOperation(
+                            rollback = {
+                                try {
+                                    compensateRequiredRegistration(actionResult.id, roleLifecycle)
+                                } catch (cleanupError: Throwable) {
+                                    error.addSuppressed(cleanupError)
+                                }
+                            },
+                            action = { createdUser },
+                        )
+                    }
+                }
+                currentCoroutineContext().ensureActive()
+                val created = createdOrNull ?: return@withWriteLock null
                 val pending = rollableBackOperation(
                     { Unit }
                 ) {

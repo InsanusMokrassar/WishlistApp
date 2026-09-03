@@ -72,6 +72,40 @@ internal class FakeUsersRepo(
 }
 
 /**
+ * Holds a completed user creation before returning its identity to the auth service.
+ *
+ * @param delegate Storage that persists, reads, and deletes fixture users.
+ */
+private class GatedCreateUsersRepo(
+    private val delegate: FakeUsersRepo = FakeUsersRepo(),
+) : UsersRepo by delegate {
+    /** Completes after [delegate] has persisted the requested user. */
+    val persisted = CompletableDeferred<Unit>()
+
+    /** Allows the intercepted create call to return its persisted user identity. */
+    val release = CompletableDeferred<Unit>()
+
+    /** Records the persistence, repository-return, and compensation sequence. */
+    val events = mutableListOf<String>()
+
+    /** Persists first, then waits for [release] before returning the created users. */
+    override suspend fun create(values: List<NewUser>): List<RegisteredUser> {
+        val created = delegate.create(values)
+        events += "persisted"
+        persisted.complete(Unit)
+        release.await()
+        events += "repositoryReturned"
+        return created
+    }
+
+    /** Delegates deletion and records when persistent user cleanup has completed. */
+    override suspend fun deleteById(ids: List<UserId>) {
+        delegate.deleteById(ids)
+        events += "userDeleted"
+    }
+}
+
+/**
  * In-memory [PasswordsRepo] test double delegating entirely to [MapKeyValueRepo].
  */
 internal class FakePasswordsRepo : PasswordsRepo, dev.inmo.micro_utils.repos.KeyValueRepo<UserId, Password> by MapKeyValueRepo()
@@ -324,7 +358,7 @@ class AuthFeatureServiceTest {
 
     /** Builds an auth service with in-memory repositories and the requested registration policy. */
     private fun buildService(
-        usersRepo: FakeUsersRepo,
+        usersRepo: UsersRepo,
         passwordsRepo: PasswordsRepo = FakePasswordsRepo(),
         tokenTtl: Duration = 15.minutes,
         enableRegistration: Boolean = false,
@@ -706,6 +740,50 @@ class AuthFeatureServiceTest {
         assertTrue(usersRepo.getAll().isEmpty())
         assertTrue(passwordsRepo.getAll().isEmpty())
         assertTrue(lifecycle.directRoleUserIds.isEmpty())
+    }
+
+    /** Cancellation after persistence waits for rollback enrollment, then removes the account. */
+    @Test
+    fun requiredEmailRegistrationCancellationAfterPersistedCreateCompensatesUser() = runTest {
+        val usersRepo = GatedCreateUsersRepo()
+        val passwordsRepo = FakePasswordsRepo()
+        val sender = FakeRegistrationEmailSender(true)
+        val lifecycle = FakeRegistrationRoleLifecycle()
+        val username = Username("alice")
+        val service = buildService(
+            usersRepo = usersRepo,
+            passwordsRepo = passwordsRepo,
+            enableRegistration = true,
+            requireEmailForRegistration = true,
+            registrationEmailSender = sender,
+            registrationRoleLifecycle = lifecycle,
+        )
+        val registration = async {
+            service.register(username, plainPassword, Email("alice@example.com"))
+        }
+
+        usersRepo.persisted.await()
+        assertNotNull(usersRepo.getUserByUsername(username))
+
+        registration.cancel()
+        testScheduler.runCurrent()
+        assertFalse(registration.isCompleted)
+        assertNotNull(usersRepo.getUserByUsername(username))
+
+        usersRepo.release.complete(Unit)
+        withTimeout(1_000) { registration.join() }
+        assertFailsWith<CancellationException> { registration.await() }
+
+        assertTrue(usersRepo.getAll().isEmpty())
+        assertTrue(passwordsRepo.getAll().isEmpty())
+        assertTrue(sender.users.isEmpty())
+        assertEquals(0, lifecycle.markCalls)
+        assertEquals(1, lifecycle.removeCalls)
+        assertTrue(lifecycle.directRoleUserIds.isEmpty())
+        assertEquals(
+            listOf("persisted", "repositoryReturned", "userDeleted"),
+            usersRepo.events,
+        )
     }
 
     /** Post-delivery cancellation rolls back the handle non-cancellably before provisional state. */
