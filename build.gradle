@@ -1,3 +1,8 @@
+import dev.detekt.gradle.Detekt
+import dev.detekt.gradle.DetektCreateBaselineTask
+import dev.detekt.gradle.extensions.DetektExtension
+import dev.detekt.gradle.extensions.FailOnSeverity
+
 buildscript {
     repositories {
         google()
@@ -7,6 +12,7 @@ buildscript {
     }
 
     dependencies {
+        classpath libs.detekt.gradle.plugin
         classpath libs.android.tools.build
         classpath libs.android.dexcount
         classpath libs.kotlin.gradle.plugin
@@ -27,3 +33,61 @@ allprojects {
 
 apply from: "./extensions.gradle"
 // apply from: "./github_release.gradle"
+
+def aggregateDetekt = tasks.register("detekt") {
+    group = "verification"
+    description = "Runs Detekt for every Kotlin-bearing subproject."
+}
+
+def aggregateDetektBaseline = tasks.register("detektBaseline") {
+    group = "verification"
+    description = "Creates Detekt baselines for every Kotlin-bearing subproject."
+}
+
+def configuredDetektProjects = new HashSet<Project>()
+def configureDetektProject = { Project target ->
+    if (configuredDetektProjects.add(target)) {
+        target.pluginManager.apply("dev.detekt")
+        target.extensions.configure(DetektExtension) { extension ->
+            extension.toolVersion.set(rootProject.libs.versions.detekt.get())
+            extension.source.setFrom(target.fileTree(target.file("src")) {
+                include "**/*.kt"
+            })
+            extension.config.setFrom(rootProject.layout.projectDirectory.file("config/detekt/detekt.yml"))
+            extension.buildUponDefaultConfig.set(false)
+            extension.allRules.set(false)
+            extension.disableDefaultRuleSets.set(false)
+            extension.ignoreFailures.set(false)
+            extension.failOnSeverity.set(FailOnSeverity.Error)
+            extension.basePath.set(rootProject.layout.projectDirectory)
+            extension.baseline.set(rootProject.layout.projectDirectory.file("config/detekt/baselines/${target.name}.xml"))
+        }
+
+        aggregateDetekt.configure {
+            dependsOn(target.tasks.named("detekt"))
+        }
+        aggregateDetektBaseline.configure {
+            dependsOn(target.tasks.named("detektBaseline"))
+        }
+
+        if (target.path != ":wishlist.detekt-rules") {
+            target.dependencies.add("detektPlugins", target.dependencies.project(path: ":wishlist.detekt-rules"))
+            target.tasks.withType(Detekt).configureEach {
+                dependsOn(":wishlist.detekt-rules:jar")
+            }
+            target.tasks.withType(DetektCreateBaselineTask).configureEach {
+                dependsOn(":wishlist.detekt-rules:jar")
+            }
+        }
+    }
+}
+
+["org.jetbrains.kotlin.jvm", "org.jetbrains.kotlin.multiplatform", "org.jetbrains.kotlin.android"].each { pluginId ->
+    subprojects { target ->
+        target.pluginManager.withPlugin(pluginId) {
+            target.afterEvaluate {
+                configureDetektProject(target)
+            }
+        }
+    }
+}

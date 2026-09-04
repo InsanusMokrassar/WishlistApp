@@ -1,0 +1,35 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<SmellBaseline>
+  <ManuallySuppressedIssues/>
+  <CurrentIssues>
+    <ID>UndocumentedPublicClass:AndroidPlugin.kt:AndroidPlugin : StartPlugin</ID>
+    <ID>UndocumentedPublicClass:AuthCredentials.kt:AuthCredentials</ID>
+    <ID>UndocumentedPublicClass:Constants.kt:Constants</ID>
+    <ID>UndocumentedPublicClass:JSPlugin.kt:JSPlugin : StartPlugin</ID>
+    <ID>UndocumentedPublicClass:JVMPlugin.kt:JVMPlugin : StartPlugin</ID>
+    <ID>UndocumentedPublicClass:LoginRequest.kt:LoginRequest</ID>
+    <ID>UndocumentedPublicClass:Password.kt:Password</ID>
+    <ID>UndocumentedPublicClass:Plugin.kt:Plugin : StartPlugin</ID>
+    <ID>UndocumentedPublicClass:RefreshRequest.kt:RefreshRequest</ID>
+    <ID>UndocumentedPublicClass:RefreshToken.kt:RefreshToken</ID>
+    <ID>UndocumentedPublicClass:Token.kt:Token</ID>
+    <ID>UndocumentedPublicFunction:AuthFeature.kt:AuthFeature$suspend fun login: AuthCredentials?</ID>
+    <ID>UndocumentedPublicFunction:AuthFeature.kt:AuthFeature$suspend fun refresh: AuthCredentials?</ID>
+    <ID>UndocumentedPublicProperty:AuthCredentials.kt:AuthCredentials$val refreshToken: RefreshToken</ID>
+    <ID>UndocumentedPublicProperty:AuthCredentials.kt:AuthCredentials$val token: Token</ID>
+    <ID>UndocumentedPublicProperty:Constants.kt:Constants$const val configPathPart = "config"</ID>
+    <ID>UndocumentedPublicProperty:Constants.kt:Constants$const val getMePathPart = "getMe"</ID>
+    <ID>UndocumentedPublicProperty:Constants.kt:Constants$const val isRegistrationAvailablePathPart = "is_registration_available"</ID>
+    <ID>UndocumentedPublicProperty:Constants.kt:Constants$const val loginPathPart = "login"</ID>
+    <ID>UndocumentedPublicProperty:Constants.kt:Constants$const val logoutPathPart = "logout"</ID>
+    <ID>UndocumentedPublicProperty:Constants.kt:Constants$const val prefixPathPart = "auth"</ID>
+    <ID>UndocumentedPublicProperty:Constants.kt:Constants$const val refreshPathPart = "refresh"</ID>
+    <ID>UndocumentedPublicProperty:Constants.kt:Constants$const val registerPathPart = "register"</ID>
+    <ID>UndocumentedPublicProperty:LoginRequest.kt:LoginRequest$val password: Password</ID>
+    <ID>UndocumentedPublicProperty:LoginRequest.kt:LoginRequest$val username: Username</ID>
+    <ID>UndocumentedPublicProperty:Password.kt:Password$val string: String</ID>
+    <ID>UndocumentedPublicProperty:RefreshRequest.kt:RefreshRequest$val refreshToken: RefreshToken</ID>
+    <ID>UndocumentedPublicProperty:RefreshToken.kt:RefreshToken$val string: String</ID>
+    <ID>UndocumentedPublicProperty:Token.kt:Token$val string: String</ID>
+  </CurrentIssues>
+</SmellBaseline>

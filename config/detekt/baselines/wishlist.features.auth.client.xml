@@ -1,0 +1,26 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<SmellBaseline>
+  <ManuallySuppressedIssues/>
+  <CurrentIssues>
+    <ID>UndocumentedPublicClass:AndroidPlugin.kt:AndroidPlugin : StartPlugin</ID>
+    <ID>UndocumentedPublicClass:AuthCredentialsStorage.kt:AuthCredentialsStorage</ID>
+    <ID>UndocumentedPublicClass:AuthFeatureService.kt:AuthFeatureService : ClientAuthFeature</ID>
+    <ID>UndocumentedPublicClass:BearerAuthHttpClientConfigurator.kt:BearerAuthHttpClientConfigurator : HttpClientConfigurator</ID>
+    <ID>UndocumentedPublicClass:JSPlugin.kt:JSPlugin : StartPlugin</ID>
+    <ID>UndocumentedPublicClass:JVMPlugin.kt:JVMPlugin : StartPlugin</ID>
+    <ID>UndocumentedPublicClass:KtorAuthFeature.kt:KtorAuthFeature : ClientAuthFeature</ID>
+    <ID>UndocumentedPublicClass:LocalStorageAuthCredentialsStorage.kt:LocalStorageAuthCredentialsStorage : AuthCredentialsStorage</ID>
+    <ID>UndocumentedPublicClass:LocalStorageServerUrlStorage.kt:LocalStorageServerUrlStorage : ServerUrlStorage</ID>
+    <ID>UndocumentedPublicClass:Plugin.kt:Plugin : StartPlugin</ID>
+    <ID>UndocumentedPublicClass:PreferencesAuthCredentialsStorage.kt:PreferencesAuthCredentialsStorage : AuthCredentialsStorage</ID>
+    <ID>UndocumentedPublicClass:PreferencesServerUrlStorage.kt:PreferencesServerUrlStorage : ServerUrlStorage</ID>
+    <ID>UndocumentedPublicClass:ServerUrlStorage.kt:ServerUrlStorage</ID>
+    <ID>UndocumentedPublicClass:SharedPreferencesAuthCredentialsStorage.kt:SharedPreferencesAuthCredentialsStorage : AuthCredentialsStorage</ID>
+    <ID>UndocumentedPublicClass:SharedPreferencesServerUrlStorage.kt:SharedPreferencesServerUrlStorage : ServerUrlStorage</ID>
+    <ID>UndocumentedPublicFunction:AuthCredentialsStorage.kt:AuthCredentialsStorage$suspend fun get: AuthCredentials?</ID>
+    <ID>UndocumentedPublicFunction:AuthCredentialsStorage.kt:AuthCredentialsStorage$suspend fun save</ID>
+    <ID>UndocumentedPublicFunction:ServerUrlStorage.kt:ServerUrlStorage$suspend fun getServerUrl: String?</ID>
+    <ID>UndocumentedPublicFunction:ServerUrlStorage.kt:ServerUrlStorage$suspend fun saveServerUrl</ID>
+    <ID>UndocumentedPublicProperty:AuthCredentialsStorage.kt:AuthCredentialsStorage$val userAuthorised: StateFlow&lt;Boolean></ID>
+  </CurrentIssues>
+</SmellBaseline>

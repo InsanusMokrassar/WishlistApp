@@ -1,0 +1,27 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<SmellBaseline>
+  <ManuallySuppressedIssues/>
+  <CurrentIssues>
+    <ID>UndocumentedPublicClass:AndroidPlugin.kt:AndroidPlugin : StartPlugin</ID>
+    <ID>UndocumentedPublicClass:EchoFeature.kt:EchoFeature</ID>
+    <ID>UndocumentedPublicClass:EmptyConfig.kt:EmptyConfig : ViewConfig</ID>
+    <ID>UndocumentedPublicClass:GZipHttpClientConfigurator.kt:GZipHttpClientConfigurator : HttpClientConfigurator</ID>
+    <ID>UndocumentedPublicClass:HttpClientConfigurator.kt:HttpClientConfigurator</ID>
+    <ID>UndocumentedPublicClass:JSPlugin.kt:JSPlugin : StartPlugin</ID>
+    <ID>UndocumentedPublicClass:JVMPlugin.kt:JVMPlugin : StartPlugin</ID>
+    <ID>UndocumentedPublicClass:KtorEchoFeature.kt:KtorEchoFeature : EchoFeature</ID>
+    <ID>UndocumentedPublicClass:Plugin.kt:Plugin : StartPlugin</ID>
+    <ID>UndocumentedPublicClass:RootNodeFactoryGetter.kt:RootNodeFactoryGetter</ID>
+    <ID>UndocumentedPublicClass:SerializationConfigurator.kt:SerializationConfigurator : HttpClientConfigurator</ID>
+    <ID>UndocumentedPublicClass:ViewConfig.kt:ViewConfig</ID>
+    <ID>UndocumentedPublicFunction:ConfigHolderFind.kt:fun &lt;T, R : T> ConfigHolder&lt;T>.findConfig: R?</ID>
+    <ID>UndocumentedPublicFunction:EchoFeature.kt:EchoFeature$suspend fun getEcho: String</ID>
+    <ID>UndocumentedPublicFunction:HttpClientConfigurator.kt:HttpClientConfigurator$fun HttpClientConfig&lt;*>.configure</ID>
+    <ID>UndocumentedPublicFunction:MergeUrlBuilders.kt:fun URLBuilder.appendOrSetPartsWith</ID>
+    <ID>UndocumentedPublicFunction:MergeUrlBuilders.kt:fun URLBuilder.set</ID>
+    <ID>UndocumentedPublicFunction:NavigationPushOrBackUpTo.kt:suspend inline fun &lt;T> NavigationChain&lt;T>.actionOrBackUntil</ID>
+    <ID>UndocumentedPublicFunction:NavigationPushOrBackUpTo.kt:suspend inline fun &lt;T> NavigationChain&lt;T>.pushOrBackUntil</ID>
+    <ID>UndocumentedPublicFunction:NavigationPushOrBackUpTo.kt:suspend inline fun &lt;T> NavigationChain&lt;T>.replaceLastOrBackUntil</ID>
+    <ID>UndocumentedPublicFunction:RootNodeFactoryGetter.kt:RootNodeFactoryGetter$operator fun invoke: NavigationNodeFactory&lt;ViewConfig></ID>
+  </CurrentIssues>
+</SmellBaseline>

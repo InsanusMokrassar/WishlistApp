@@ -1,0 +1,19 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<SmellBaseline>
+  <ManuallySuppressedIssues/>
+  <CurrentIssues>
+    <ID>UndocumentedPublicClass:AndroidPlugin.kt:AndroidPlugin : StartPlugin</ID>
+    <ID>UndocumentedPublicClass:JSPlugin.kt:JSPlugin : StartPlugin</ID>
+    <ID>UndocumentedPublicClass:JVMPlugin.kt:JVMPlugin : StartPlugin</ID>
+    <ID>UndocumentedPublicClass:Plugin.kt:Plugin : StartPlugin</ID>
+    <ID>UndocumentedPublicClass:SampleModel.kt:SampleModel</ID>
+    <ID>UndocumentedPublicClass:SampleStrings.kt:SampleStrings</ID>
+    <ID>UndocumentedPublicClass:SampleView.kt:SampleView : ComposeView</ID>
+    <ID>UndocumentedPublicClass:SampleViewConfig.kt:SampleViewConfig : ViewConfig</ID>
+    <ID>UndocumentedPublicClass:SampleViewModel.kt:SampleViewModel : ViewModel</ID>
+    <ID>UndocumentedPublicFunction:SampleModel.kt:SampleModel$fun serverStatusFlow: Flow&lt;String?></ID>
+    <ID>UndocumentedPublicFunction:SampleModel.kt:SampleModel$suspend fun getSampleText: String</ID>
+    <ID>UndocumentedPublicProperty:SampleStrings.kt:SampleStrings$val sample = buildStringResource("Sample") { IetfLang.Russian("Пример") }</ID>
+    <ID>UndocumentedPublicProperty:SampleViewModel.kt:SampleViewModel$val textState = _textState.asStateFlow()</ID>
+  </CurrentIssues>
+</SmellBaseline>

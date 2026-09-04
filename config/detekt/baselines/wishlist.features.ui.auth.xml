@@ -1,0 +1,18 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<SmellBaseline>
+  <ManuallySuppressedIssues/>
+  <CurrentIssues>
+    <ID>UndocumentedPublicClass:AndroidPlugin.kt:AndroidPlugin : StartPlugin</ID>
+    <ID>UndocumentedPublicClass:AuthViewConfig.kt:AuthViewConfig : ViewConfig</ID>
+    <ID>UndocumentedPublicClass:AuthViewInteractor.kt:AuthViewInteractor</ID>
+    <ID>UndocumentedPublicClass:JSPlugin.kt:JSPlugin : StartPlugin</ID>
+    <ID>UndocumentedPublicClass:JVMPlugin.kt:JVMPlugin : StartPlugin</ID>
+    <ID>UndocumentedPublicFunction:AuthViewInteractor.kt:AuthViewInteractor$suspend fun onUserLoggedIn</ID>
+    <ID>UndocumentedPublicFunction:AuthViewInteractor.kt:AuthViewInteractor$suspend fun onUserLoggedOut</ID>
+    <ID>UndocumentedPublicProperty:AuthViewModel.kt:AuthViewModel$val emailState = _emailState.asStateFlow()</ID>
+    <ID>UndocumentedPublicProperty:AuthViewModel.kt:AuthViewModel$val errorState = _errorState.asStateFlow()</ID>
+    <ID>UndocumentedPublicProperty:AuthViewModel.kt:AuthViewModel$val loadingState = _loadingState.asStateFlow()</ID>
+    <ID>UndocumentedPublicProperty:AuthViewModel.kt:AuthViewModel$val passwordState = _passwordState.asStateFlow()</ID>
+    <ID>UndocumentedPublicProperty:AuthViewModel.kt:AuthViewModel$val usernameState = _usernameState.asStateFlow()</ID>
+  </CurrentIssues>
+</SmellBaseline>
