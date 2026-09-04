@@ -71,13 +71,27 @@ class NoElseIfTest {
         val findings = findingsFor(
             """
                 fun select(first: Boolean, second: Boolean) {
-                    if (first) 1 else if (second) 2 else if (!first) 3 else 4
+                    if (first) {
+                        1
+                    } else if (second) {
+                        2
+                    } else if (!first) {
+                        3
+                    } else {
+                        4
+                    }
                 }
             """.trimIndent(),
         )
 
         assertEquals(2, findings.size)
-        assertEquals(setOf(2), findings.map { it.entity.location.source.line }.toSet())
+        assertEquals(
+            setOf("2:5", "4:12"),
+            findings.map { finding ->
+                val source = finding.entity.location.source
+                "${source.line}:${source.column}"
+            }.toSet(),
+        )
         findings.forEach(::assertFindingContract)
     }
 

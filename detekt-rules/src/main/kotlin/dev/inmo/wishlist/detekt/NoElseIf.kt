@@ -8,6 +8,8 @@ import org.jetbrains.kotlin.psi.KtIfExpression
 
 /**
  * Reports conditionals whose direct `else` branch is another conditional.
+ *
+ * @param config rule-specific Detekt configuration.
  */
 class NoElseIf(config: Config) : Rule(config, DESCRIPTION) {
     /**
@@ -23,8 +25,12 @@ class NoElseIf(config: Config) : Rule(config, DESCRIPTION) {
         }
     }
 
+    /** Holds immutable metadata used by every rule instance. */
     private companion object {
+        /** Describes the policy enforced by the rule. */
         private const val DESCRIPTION = "Disallows chained else-if conditionals."
+
+        /** Explains the accepted remediation to a finding recipient. */
         private const val MESSAGE = "Replace an else-if chain with when or another non-chained form."
     }
 }
