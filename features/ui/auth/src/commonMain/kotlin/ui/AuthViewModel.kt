@@ -5,6 +5,8 @@ import dev.inmo.micro_utils.coroutines.launchLoggingDropExceptions
 import dev.inmo.navigation.core.NavigationNode
 import dev.inmo.navigation.mvvm.ViewModel
 import dev.inmo.wishlist.features.auth.common.models.Password
+import dev.inmo.wishlist.features.auth.common.models.RegistrationResult
+import dev.inmo.wishlist.features.email.common.models.Email
 import dev.inmo.wishlist.features.common.client.models.ViewConfig
 import dev.inmo.wishlist.features.users.common.models.Username
 import kotlinx.coroutines.flow.SharingStarted
@@ -31,11 +33,28 @@ class AuthViewModel(
     private val model: AuthModel,
     private val interactor: AuthViewInteractor
 ) : ViewModel<ViewConfig>(node) {
+    /** Input values used to derive submit availability. */
+    private data class SubmitInput(
+        val username: String,
+        val password: String,
+        val email: String,
+        val loading: Boolean,
+    )
+
+    /** Registration mode and server email-policy flags used to derive submit availability. */
+    private data class RegistrationPolicy(
+        val registerMode: Boolean,
+        val requireEmail: Boolean,
+    )
+
     private val _usernameState = MutableRedeliverStateFlow("")
     val usernameState = _usernameState.asStateFlow()
 
     private val _passwordState = MutableRedeliverStateFlow("")
     val passwordState = _passwordState.asStateFlow()
+
+    private val _emailState = MutableRedeliverStateFlow("")
+    val emailState = _emailState.asStateFlow()
 
     private val _loadingState = MutableRedeliverStateFlow(false)
     val loadingState = _loadingState.asStateFlow()
@@ -48,6 +67,11 @@ class AuthViewModel(
     /** `true` when the login/register form is currently expanded. */
     val formExpandedState = _formExpandedState.asStateFlow()
 
+    private val _pendingEmailVerificationState = MutableRedeliverStateFlow(false)
+
+    /** `true` while the separate check-email confirmation is visible. */
+    val pendingEmailVerificationState = _pendingEmailVerificationState.asStateFlow()
+
     private val _registerModeState = MutableRedeliverStateFlow(false)
 
     /** `true` when the expanded form is in registration mode rather than login mode. */
@@ -58,16 +82,29 @@ class AuthViewModel(
     /** `true` when the server permits self-service account registration. */
     val registrationEnabledState = _registrationEnabledState.asStateFlow()
 
+    private val _requireEmailForRegistrationState = MutableRedeliverStateFlow(false)
+
+    /** `true` when registration requires a validated email and a verification invite. */
+    val requireEmailForRegistrationState = _requireEmailForRegistrationState.asStateFlow()
+
     /** Mirrors [AuthModel.userAuthorisedState]. */
     val loggedInState: StateFlow<Boolean> = model.userAuthorisedState
 
-    /** `true` when the submit button is enabled (fields non-blank, no request in flight). */
+    /** `true` when the submit button is enabled (fields valid, no request in flight). */
     val loginEnabledState: StateFlow<Boolean> = combine(
-        _usernameState,
-        _passwordState,
-        _loadingState
-    ) { username, password, loading ->
-        !loading && username.isNotBlank() && password.isNotBlank()
+        combine(_usernameState, _passwordState, _emailState, _loadingState) {
+            username, password, email, loading -> SubmitInput(username, password, email, loading)
+        },
+        combine(_registerModeState, _requireEmailForRegistrationState) { registerMode, requireEmail ->
+            RegistrationPolicy(registerMode, requireEmail)
+        },
+    ) { input, policy ->
+        when {
+            input.loading -> false
+            input.username.isBlank() || input.password.isBlank() -> false
+            !policy.registerMode -> true
+            else -> isRegistrationEmailValid(input.email, policy.requireEmail)
+        }
     }.stateIn(scope, SharingStarted.Eagerly, false)
 
     init {
@@ -77,7 +114,9 @@ class AuthViewModel(
             }
         }
         scope.launchLoggingDropExceptions {
-            _registrationEnabledState.value = model.isRegistrationEnabled()
+            val config = model.getConfig()
+            _registrationEnabledState.value = config.enableRegistration
+            _requireEmailForRegistrationState.value = config.requireEmailForRegistration
         }
     }
 
@@ -93,8 +132,15 @@ class AuthViewModel(
         _errorState.value = false
     }
 
+    /** Handles email input edits and clears any previous error. */
+    fun onEmailChanged(input: String) {
+        _emailState.value = input
+        _errorState.value = false
+    }
+
     /** Expands the form in login mode. */
     fun onToggleForm() {
+        _pendingEmailVerificationState.value = false
         _registerModeState.value = false
         _formExpandedState.value = !_formExpandedState.value
         if (!_formExpandedState.value) {
@@ -104,6 +150,7 @@ class AuthViewModel(
 
     /** Expands the form in registration mode. */
     fun onToggleRegisterForm() {
+        _pendingEmailVerificationState.value = false
         _registerModeState.value = true
         _formExpandedState.value = true
         _errorState.value = false
@@ -114,6 +161,7 @@ class AuthViewModel(
      * login/register modal so the "Log in" tab is idempotent when already expanded.
      */
     fun onShowLoginForm() {
+        _pendingEmailVerificationState.value = false
         _registerModeState.value = false
         _formExpandedState.value = true
         _errorState.value = false
@@ -124,6 +172,11 @@ class AuthViewModel(
         _formExpandedState.value = false
         _registerModeState.value = false
         _errorState.value = false
+    }
+
+    /** Dismisses the check-email confirmation without changing credentials or form inputs. */
+    fun onDismissPendingEmailVerification() {
+        _pendingEmailVerificationState.value = false
     }
 
     /** Submits the entered credentials as a login request. */
@@ -155,19 +208,27 @@ class AuthViewModel(
         scope.launchLoggingDropExceptions {
             val username = _usernameState.value.trim()
             val password = _passwordState.value
-            if (username.isBlank() || password.isBlank()) return@launchLoggingDropExceptions
+            val emailText = _emailState.value
+            if (
+                username.isBlank() || password.isBlank() ||
+                !isRegistrationEmailValid(emailText, _requireEmailForRegistrationState.value)
+            ) return@launchLoggingDropExceptions
+            val email = Email.parse(emailText).getOrNull()
             _loadingState.value = true
             _errorState.value = false
             try {
-                val success = model.register(Username(username), Password(password))
-                if (success) {
-                    _usernameState.value = ""
-                    _passwordState.value = ""
-                    _formExpandedState.value = false
-                    _registerModeState.value = false
-                    interactor.onUserLoggedIn(node)
-                } else {
-                    _errorState.value = true
+                when (val result = model.register(Username(username), Password(password), email)) {
+                    is RegistrationResult.Authorized -> {
+                        clearRegistrationForm()
+                        _pendingEmailVerificationState.value = false
+                        interactor.onUserLoggedIn(node)
+                    }
+                    RegistrationResult.PendingEmailVerification -> {
+                        clearRegistrationForm()
+                        _errorState.value = false
+                        _pendingEmailVerificationState.value = true
+                    }
+                    null -> _errorState.value = true
                 }
             } finally {
                 _loadingState.value = false
@@ -186,4 +247,25 @@ class AuthViewModel(
             }
         }
     }
+
+    /** Clears inputs and closes registration mode after either successful registration outcome. */
+    private fun clearRegistrationForm() {
+        _usernameState.value = ""
+        _passwordState.value = ""
+        _emailState.value = ""
+        _formExpandedState.value = false
+        _registerModeState.value = false
+    }
+}
+
+/**
+ * Validates the registration email field according to the server policy.
+ *
+ * @param email Raw field value.
+ * @param required Whether an empty value is forbidden.
+ * @return `true` for a blank optional value or a syntactically valid non-blank address.
+ */
+internal fun isRegistrationEmailValid(email: String, required: Boolean): Boolean = when {
+    email.isBlank() -> !required
+    else -> Email.parse(email).isSuccess
 }

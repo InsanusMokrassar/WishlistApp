@@ -37,6 +37,7 @@ kotlin {
             dependencies {
                 api libs.microutils.repos.exposed
                 api libs.kotlin.reflect
+                implementation libs.xerial.sql
             }
         }
     }

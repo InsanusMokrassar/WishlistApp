@@ -4,7 +4,10 @@ import dev.inmo.micro_utils.koin.singleWithRandomQualifier
 import dev.inmo.micro_utils.startup.plugin.StartPlugin
 import dev.inmo.wishlist.features.auth.client.AuthCredentialsStorage
 import dev.inmo.wishlist.features.auth.client.ClientAuthFeature
+import dev.inmo.wishlist.features.auth.common.models.AuthConfig
 import dev.inmo.wishlist.features.auth.common.models.Password
+import dev.inmo.wishlist.features.auth.common.models.RegistrationResult
+import dev.inmo.wishlist.features.email.common.models.Email
 import dev.inmo.wishlist.features.common.client.models.ViewConfig
 import dev.inmo.wishlist.features.ui.auth.ui.AuthModel
 import dev.inmo.wishlist.features.ui.auth.ui.AuthViewConfig
@@ -56,10 +59,16 @@ object Plugin : StartPlugin {
                 }
 
                 override suspend fun isRegistrationEnabled(): Boolean =
-                    runCatchingLogging { authFeature.isRegistrationAvailable() }.getOrDefault(false)
+                    getConfig().enableRegistration
 
-                override suspend fun register(username: Username, password: Password): Boolean =
-                    authFeature.register(username, password) != null
+                override suspend fun getConfig(): AuthConfig =
+                    runCatchingLogging { authFeature.getConfig() }.getOrDefault(AuthConfig())
+
+                override suspend fun register(
+                    username: Username,
+                    password: Password,
+                    email: Email?
+                ): RegistrationResult? = authFeature.register(username, password, email)
             }
         }
     }

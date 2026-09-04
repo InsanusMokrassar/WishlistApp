@@ -6,18 +6,21 @@ import dev.inmo.wishlist.features.email.server.models.EmailAttachment
 
 /**
  * Call-recording [EmailsService] test double. [sendText] appends every call's arguments to
- * [sendTextCalls] before returning [result]; the other two methods only increment a call counter
- * (no test in this module currently asserts their arguments — [EmailFeatureService] only ever calls
- * [sendText]).
+ * [sendTextCalls] before returning [result]. [sendHtml] similarly records HTML invite arguments;
+ * attachment sends only need their call count in current tests.
  *
  * @param result Value returned by every method on this instance.
  */
 internal class FakeEmailsService(
-    private val result: Boolean = true
+    private val result: Boolean = true,
+    private val failure: Throwable? = null,
 ) : EmailsService {
 
     /** One recorded [sendText] call's arguments. */
     data class SendTextCall(val recipient: Email, val subject: String, val text: String)
+
+    /** One recorded [sendHtml] call's arguments. */
+    data class SendHtmlCall(val recipient: Email, val subject: String, val html: String)
 
     /** Recorded arguments from every [sendText] call, in call order. */
     val sendTextCalls = mutableListOf<SendTextCall>()
@@ -26,9 +29,8 @@ internal class FakeEmailsService(
     var sendTextWithAttachmentsCallCount: Int = 0
         private set
 
-    /** Number of times [sendHtml] was invoked. */
-    var sendHtmlCallCount: Int = 0
-        private set
+    /** Recorded arguments from every [sendHtml] call, in call order. */
+    val sendHtmlCalls = mutableListOf<SendHtmlCall>()
 
     /**
      * Records the call's arguments in [sendTextCalls] and returns [result].
@@ -40,6 +42,7 @@ internal class FakeEmailsService(
      */
     override suspend fun sendText(recipient: Email, subject: String, text: String): Boolean {
         sendTextCalls += SendTextCall(recipient, subject, text)
+        failure?.let { throw it }
         return result
     }
 
@@ -59,11 +62,12 @@ internal class FakeEmailsService(
         attachments: List<EmailAttachment>
     ): Boolean {
         sendTextWithAttachmentsCallCount++
+        failure?.let { throw it }
         return result
     }
 
     /**
-     * Increments [sendHtmlCallCount] and returns [result].
+     * Records the call's arguments and returns [result].
      *
      * @param recipient Target email address.
      * @param subject Subject header of the message.
@@ -71,7 +75,8 @@ internal class FakeEmailsService(
      * @return [result].
      */
     override suspend fun sendHtml(recipient: Email, subject: String, html: String): Boolean {
-        sendHtmlCallCount++
+        sendHtmlCalls += SendHtmlCall(recipient, subject, html)
+        failure?.let { throw it }
         return result
     }
 }

@@ -17,12 +17,29 @@ import jakarta.mail.internet.InternetAddress
 import jakarta.mail.internet.MimeBodyPart
 import jakarta.mail.internet.MimeMessage
 import jakarta.mail.internet.MimeMultipart
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.withContext
 import java.io.InputStream
 import java.io.OutputStream
 import java.util.Properties
+
+/**
+ * Builds Jakarta Mail SMTP properties from [smtp] without changing certificate validation unless
+ * [SmtpConfig.unsafeSsl] is explicitly enabled.
+ *
+ * @param smtp SMTP connection and authentication settings.
+ * @return Properties accepted by [Session.getInstance].
+ */
+internal fun buildSmtpSessionProperties(smtp: SmtpConfig): Properties = Properties().apply {
+    setProperty("mail.smtp.host", smtp.host)
+    setProperty("mail.smtp.port", smtp.port.toString())
+    if (smtp.useTls) setProperty("mail.smtp.starttls.enable", "true")
+    if (smtp.useSsl) setProperty("mail.smtp.ssl.enable", "true")
+    if (smtp.username != null) setProperty("mail.smtp.auth", "true")
+    if (smtp.unsafeSsl) setProperty("mail.smtp.ssl.trust", smtp.host)
+}
 
 /**
  * SMTP delivery service backed by Jakarta Mail (Angus Mail); the server-side [EmailsService]
@@ -39,8 +56,38 @@ import java.util.Properties
  *
  * @param config Email config slice decoded from the nested `"email"` object in the server config
  *   JSON (see [EmailConfig]).
+ * @param transportSend Transport operation. Production construction delegates to the blocking
+ *   [Transport.send]; module tests replace the operation to exercise cancellation deterministically.
  */
-class SmtpEmailService(private val config: EmailConfig) : EmailsService {
+class SmtpEmailService private constructor(
+    private val config: EmailConfig,
+    private val transportSend: suspend (Message) -> Unit,
+) : EmailsService {
+
+    /**
+     * Creates an SMTP service backed by Jakarta Mail's blocking transport.
+     *
+     * @param config Email config slice containing SMTP connection settings.
+     */
+    constructor(config: EmailConfig) : this(
+        config = config,
+        transportSend = { message -> Transport.send(message) },
+    )
+
+    /** Provides module-scoped construction with a deterministic transport operation for tests. */
+    companion object {
+        /**
+         * Creates an SMTP service with a caller-supplied transport operation.
+         *
+         * @param config Email config slice containing SMTP connection settings.
+         * @param transportSend Transport operation invoked from [Dispatchers.IO].
+         * @return SMTP service using [transportSend] for delivery.
+         */
+        internal fun withTransport(
+            config: EmailConfig,
+            transportSend: suspend (Message) -> Unit,
+        ): SmtpEmailService = SmtpEmailService(config, transportSend)
+    }
 
     /** Logger scoped to this class, used to warn-log disabled-mode skips and delivery failures in [send]. */
     private val logger = KSLog("SmtpEmailService")
@@ -145,15 +192,16 @@ class SmtpEmailService(private val config: EmailConfig) : EmailsService {
      *
      * Centralizes the disabled-mode check (warn-log + `false` when the configured host is
      * blank), session construction via [buildSession], the message envelope (`From`, `To`,
-     * subject), the blocking [Transport.send] on [Dispatchers.IO], and the `runCatching`/warn-log
-     * failure handling.
+     * subject), the blocking transport operation on [Dispatchers.IO], cancellation propagation,
+     * and warn-log handling for non-cancellation failures.
      *
      * @param recipient Target email address placed into the `To` header.
      * @param subject Subject header, encoded as UTF-8.
      * @param logLabel Method name used to prefix the disabled-mode and failure log messages.
      * @param fillContent Body-filling block applied to the message after the envelope is set.
      * @return `true` when the SMTP server accepted the message; `false` when SMTP is disabled
-     *   or an error occurred (logged at warn level).
+     *   or a non-cancellation error occurred (logged at warn level).
+     * @throws CancellationException when the calling coroutine is cancelled during delivery.
      */
     private suspend fun send(
         recipient: Email,
@@ -166,7 +214,7 @@ class SmtpEmailService(private val config: EmailConfig) : EmailsService {
             logger.w { "$logLabel called but SMTP is not configured — skipping." }
             return false
         }
-        return runCatching {
+        return try {
             withContext(Dispatchers.IO) {
                 val session = buildSession(smtp)
                 val message = MimeMessage(session).apply {
@@ -175,10 +223,12 @@ class SmtpEmailService(private val config: EmailConfig) : EmailsService {
                     setSubject(subject, "UTF-8")
                     fillContent()
                 }
-                Transport.send(message)
+                transportSend(message)
             }
             true
-        }.getOrElse { e ->
+        } catch (e: CancellationException) {
+            throw e
+        } catch (e: Throwable) {
             logger.w(e) { "$logLabel failed to send email to ${recipient.string}" }
             false
         }
@@ -191,19 +241,7 @@ class SmtpEmailService(private val config: EmailConfig) : EmailsService {
      * @return Ready-to-use [Session].
      */
     private fun buildSession(smtp: SmtpConfig): Session {
-        val props = Properties().apply {
-            put("mail.smtp.host", smtp.host)
-            put("mail.smtp.port", smtp.port.toString())
-            if (smtp.useTls) {
-                put("mail.smtp.starttls.enable", "true")
-            }
-            if (smtp.useSsl) {
-                put("mail.smtp.ssl.enable", "true")
-            }
-            if (smtp.username != null) {
-                put("mail.smtp.auth", "true")
-            }
-        }
+        val props = buildSmtpSessionProperties(smtp)
         return when {
             smtp.username != null && smtp.password != null -> {
                 Session.getInstance(props, object : jakarta.mail.Authenticator() {

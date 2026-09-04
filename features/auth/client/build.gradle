@@ -8,6 +8,12 @@ plugins {
 
 apply from: "$mppJvmJsAndroidWithCompose"
 
+android {
+    testOptions {
+        unitTests.returnDefaultValues = true
+    }
+}
+
 kotlin {
     sourceSets {
         commonMain {
@@ -15,6 +21,11 @@ kotlin {
                 api project(":wishlist.features.auth.common")
                 api project(":wishlist.features.common.client")
                 api libs.ktor.client.auth
+            }
+        }
+        commonTest {
+            dependencies {
+                implementation libs.ktor.client.mock
             }
         }
     }

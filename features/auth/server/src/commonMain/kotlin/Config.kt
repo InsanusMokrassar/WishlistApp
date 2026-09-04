@@ -10,4 +10,5 @@ data class Config(
     val tokenTtl: Duration = 15.minutes,
     val refreshTokenTtl: Duration = 7.days,
     val enableRegistration: Boolean = false,
+    val requireEmailForRegistration: Boolean = false,
 )

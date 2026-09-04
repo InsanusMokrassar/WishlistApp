@@ -1,9 +1,12 @@
 package dev.inmo.wishlist.features.auth.client
 
 import dev.inmo.wishlist.features.auth.common.models.AuthCredentials
+import dev.inmo.wishlist.features.auth.common.models.AuthConfig
 import dev.inmo.wishlist.features.auth.common.models.AuthFeatureUser
 import dev.inmo.wishlist.features.auth.common.models.Password
 import dev.inmo.wishlist.features.auth.common.models.RefreshToken
+import dev.inmo.wishlist.features.auth.common.models.RegistrationResult
+import dev.inmo.wishlist.features.email.common.models.Email
 import dev.inmo.wishlist.features.users.common.models.Username
 
 class AuthFeatureService(
@@ -27,11 +30,19 @@ class AuthFeatureService(
         storage.save(null)
     }
 
-    override suspend fun register(username: Username, password: Password): AuthCredentials? {
-        val credentials = feature.register(username, password) ?: return null
-        storage.save(credentials)
-        return credentials
+    /** Delegates the legacy registration surface to the email-aware service flow. */
+    override suspend fun register(username: Username, password: Password): RegistrationResult? =
+        register(username, password, null)
+
+    override suspend fun register(username: Username, password: Password, email: Email?): RegistrationResult? {
+        val result = feature.register(username, password, email) ?: return null
+        if (result is RegistrationResult.Authorized) {
+            storage.save(result.credentials)
+        }
+        return result
     }
+
+    override suspend fun getConfig(): AuthConfig = feature.getConfig()
 
     override suspend fun isRegistrationAvailable(): Boolean = feature.isRegistrationAvailable()
 

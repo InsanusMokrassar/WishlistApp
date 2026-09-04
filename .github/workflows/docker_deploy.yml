@@ -1,6 +1,9 @@
 name: Docker deploy
 
-on: [push]
+on:
+  push:
+    branches:
+      - master
 
 jobs:
   build_and_deploy:
@@ -11,15 +14,9 @@ jobs:
         uses: actions/setup-java@v1
         with:
           java-version: 17
-      - name: Rewrite version
+      - name: Configure Gradle memory
         run: |
           printf "\norg.gradle.jvmargs=-Xmx1g -Xms500m\nkotlin.daemon.jvmargs=-Xmx1g -Xms500m\norg.gradle.daemon=false" >> gradle.properties
-          branch="`echo "${{ github.ref }}" | grep -o "[^/]*$"`"
-          if [[ "$branch" != "master" ]]; then
-            cat gradle.properties | sed -e "s/^version=\([0-9\.]*\)/version=\1-branch_$branch-build${{ github.run_number }}/" > gradle.properties.tmp
-            rm gradle.properties
-            mv gradle.properties.tmp gradle.properties
-          fi
       - name: Log into registry
         uses: docker/login-action@28218f9b04b4f3f62068d7b6ce6ca5b26e35336c
         with:

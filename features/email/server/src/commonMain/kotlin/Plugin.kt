@@ -1,19 +1,30 @@
 package dev.inmo.wishlist.features.email.server
 
-import dev.inmo.micro_utils.koin.singleWithRandomQualifier
 import dev.inmo.micro_utils.ktor.server.configurators.ApplicationRoutingConfigurator
 import dev.inmo.micro_utils.startup.plugin.StartPlugin
+import dev.inmo.micro_utils.koin.singleWithRandomQualifier
+import dev.inmo.kroles.repos.RolesRepo
+import dev.inmo.wishlist.features.auth.server.RegistrationEmailSender
+import dev.inmo.wishlist.features.common.server.models.Config as ServerConfig
+import dev.inmo.wishlist.features.deeplinks.common.DeepLinkHandler
+import dev.inmo.wishlist.features.deeplinks.server.services.DeepLinksService
 import dev.inmo.wishlist.features.email.common.EmailConstants
 import dev.inmo.wishlist.features.email.server.configurators.EmailRoutingsConfigurator
 import dev.inmo.wishlist.features.email.server.services.DisabledEmailFeature
 import dev.inmo.wishlist.features.email.server.services.EmailFeatureService
+import dev.inmo.wishlist.features.email.server.services.EmailVerificationAccountCoordinator
 import dev.inmo.wishlist.features.email.server.services.SmtpEmailService
+import dev.inmo.wishlist.features.email.server.services.EmailRegistrationInviteSender
+import dev.inmo.wishlist.features.email.server.services.EmailVerificationDeepLinkHandler
+import dev.inmo.wishlist.features.email.server.models.EmailVerificationPayload
 import dev.inmo.wishlist.features.roles.common.FeatureRolesRegistry
 import dev.inmo.wishlist.features.roles.common.models.SuperAdminRole
 import dev.inmo.wishlist.features.roles.common.utils.singleRequirement
 import dev.inmo.wishlist.features.roles.server.RolesFeature
 import dev.inmo.wishlist.features.users.common.repo.UsersRepo
 import kotlinx.serialization.json.Json
+import kotlinx.serialization.modules.SerializersModule
+import kotlinx.serialization.modules.polymorphic
 import kotlinx.serialization.json.JsonElement
 import kotlinx.serialization.json.JsonNull
 import kotlinx.serialization.json.JsonObject
@@ -29,17 +40,18 @@ import org.koin.core.module.Module
  *   non-null `"email"` JSON object is present at `config["email"]` in the root server config). When
  *   absent (or explicitly JSON `null`), none of the three are registered — "email delivery disabled"
  *   is a DI-graph-shape fact rather than a runtime value check.
+ * - [EmailVerificationAccountCoordinator], registered exactly once and unconditionally so account
+ *   mutation and verification share one atomicity boundary in both SMTP graph shapes.
  * - [EmailFeature], always registered unconditionally via an inline `single<EmailFeature>` block
  *   that resolves `getOrNull<EmailsService>()`: present → [EmailFeatureService]; absent →
- *   [DisabledEmailFeature] (both wrapping [UsersRepo], so per-user email storage keeps working even
- *   with SMTP disabled).
+ *   [DisabledEmailFeature] (both wrapping the shared [EmailVerificationAccountCoordinator], so
+ *   per-user email storage and verification atomicity do not depend on SMTP configuration).
  * - [EmailRoutingsConfigurator], registered with a random qualifier so Ktor picks it up automatically.
  *
- * [emailConfigElementOrNull] is extracted as a pure, Koin-free top-level function specifically so the
- * `"email"` config-key-presence decision is directly unit testable (see `PluginTest`) without needing
- * a Koin test harness (none exists in this repo). The [EmailFeature]-implementation choice
- * (present-[EmailsService] vs [DisabledEmailFeature]) is simple enough that it stays inline in the
- * `single<EmailFeature>` block rather than being extracted to its own named helper.
+ * [emailConfigElementOrNull] is extracted as a pure, Koin-free top-level function so the `"email"`
+ * config-key-presence decision remains directly unit testable. Dedicated Koin graph tests also prove
+ * that both [EmailFeature] realizations and [EmailVerificationDeepLinkHandler] resolve the same single
+ * coordinator instance.
  *
  * The email server module targets JVM only (`mppJavaProject`), so Jakarta Mail references are safe
  * in this `commonMain` source set — the same approach used by `currency/server` with OkHttp.
@@ -47,15 +59,42 @@ import org.koin.core.module.Module
 object Plugin : StartPlugin {
     override fun Module.setupDI(config: JsonObject) {
         val emailConfigElement = emailConfigElementOrNull(config)
+        val serverConfig = Json { ignoreUnknownKeys = true }
+            .decodeFromJsonElement(ServerConfig.serializer(), config)
         if (emailConfigElement != null) {
             single { get<Json>().decodeFromJsonElement(EmailConfig.serializer(), emailConfigElement) }
             single { SmtpEmailService(get<EmailConfig>()) }
             single<EmailsService> { get<SmtpEmailService>() }
         }
+        single {
+            EmailVerificationAccountCoordinator(
+                usersRepo = get<UsersRepo>(),
+                rolesRepo = get<RolesRepo>(),
+            )
+        }
         single<EmailFeature> {
-            getOrNull<EmailsService>() ?.let {
-                EmailFeatureService(it, get<UsersRepo>(), get<RolesFeature>())
-            } ?: DisabledEmailFeature(get<UsersRepo>())
+            val accountCoordinator = get<EmailVerificationAccountCoordinator>()
+            getOrNull<EmailsService>()?.let {
+                EmailFeatureService(it, accountCoordinator, get<RolesFeature>())
+            } ?: DisabledEmailFeature(accountCoordinator)
+        }
+        singleWithRandomQualifier {
+            SerializersModule {
+                polymorphic(Any::class, EmailVerificationPayload::class, EmailVerificationPayload.serializer())
+            }
+        }
+        singleWithRandomQualifier<DeepLinkHandler> {
+            EmailVerificationDeepLinkHandler(
+                accountCoordinator = get<EmailVerificationAccountCoordinator>(),
+                emailsService = getOrNull<EmailsService>(),
+            )
+        }
+        single<RegistrationEmailSender> {
+            EmailRegistrationInviteSender(
+                emailsService = getOrNull(),
+                deepLinksService = getOrNull<DeepLinksService>(),
+                publicHttpOrigin = serverConfig.publicHttpOrigin,
+            )
         }
         singleRequirement {
             FeatureRolesRegistry.Requirement(EmailConstants.sendTestFunctionalityId, SuperAdminRole)

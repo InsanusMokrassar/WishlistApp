@@ -49,9 +49,11 @@ class AuthView(
         val registrationEnabled by viewModel.registrationEnabledState.collectAsState()
         val username by viewModel.usernameState.collectAsState()
         val password by viewModel.passwordState.collectAsState()
+        val email by viewModel.emailState.collectAsState()
         val loading by viewModel.loadingState.collectAsState()
         val error by viewModel.errorState.collectAsState()
         val loginEnabled by viewModel.loginEnabledState.collectAsState()
+        val pendingEmailVerification by viewModel.pendingEmailVerificationState.collectAsState()
 
         if (loggedIn) {
             CalmButton(
@@ -75,6 +77,11 @@ class AuthView(
                 variant = CalmButtonVariant.Primary,
             )
         }
+
+        PendingEmailVerificationDialog(
+            visible = pendingEmailVerification,
+            onDismiss = viewModel::onDismissPendingEmailVerification,
+        )
 
         if (!expanded) return
 
@@ -126,6 +133,16 @@ class AuthView(
                         disabled = loading,
                         id = "auth-password",
                     )
+                    if (registerMode) {
+                        CalmTextField(
+                            value = email,
+                            onValueChange = { viewModel.onEmailChanged(it) },
+                            label = AuthStrings.emailPlaceholder.translation(),
+                            placeholder = AuthStrings.emailPlaceholder.translation(),
+                            disabled = loading,
+                            id = "auth-email",
+                        )
+                    }
                     if (error) {
                         FormHint(
                             text = if (registerMode) AuthStrings.errorRegisterFailed.translation()
@@ -153,6 +170,28 @@ class AuthView(
                     )
                 }
             }
+        }
+    }
+}
+
+/** Renders the standalone required-email confirmation with no authenticated-session implication. */
+@Composable
+internal fun PendingEmailVerificationDialog(visible: Boolean, onDismiss: () -> Unit) {
+    if (!visible) return
+    CalmModal(onDismiss = onDismiss) {
+        ModalHeader(AuthStrings.pendingEmailVerificationTitle.translation())
+        ModalBody {
+            FormHint(
+                text = AuthStrings.pendingEmailVerificationMessage.translation(),
+                error = false,
+            )
+        }
+        ModalFooter {
+            CalmButton(
+                text = AuthStrings.pendingEmailVerificationDismissButton.translation(),
+                onClick = onDismiss,
+                variant = CalmButtonVariant.Primary,
+            )
         }
     }
 }

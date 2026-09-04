@@ -29,6 +29,7 @@ dependencies {
     api libs.ktor.serialization.kotlinx.json
     api libs.exposed.jdbc
     api libs.psql
+    api libs.xerial.sql
 }
 
 compileKotlin {

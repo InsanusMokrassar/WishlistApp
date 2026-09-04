@@ -16,19 +16,21 @@ import dev.inmo.wishlist.features.auth.common.models.RefreshRequest
 import dev.inmo.wishlist.features.auth.common.models.RegisterRequest
 import dev.inmo.wishlist.features.auth.common.models.Token
 import dev.inmo.wishlist.features.auth.server.ServerAuthFeature
-import dev.inmo.wishlist.features.auth.server.models.AuthConfig
 
 class AuthRoutingsConfigurator(
     private val authFeature: ServerAuthFeature
 ) : ApplicationRoutingConfigurator.Element {
     override fun Route.invoke() {
         route(Constants.prefixPathPart) {
+            get(Constants.configPathPart) {
+                call.respond(authFeature.getConfig())
+            }
             get(Constants.isRegistrationAvailablePathPart) {
                 call.respond(authFeature.isRegistrationAvailable())
             }
             post(Constants.registerPathPart) {
                 val request = call.receive<RegisterRequest>()
-                val credentials = authFeature.register(request.username, request.password)
+                val credentials = authFeature.register(request.username, request.password, request.email)
                 if (credentials == null) {
                     call.respond(HttpStatusCode.BadRequest)
                 } else {

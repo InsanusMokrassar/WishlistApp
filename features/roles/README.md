@@ -7,10 +7,13 @@
 ## Overview
 
 Full-stack role storage feature (issue #68, points 1–6) wrapping the external `dev.inmo:kroles`
-library. Owns the Exposed-backed, cache-mirrored `RolesRepo`, the two hardcoded roles this app uses
-(`SuperAdmin`, `User`), the feature/role aggregator (`FeatureRolesRegistry`) and its route-guard
-helper (`requireRole`), and the bootstrap/migration that assigns `SuperAdmin` to `root` and `User` to
-every user. The general role graph (`RolesRepo`) is server-internal only; however, the narrow
+library. Owns the Exposed-backed, cache-mirrored `RolesRepo`, the three hardcoded roles this app uses
+(`SuperAdmin`, approved `User`, and pending `NewUser`), the feature/role aggregator
+(`FeatureRolesRegistry`) and its route-guard helper (`requireRole`), and the bootstrap/migration that
+assigns `SuperAdmin` to `root` and approved `User` to every pre-existing user. Generic and
+administrator-created accounts receive `User`; required-email self-registration explicitly replaces
+that role with `NewUser` until email verification promotes the account. The general role graph
+(`RolesRepo`) is server-internal only; however, the narrow
 `isFunctionalityAvailable` check is exposed client-side — see Architecture Notes.
 
 ## Routes
@@ -25,6 +28,7 @@ every user. The general role graph (`RolesRepo`) is server-internal only; howeve
 |------|--------|-------------|
 | `SuperAdminRole` | `roles/common` | `BaseRole("SuperAdmin")` constant — the single, hardcoded, root-only administrative role. |
 | `UserRole` | `roles/common` | `BaseRole("User")` constant — granted to every registered user. |
+| `NewUserRole` | `roles/common` | `BaseRole("NewUser")` constant — assigned to new non-root accounts while required-email registration awaits verification. |
 | `FunctionalityId` | `roles/common` | `@Serializable @JvmInline value class FunctionalityId(val string: String)` — strongly-typed capability id (serializes as its underlying string). Each concrete id is declared in its owning feature's `Constants` file, not here. |
 | `FeatureRolesRegistry` | `roles/common` | Interface — aggregator of `FunctionalityId -> BaseRole` mappings; `requiredRole(functionalityId): BaseRole?`; realized by `MapFeatureRolesRegistry(getAllDistinct())`. |
 | `FeatureRolesRegistry.Requirement` | `roles/common` | `@Serializable data class Requirement(val functionalityId: FunctionalityId, val role: BaseRole)` — one functionality→role pair contributed via `singleRequirement` into Koin. Registered polymorphic-to-`Any` in `roles/common` `Plugin.setupDI`. |
@@ -39,6 +43,7 @@ every user. The general role graph (`RolesRepo`) is server-internal only; howeve
 | `KtorRolesFeature` | `roles/client` | HTTP implementation of client `RolesFeature`; `GET /roles/isFunctionalityAvailable/{id}`. Fails closed on HTTP errors. |
 | `RolesConstants` | `roles/common` | Shared path-segment constants: `prefixPathPart="roles"`, `isFunctionalityAvailablePathPart="isFunctionalityAvailable"`, `functionalityIdParameter="functionalityId"`. |
 | `RolesRepo` (kroles) | `roles/common` (JVM) | kroles' own `RolesRepo` (`dev.inmo.kroles.repos`), bound in Koin as the Exposed+cache-backed implementation — see Architecture Notes. |
+| `RolesUserRoleAuthorization` | `roles/server` | Roles-owned implementation of Auth's `UserRoleAuthorization` port. Ensures and checks only direct `UserRole`, never inherited roles, `NewUserRole`, or `SuperAdminRole`. |
 | `roles` table | Postgres | Two text columns, `subject` (JSON-encoded `BaseRoleSubject`) and `role` (`BaseRole.plain`); one-to-many, via `ExposedKeyValuesRepo`. |
 
 ## Architecture Notes
@@ -71,10 +76,24 @@ every user. The general role graph (`RolesRepo`) is server-internal only; howeve
   finished creating the `root` user, the migration would see zero users, mark itself permanently done,
   and never see `root` again. Subscribing first closes that race: any user created concurrently by
   another plugin (including `root`) is caught by the live subscription even if it beats the backfill's
-  snapshot read. The actual per-user grant rule (`grantDefaultRoles` — grant `User` always, plus
-  `SuperAdmin` when `username == "root"`) is shared by both paths and is idempotent (kroles'
-  `RolesRepo.includeDirect` is a no-op when already granted), so double-granting in the overlap window
-  between the two paths is harmless.
+  snapshot read. The live callback checks that the emitted user still exists while holding the
+  role-transition mutex before granting anything. A second subscription, installed before backfill,
+  removes every direct role emitted by `deletedObjectsIdsFlow` under the same mutex. Callback-before-delete
+  is cleaned by the deletion event; delete-before-callback is rejected by the existence check, so neither
+  order leaves an orphan subject.
+- **Required-email transition (issue #73):** generic creation no longer reads the global auth email
+  policy. Root receives `User` and `SuperAdmin`; every other generic/admin-created account receives
+  `User` unless it already explicitly holds `NewUser`. Required self-registration alone calls the
+  roles-owned `RegistrationRoleLifecycle`, which excludes `User` and includes `NewUser`. Generic grant,
+  pending marking, verification promotion, and compensation cleanup share one process-local mutex:
+  callback-before-pending is replaced by `NewUser`, pending-before-callback is preserved, and a callback
+  delayed until after promotion idempotently retains exactly `User`. Backfill uses the generic rule and
+  preserves an already explicit pending state.
+- **Auth authorization bridge:** `roles/server` binds one `RolesUserRoleAuthorization` as Auth's
+  `UserRoleAuthorization` port. Optional self-registration uses the same `roleTransitionMutex` to
+  synchronously add and confirm direct `UserRole`, while current authorization checks inspect only
+  direct membership under that mutex. A pending `NewUserRole` is preserved and refuses the ensure
+  operation. Auth consumers fail closed when the binding is absent.
 - **`FeatureRolesRegistry` has real data.** The registry is populated with today's three real
   mappings (all role-gated capabilities require `SuperAdmin`), and `requireRole`/`isRoleRequirementSatisfied`
   are fully implemented and unit-tested. The gated call sites (`admin`, `email`, `files` on the server

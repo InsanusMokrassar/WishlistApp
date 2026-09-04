@@ -54,9 +54,11 @@ class AuthView(
         val registrationEnabled by viewModel.registrationEnabledState.collectAsState()
         val username by viewModel.usernameState.collectAsState()
         val password by viewModel.passwordState.collectAsState()
+        val email by viewModel.emailState.collectAsState()
         val loading by viewModel.loadingState.collectAsState()
         val error by viewModel.errorState.collectAsState()
         val loginEnabled by viewModel.loginEnabledState.collectAsState()
+        val pendingEmailVerification by viewModel.pendingEmailVerificationState.collectAsState()
 
         if (loggedIn) {
             Button(
@@ -79,6 +81,11 @@ class AuthView(
                 }
             }
         }
+
+        PendingEmailVerificationDialog(
+            visible = pendingEmailVerification,
+            onDismiss = viewModel::onDismissPendingEmailVerification,
+        )
 
         if (!expanded) return
 
@@ -104,6 +111,21 @@ class AuthView(
                         }),
                         modifier = Modifier.fillMaxWidth()
                     )
+                    if (registerMode) {
+                        OutlinedTextField(
+                            value = email,
+                            onValueChange = { viewModel.onEmailChanged(it) },
+                            placeholder = { Text(AuthStrings.emailPlaceholder.translation(resources)) },
+                            singleLine = true,
+                            enabled = !loading,
+                            keyboardOptions = KeyboardOptions(
+                                keyboardType = KeyboardType.Email,
+                                imeAction = ImeAction.Done
+                            ),
+                            keyboardActions = KeyboardActions(onDone = { viewModel.onRegister() }),
+                            modifier = Modifier.fillMaxWidth()
+                        )
+                    }
                     OutlinedTextField(
                         value = password,
                         onValueChange = { viewModel.onPasswordChanged(it) },
@@ -146,6 +168,27 @@ class AuthView(
                             ) { Text(AuthStrings.submitButton.translation(resources)) }
                         }
                     }
+                }
+            }
+        }
+    }
+}
+
+/** Renders the standalone required-email confirmation on Android. */
+@Composable
+internal fun PendingEmailVerificationDialog(visible: Boolean, onDismiss: () -> Unit) {
+    if (!visible) return
+    val resources = LocalResources.current
+    Dialog(onDismissRequest = onDismiss) {
+        Surface {
+            Column(
+                modifier = Modifier.padding(16.dp),
+                verticalArrangement = Arrangement.spacedBy(8.dp),
+            ) {
+                Text(AuthStrings.pendingEmailVerificationTitle.translation(resources))
+                Text(AuthStrings.pendingEmailVerificationMessage.translation(resources))
+                Button(onClick = onDismiss) {
+                    Text(AuthStrings.pendingEmailVerificationDismissButton.translation(resources))
                 }
             }
         }

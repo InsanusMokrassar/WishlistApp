@@ -148,7 +148,7 @@ file**. Five hard rules govern every web design change:
 
 ## KDoc Requirements
 
-Priority of selecting model for KDocs fills: `haiku` / `sonnet` / `opus`
+Priority of selecting model for KDocs fills: LL / ML / HL
 
 **ALL created `.kt` files MUST contain valid KDocs.**
 

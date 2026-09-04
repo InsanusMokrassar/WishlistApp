@@ -20,6 +20,8 @@ const val defaultWebClientSubPath = ""
  * @property databaseConfig PostgreSQL/Exposed connection settings.
  * @property wss Whether public WebSocket links should use the `wss://` scheme.
  * @property publicHost Public hostname used for link generation; defaults to [host].
+ * @property publicHttpOrigin Externally reachable HTTP origin used for absolute links. Defaults to
+ * the compatibility bind-derived value `http://{publicHost}:{port}`.
  * @property staticFolder Shortcut for configuring a single static content directory; when set and
  * [staticFolders] is not explicitly provided, the directory is mounted under [defaultWebClientSubPath].
  * @property staticFolders Map of URL path prefix to local directory served as static content. When
@@ -33,6 +35,7 @@ data class Config(
     val databaseConfig: DatabaseConfig = DatabaseConfig(),
     val wss: Boolean = false,
     val publicHost: String = host,
+    val publicHttpOrigin: String = "http://$publicHost:$port",
     val staticFolder: String? = null,
     val staticFolders: Map<String, String> = staticFolder ?.let { mapOf(defaultWebClientSubPath to it) } ?: emptyMap(),
 )

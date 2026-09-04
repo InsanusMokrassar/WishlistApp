@@ -3,6 +3,7 @@ package dev.inmo.wishlist.features.users.common.repo
 import dev.inmo.micro_utils.repos.exposed.AbstractExposedCRUDRepo
 import dev.inmo.micro_utils.repos.exposed.initTable
 import dev.inmo.wishlist.features.email.common.models.Email
+import dev.inmo.wishlist.features.common.common.utils.isUniqueViolation
 import dev.inmo.wishlist.features.users.common.models.NewUser
 import dev.inmo.wishlist.features.users.common.models.RegisteredUser
 import dev.inmo.wishlist.features.users.common.models.UserId
@@ -16,10 +17,9 @@ import org.jetbrains.exposed.v1.core.statements.UpdateBuilder
 import org.jetbrains.exposed.v1.exceptions.ExposedSQLException
 import org.jetbrains.exposed.v1.jdbc.Database
 import org.jetbrains.exposed.v1.jdbc.transactions.transaction
-import java.sql.SQLException
 
 /**
- * Exposed-backed implementation of [UsersRepo].
+ * Exposed-backed PostgreSQL and SQLite implementation of [UsersRepo].
  *
  * Stores users in the `users` table with an auto-increment `id`, a unique `username`, and a
  * unique, nullable `email` column. The nullable `email` column is additive — `initTable()` adds
@@ -27,10 +27,9 @@ import java.sql.SQLException
  * `NULL`; `NULL` values are exempt from the uniqueness check, so users without a stored email
  * never collide with each other.
  *
- * [update] and [create] translate a Postgres unique-violation on either unique column into
- * [DuplicateUserFieldException] (see [isUniqueViolation]) instead of letting the raw
- * [ExposedSQLException] escape — callers that need to distinguish "duplicate" from other
- * failures (e.g. HTTP route handlers responding `409 Conflict`) should catch that type.
+ * [update] and [create] translate an exact PostgreSQL or SQLite unique-violation on either unique
+ * column into [DuplicateUserFieldException] (see [isUniqueViolation]) instead of letting the raw
+ * [ExposedSQLException] escape. Other constraint and database failures retain their original type.
  *
  * @param database Exposed [Database] instance (provided by the common server plugin).
  */
@@ -115,10 +114,10 @@ class ExposedUsersRepo(
     /**
      * Persists [value] over the row identified by [id].
      *
-     * Wraps the library default (`AbstractExposedWriteCRUDRepo.update`) with translation of a
-     * Postgres unique-violation on [usernameColumn]/[emailColumn] into
-     * [DuplicateUserFieldException] — every other exception, and the plain `null` return for
-     * "no such id", are unchanged.
+     * Wraps the library default (`AbstractExposedWriteCRUDRepo.update`) with translation of an
+     * exact PostgreSQL or SQLite unique-violation on [usernameColumn]/[emailColumn] into
+     * [DuplicateUserFieldException]. Every other exception and the plain `null` return for
+     * "no such id" are unchanged.
      *
      * @param id Target user id.
      * @param value Replacement user data.
@@ -136,8 +135,8 @@ class ExposedUsersRepo(
     /**
      * Inserts [values] as new users.
      *
-     * Wraps the library default (`AbstractExposedWriteCRUDRepo.create`) with translation of a
-     * Postgres unique-violation on [usernameColumn]/[emailColumn] into
+     * Wraps the library default (`AbstractExposedWriteCRUDRepo.create`) with translation of an
+     * exact PostgreSQL or SQLite unique-violation on [usernameColumn]/[emailColumn] into
      * [DuplicateUserFieldException].
      *
      * @param values New users to insert.
@@ -156,12 +155,3 @@ class ExposedUsersRepo(
         initTable()
     }
 }
-
-/**
- * Returns whether this exception represents a Postgres `unique_violation` (SQL state `23505`) —
- * i.e. a `.uniqueIndex()`-constrained column already holds the given value for a different row.
- *
- * A standalone, pure function (rather than inlined in [ExposedUsersRepo]'s catch blocks) so it
- * can be unit-tested directly against a plain [SQLException], without a live database.
- */
-internal fun SQLException.isUniqueViolation(): Boolean = sqlState == "23505"

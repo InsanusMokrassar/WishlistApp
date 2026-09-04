@@ -8,7 +8,9 @@ Multiplatform codebase.
 ## Functionality
 
 - **Accounts** — registration and login with bearer-token auth (auto-refreshing tokens,
-  BCrypt password hashing on the server). A `root` user is bootstrapped on first server
+  BCrypt password hashing on the server). When required-email registration is enabled, new
+  accounts receive a verification invite and remain `NewUser` until the deeplink is opened;
+  verified accounts receive the `User` role. A `root` user is bootstrapped on first server
   start; its generated password is printed once to the server log.
 - **Wishlists** — each user owns wishlists. Owners can create, rename, and delete their
   own wishlists; edit controls are hidden for non-owners.
@@ -48,7 +50,7 @@ See `agents/CODING.md` for the full coding conventions and feature patterns.
 ## Prerequisites
 
 - JDK 17+
-- Docker engine + Docker Compose (for the PostgreSQL database)
+- Docker engine + Docker Compose (for PostgreSQL and the local Mailpit SMTP inbox)
 
 ## Running the server (with the web client)
 
@@ -60,7 +62,7 @@ both the API and the Web UI.
    ```bash
    # from the project root
    cd server
-   docker compose up        # use `docker-compose up` on older Docker
+   docker compose up        # PostgreSQL on 8501, Mailpit SMTP on 1025, UI on 8025
    ```
 
 2. Run the server with the development config. The `run` task automatically builds the web
@@ -87,6 +89,7 @@ template (see [Production deployment](#production-deployment)). Key fields:
 |-------|---------|
 | `host` / `port` | bind address and port (default `8196`) |
 | `publicHost` | host advertised to clients |
+| `publicHttpOrigin` | complete externally reachable HTTP(S) origin used in invite links; defaults to `http://{publicHost}:{port}` for compatibility; set an explicit reverse-proxy origin such as `https://wishlist.example` in production |
 | `staticFolders` | static content roots (serves the web client bundle) |
 | `database` | JDBC `url`, `username`, `password` for PostgreSQL |
 | `plugins` | fully-qualified server feature plugins loaded by reflection |
@@ -94,6 +97,7 @@ template (see [Production deployment](#production-deployment)). Key fields:
 | `useCache` | enable in-memory caching of repositories |
 | `tokenTtl` / `refreshTokenTtl` | bearer / refresh token lifetimes (ISO-8601 durations) |
 | `enableRegistration` | allow new-user registration |
+| `requireEmailForRegistration` | require a valid email and successful verification invite; new accounts start with `NewUser` |
 | `openExchangeRatesAppId` | Open Exchange Rates App ID enabling the currency feature (`null` disables it) |
 | `openExchangeRatesRefreshTTLMillis` | currency-rates cache lifetime in milliseconds |
 | `email` | Nested SMTP config object (`{ smtp: { host, port, username?, password?, from, useTls, useSsl } }`) that enables the email feature's SMTP test-email delivery; omit the key (or set it to JSON `null`) to disable SMTP while per-user email-address storage (`PUT /email/myEmail`) keeps working |
@@ -101,13 +105,16 @@ template (see [Production deployment](#production-deployment)). Key fields:
 ## Production deployment
 
 Local development uses `server/dev.config.json` together with `server/docker-compose.yml`
-(a throwaway PostgreSQL with `test`/`test` credentials). Production runs from a set of
+(a throwaway PostgreSQL with `test`/`test` credentials and Mailpit at
+<http://127.0.0.1:8025>). Registration invites are delivered to Mailpit through SMTP on
+`127.0.0.1:1025`; opening the invite calls `/api/links/{deeplink_uuid}` and promotes the
+account from `NewUser` to `User`. Production runs from a set of
 **sample template files** in `server/` — copy each one, replace its placeholder values, and
 never commit the result.
 
 | File | Role | What to change before use |
 |------|------|---------------------------|
-| `server/sample.config.json` | Production server config template. Serves the web bundle from `/static`, stores uploads under `/data/uploaded_files`, and points the database at the `postgres` service host. | Replace the `database` `url` / `username` / `password` (placeholders `TEST_DB` / `TEST_USERNAME` / `TEST_PASSWORD`), set `publicHost` to your real public address, set `openExchangeRatesAppId` if you use the currency feature, configure (or omit) the `email` block if you want SMTP-based test-email delivery, and review `enableRegistration`. Mount the finished file into the container at `/config.json`. |
+| `server/sample.config.json` | Production server config template. Serves the web bundle from `/static`, stores uploads under `/data/uploaded_files`, and points the database at the `postgres` service host. | Replace the `database` `url` / `username` / `password` (placeholders `TEST_DB` / `TEST_USERNAME` / `TEST_PASSWORD`), set `publicHost` as needed by clients and `publicHttpOrigin` to the externally reachable reverse-proxy origin (for example `https://wishlist.example`, with no internal bind port), set `openExchangeRatesAppId` if you use the currency feature, configure the `email` SMTP block, and review both registration flags. Set `requireEmailForRegistration` to `true` only with working SMTP and deeplinks. Mount the finished file into the container at `/config.json`. |
 | `server/sample.docker-compose.yml` | Production Docker Compose template. Runs the published `insanusmokrassar/wishlists` image plus a PostgreSQL service, mounts `./config.json:/config.json:ro` and `./data/uploaded_files/`, and publishes port `8196`. | Copy to `docker-compose.yml`, replace the `POSTGRES_USER` / `POSTGRES_PASSWORD` / `POSTGRES_DB` placeholders (match them to your config's `database` block), and provide your filled-in `config.json` next to it. |
 | `server/Dockerfile` | Builds the server image (`amazoncorretto:21`). Unpacks the web production bundle into `/static` and the server distribution, and runs the entrypoint against `/config.json`. | Usually unchanged; used by `deploy.sh`. |
 | `server/deploy.sh` | Build-and-publish script: packs the web `productionExecutable` bundle, then builds, tags, and pushes the Docker image to the registry. | Set `app` / `version` / `server` (registry account) to your own. Build the client (`./gradlew :wishlist.client:jsBrowserDistribution`) and server distribution tar first. |
@@ -115,6 +122,7 @@ never commit the result.
 Hardening notes for production:
 
 - The server speaks plain HTTP — terminate TLS with a reverse proxy in front of it.
+- Set `publicHttpOrigin` to that proxy's public HTTP(S) origin so verification messages do not expose the internal Ktor bind port.
 - Replace every `TEST_*` placeholder; the sample files ship with placeholders only.
 - On first start, watch the server log for the generated `root` password and store it.
 

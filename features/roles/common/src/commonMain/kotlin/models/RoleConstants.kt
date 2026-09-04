@@ -15,3 +15,8 @@ val SuperAdminRole = BaseRole("SuperAdmin")
  * [dev.inmo.wishlist.features.roles.server.JVMPlugin].
  */
 val UserRole = BaseRole("User")
+
+/**
+ * Role assigned to non-root accounts while required-email registration awaits verification.
+ */
+val NewUserRole = BaseRole("NewUser")

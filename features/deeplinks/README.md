@@ -10,6 +10,9 @@ Server-only feature. It stores declared deeplink UUIDs together with attached ha
 deeplinks in-process, and resolves an opened `links/{deeplink_uuid}` by dispatching it to the handler
 registered under the stored `DeepLinkHandlerId`.
 
+The email feature provides the first concrete handler: registration verification links carry an
+`EmailVerificationPayload` and promote the referenced account from `NewUser` to `User`.
+
 The feature ships **zero** concrete handlers — it only declares the `DeepLinkHandler` interface and
 the dispatch infrastructure. Other features provide their own handlers (registered in their own
 server plugins) and mint links via the in-process `DeepLinksService.createDeepLink` API.
@@ -22,7 +25,7 @@ with every other feature and compiles.
 
 | Method | Path | Auth | Body / Response | Description |
 |--------|------|------|-----------------|-------------|
-| GET | `/api/links/{deeplink_uuid}` | none | empty body; `200` handled, `404` not-found or unhandled, `400` blank/missing id | User-clickable deeplink, served under the standard `/api` prefix via a normal `ApplicationRoutingConfigurator.Element`, auto-wrapped by `InternalApplicationRoutingConfigurator`. |
+| GET | `/api/links/{deeplink_uuid}` | none | empty `200` for common handling; `302 Location` for redirects; `404` not-found or unhandled; `400` blank/missing id | User-clickable deeplink, served under the standard `/api` prefix via a normal `ApplicationRoutingConfigurator.Element`, auto-wrapped by `InternalApplicationRoutingConfigurator`. |
 
 There is **no HTTP create endpoint**. Creating a deeplink is the in-process
 `DeepLinksService.createDeepLink(handlerId, value)` API, called by other server features (avoids
@@ -44,13 +47,15 @@ Key data types:
   `SerializersModule` (all handler-providing features register their value type via
   `polymorphic(Any::class, T::class, T.serializer())`).
 - `DeepLinkHandler` — interface in `common` with `val id: DeepLinkHandlerId` and
-  `suspend fun tryHandle(deeplinkId: DeepLinkId, value: Any): Boolean`. The service selects the
-  handler by `id` (map lookup), then passes the decoded `value` (no wrapper, no id). The handler
-  casts `value` to its concrete type, performs its side-effect, and returns `true` if processed,
-  `false` otherwise.
+  `suspend fun tryHandle(deeplinkId: DeepLinkId, value: Any): HandleResult.Handled?`. The service
+  selects the handler by `id` (map lookup), then passes the decoded `value` (no wrapper, no id).
+  The handler returns `null` when it cannot process the payload, `Handled.Common` for an ordinary
+  success, or `Handled.Redirect(url)` for a trusted handler-owned redirect destination.
 - `DeepLinksRepo : KeyValueRepo<DeepLinkId, DeepLinkHandlerInfo>` — persistent store (Exposed-backed
   `ExposedDeepLinksRepo`, `deeplinks` table, JSON blob value column).
-- `HandleResult` — `@Serializable` sealed interface: `NotFound` / `Unhandled` / `Handled`; mapped to HTTP status by the route.
+- `HandleResult` — `@Serializable` sealed interface in `deeplinks/common`: `NotFound` /
+  `Unhandled` / `Handled.Common` / `Handled.Redirect(url)`; mapped to `404` / `404` / `200` /
+  temporary `302 Location` by the server route.
 
 ## Architecture Notes
 
@@ -78,5 +83,17 @@ Key data types:
   their own server plugin; the dispatch infra in `deeplinks/server` collects them.
 - **In-process create, no public POST.** `createDeepLink` is a server-only Kotlin API; minting a
   link is not exposed over HTTP to avoid unauthenticated link creation.
+- **Failure cleanup is in-process.** A feature that mints a link and then fails its downstream
+  operation removes the link through `removeDeepLink`; public callers cannot delete or mint links.
+- **Required-email invite ownership:** After successful SMTP acceptance, the email feature transfers
+  exact-link rollback ownership to a request-local Auth delivery handle. The handle captures only
+  the relevant `DeepLinkId` and `DeepLinksService`; no shared user-to-link map, singleton registry,
+  or thread-local ownership state exists.
 - **Empty handler list is correct.** With zero handlers registered, `handle` returns `Unhandled`
   (→ `404`) for any stored link until a feature provides a handler. This is expected infra behavior.
+- **Email verification handler:** `features/email/server` registers `email.registration_verification`
+  and its polymorphic payload when the email plugin is loaded. The deeplinks core remains generic; the
+  handler checks that the referenced user exists and performs the idempotent role transition.
+- **Handler-owned redirect safety.** The dispatcher preserves `Handled.Redirect(url)` without parsing
+  or rewriting it. A concrete handler owns destination safety; the email handler emits only its fixed
+  same-origin root path, never payload-controlled text.
