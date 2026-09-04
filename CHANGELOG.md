@@ -1,5 +1,15 @@
 # Changelog
 
+## 0.2.0
+
+- Added a root-only Admin Panel entry to the web sidebar.
+- Public user data no longer exposes email addresses, and feature APIs now use feature-owned models.
+- Added role-based authorization with `SuperAdmin`, `User`, and `NewUser` roles plus feature-specific access checks.
+- Registration can now require email verification, with SMTP verification links, pending-account access restrictions, and approval feedback.
+- Hardened email approval with atomic updates, unique-address conflict handling, and cancellation-safe compensation.
+- Added public-origin, SMTP, Mailpit, registration-policy, and roles configuration for local and production environments.
+- Docker deployment now runs only on `master` and preserves the version declared by Gradle.
+
 ## 0.1.0
 
 - Web top bar search field disabled with a "coming soon" tooltip, styled per Calm Studio.
