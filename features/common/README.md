@@ -21,7 +21,7 @@ Cross-cutting infrastructure loaded by every consumer. Provides: shared domain m
 | Type | Module | Description |
 |------|--------|-------------|
 | `Amount` | `common/common` | Monetary/numeric amount: `intPart: Long`, `decimalPart: Long` (e.g. 12 and 99 for 12.99) |
-| `SQLException.isUniqueViolation` | `common/common` (JVM only) | Public unique-violation classifier for PostgreSQL and Xerial SQLite exception graphs |
+| `SQLException.isUniqueViolation` | `common/common` JVM package `dev.inmo.wishlist.features.common.common.utils` | Public unique-violation classifier for PostgreSQL and Xerial SQLite exception graphs |
 | `ViewConfig` | `common/client` | Navigation screen identifier interface; every screen config implements this |
 | `EmptyConfig` | `common/client` | Empty `@Serializable` startup config placeholder |
 | `findConfig<T, R>` | `common/client` | Extension on `ConfigHolder<T>`: DFS traversal (Chain→Node→subnode→subchains) returning first match of type `R`; defined in `utils/ConfigHolderFind.kt` |
@@ -34,7 +34,7 @@ Cross-cutting infrastructure loaded by every consumer. Provides: shared domain m
 - `HttpClient` is built once in `common/client/Plugin.kt` by collecting all `HttpClientConfigurator` instances registered via `singleWithRandomQualifier`. Features add configurators (bearer auth, default URL) without touching the client construction.
 - `fillAbsentPartsWith` (`utils/MergeUrlBuilders.kt`) merges a stored base URL into per-request URLs — only fills absent components, never overrides already-set ones.
 - `Amount` stores value as two `Long` fields (integer and decimal parts) to avoid floating-point precision issues. DB columns: `approx_price_int BIGINT NULL`, `approx_price_dec BIGINT NULL`.
-- `SQLException.isUniqueViolation` in `common/common` owns exact PostgreSQL/Xerial SQLite unique-violation classification. It traverses `cause` and JDBC `nextException` edges iteratively with object-identity cycle protection; generic JDBC code 19, exception messages, base SQLite constraints, and unrelated SQLite constraint result codes are deliberately ignored.
+- `SQLException.isUniqueViolation` in `common/common/src/jvmMain/kotlin/utils/SQLExceptionExtensions.kt` (package `dev.inmo.wishlist.features.common.common.utils`) owns exact PostgreSQL/Xerial SQLite unique-violation classification. It traverses `cause` and JDBC `nextException` edges iteratively with object-identity cycle protection; generic JDBC code 19, exception messages, base SQLite constraints, and unrelated SQLite constraint result codes are deliberately ignored.
 - `EchoFeature` and its routing configurator live under `common/server` (not a separate feature module) because it is a tiny cross-cutting helper.
 - **Web client root mount (`/`)** — the web client (JS single page application) is served from the
   site root. `defaultWebClientSubPath = ""` (in `common/server` `models/Config.kt`) is the default

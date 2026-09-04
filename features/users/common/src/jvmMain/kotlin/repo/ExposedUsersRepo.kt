@@ -3,7 +3,7 @@ package dev.inmo.wishlist.features.users.common.repo
 import dev.inmo.micro_utils.repos.exposed.AbstractExposedCRUDRepo
 import dev.inmo.micro_utils.repos.exposed.initTable
 import dev.inmo.wishlist.features.email.common.models.Email
-import dev.inmo.wishlist.features.common.common.isUniqueViolation
+import dev.inmo.wishlist.features.common.common.utils.isUniqueViolation
 import dev.inmo.wishlist.features.users.common.models.NewUser
 import dev.inmo.wishlist.features.users.common.models.RegisteredUser
 import dev.inmo.wishlist.features.users.common.models.UserId

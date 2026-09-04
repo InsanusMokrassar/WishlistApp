@@ -85,6 +85,8 @@ Each module is split into three submodules:
 
 `server` module contains `commonMain` and `jvmMain` targets.
 
+Stateless, reasonably short declarations that serve one clear purpose MUST live in the owning module's `utils` package (`src/<sourceSet>/kotlin/utils/`), not at the module package root.
+
 ## Gradle Module Names
 
 The root project is named `wishlist` in `settings.gradle`. Submodules use dotted paths. For example,
