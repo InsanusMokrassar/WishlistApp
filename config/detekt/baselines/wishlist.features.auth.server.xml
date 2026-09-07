@@ -1,0 +1,24 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<SmellBaseline>
+  <ManuallySuppressedIssues/>
+  <CurrentIssues>
+    <ID>UndocumentedPublicClass:AuthFeatureService.kt:AuthFeatureService : ServerAuthFeature</ID>
+    <ID>UndocumentedPublicClass:AuthRoutingsConfigurator.kt:AuthRoutingsConfigurator : Element</ID>
+    <ID>UndocumentedPublicClass:BearerAuthenticationConfigurator.kt:BearerAuthenticationConfigurator : Element</ID>
+    <ID>UndocumentedPublicClass:Config.kt:Config</ID>
+    <ID>UndocumentedPublicClass:ExposedPasswordsRepo.kt:ExposedPasswordsRepo : PasswordsRepoKeyValueRepo</ID>
+    <ID>UndocumentedPublicClass:JVMPlugin.kt:JVMPlugin : StartPlugin</ID>
+    <ID>UndocumentedPublicClass:PasswordsRepo.kt:PasswordsRepo : KeyValueRepo</ID>
+    <ID>UndocumentedPublicClass:Plugin.kt:Plugin : StartPlugin</ID>
+    <ID>UndocumentedPublicFunction:ApplicationCallUserId.kt:fun ApplicationCall.getCallerUserId: UserId?</ID>
+    <ID>UndocumentedPublicFunction:ApplicationCallUserId.kt:fun RoutingContext.getCallerUserId: UserId?</ID>
+    <ID>UndocumentedPublicFunction:ApplicationCallUserId.kt:suspend fun ApplicationCall.getCallerUserIdOrAnswerUnauthorized: UserId?</ID>
+    <ID>UndocumentedPublicFunction:ApplicationCallUserId.kt:suspend fun RoutingContext.getCallerUserIdOrAnswerUnauthorized: UserId?</ID>
+    <ID>UndocumentedPublicFunction:AuthFeatureService.kt:AuthFeatureService$suspend fun authenticate: UserId?</ID>
+    <ID>UndocumentedPublicFunction:AuthFeatureService.kt:AuthFeatureService$suspend fun setPassword</ID>
+    <ID>UndocumentedPublicProperty:Config.kt:Config$val enableRegistration: Boolean = false</ID>
+    <ID>UndocumentedPublicProperty:Config.kt:Config$val refreshTokenTtl: Duration = 7.days</ID>
+    <ID>UndocumentedPublicProperty:Config.kt:Config$val requireEmailForRegistration: Boolean = false</ID>
+    <ID>UndocumentedPublicProperty:Config.kt:Config$val tokenTtl: Duration = 15.minutes</ID>
+  </CurrentIssues>
+</SmellBaseline>

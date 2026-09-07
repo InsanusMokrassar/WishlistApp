@@ -1,6 +1,7 @@
 [versions]
 
 kotlin = "2.3.21"
+detekt = "2.0.0-alpha.3"
 kotlin-serialization = "1.11.0"
 kotlin-coroutines = "1.11.0"
 
@@ -42,6 +43,7 @@ android-buildTools = "37.0.0"
 [libraries]
 
 kotlin = { module = "org.jetbrains.kotlin:kotlin-stdlib", version.ref = "kotlin" }
+kotlin-test-junit = { module = "org.jetbrains.kotlin:kotlin-test-junit", version.ref = "kotlin" }
 kotlin-reflect = { module = "org.jetbrains.kotlin:kotlin-reflect", version.ref = "kotlin" }
 kotlin-serialization = { module = "org.jetbrains.kotlinx:kotlinx-serialization-json", version.ref = "kotlin-serialization" }
 kotlin-coroutines = { module = "org.jetbrains.kotlinx:kotlinx-coroutines-core", version.ref = "kotlin-coroutines" }
@@ -144,6 +146,9 @@ kroles-repos = { module = "dev.inmo:kroles.repos", version.ref = "kroles" }
 
 # buildscript classpaths
 
+detekt-gradle-plugin = { module = "dev.detekt:detekt-gradle-plugin", version.ref = "detekt" }
+detekt-api = { module = "dev.detekt:detekt-api", version.ref = "detekt" }
+detekt-test = { module = "dev.detekt:detekt-test", version.ref = "detekt" }
 android-tools-build = { module = "com.android.tools.build:gradle", version.ref = "android-gradle-plugin" }
 android-dexcount = { module = "com.getkeepsafe.dexcount:dexcount-gradle-plugin", version.ref = "dexcount" }
 kotlin-gradle-plugin = { module = "org.jetbrains.kotlin:kotlin-gradle-plugin", version.ref = "kotlin" }

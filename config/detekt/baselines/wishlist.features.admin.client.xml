@@ -1,0 +1,36 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<SmellBaseline>
+  <ManuallySuppressedIssues/>
+  <CurrentIssues>
+    <ID>UndocumentedPublicClass:AdminFeature.kt:AdminFeature</ID>
+    <ID>UndocumentedPublicClass:AdminWishlistItemsFeature.kt:AdminWishlistItemsFeature</ID>
+    <ID>UndocumentedPublicClass:AdminWishlistsFeature.kt:AdminWishlistsFeature</ID>
+    <ID>UndocumentedPublicClass:AndroidPlugin.kt:AndroidPlugin : StartPlugin</ID>
+    <ID>UndocumentedPublicClass:JSPlugin.kt:JSPlugin : StartPlugin</ID>
+    <ID>UndocumentedPublicClass:JVMPlugin.kt:JVMPlugin : StartPlugin</ID>
+    <ID>UndocumentedPublicClass:KtorAdminFeature.kt:KtorAdminFeature : AdminFeature</ID>
+    <ID>UndocumentedPublicClass:KtorAdminWishlistItemsFeature.kt:KtorAdminWishlistItemsFeature : AdminWishlistItemsFeature</ID>
+    <ID>UndocumentedPublicClass:KtorAdminWishlistsFeature.kt:KtorAdminWishlistsFeature : AdminWishlistsFeature</ID>
+    <ID>UndocumentedPublicClass:KtorUsersManagementFeature.kt:KtorUsersManagementFeature : UsersManagementFeature</ID>
+    <ID>UndocumentedPublicClass:Plugin.kt:Plugin : StartPlugin</ID>
+    <ID>UndocumentedPublicClass:UsersManagementFeature.kt:UsersManagementFeature</ID>
+    <ID>UndocumentedPublicFunction:AdminWishlistItemsFeature.kt:AdminWishlistItemsFeature$suspend fun create: AdminWishlistItem?</ID>
+    <ID>UndocumentedPublicFunction:AdminWishlistItemsFeature.kt:AdminWishlistItemsFeature$suspend fun delete: Boolean</ID>
+    <ID>UndocumentedPublicFunction:AdminWishlistItemsFeature.kt:AdminWishlistItemsFeature$suspend fun getByWishlistId: List&lt;AdminWishlistItem></ID>
+    <ID>UndocumentedPublicFunction:AdminWishlistItemsFeature.kt:AdminWishlistItemsFeature$suspend fun update: Boolean</ID>
+    <ID>UndocumentedPublicFunction:AdminWishlistsFeature.kt:AdminWishlistsFeature$suspend fun create: AdminWishlist?</ID>
+    <ID>UndocumentedPublicFunction:AdminWishlistsFeature.kt:AdminWishlistsFeature$suspend fun delete: Boolean</ID>
+    <ID>UndocumentedPublicFunction:AdminWishlistsFeature.kt:AdminWishlistsFeature$suspend fun getAll: List&lt;AdminWishlist></ID>
+    <ID>UndocumentedPublicFunction:AdminWishlistsFeature.kt:AdminWishlistsFeature$suspend fun getById: AdminWishlist?</ID>
+    <ID>UndocumentedPublicFunction:AdminWishlistsFeature.kt:AdminWishlistsFeature$suspend fun getByUserId: List&lt;AdminWishlist></ID>
+    <ID>UndocumentedPublicFunction:AdminWishlistsFeature.kt:AdminWishlistsFeature$suspend fun update: Boolean</ID>
+    <ID>UndocumentedPublicFunction:UsersManagementFeature.kt:UsersManagementFeature$suspend fun create: AdminUser?</ID>
+    <ID>UndocumentedPublicFunction:UsersManagementFeature.kt:UsersManagementFeature$suspend fun delete: Boolean</ID>
+    <ID>UndocumentedPublicFunction:UsersManagementFeature.kt:UsersManagementFeature$suspend fun getAll: List&lt;AdminUser></ID>
+    <ID>UndocumentedPublicFunction:UsersManagementFeature.kt:UsersManagementFeature$suspend fun getById: AdminUser?</ID>
+    <ID>UndocumentedPublicFunction:UsersManagementFeature.kt:UsersManagementFeature$suspend fun update: Boolean</ID>
+    <ID>UndocumentedPublicProperty:AdminFeature.kt:AdminFeature$val usersManagement: UsersManagementFeature</ID>
+    <ID>UndocumentedPublicProperty:AdminFeature.kt:AdminFeature$val wishlistItems: AdminWishlistItemsFeature</ID>
+    <ID>UndocumentedPublicProperty:AdminFeature.kt:AdminFeature$val wishlists: AdminWishlistsFeature</ID>
+  </CurrentIssues>
+</SmellBaseline>

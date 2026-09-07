@@ -1,0 +1,34 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<SmellBaseline>
+  <ManuallySuppressedIssues/>
+  <CurrentIssues>
+    <ID>UndocumentedPublicClass:ApplicationAuthenticationConfigurator.kt:ApplicationAuthenticationConfigurator : KtorApplicationConfigurator</ID>
+    <ID>UndocumentedPublicClass:ApplicationAuthenticationConfigurator.kt:ApplicationAuthenticationConfigurator$Element</ID>
+    <ID>UndocumentedPublicClass:ContentNegotiationKtorApplicationConfigurator.kt:ContentNegotiationKtorApplicationConfigurator : KtorApplicationConfigurator</ID>
+    <ID>UndocumentedPublicClass:DatabaseConfig.kt:DatabaseConfig</ID>
+    <ID>UndocumentedPublicClass:EchoFeature.kt:EchoFeature</ID>
+    <ID>UndocumentedPublicClass:EchoRoutingsConfigurator.kt:EchoRoutingsConfigurator : Element</ID>
+    <ID>UndocumentedPublicClass:GZipConfigurator.kt:GZipConfigurator : KtorApplicationConfigurator</ID>
+    <ID>UndocumentedPublicClass:InternalApplicationRoutingConfigurator.kt:InternalApplicationRoutingConfigurator : KtorApplicationConfigurator</ID>
+    <ID>UndocumentedPublicClass:JVMPlugin.kt:JVMPlugin : StartPlugin</ID>
+    <ID>UndocumentedPublicClass:KtorConfig.kt:KtorConfig</ID>
+    <ID>UndocumentedPublicClass:Plugin.kt:Plugin : StartPlugin</ID>
+    <ID>UndocumentedPublicClass:SimpleEchoFeatureService.kt:SimpleEchoFeatureService : EchoFeature</ID>
+    <ID>UndocumentedPublicClass:WebSocketsConfiguration.kt:WebSocketsConfiguration : KtorApplicationConfigurator</ID>
+    <ID>UndocumentedPublicFunction:ApplicationAuthenticationConfigurator.kt:ApplicationAuthenticationConfigurator.Element$operator fun AuthenticationConfig.invoke</ID>
+    <ID>UndocumentedPublicFunction:EchoFeature.kt:EchoFeature$suspend fun getEcho: String</ID>
+    <ID>UndocumentedPublicProperty:ContentNegotiationKtorApplicationConfigurator.kt:ContentNegotiationKtorApplicationConfigurator$val jsonFormat: Json</ID>
+    <ID>UndocumentedPublicProperty:DatabaseConfig.kt:DatabaseConfig$@Transient val database: Database = Database.connect( url, driver, username, password )</ID>
+    <ID>UndocumentedPublicProperty:DatabaseConfig.kt:DatabaseConfig$val driver: String = Driver::class.qualifiedName!!</ID>
+    <ID>UndocumentedPublicProperty:DatabaseConfig.kt:DatabaseConfig$val password: String = ""</ID>
+    <ID>UndocumentedPublicProperty:DatabaseConfig.kt:DatabaseConfig$val url: String = "jdbc:postgresql://localhost:5432/tablet"</ID>
+    <ID>UndocumentedPublicProperty:DatabaseConfig.kt:DatabaseConfig$val username: String = ""</ID>
+    <ID>UndocumentedPublicProperty:DatabaseConfig.kt:const val defaultDatabaseParamsName = "defaultDatabase"</ID>
+    <ID>UndocumentedPublicProperty:DatabaseConfig.kt:inline val Map&lt;String, Any>.database: Database? get() = (get(defaultDatabaseParamsName) as? DatabaseConfig) ?.database</ID>
+    <ID>UndocumentedPublicProperty:DebugMode.kt:actual val isInDebugMode get() = System.getenv("DEBUG") ?.lowercase() == "true"</ID>
+    <ID>UndocumentedPublicProperty:IsInDebugModeExpect.kt:expect val isInDebugMode: Boolean</ID>
+    <ID>UndocumentedPublicProperty:KtorConfig.kt:KtorConfig$val host: String = "0.0.0.0"</ID>
+    <ID>UndocumentedPublicProperty:KtorConfig.kt:KtorConfig$val port: Int = 8083</ID>
+    <ID>UndocumentedPublicProperty:KtorConfig.kt:KtorConfig$val wss: Boolean = false</ID>
+  </CurrentIssues>
+</SmellBaseline>

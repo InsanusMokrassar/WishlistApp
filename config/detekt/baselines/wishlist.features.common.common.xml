@@ -1,0 +1,15 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<SmellBaseline>
+  <ManuallySuppressedIssues/>
+  <CurrentIssues>
+    <ID>UndocumentedPublicClass:Amount.kt:Amount$Companion</ID>
+    <ID>UndocumentedPublicClass:AndroidPlugin.kt:AndroidPlugin : StartPlugin</ID>
+    <ID>UndocumentedPublicClass:Constants.kt:EchoConstants</ID>
+    <ID>UndocumentedPublicClass:JSPlugin.kt:JSPlugin : StartPlugin</ID>
+    <ID>UndocumentedPublicClass:JVMPlugin.kt:JVMPlugin : StartPlugin</ID>
+    <ID>UndocumentedPublicClass:Plugin.kt:Plugin : StartPlugin</ID>
+    <ID>UndocumentedPublicProperty:Constants.kt:EchoConstants$const val fullGetEchoPath = "$prefixPathPart/$getEchoPathPart"</ID>
+    <ID>UndocumentedPublicProperty:Constants.kt:EchoConstants$const val getEchoPathPart = "echo"</ID>
+    <ID>UndocumentedPublicProperty:Constants.kt:EchoConstants$const val prefixPathPart = "echo"</ID>
+  </CurrentIssues>
+</SmellBaseline>

@@ -1,0 +1,34 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<SmellBaseline>
+  <ManuallySuppressedIssues/>
+  <CurrentIssues>
+    <ID>UndocumentedPublicClass:AndroidPlugin.kt:AndroidPlugin : StartPlugin</ID>
+    <ID>UndocumentedPublicClass:Constants.kt:Constants</ID>
+    <ID>UndocumentedPublicClass:JSPlugin.kt:JSPlugin : StartPlugin</ID>
+    <ID>UndocumentedPublicClass:JVMPlugin.kt:JVMPlugin : StartPlugin</ID>
+    <ID>UndocumentedPublicClass:NewUserWithPassword.kt:NewUserWithPassword</ID>
+    <ID>UndocumentedPublicClass:Plugin.kt:Plugin : StartPlugin</ID>
+    <ID>UndocumentedPublicProperty:Constants.kt:Constants$const val adminPrefixPathPart = "admin"</ID>
+    <ID>UndocumentedPublicProperty:Constants.kt:Constants$const val usersCreatePathPart = "create"</ID>
+    <ID>UndocumentedPublicProperty:Constants.kt:Constants$const val usersDeletePathPart = "delete"</ID>
+    <ID>UndocumentedPublicProperty:Constants.kt:Constants$const val usersGetAllPathPart = "getAll"</ID>
+    <ID>UndocumentedPublicProperty:Constants.kt:Constants$const val usersGetByIdPathPart = "getById"</ID>
+    <ID>UndocumentedPublicProperty:Constants.kt:Constants$const val usersPathPart = "users"</ID>
+    <ID>UndocumentedPublicProperty:Constants.kt:Constants$const val usersSetPasswordPathPart = "setPassword"</ID>
+    <ID>UndocumentedPublicProperty:Constants.kt:Constants$const val usersUpdatePathPart = "update"</ID>
+    <ID>UndocumentedPublicProperty:Constants.kt:Constants$const val wishlistItemsCreatePathPart = "create"</ID>
+    <ID>UndocumentedPublicProperty:Constants.kt:Constants$const val wishlistItemsDeletePathPart = "delete"</ID>
+    <ID>UndocumentedPublicProperty:Constants.kt:Constants$const val wishlistItemsGetByWishlistIdPathPart = "getByWishlistId"</ID>
+    <ID>UndocumentedPublicProperty:Constants.kt:Constants$const val wishlistItemsPathPart = "wishlistItems"</ID>
+    <ID>UndocumentedPublicProperty:Constants.kt:Constants$const val wishlistItemsUpdatePathPart = "update"</ID>
+    <ID>UndocumentedPublicProperty:Constants.kt:Constants$const val wishlistsCreatePathPart = "create"</ID>
+    <ID>UndocumentedPublicProperty:Constants.kt:Constants$const val wishlistsDeletePathPart = "delete"</ID>
+    <ID>UndocumentedPublicProperty:Constants.kt:Constants$const val wishlistsGetAllPathPart = "getAll"</ID>
+    <ID>UndocumentedPublicProperty:Constants.kt:Constants$const val wishlistsGetByIdPathPart = "getById"</ID>
+    <ID>UndocumentedPublicProperty:Constants.kt:Constants$const val wishlistsGetByUserIdPathPart = "getByUserId"</ID>
+    <ID>UndocumentedPublicProperty:Constants.kt:Constants$const val wishlistsPathPart = "wishlists"</ID>
+    <ID>UndocumentedPublicProperty:Constants.kt:Constants$const val wishlistsUpdatePathPart = "update"</ID>
+    <ID>UndocumentedPublicProperty:NewUserWithPassword.kt:NewUserWithPassword$val password: Password</ID>
+    <ID>UndocumentedPublicProperty:NewUserWithPassword.kt:NewUserWithPassword$val username: Username</ID>
+  </CurrentIssues>
+</SmellBaseline>
