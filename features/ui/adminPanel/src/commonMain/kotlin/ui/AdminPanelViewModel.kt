@@ -29,14 +29,20 @@ import kotlinx.coroutines.flow.merge
  * @param node Navigation node this ViewModel is bound to.
  * @param model Admin data source, also provides email feature capability.
  * @param interactor Navigation delegate for this screen.
+ * @param dispatcher UI dispatcher for dashboard lifecycle transitions. Production uses
+ *   [Dispatchers.Main.immediate]; deterministic tests inject a shared serial test dispatcher.
  */
 class AdminPanelViewModel(
     private val node: NavigationNode<AdminPanelViewConfig, ViewConfig>,
     private val model: AdminPanelModel,
     private val interactor: AdminPanelViewInteractor,
-    private val dispatcher: CoroutineDispatcher = Dispatchers.Default,
+    private val dispatcher: CoroutineDispatcher = Dispatchers.Main.immediate,
 ) : ViewModel<ViewConfig>(node) {
-    /** Child scope with a replaceable dispatcher for deterministic dashboard lifecycle tests. */
+    /**
+     * UI-confined child scope with the ViewModel lifecycle [kotlinx.coroutines.Job] inherited from
+     * [scope]. UI callbacks, collectors, and continuations all use this scope so request versions,
+     * jobs, authorization checks, and dashboard publications remain serial.
+     */
     private val workScope = CoroutineScope(scope.coroutineContext + dispatcher)
 
     private val _usersState = MutableRedeliverStateFlow<List<AdminUser>>(emptyList())

@@ -4,6 +4,7 @@ import dev.inmo.micro_utils.repos.create
 import dev.inmo.wishlist.features.email.common.models.Email
 import dev.inmo.wishlist.features.users.common.models.NewUser
 import dev.inmo.wishlist.features.users.common.models.RegisteredUser
+import dev.inmo.wishlist.features.users.common.models.UserId
 import dev.inmo.wishlist.features.users.common.models.Username
 import dev.inmo.wishlist.features.users.common.repo.exceptions.DuplicateUserFieldException
 import kotlinx.coroutines.CoroutineStart
@@ -155,7 +156,7 @@ class ExposedUsersRepoSqliteTest {
         }
     }
 
-    /** A legacy table gains a conservative false approval marker without rewriting stored user data. */
+    /** A pre-approval schema retains an existing address and identity while defaulting approval to false. */
     @Test
     fun legacySchemaAddsFalseApprovalWithoutChangingUsers() = runTest {
         val databaseFile = Files.createTempFile("wishlist-users-legacy", ".sqlite")
@@ -163,8 +164,8 @@ class ExposedUsersRepoSqliteTest {
         try {
             DriverManager.getConnection(url).use { connection ->
                 connection.createStatement().use { statement ->
-                    statement.execute("CREATE TABLE users (id INTEGER PRIMARY KEY AUTOINCREMENT, username TEXT NOT NULL UNIQUE)")
-                    statement.execute("INSERT INTO users (username) VALUES ('legacy-user')")
+                    statement.execute("CREATE TABLE users (id INTEGER PRIMARY KEY AUTOINCREMENT, username TEXT NOT NULL UNIQUE, email TEXT)")
+                    statement.execute("INSERT INTO users (id, username, email) VALUES (41, 'legacy-user', 'legacy@example.com')")
                 }
             }
             val database = Database.connect(url = url, driver = "org.sqlite.JDBC")
@@ -172,8 +173,9 @@ class ExposedUsersRepoSqliteTest {
                 val repo = ExposedUsersRepo(database)
                 val legacy = checkNotNull(repo.getUserByUsername(Username("legacy-user")))
 
+                assertEquals(UserId(41L), legacy.id)
                 assertEquals(Username("legacy-user"), legacy.username)
-                assertNull(legacy.email)
+                assertEquals(Email("legacy@example.com"), legacy.email)
                 assertFalse(legacy.emailApproved)
             } finally {
                 TransactionManager.closeAndUnregister(database)

@@ -6,9 +6,12 @@ import dev.inmo.wishlist.features.email.common.models.EmailVerificationRequestRe
 import dev.inmo.wishlist.features.users.common.models.UserId
 import dev.inmo.wishlist.features.users.common.models.Username
 import kotlinx.coroutines.CompletableDeferred
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.NonCancellable
+import kotlinx.coroutines.test.resetMain
+import kotlinx.coroutines.test.setMain
 import kotlinx.coroutines.test.StandardTestDispatcher
 import kotlinx.coroutines.test.advanceUntilIdle
 import kotlinx.coroutines.test.runCurrent
@@ -285,6 +288,48 @@ class UserEditViewModelEmailTest {
         } finally {
             releaseProbe.complete(Unit)
             viewModel.scope.cancel()
+        }
+    }
+
+    /**
+     * The production default is the UI dispatcher, so invalidation and a late non-cooperative
+     * refresh continuation share one serial context and the stale continuation cannot publish.
+     */
+    @Test
+    fun defaultUiDispatcherSuppressesLateRefreshAfterIdentityInvalidation() = runTest {
+        val uiDispatcher = StandardTestDispatcher(testScheduler)
+        val probeEntered = CompletableDeferred<Unit>()
+        val releaseProbe = CompletableDeferred<Unit>()
+        val model = UserEditTestUsersModel(ownerId, owner).apply {
+            probeHandler = {
+                probeEntered.complete(Unit)
+                withContext(NonCancellable) { releaseProbe.await() }
+                true
+            }
+        }
+        Dispatchers.setMain(uiDispatcher)
+        val viewModel = UserEditViewModel(
+            userEditTestNode(ownerId),
+            model,
+            RecordingUserEditInteractor(),
+        )
+        try {
+            runCurrent()
+            assertTrue(probeEntered.isCompleted)
+
+            model.currentUserIdState.value = UserId(8L)
+            runCurrent()
+            releaseProbe.complete(Unit)
+            advanceUntilIdle()
+
+            assertEquals(EmailCapabilityState.Unknown, viewModel.emailCapabilityState.value)
+            assertNull(viewModel.ownEmailProfileState.value)
+            assertFalse(viewModel.emailLoadingState.value)
+        } finally {
+            releaseProbe.complete(Unit)
+            viewModel.scope.cancel()
+            advanceUntilIdle()
+            Dispatchers.resetMain()
         }
     }
 

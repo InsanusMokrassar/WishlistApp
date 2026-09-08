@@ -8,10 +8,17 @@ import dev.inmo.wishlist.features.deeplinks.server.services.DeepLinksService
 import dev.inmo.wishlist.features.email.common.EmailConstants
 import dev.inmo.wishlist.features.email.common.models.Email
 import dev.inmo.wishlist.features.email.common.models.EmailVerificationRequestResult
+import dev.inmo.wishlist.features.email.server.EmailsService
+import dev.inmo.wishlist.features.email.server.models.EmailAttachment
+import dev.inmo.wishlist.features.email.server.models.EmailVerification
+import dev.inmo.wishlist.features.email.server.models.EmailVerificationPayload
 import dev.inmo.wishlist.features.users.common.models.RegisteredUser
 import dev.inmo.wishlist.features.users.common.models.UserId
 import dev.inmo.wishlist.features.users.common.models.Username
 import dev.inmo.wishlist.features.users.common.repo.exceptions.DuplicateUserFieldException
+import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.CompletableDeferred
+import kotlinx.coroutines.async
 import kotlinx.coroutines.test.runTest
 import kotlin.test.Test
 import kotlin.test.assertEquals
@@ -67,6 +74,58 @@ class EmailFeatureServiceTest {
             deepLinksService = DeepLinksService(FakeDeepLinksRepo(), emptyList()),
             publicHttpOrigin = "https://wishlist.example",
         )
+
+    /** Controllable SMTP port used to pause delivery after the real sender has minted a deeplink. */
+    private class ControlledEmailsService : EmailsService {
+        data class HtmlCall(val recipient: Email, val subject: String, val html: String)
+
+        val sendHtmlCalls = mutableListOf<HtmlCall>()
+        var sendHtmlHandler: suspend (Email, String, String) -> Boolean = { _, _, _ -> true }
+
+        override suspend fun sendText(recipient: Email, subject: String, text: String): Boolean = true
+
+        override suspend fun sendTextWithAttachments(
+            recipient: Email,
+            subject: String,
+            text: String,
+            attachments: List<EmailAttachment>,
+        ): Boolean = true
+
+        override suspend fun sendHtml(recipient: Email, subject: String, html: String): Boolean {
+            sendHtmlCalls += HtmlCall(recipient, subject, html)
+            return sendHtmlHandler(recipient, subject, html)
+        }
+    }
+
+    /** Production request-service fixture with a real sender and deeplink persistence. */
+    private class RequestVerificationFixture(
+        val user: RegisteredUser,
+    ) {
+        val usersRepo = FakeUsersRepo(mapOf(user.id to user))
+        val deepLinksRepo = FakeDeepLinksRepo()
+        val deepLinksService = DeepLinksService(deepLinksRepo, emptyList())
+        val emails = ControlledEmailsService()
+        val service = EmailFeatureService(
+            emailsService = emails,
+            accountCoordinator = EmailVerificationAccountCoordinator(usersRepo, FakeRolesRepo()),
+            rolesFeature = FakeRolesFeature(),
+            inviteSender = EmailRegistrationInviteSender(
+                emailsService = emails,
+                deepLinksService = deepLinksService,
+                publicHttpOrigin = "https://wishlist.example",
+            ),
+        )
+
+        suspend fun addUnrelatedLink(): DeepLinkId = deepLinksService.createDeepLink(
+            EmailVerification.handlerId,
+            EmailVerificationPayload(UserId(999L), Email("unrelated@example.com")),
+        )
+
+        suspend fun linkIds(): Set<DeepLinkId> = deepLinksRepo.getAll().keys
+    }
+
+    private fun requestFixture(email: Email = Email("pending@example.com")): RequestVerificationFixture =
+        RequestVerificationFixture(RegisteredUser(UserId(20L), Username("pending"), email))
 
     /** `isFeatureEnabled` unconditionally returns `true` — `emailsService` is a non-nullable constructor parameter, so this class is only ever constructed with a real transport. */
     @Test
@@ -220,5 +279,149 @@ class EmailFeatureServiceTest {
             EmailVerificationRequestResult.DeliveryFailed,
             unavailableService.requestMyEmailVerification(pending.id, email),
         )
+    }
+
+    @Test
+    fun delayedDeliveryChangedAddressRemovesOnlyRequestOwnedLink() = runTest {
+        val oldEmail = Email("pending@example.com")
+        val newEmail = Email("replacement@example.com")
+        val fixture = requestFixture(oldEmail)
+        val deliveryStarted = CompletableDeferred<Unit>()
+        val releaseDelivery = CompletableDeferred<Boolean>()
+        fixture.emails.sendHtmlHandler = { _, _, _ ->
+            deliveryStarted.complete(Unit)
+            releaseDelivery.await()
+        }
+        val unrelatedLink = fixture.addUnrelatedLink()
+        val request = async { fixture.service.requestMyEmailVerification(fixture.user.id, oldEmail) }
+
+        deliveryStarted.await()
+        assertEquals(2, fixture.linkIds().size)
+        assertTrue(
+            fixture.deepLinksRepo.getAll().values.any {
+                it.value == EmailVerificationPayload(fixture.user.id, oldEmail)
+            }
+        )
+        assertTrue(fixture.service.setMyEmail(fixture.user.id, newEmail))
+        releaseDelivery.complete(true)
+
+        assertEquals(EmailVerificationRequestResult.EmailChanged, request.await())
+        assertEquals(setOf(unrelatedLink), fixture.linkIds())
+        val stored = checkNotNull(fixture.usersRepo.getById(fixture.user.id))
+        assertEquals(newEmail, stored.email)
+        assertFalse(stored.emailApproved)
+    }
+
+    @Test
+    fun delayedDeliveryClearedAddressRemovesOnlyRequestOwnedLink() = runTest {
+        val email = Email("pending@example.com")
+        val fixture = requestFixture(email)
+        val deliveryStarted = CompletableDeferred<Unit>()
+        val releaseDelivery = CompletableDeferred<Boolean>()
+        fixture.emails.sendHtmlHandler = { _, _, _ ->
+            deliveryStarted.complete(Unit)
+            releaseDelivery.await()
+        }
+        val unrelatedLink = fixture.addUnrelatedLink()
+        val request = async { fixture.service.requestMyEmailVerification(fixture.user.id, email) }
+
+        deliveryStarted.await()
+        assertTrue(fixture.service.setMyEmail(fixture.user.id, null))
+        releaseDelivery.complete(true)
+
+        assertEquals(EmailVerificationRequestResult.NoEmail, request.await())
+        assertEquals(setOf(unrelatedLink), fixture.linkIds())
+        assertEquals(null, checkNotNull(fixture.usersRepo.getById(fixture.user.id)).email)
+    }
+
+    @Test
+    fun delayedDeliveryDeletedUserRemovesOnlyRequestOwnedLink() = runTest {
+        val email = Email("pending@example.com")
+        val fixture = requestFixture(email)
+        val deliveryStarted = CompletableDeferred<Unit>()
+        val releaseDelivery = CompletableDeferred<Boolean>()
+        fixture.emails.sendHtmlHandler = { _, _, _ ->
+            deliveryStarted.complete(Unit)
+            releaseDelivery.await()
+        }
+        val unrelatedLink = fixture.addUnrelatedLink()
+        val request = async { fixture.service.requestMyEmailVerification(fixture.user.id, email) }
+
+        deliveryStarted.await()
+        fixture.usersRepo.deleteById(listOf(fixture.user.id))
+        releaseDelivery.complete(true)
+
+        assertEquals(EmailVerificationRequestResult.NoEmail, request.await())
+        assertEquals(setOf(unrelatedLink), fixture.linkIds())
+        assertEquals(null, fixture.usersRepo.getById(fixture.user.id))
+    }
+
+    @Test
+    fun delayedDeliveryApprovedAddressRemovesOnlyRequestOwnedLink() = runTest {
+        val email = Email("pending@example.com")
+        val fixture = requestFixture(email)
+        val deliveryStarted = CompletableDeferred<Unit>()
+        val releaseDelivery = CompletableDeferred<Boolean>()
+        fixture.emails.sendHtmlHandler = { _, _, _ ->
+            deliveryStarted.complete(Unit)
+            releaseDelivery.await()
+        }
+        val unrelatedLink = fixture.addUnrelatedLink()
+        val request = async { fixture.service.requestMyEmailVerification(fixture.user.id, email) }
+
+        deliveryStarted.await()
+        assertEquals(true, fixture.usersRepo.approveEmail(fixture.user.id, email)?.emailApproved)
+        releaseDelivery.complete(true)
+
+        assertEquals(EmailVerificationRequestResult.AlreadyApproved, request.await())
+        assertEquals(setOf(unrelatedLink), fixture.linkIds())
+        assertTrue(checkNotNull(fixture.usersRepo.getById(fixture.user.id)).emailApproved)
+    }
+
+    @Test
+    fun failedDeliveryCleansRequestOwnedLinkAndSameAddressCanRetry() = runTest {
+        val email = Email("pending@example.com")
+        val fixture = requestFixture(email)
+        val unrelatedLink = fixture.addUnrelatedLink()
+        var attempt = 0
+        fixture.emails.sendHtmlHandler = { _, _, _ ->
+            attempt += 1
+            attempt > 1
+        }
+
+        assertEquals(
+            EmailVerificationRequestResult.DeliveryFailed,
+            fixture.service.requestMyEmailVerification(fixture.user.id, email),
+        )
+        assertEquals(setOf(unrelatedLink), fixture.linkIds())
+
+        assertEquals(
+            EmailVerificationRequestResult.Sent,
+            fixture.service.requestMyEmailVerification(fixture.user.id, email),
+        )
+        assertEquals(2, fixture.emails.sendHtmlCalls.size)
+        assertTrue(fixture.linkIds().contains(unrelatedLink))
+        assertEquals(2, fixture.linkIds().size)
+    }
+
+    @Test
+    fun cancelledDeliveryRemovesRequestOwnedLinkBeforePropagatingCancellation() = runTest {
+        val email = Email("pending@example.com")
+        val fixture = requestFixture(email)
+        val deliveryStarted = CompletableDeferred<Unit>()
+        fixture.emails.sendHtmlHandler = { _, _, _ ->
+            deliveryStarted.complete(Unit)
+            CompletableDeferred<Boolean>().await()
+        }
+        val unrelatedLink = fixture.addUnrelatedLink()
+        val request = async { fixture.service.requestMyEmailVerification(fixture.user.id, email) }
+
+        deliveryStarted.await()
+        assertTrue(fixture.linkIds().contains(unrelatedLink))
+        assertEquals(2, fixture.linkIds().size)
+        request.cancel()
+
+        assertFailsWith<CancellationException> { request.await() }
+        assertEquals(setOf(unrelatedLink), fixture.linkIds())
     }
 }

@@ -57,14 +57,22 @@ import kotlinx.coroutines.launch
  * @param node Navigation node this ViewModel is bound to.
  * @param model Users data source.
  * @param interactor Navigation delegate for this screen.
+ * @param dispatcher UI dispatcher for lifecycle and owner-email transitions. Production uses
+ *   [Dispatchers.Main.immediate]; deterministic tests inject a shared serial test dispatcher.
  */
 class UserEditViewModel(
     private val node: NavigationNode<UserEditViewConfig, ViewConfig>,
     private val model: UsersModel,
     private val interactor: UserEditViewInteractor,
-    private val dispatcher: CoroutineDispatcher = Dispatchers.Default,
+    private val dispatcher: CoroutineDispatcher = Dispatchers.Main.immediate,
 ) : ViewModel<ViewConfig>(node) {
-    /** Child scope with a replaceable dispatcher for deterministic owner-operation tests. */
+    /**
+     * UI-confined child scope with the ViewModel lifecycle [Job] inherited from [scope].
+     *
+     * All UI callbacks enter on the UI dispatcher, and collectors plus continuations use this
+     * scope. That keeps owner generations, request versions, tokens, jobs, checks, and state
+     * publications serial while preserving cancellation when the navigation node is destroyed.
+     */
     private val workScope = CoroutineScope(scope.coroutineContext + dispatcher)
 
     /** Identifier of the edited user; surfaced read-only to the view. */
