@@ -1,4 +1,4 @@
-FROM amazoncorretto:21
+FROM bellsoft/liberica-openjdk-debian:21
 
 USER 1005
 
