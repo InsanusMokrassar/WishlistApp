@@ -8,6 +8,12 @@ plugins {
 
 apply from: "$mppJvmJsAndroidWithCompose"
 
+android {
+    testOptions {
+        unitTests.returnDefaultValues = true
+    }
+}
+
 kotlin {
     sourceSets {
         commonMain {

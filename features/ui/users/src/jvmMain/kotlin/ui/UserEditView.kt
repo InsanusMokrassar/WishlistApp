@@ -64,12 +64,15 @@ class UserEditView(
         val canSave by viewModel.canSaveState.collectAsState()
         val canUploadAvatar by viewModel.canUploadAvatarState.collectAsState()
         val canManageOwnEmail by viewModel.canManageOwnEmailState.collectAsState()
+        val canMutateOwnEmail by viewModel.canMutateOwnEmailState.collectAsState()
         val ownEmailProfile by viewModel.ownEmailProfileState.collectAsState()
         val emailInput by viewModel.emailInputState.collectAsState()
         val emailLoading by viewModel.emailLoadingState.collectAsState()
         val emailBusy by viewModel.emailBusyState.collectAsState()
         val emailError by viewModel.emailErrorState.collectAsState()
+        val emailLoadFailed by viewModel.emailLoadFailedState.collectAsState()
         val emailVerificationResult by viewModel.emailVerificationResultState.collectAsState()
+        val profileSaveError by viewModel.profileSaveErrorState.collectAsState()
         val showDiscard by viewModel.showConfirmDialogState.collectAsState()
         val showDelete by viewModel.showDeleteDialogState.collectAsState()
         val scope = rememberCoroutineScope()
@@ -161,12 +164,8 @@ class UserEditView(
                     emailLoading -> Text(UsersListStrings.emailLoading.translation())
                     ownEmailProfile == null -> {
                         Text(
-                            when (emailError) {
-                                EmailEditorError.LoadFailed -> UsersListStrings.emailLoadFailed.translation()
-                                EmailEditorError.InvalidEmail -> UsersListStrings.emailInvalid.translation()
-                                EmailEditorError.SaveFailed -> UsersListStrings.emailSaveFailed.translation()
-                                null -> UsersListStrings.emailLoadFailed.translation()
-                            },
+                            if (emailLoadFailed) UsersListStrings.emailLoadFailed.translation()
+                            else UsersListStrings.emailLoading.translation(),
                             color = MaterialTheme.colors.error,
                         )
                     }
@@ -176,26 +175,15 @@ class UserEditView(
                             onValueChange = { viewModel.onEmailChanged(it) },
                             label = { Text(UsersListStrings.emailLabel.translation()) },
                             singleLine = true,
-                            enabled = !emailBusy,
+                            enabled = canMutateOwnEmail,
                             isError = emailError == EmailEditorError.InvalidEmail ||
                                 emailError == EmailEditorError.SaveFailed,
                             modifier = Modifier.fillMaxWidth(),
                         )
                         Text(UsersListStrings.emailMissing.translation())
-                        when (emailError) {
-                            EmailEditorError.InvalidEmail -> Text(
-                                UsersListStrings.emailInvalid.translation(),
-                                color = MaterialTheme.colors.error,
-                            )
-                            EmailEditorError.SaveFailed -> Text(
-                                UsersListStrings.emailSaveFailed.translation(),
-                                color = MaterialTheme.colors.error,
-                            )
-                            EmailEditorError.LoadFailed, null -> Unit
-                        }
                         Button(
                             onClick = { viewModel.onSaveEmailAndRequestVerification() },
-                            enabled = !emailBusy,
+                            enabled = canMutateOwnEmail,
                             modifier = Modifier.fillMaxWidth(),
                         ) {
                             Text(UsersListStrings.saveEmailAndVerifyButton.translation())
@@ -226,21 +214,36 @@ class UserEditView(
                         Text(UsersListStrings.emailPendingApproval.translation())
                         Button(
                             onClick = { viewModel.onResendEmailVerification() },
-                            enabled = !emailBusy,
+                            enabled = canMutateOwnEmail,
                             modifier = Modifier.fillMaxWidth(),
                         ) {
                             Text(UsersListStrings.resendEmailVerificationButton.translation())
                         }
                     }
                 }
-                if (!emailLoading) {
-                    OutlinedButton(
-                        onClick = { viewModel.onRefreshEmail() },
-                        enabled = !emailBusy,
-                        modifier = Modifier.fillMaxWidth(),
-                    ) {
-                        Text(UsersListStrings.refreshEmailButton.translation())
-                    }
+                when (emailError) {
+                    EmailEditorError.InvalidEmail -> Text(
+                        UsersListStrings.emailInvalid.translation(),
+                        color = MaterialTheme.colors.error,
+                    )
+                    EmailEditorError.SaveFailed -> Text(
+                        UsersListStrings.emailSaveFailed.translation(),
+                        color = MaterialTheme.colors.error,
+                    )
+                    EmailEditorError.LoadFailed, null -> Unit
+                }
+                if (emailLoadFailed && ownEmailProfile != null) {
+                    Text(
+                        UsersListStrings.emailLoadFailed.translation(),
+                        color = MaterialTheme.colors.error,
+                    )
+                }
+                OutlinedButton(
+                    onClick = { viewModel.onRefreshEmail() },
+                    enabled = !emailBusy && !emailLoading,
+                    modifier = Modifier.fillMaxWidth(),
+                ) {
+                    Text(UsersListStrings.refreshEmailButton.translation())
                 }
                 when (emailVerificationResult) {
                     EmailVerificationRequestResult.Sent -> Text(UsersListStrings.emailVerificationSent.translation())
@@ -301,6 +304,17 @@ class UserEditView(
                         color = MaterialTheme.colors.error,
                         style = MaterialTheme.typography.caption
                     )
+                }
+                when (profileSaveError) {
+                    ProfileSaveError.UsernameSaveFailed -> Text(
+                        UsersListStrings.profileUsernameSaveFailed.translation(),
+                        color = MaterialTheme.colors.error,
+                    )
+                    ProfileSaveError.PasswordSaveFailed -> Text(
+                        UsersListStrings.profilePasswordSaveFailed.translation(),
+                        color = MaterialTheme.colors.error,
+                    )
+                    null -> Unit
                 }
                 Button(
                     onClick = { viewModel.onSave() },

@@ -16,5 +16,10 @@ kotlin {
                 api project(":wishlist.features.roles.server")
             }
         }
+        commonTest {
+            dependencies {
+                implementation libs.ktor.server.test.host
+            }
+        }
     }
 }

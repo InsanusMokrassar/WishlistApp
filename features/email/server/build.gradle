@@ -19,5 +19,10 @@ kotlin {
                 api libs.angus.mail
             }
         }
+        commonTest {
+            dependencies {
+                implementation libs.ktor.server.test.host
+            }
+        }
     }
 }

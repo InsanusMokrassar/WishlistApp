@@ -1,6 +1,8 @@
 package dev.inmo.wishlist.features.roles.server
 
 import dev.inmo.kroles.repos.BaseRoleSubject
+import dev.inmo.kroles.repos.RolesRepo
+import dev.inmo.kroles.roles.BaseRole
 import dev.inmo.micro_utils.repos.deleteById
 import dev.inmo.wishlist.features.roles.common.models.SuperAdminRole
 import dev.inmo.wishlist.features.roles.common.models.NewUserRole
@@ -20,6 +22,7 @@ import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
 import kotlin.test.assertTrue
+import kotlin.test.fail
 
 /**
  * Verifies [grantDefaultRoles] (the per-user grant rule and its idempotency), [backfillDefaultRoles]
@@ -187,6 +190,88 @@ class RolesBootstrapTest {
         assertTrue(rolesRepo.getDirectRoles(subject).isEmpty())
     }
 
+    /** A failed direct User grant leaves NewUser available for the same link's later retry. */
+    @Test
+    fun grantFailureBeforeMutationRetainsPendingAndRetries() = runTest {
+        val backingRepo = FakeRolesRepo()
+        val subject = BaseRoleSubject.Direct(plainUser.id.long.toString())
+        backingRepo.includeDirect(subject, NewUserRole)
+        val rolesRepo = FaultingRolesRepo(backingRepo).apply {
+            nextUserIncludeFailure = FaultPhase.BeforeMutation
+        }
+
+        rolesRepo.expectOperationFailure { promoteNewUserToUser(rolesRepo, plainUser.id) }
+
+        assertEquals(setOf(NewUserRole), backingRepo.getDirectRoles(subject).toSet())
+        assertTrue(promoteNewUserToUser(rolesRepo, plainUser.id))
+        assertEquals(setOf(UserRole), backingRepo.getDirectRoles(subject).toSet())
+    }
+
+    /** A grant that commits before throwing leaves both markers so retry finishes pending cleanup. */
+    @Test
+    fun grantFailureAfterMutationRetriesPendingCleanup() = runTest {
+        val backingRepo = FakeRolesRepo()
+        val subject = BaseRoleSubject.Direct(plainUser.id.long.toString())
+        backingRepo.includeDirect(subject, NewUserRole)
+        val rolesRepo = FaultingRolesRepo(backingRepo).apply {
+            nextUserIncludeFailure = FaultPhase.AfterMutation
+        }
+
+        rolesRepo.expectOperationFailure { promoteNewUserToUser(rolesRepo, plainUser.id) }
+
+        assertEquals(setOf(NewUserRole, UserRole), backingRepo.getDirectRoles(subject).toSet())
+        assertTrue(promoteNewUserToUser(rolesRepo, plainUser.id))
+        assertEquals(setOf(UserRole), backingRepo.getDirectRoles(subject).toSet())
+    }
+
+    /** A failed pending-marker cleanup keeps User and NewUser until a retry can finish cleanup. */
+    @Test
+    fun removalFailureBeforeMutationRetriesCleanup() = runTest {
+        val backingRepo = FakeRolesRepo()
+        val subject = BaseRoleSubject.Direct(plainUser.id.long.toString())
+        backingRepo.includeDirect(subject, NewUserRole)
+        val rolesRepo = FaultingRolesRepo(backingRepo).apply {
+            nextPendingExcludeFailure = FaultPhase.BeforeMutation
+        }
+
+        rolesRepo.expectOperationFailure { promoteNewUserToUser(rolesRepo, plainUser.id) }
+
+        assertEquals(setOf(NewUserRole, UserRole), backingRepo.getDirectRoles(subject).toSet())
+        assertTrue(promoteNewUserToUser(rolesRepo, plainUser.id))
+        assertEquals(setOf(UserRole), backingRepo.getDirectRoles(subject).toSet())
+    }
+
+    /** A cleanup exception after removal leaves User and therefore retries idempotently. */
+    @Test
+    fun removalFailureAfterMutationRetriesIdempotently() = runTest {
+        val backingRepo = FakeRolesRepo()
+        val subject = BaseRoleSubject.Direct(plainUser.id.long.toString())
+        backingRepo.includeDirect(subject, NewUserRole)
+        val rolesRepo = FaultingRolesRepo(backingRepo).apply {
+            nextPendingExcludeFailure = FaultPhase.AfterMutation
+        }
+
+        rolesRepo.expectOperationFailure { promoteNewUserToUser(rolesRepo, plainUser.id) }
+
+        assertEquals(setOf(UserRole), backingRepo.getDirectRoles(subject).toSet())
+        assertTrue(promoteNewUserToUser(rolesRepo, plainUser.id))
+        assertEquals(setOf(UserRole), backingRepo.getDirectRoles(subject).toSet())
+    }
+
+    /** A false User insertion result is not confirmation and must not remove pending access. */
+    @Test
+    fun unconfirmedGrantDoesNotRemovePending() = runTest {
+        val backingRepo = FakeRolesRepo()
+        val subject = BaseRoleSubject.Direct(plainUser.id.long.toString())
+        backingRepo.includeDirect(subject, NewUserRole)
+        val rolesRepo = FaultingRolesRepo(backingRepo).apply {
+            userIncludeReturnsFalse = true
+        }
+
+        assertFalse(promoteNewUserToUser(rolesRepo, plainUser.id))
+        assertEquals(setOf(NewUserRole), backingRepo.getDirectRoles(subject).toSet())
+    }
+
     /** Generic grant followed by the registration-specific marker converges on exactly NewUser. */
     @Test
     fun pendingTransitionWinsAfterGenericGrant() = runTest {
@@ -346,5 +431,66 @@ class RolesBootstrapTest {
         )
         creationJob.cancel()
         deletionJob.cancel()
+    }
+
+    /** Fault timing around a direct role mutation. */
+    private enum class FaultPhase {
+        /** Throw before delegating to the backing repository. */
+        BeforeMutation,
+
+        /** Delegate first, then throw to simulate an uncertain completed mutation. */
+        AfterMutation,
+    }
+
+    /**
+     * Delegating roles repository that injects one-shot failures into the exact promotion mutations.
+     *
+     * @param delegate Backing in-memory repository preserving the production [RolesRepo] contract.
+     */
+    private class FaultingRolesRepo(
+        private val delegate: RolesRepo,
+    ) : RolesRepo by delegate {
+        /** One-shot failure applied only while directly granting [UserRole]. */
+        var nextUserIncludeFailure: FaultPhase? = null
+
+        /** One-shot failure applied only while directly removing [NewUserRole]. */
+        var nextPendingExcludeFailure: FaultPhase? = null
+
+        /** Makes a User inclusion report no change without adding the role. */
+        var userIncludeReturnsFalse: Boolean = false
+
+        override suspend fun includeDirect(subject: BaseRoleSubject, role: BaseRole): Boolean {
+            val failure = if (role == UserRole) {
+                nextUserIncludeFailure.also { nextUserIncludeFailure = null }
+            } else {
+                null
+            }
+            if (failure == FaultPhase.BeforeMutation) throw IllegalStateException("include failed before mutation")
+            if (role == UserRole && userIncludeReturnsFalse) return false
+            val changed = delegate.includeDirect(subject, role)
+            if (failure == FaultPhase.AfterMutation) throw IllegalStateException("include failed after mutation")
+            return changed
+        }
+
+        override suspend fun excludeDirect(subject: BaseRoleSubject, role: BaseRole): Boolean {
+            val failure = if (role == NewUserRole) {
+                nextPendingExcludeFailure.also { nextPendingExcludeFailure = null }
+            } else {
+                null
+            }
+            if (failure == FaultPhase.BeforeMutation) throw IllegalStateException("exclude failed before mutation")
+            val changed = delegate.excludeDirect(subject, role)
+            if (failure == FaultPhase.AfterMutation) throw IllegalStateException("exclude failed after mutation")
+            return changed
+        }
+    }
+
+    /** Verifies that a suspension-capable promotion operation propagates the injected repository fault. */
+    private suspend fun FaultingRolesRepo.expectOperationFailure(block: suspend () -> Unit) {
+        try {
+            block()
+            fail("Expected role operation to fail")
+        } catch (_: IllegalStateException) {
+        }
     }
 }

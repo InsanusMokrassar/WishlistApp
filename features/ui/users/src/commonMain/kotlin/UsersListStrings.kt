@@ -172,9 +172,25 @@ object UsersListStrings {
         IetfLang.Russian("Не удалось загрузить настройки email.")
     }
 
-    /** Local failure state when the server did not save the email. */
-    val emailSaveFailed = buildStringResource("Could not save the email address.") {
-        IetfLang.Russian("Не удалось сохранить email-адрес.")
+    /** Local uncertainty state when the email save response could not be confirmed. */
+    val emailSaveFailed = buildStringResource(
+        "The email save could not be confirmed. Refresh to check the saved address."
+    ) {
+        IetfLang.Russian("Не удалось подтвердить сохранение email. Обновите данные, чтобы проверить сохранённый адрес.")
+    }
+
+    /** Root-save failure before any password request was attempted. */
+    val profileUsernameSaveFailed = buildStringResource(
+        "The profile save could not be confirmed and no password request was attempted."
+    ) {
+        IetfLang.Russian("Не удалось подтвердить сохранение профиля; запрос на смену пароля не выполнялся.")
+    }
+
+    /** Root-save failure after the username save succeeded. */
+    val profilePasswordSaveFailed = buildStringResource(
+        "The username was saved but the password change could not be confirmed."
+    ) {
+        IetfLang.Russian("Имя пользователя сохранено, но не удалось подтвердить смену пароля.")
     }
 
     /** Server result: verification message accepted for delivery. */

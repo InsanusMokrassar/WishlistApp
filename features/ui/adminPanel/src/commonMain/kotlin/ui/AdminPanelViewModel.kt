@@ -11,6 +11,10 @@ import dev.inmo.wishlist.features.common.client.models.ViewConfig
 import dev.inmo.wishlist.features.email.common.models.Email
 import dev.inmo.wishlist.features.users.common.models.UserId
 import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.CoroutineDispatcher
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.flowOf
@@ -29,8 +33,12 @@ import kotlinx.coroutines.flow.merge
 class AdminPanelViewModel(
     private val node: NavigationNode<AdminPanelViewConfig, ViewConfig>,
     private val model: AdminPanelModel,
-    private val interactor: AdminPanelViewInteractor
+    private val interactor: AdminPanelViewInteractor,
+    private val dispatcher: CoroutineDispatcher = Dispatchers.Default,
 ) : ViewModel<ViewConfig>(node) {
+    /** Child scope with a replaceable dispatcher for deterministic dashboard lifecycle tests. */
+    private val workScope = CoroutineScope(scope.coroutineContext + dispatcher)
+
     private val _usersState = MutableRedeliverStateFlow<List<AdminUser>>(emptyList())
 
     /** Current registered users shown on the dashboard. */
@@ -69,18 +77,20 @@ class AdminPanelViewModel(
 
     private var usersRequestVersion = 0L
 
+    private var usersRefreshJob: Job? = null
+
     init {
-        merge(flowOf(Unit), node.onResumeFlow).subscribeLoggingDropExceptions(scope) {
-            refreshUsers()
+        merge(flowOf(Unit), node.onResumeFlow).subscribeLoggingDropExceptions(workScope) {
+            requestUsersRefresh()
         }
-        model.userAuthorisedState.subscribeLoggingDropExceptions(scope) { authorised ->
+        model.userAuthorisedState.subscribeLoggingDropExceptions(workScope) { authorised ->
             if (authorised) {
-                refreshUsers()
+                requestUsersRefresh()
             } else {
                 clearUsers()
             }
         }
-        scope.launchLoggingDropExceptions {
+        workScope.launchLoggingDropExceptions {
             _emailFeatureEnabledState.value = try {
                 model.isEmailFeatureEnabled()
             } catch (error: CancellationException) {
@@ -93,14 +103,27 @@ class AdminPanelViewModel(
 
     private fun clearUsers() {
         usersRequestVersion += 1
+        usersRefreshJob?.cancel()
+        usersRefreshJob = null
         _usersState.value = emptyList()
         _usersLoadingState.value = false
         _usersLoadFailedState.value = false
     }
 
+    /** Starts a newest-wins users refresh without delaying authorization/logout observation. */
+    private fun requestUsersRefresh() {
+        usersRefreshJob?.cancel()
+        usersRefreshJob = workScope.launchLoggingDropExceptions {
+            refreshUsers()
+        }
+    }
+
     private suspend fun refreshUsers() {
         if (!model.userAuthorisedState.value) {
-            clearUsers()
+            usersRequestVersion += 1
+            _usersState.value = emptyList()
+            _usersLoadingState.value = false
+            _usersLoadFailedState.value = false
             return
         }
 
@@ -128,22 +151,22 @@ class AdminPanelViewModel(
 
     /** Called when the user taps the Users section button. */
     fun onOpenUsers() {
-        scope.launchLoggingDropExceptions { interactor.onOpenUsers(node) }
+        workScope.launchLoggingDropExceptions { interactor.onOpenUsers(node) }
     }
 
     /** Called when the user taps the Wishlists section button. */
     fun onOpenWishlists() {
-        scope.launchLoggingDropExceptions { interactor.onOpenWishlists(node) }
+        workScope.launchLoggingDropExceptions { interactor.onOpenWishlists(node) }
     }
 
     /** Retries loading users after a transient dashboard failure. */
     fun onRetryUsers() {
-        scope.launchLoggingDropExceptions { refreshUsers() }
+        requestUsersRefresh()
     }
 
     /** Opens the selected registered user's admin detail screen. */
     fun onUserSelected(userId: UserId) {
-        scope.launchLoggingDropExceptions { interactor.onUserSelected(node, userId) }
+        workScope.launchLoggingDropExceptions { interactor.onUserSelected(node, userId) }
     }
 
     /**
@@ -159,7 +182,7 @@ class AdminPanelViewModel(
             return
         }
         _sendTestEmailInProgressState.value = true
-        scope.launchLoggingDropExceptions {
+        workScope.launchLoggingDropExceptions {
             try {
                 _sendTestEmailState.value = model.sendTestEmail(recipient)
             } catch (error: CancellationException) {

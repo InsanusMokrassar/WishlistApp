@@ -1,7 +1,13 @@
 package dev.inmo.wishlist.features.email.server.services
 
+import dev.inmo.micro_utils.repos.MapKeyValueRepo
+import dev.inmo.wishlist.features.deeplinks.common.models.DeepLinkHandlerInfo
+import dev.inmo.wishlist.features.deeplinks.common.models.DeepLinkId
+import dev.inmo.wishlist.features.deeplinks.common.repo.DeepLinksRepo
+import dev.inmo.wishlist.features.deeplinks.server.services.DeepLinksService
 import dev.inmo.wishlist.features.email.common.EmailConstants
 import dev.inmo.wishlist.features.email.common.models.Email
+import dev.inmo.wishlist.features.email.common.models.EmailVerificationRequestResult
 import dev.inmo.wishlist.features.users.common.models.RegisteredUser
 import dev.inmo.wishlist.features.users.common.models.UserId
 import dev.inmo.wishlist.features.users.common.models.Username
@@ -24,6 +30,10 @@ import kotlin.test.assertTrue
  */
 class EmailFeatureServiceTest {
 
+    /** In-memory deep-link storage used by the real registration invite sender. */
+    private class FakeDeepLinksRepo : DeepLinksRepo,
+        dev.inmo.micro_utils.repos.KeyValueRepo<DeepLinkId, DeepLinkHandlerInfo> by MapKeyValueRepo()
+
     /** Fixture user used by every `setMyEmail` assertion (superadmin status is irrelevant there). */
     private val plainUser = RegisteredUser(UserId(2L), Username("alice"))
 
@@ -42,11 +52,21 @@ class EmailFeatureServiceTest {
         emailsService: FakeEmailsService = FakeEmailsService(),
         usersRepo: FakeUsersRepo = FakeUsersRepo(),
         rolesFeature: FakeRolesFeature = FakeRolesFeature(),
+        inviteSender: EmailRegistrationInviteSender? = null,
     ): EmailFeatureService = EmailFeatureService(
         emailsService = emailsService,
         accountCoordinator = EmailVerificationAccountCoordinator(usersRepo, FakeRolesRepo()),
         rolesFeature = rolesFeature,
+        inviteSender = inviteSender,
     )
+
+    /** Builds the real link-minting sender without requiring an external SMTP server. */
+    private fun createInviteSender(emailsService: FakeEmailsService?): EmailRegistrationInviteSender =
+        EmailRegistrationInviteSender(
+            emailsService = emailsService,
+            deepLinksService = DeepLinksService(FakeDeepLinksRepo(), emptyList()),
+            publicHttpOrigin = "https://wishlist.example",
+        )
 
     /** `isFeatureEnabled` unconditionally returns `true` — `emailsService` is a non-nullable constructor parameter, so this class is only ever constructed with a real transport. */
     @Test
@@ -134,5 +154,71 @@ class EmailFeatureServiceTest {
         assertFailsWith<DuplicateUserFieldException> {
             service.setMyEmail(plainUser.id, takenEmail)
         }
+    }
+
+    /** Requesting verification returns the current-state results without invoking SMTP unnecessarily. */
+    @Test
+    fun requestVerificationReturnsNoEmailChangedAlreadyApprovedAndUnavailable() = runTest {
+        val email = Email("verify@example.com")
+        val pending = RegisteredUser(UserId(3L), Username("pending"), email)
+        val approved = RegisteredUser(UserId(4L), Username("approved"), email, emailApproved = true)
+        val noEmail = RegisteredUser(UserId(5L), Username("no-email"))
+        val emails = FakeEmailsService()
+        val service = createService(
+            emailsService = emails,
+            usersRepo = FakeUsersRepo(mapOf(pending.id to pending, approved.id to approved, noEmail.id to noEmail)),
+        )
+
+        assertEquals(
+            EmailVerificationRequestResult.NoEmail,
+            service.requestMyEmailVerification(UserId(999L), email),
+        )
+        assertEquals(EmailVerificationRequestResult.NoEmail, service.requestMyEmailVerification(noEmail.id, email))
+        assertEquals(
+            EmailVerificationRequestResult.EmailChanged,
+            service.requestMyEmailVerification(pending.id, Email("other@example.com")),
+        )
+        assertEquals(
+            EmailVerificationRequestResult.AlreadyApproved,
+            service.requestMyEmailVerification(approved.id, email),
+        )
+        assertEquals(EmailVerificationRequestResult.Unavailable, service.requestMyEmailVerification(pending.id, email))
+        assertEquals(emptyList(), emails.sendHtmlCalls)
+    }
+
+    /** The real invite sender distinguishes successful delivery from a failed or unavailable transport. */
+    @Test
+    fun requestVerificationReturnsSentOrDeliveryFailedThroughRealInviteSender() = runTest {
+        val email = Email("delivery@example.com")
+        val pending = RegisteredUser(UserId(6L), Username("delivery"), email)
+        val successfulEmails = FakeEmailsService(result = true)
+        val sentService = createService(
+            emailsService = successfulEmails,
+            usersRepo = FakeUsersRepo(mapOf(pending.id to pending)),
+            inviteSender = createInviteSender(successfulEmails),
+        )
+
+        assertEquals(EmailVerificationRequestResult.Sent, sentService.requestMyEmailVerification(pending.id, email))
+        assertEquals(listOf(email), successfulEmails.sendHtmlCalls.map { it.recipient })
+
+        val failedEmails = FakeEmailsService(result = false)
+        val failedService = createService(
+            emailsService = failedEmails,
+            usersRepo = FakeUsersRepo(mapOf(pending.id to pending)),
+            inviteSender = createInviteSender(failedEmails),
+        )
+        assertEquals(
+            EmailVerificationRequestResult.DeliveryFailed,
+            failedService.requestMyEmailVerification(pending.id, email),
+        )
+
+        val unavailableService = createService(
+            usersRepo = FakeUsersRepo(mapOf(pending.id to pending)),
+            inviteSender = createInviteSender(null),
+        )
+        assertEquals(
+            EmailVerificationRequestResult.DeliveryFailed,
+            unavailableService.requestMyEmailVerification(pending.id, email),
+        )
     }
 }

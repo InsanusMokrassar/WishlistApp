@@ -76,12 +76,15 @@ class UserEditView(
         val canSave by viewModel.canSaveState.collectAsState()
         val canUploadAvatar by viewModel.canUploadAvatarState.collectAsState()
         val canManageOwnEmail by viewModel.canManageOwnEmailState.collectAsState()
+        val canMutateOwnEmail by viewModel.canMutateOwnEmailState.collectAsState()
         val ownEmailProfile by viewModel.ownEmailProfileState.collectAsState()
         val emailInput by viewModel.emailInputState.collectAsState()
         val emailLoading by viewModel.emailLoadingState.collectAsState()
         val emailBusy by viewModel.emailBusyState.collectAsState()
         val emailError by viewModel.emailErrorState.collectAsState()
+        val emailLoadFailed by viewModel.emailLoadFailedState.collectAsState()
         val emailVerificationResult by viewModel.emailVerificationResultState.collectAsState()
+        val profileSaveError by viewModel.profileSaveErrorState.collectAsState()
         val showDiscard by viewModel.showConfirmDialogState.collectAsState()
         val showDelete by viewModel.showDeleteDialogState.collectAsState()
         val scope = rememberCoroutineScope()
@@ -148,12 +151,8 @@ class UserEditView(
                             emailLoading -> FormHint(UsersListStrings.emailLoading.translation())
                             ownEmailProfile == null -> {
                                 FormHint(
-                                    when (emailError) {
-                                        EmailEditorError.LoadFailed -> UsersListStrings.emailLoadFailed.translation()
-                                        EmailEditorError.InvalidEmail -> UsersListStrings.emailInvalid.translation()
-                                        EmailEditorError.SaveFailed -> UsersListStrings.emailSaveFailed.translation()
-                                        null -> UsersListStrings.emailLoadFailed.translation()
-                                    },
+                                    if (emailLoadFailed) UsersListStrings.emailLoadFailed.translation()
+                                    else UsersListStrings.emailLoading.translation(),
                                     error = true,
                                 )
                             }
@@ -163,26 +162,15 @@ class UserEditView(
                                     onValueChange = { viewModel.onEmailChanged(it) },
                                     label = UsersListStrings.emailLabel.translation(),
                                     type = InputType.Email,
-                                    disabled = emailBusy,
+                                    disabled = !canMutateOwnEmail,
                                     hint = UsersListStrings.emailMissing.translation(),
                                     id = "settings-email",
                                 )
-                                when (emailError) {
-                                    EmailEditorError.InvalidEmail -> FormHint(
-                                        UsersListStrings.emailInvalid.translation(),
-                                        error = true,
-                                    )
-                                    EmailEditorError.SaveFailed -> FormHint(
-                                        UsersListStrings.emailSaveFailed.translation(),
-                                        error = true,
-                                    )
-                                    EmailEditorError.LoadFailed, null -> Unit
-                                }
                                 CalmButton(
                                     text = UsersListStrings.saveEmailAndVerifyButton.translation(),
                                     onClick = { viewModel.onSaveEmailAndRequestVerification() },
                                     variant = CalmButtonVariant.Primary,
-                                    disabled = emailBusy,
+                                    disabled = !canMutateOwnEmail,
                                 )
                             }
                             ownEmailProfile?.emailApproved == true -> {
@@ -210,18 +198,30 @@ class UserEditView(
                                     text = UsersListStrings.resendEmailVerificationButton.translation(),
                                     onClick = { viewModel.onResendEmailVerification() },
                                     variant = CalmButtonVariant.Primary,
-                                    disabled = emailBusy,
+                                    disabled = !canMutateOwnEmail,
                                 )
                             }
                         }
-                        if (!emailLoading) {
-                            CalmButton(
-                                text = UsersListStrings.refreshEmailButton.translation(),
-                                onClick = { viewModel.onRefreshEmail() },
-                                variant = CalmButtonVariant.Ghost,
-                                disabled = emailBusy,
+                        when (emailError) {
+                            EmailEditorError.InvalidEmail -> FormHint(
+                                UsersListStrings.emailInvalid.translation(),
+                                error = true,
                             )
+                            EmailEditorError.SaveFailed -> FormHint(
+                                UsersListStrings.emailSaveFailed.translation(),
+                                error = true,
+                            )
+                            EmailEditorError.LoadFailed, null -> Unit
                         }
+                        if (emailLoadFailed && ownEmailProfile != null) {
+                            FormHint(UsersListStrings.emailLoadFailed.translation(), error = true)
+                        }
+                        CalmButton(
+                            text = UsersListStrings.refreshEmailButton.translation(),
+                            onClick = { viewModel.onRefreshEmail() },
+                            variant = CalmButtonVariant.Ghost,
+                            disabled = emailBusy || emailLoading,
+                        )
                         when (emailVerificationResult) {
                             EmailVerificationRequestResult.Sent -> FormHint(
                                 UsersListStrings.emailVerificationSent.translation()
@@ -279,6 +279,17 @@ class UserEditView(
                         if (mismatch) {
                             FormHint(UsersListStrings.passwordMismatch.translation(), error = true)
                         }
+                    }
+                    when (profileSaveError) {
+                        ProfileSaveError.UsernameSaveFailed -> FormHint(
+                            UsersListStrings.profileUsernameSaveFailed.translation(),
+                            error = true,
+                        )
+                        ProfileSaveError.PasswordSaveFailed -> FormHint(
+                            UsersListStrings.profilePasswordSaveFailed.translation(),
+                            error = true,
+                        )
+                        null -> Unit
                     }
                     Div({ classes(CalmStudioStyleSheet.formactions) }) {
                         CalmButton(

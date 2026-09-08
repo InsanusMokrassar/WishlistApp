@@ -17,14 +17,23 @@ import dev.inmo.wishlist.features.files.common.models.FileId
 import dev.inmo.wishlist.features.users.common.models.UserId
 import dev.inmo.wishlist.features.users.common.models.Username
 import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.CoroutineDispatcher
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.CoroutineStart
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.currentCoroutineContext
+import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.flowOf
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.merge
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.takeWhile
+import kotlinx.coroutines.launch
 
 /**
  * ViewModel for the user profile edit screen.
@@ -52,8 +61,12 @@ import kotlinx.coroutines.flow.takeWhile
 class UserEditViewModel(
     private val node: NavigationNode<UserEditViewConfig, ViewConfig>,
     private val model: UsersModel,
-    private val interactor: UserEditViewInteractor
+    private val interactor: UserEditViewInteractor,
+    private val dispatcher: CoroutineDispatcher = Dispatchers.Default,
 ) : ViewModel<ViewConfig>(node) {
+    /** Child scope with a replaceable dispatcher for deterministic owner-operation tests. */
+    private val workScope = CoroutineScope(scope.coroutineContext + dispatcher)
+
     /** Identifier of the edited user; surfaced read-only to the view. */
     val userId: UserId = node.config.userId
 
@@ -102,7 +115,7 @@ class UserEditViewModel(
     val isDirtyState: StateFlow<Boolean> =
         combine(_profileDirtyState, _emailDraftDirtyState) { profileDirty, emailDirty ->
             profileDirty || emailDirty
-        }.stateIn(scope, SharingStarted.Eagerly, false)
+        }.stateIn(workScope, SharingStarted.Eagerly, false)
 
     private val _showConfirmDialogState = MutableRedeliverStateFlow(false)
 
@@ -114,10 +127,20 @@ class UserEditViewModel(
     /** `true` when the delete confirmation dialog should be visible. */
     val showDeleteDialogState = _showDeleteDialogState.asStateFlow()
 
-    private val _emailFeatureEnabledState = MutableRedeliverStateFlow(false)
+    private val _profileSaveErrorState = MutableRedeliverStateFlow<ProfileSaveError?>(null)
 
-    /** Whether the server currently permits SMTP-backed self-service email verification. */
-    val emailFeatureEnabledState: StateFlow<Boolean> = _emailFeatureEnabledState.asStateFlow()
+    /** Failure of the root-only username/password save sequence, kept separate from email feedback. */
+    val profileSaveErrorState: StateFlow<ProfileSaveError?> = _profileSaveErrorState.asStateFlow()
+
+    private val _emailCapabilityState = MutableRedeliverStateFlow(EmailCapabilityState.Unknown)
+
+    /** Current owner-email capability probe state, including recoverable loading and failure states. */
+    val emailCapabilityState: StateFlow<EmailCapabilityState> = _emailCapabilityState.asStateFlow()
+
+    /** Whether the server has positively confirmed SMTP-backed self-service email verification. */
+    val emailFeatureEnabledState: StateFlow<Boolean> = _emailCapabilityState
+        .map { it == EmailCapabilityState.Enabled }
+        .stateIn(workScope, SharingStarted.Eagerly, false)
 
     private val _ownEmailProfileState = MutableRedeliverStateFlow<AuthFeatureUser?>(null)
 
@@ -144,19 +167,62 @@ class UserEditViewModel(
     /** Local validation, load, or persistence error for the owner-email controls. */
     val emailErrorState: StateFlow<EmailEditorError?> = _emailErrorState.asStateFlow()
 
+    private val _emailLoadFailedState = MutableRedeliverStateFlow(false)
+
+    /** `true` when a capability/profile reconciliation failed without replacing a primary operation error. */
+    val emailLoadFailedState: StateFlow<Boolean> = _emailLoadFailedState.asStateFlow()
+
     private val _emailVerificationResultState = MutableRedeliverStateFlow<EmailVerificationRequestResult?>(null)
 
     /** Most recent verification-request outcome returned by the server. */
     val emailVerificationResultState: StateFlow<EmailVerificationRequestResult?> =
         _emailVerificationResultState.asStateFlow()
 
-    /** `true` only for the current authenticated profile owner while email delivery is enabled. */
+    /** `true` only for the current authenticated profile owner. */
+    private val isCurrentAuthenticatedOwnerFlow =
+        combine(model.currentUserIdFlow, model.userAuthorisedState) { currentUserId, authorised ->
+            authorised && currentUserId == userId
+        }
+
+    /**
+     * `true` while an authenticated owner may inspect email capability/loading/failure feedback.
+     * A confirmed disabled capability hides the section; unknown and failed probes remain visible so
+     * the owner can retry without exposing private feedback to another profile.
+     */
     val canManageOwnEmailState: StateFlow<Boolean> =
-        combine(model.currentUserIdFlow, _emailFeatureEnabledState) { currentUserId, emailFeatureEnabled ->
-            currentUserId == userId && emailFeatureEnabled
-        }.stateIn(scope, SharingStarted.Eagerly, false)
+        combine(isCurrentAuthenticatedOwnerFlow, _emailCapabilityState) { isOwner, capability ->
+            isOwner && capability != EmailCapabilityState.Disabled
+        }.stateIn(workScope, SharingStarted.Eagerly, false)
+
+    /** `true` only after capability and the matching private owner profile are both confirmed. */
+    val canMutateOwnEmailState: StateFlow<Boolean> =
+        combine(
+            isCurrentAuthenticatedOwnerFlow,
+            _emailCapabilityState,
+            _ownEmailProfileState,
+            _emailLoadingState,
+            _emailBusyState,
+        ) { isOwner, capability, profile, loading, busy ->
+            isOwner &&
+                capability == EmailCapabilityState.Enabled &&
+                profile?.id == userId &&
+                !loading &&
+                !busy
+        }.stateIn(workScope, SharingStarted.Eagerly, false)
 
     private var emailRefreshVersion = 0L
+
+    private var ownerGeneration = 0L
+
+    private var observedOwnerSession: OwnerSession? = null
+
+    private var nextEmailMutationId = 0L
+
+    private var activeEmailMutation: OwnerEmailMutation? = null
+
+    private var emailRefreshJob: Job? = null
+
+    private var pendingEmailRefresh = false
 
     /**
      * `true` when the typed password and confirmation differ while at least one is non-blank.
@@ -165,7 +231,7 @@ class UserEditViewModel(
     val passwordMismatchState: StateFlow<Boolean> =
         combine(_passwordState, _confirmPasswordState) { password, confirm ->
             password != confirm && (password.isNotBlank() || confirm.isNotBlank())
-        }.stateIn(scope, SharingStarted.Eagerly, false)
+        }.stateIn(workScope, SharingStarted.Eagerly, false)
 
     /**
      * `true` when the form may be saved: caller is root, username is non-blank, no request is in
@@ -181,7 +247,7 @@ class UserEditViewModel(
         ) { isRoot, username, password, confirm, loading ->
             val passwordOk = (password.isBlank() && confirm.isBlank()) || password == confirm
             isRoot && username.isNotBlank() && !loading && passwordOk
-        }.stateIn(scope, SharingStarted.Eagerly, false)
+        }.stateIn(workScope, SharingStarted.Eagerly, false)
 
     /**
      * `true` when the avatar uploader should be available: the caller is the profile owner, or holds
@@ -190,11 +256,11 @@ class UserEditViewModel(
     val canUploadAvatarState: StateFlow<Boolean> =
         combine(model.currentUserIdFlow, model.canChangeAvatarForOthersFlow) { currentUserId, canForOthers ->
             currentUserId == userId || canForOthers
-        }.stateIn(scope, SharingStarted.Eagerly, false)
+        }.stateIn(workScope, SharingStarted.Eagerly, false)
 
     init {
         var inited = false
-        merge(flowOf(Unit), node.onResumeFlow).takeWhile { !inited }.subscribeLoggingDropExceptions(scope) {
+        merge(flowOf(Unit), node.onResumeFlow).takeWhile { !inited }.subscribeLoggingDropExceptions(workScope) {
             _loadingState.value = true
             try {
                 model.getUser(userId)?.let { _usernameState.value = it.username.string }
@@ -204,17 +270,21 @@ class UserEditViewModel(
             }
             inited = true
         }
-        model.userAuthorisedState.subscribeOnLoggedOut(scope) {
+        model.userAuthorisedState.subscribeOnLoggedOut(workScope) {
             interactor.onNavigateBack(node)
         }
-        merge(flowOf(Unit), node.onResumeFlow).subscribeLoggingDropExceptions(scope) {
-            refreshOwnedEmailProfile()
+        merge(flowOf(Unit), node.onResumeFlow).subscribeLoggingDropExceptions(workScope) {
+            requestOwnedEmailRefresh()
         }
-        model.currentUserIdFlow.subscribeLoggingDropExceptions(scope) { currentUserId ->
-            if (currentUserId == userId) {
-                refreshOwnedEmailProfile()
-            } else {
-                clearOwnedEmailState()
+        combine(model.currentUserIdFlow, model.userAuthorisedState) { callerId, authorised ->
+            OwnerSession(callerId, authorised)
+        }.subscribeLoggingDropExceptions(workScope) { session ->
+            if (observedOwnerSession != session) {
+                observedOwnerSession = session
+                invalidateOwnedEmailSession()
+                if (session.authorised && session.callerId == userId) {
+                    requestOwnedEmailRefresh()
+                }
             }
         }
     }
@@ -224,62 +294,199 @@ class UserEditViewModel(
         _emailInputState.value = ""
         _emailDraftDirtyState.value = false
         _emailErrorState.value = null
+        _emailLoadFailedState.value = false
         _emailVerificationResultState.value = null
     }
 
-    private fun clearOwnedEmailState() {
+    /** Invalidates all private email work when the observed caller or authorization state changes. */
+    private fun invalidateOwnedEmailSession() {
+        ownerGeneration += 1
         emailRefreshVersion += 1
-        _emailFeatureEnabledState.value = false
+        emailRefreshJob?.cancel()
+        emailRefreshJob = null
+        val mutation = activeEmailMutation
+        activeEmailMutation = null
+        mutation?.job?.cancel()
+        pendingEmailRefresh = false
+        _emailCapabilityState.value = EmailCapabilityState.Unknown
         _emailLoadingState.value = false
         _emailBusyState.value = false
         clearPrivateEmailState()
     }
 
-    private fun isCurrentOwnerRequest(requestVersion: Long, callerId: UserId): Boolean =
-        requestVersion == emailRefreshVersion && callerId == userId && model.currentUserIdFlow.value == callerId
+    /** Returns whether [callerId] is still the authenticated owner of this editor. */
+    private fun isCurrentRawOwner(callerId: UserId): Boolean =
+        callerId == userId &&
+            model.userAuthorisedState.value &&
+            model.currentUserIdFlow.value == callerId
 
-    private suspend fun refreshOwnedEmailProfile() {
-        val callerId = model.currentUserIdFlow.value
-        if (callerId != userId) {
-            clearOwnedEmailState()
+    /** Returns whether a private refresh still belongs to its initiating owner generation. */
+    private fun isCurrentOwnerRequest(
+        requestVersion: Long,
+        generation: Long,
+        callerId: UserId,
+    ): Boolean =
+        requestVersion == emailRefreshVersion &&
+            generation == ownerGeneration &&
+            isCurrentRawOwner(callerId)
+
+    /** Returns whether [mutation] is still the active owner-bound email operation. */
+    private fun isCurrentEmailMutation(mutation: OwnerEmailMutation): Boolean =
+        activeEmailMutation === mutation &&
+            mutation.generation == ownerGeneration &&
+            isCurrentRawOwner(mutation.callerId)
+
+    /** Rechecks cancellation and owner identity before an owner-scoped request or state publication. */
+    private suspend fun canContinueEmailMutation(mutation: OwnerEmailMutation): Boolean {
+        currentCoroutineContext().ensureActive()
+        return isCurrentEmailMutation(mutation)
+    }
+
+    /** Starts or defers an owner-private capability/profile refresh without transferring an active mutation. */
+    private fun requestOwnedEmailRefresh() {
+        val callerId = model.currentUserIdFlow.value ?: return
+        if (!isCurrentRawOwner(callerId)) return
+        if (_emailBusyState.value) {
+            pendingEmailRefresh = true
             return
         }
 
+        emailRefreshJob?.cancel()
         val requestVersion = ++emailRefreshVersion
+        val generation = ownerGeneration
+        _emailCapabilityState.value = EmailCapabilityState.Loading
         _emailLoadingState.value = true
-        try {
-            val emailFeatureEnabled = model.isEmailFeatureEnabled()
-            if (!isCurrentOwnerRequest(requestVersion, callerId)) return
-            _emailFeatureEnabledState.value = emailFeatureEnabled
-            if (!emailFeatureEnabled) {
-                clearPrivateEmailState()
-                return
-            }
+        _ownEmailProfileState.value = null
+        _emailLoadFailedState.value = false
+        emailRefreshJob = workScope.launch {
+            try {
+                val emailFeatureEnabled = model.isEmailFeatureEnabled()
+                if (!isCurrentOwnerRequest(requestVersion, generation, callerId)) return@launch
+                if (!emailFeatureEnabled) {
+                    _emailCapabilityState.value = EmailCapabilityState.Disabled
+                    _ownEmailProfileState.value = null
+                    if (_emailErrorState.value == EmailEditorError.LoadFailed) {
+                        _emailErrorState.value = null
+                    }
+                    return@launch
+                }
 
+                _emailCapabilityState.value = EmailCapabilityState.Enabled
+                val profile = model.getMyProfile()
+                if (!isCurrentOwnerRequest(requestVersion, generation, callerId)) return@launch
+                if (profile?.id != userId) {
+                    _ownEmailProfileState.value = null
+                    _emailCapabilityState.value = EmailCapabilityState.Failed
+                    _emailLoadFailedState.value = true
+                    if (_emailErrorState.value == null || _emailErrorState.value == EmailEditorError.LoadFailed) {
+                        _emailErrorState.value = EmailEditorError.LoadFailed
+                    }
+                    return@launch
+                }
+
+                _ownEmailProfileState.value = profile
+                if (!_emailDraftDirtyState.value) {
+                    _emailInputState.value = profile.email?.string.orEmpty()
+                }
+                _emailLoadFailedState.value = false
+                if (_emailErrorState.value == EmailEditorError.LoadFailed) {
+                    _emailErrorState.value = null
+                }
+            } catch (error: CancellationException) {
+                throw error
+            } catch (_: Throwable) {
+                if (isCurrentOwnerRequest(requestVersion, generation, callerId)) {
+                    _ownEmailProfileState.value = null
+                    _emailCapabilityState.value = EmailCapabilityState.Failed
+                    _emailLoadFailedState.value = true
+                    if (_emailErrorState.value == null || _emailErrorState.value == EmailEditorError.LoadFailed) {
+                        _emailErrorState.value = EmailEditorError.LoadFailed
+                    }
+                }
+            } finally {
+                if (isCurrentOwnerRequest(requestVersion, generation, callerId)) {
+                    _emailLoadingState.value = false
+                }
+            }
+        }
+    }
+
+    /** Admits a single owner-bound email mutation only after capability and private profile confirmation. */
+    private fun beginEmailMutation(): OwnerEmailMutation? {
+        val callerId = model.currentUserIdFlow.value ?: return null
+        if (!isCurrentRawOwner(callerId)) return null
+        if (_emailCapabilityState.value != EmailCapabilityState.Enabled) return null
+        if (_ownEmailProfileState.value?.id != userId) return null
+        if (_emailLoadingState.value || _emailBusyState.value) return null
+
+        val mutation = OwnerEmailMutation(callerId, ownerGeneration, ++nextEmailMutationId)
+        activeEmailMutation = mutation
+        _emailBusyState.value = true
+        _emailErrorState.value = null
+        _emailVerificationResultState.value = null
+        return mutation
+    }
+
+    /** Starts [block] lazily so its cancellation handle is registered before work can run. */
+    private fun launchEmailMutation(
+        mutation: OwnerEmailMutation,
+        block: suspend () -> Unit,
+    ) {
+        val job = workScope.launch(start = CoroutineStart.LAZY) {
+            try {
+                block()
+            } finally {
+                finishEmailMutation(mutation)
+            }
+        }
+        mutation.job = job
+        job.start()
+    }
+
+    /** Clears only the matching mutation's busy state and honors one deferred resume/manual refresh. */
+    private fun finishEmailMutation(mutation: OwnerEmailMutation) {
+        if (!isCurrentEmailMutation(mutation)) return
+        activeEmailMutation = null
+        _emailBusyState.value = false
+        if (pendingEmailRefresh) {
+            pendingEmailRefresh = false
+            requestOwnedEmailRefresh()
+        }
+    }
+
+    /** Reconciles only a still-current mutation with the server's private profile without probing capability again. */
+    private suspend fun reconcileOwnedEmailProfile(mutation: OwnerEmailMutation) {
+        if (!canContinueEmailMutation(mutation)) return
+        try {
             val profile = model.getMyProfile()
-            if (!isCurrentOwnerRequest(requestVersion, callerId)) return
+            if (!canContinueEmailMutation(mutation)) return
             if (profile?.id != userId) {
-                clearOwnedEmailState()
+                _ownEmailProfileState.value = null
+                _emailLoadFailedState.value = true
+                if (_emailErrorState.value == null || _emailErrorState.value == EmailEditorError.LoadFailed) {
+                    _emailErrorState.value = EmailEditorError.LoadFailed
+                }
                 return
             }
 
             _ownEmailProfileState.value = profile
-            if (!_emailDraftDirtyState.value) {
-                _emailInputState.value = profile.email?.string.orEmpty()
+            val storedEmail = profile.email
+            if (storedEmail != null) {
+                _emailInputState.value = storedEmail.string
+                _emailDraftDirtyState.value = false
             }
+            _emailLoadFailedState.value = false
             if (_emailErrorState.value == EmailEditorError.LoadFailed) {
                 _emailErrorState.value = null
             }
         } catch (error: CancellationException) {
             throw error
         } catch (_: Throwable) {
-            if (isCurrentOwnerRequest(requestVersion, callerId)) {
-                _ownEmailProfileState.value = null
-                _emailErrorState.value = EmailEditorError.LoadFailed
-            }
-        } finally {
-            if (isCurrentOwnerRequest(requestVersion, callerId)) {
-                _emailLoadingState.value = false
+            if (isCurrentEmailMutation(mutation)) {
+                _emailLoadFailedState.value = true
+                if (_emailErrorState.value == null || _emailErrorState.value == EmailEditorError.LoadFailed) {
+                    _emailErrorState.value = EmailEditorError.LoadFailed
+                }
             }
         }
     }
@@ -323,7 +530,7 @@ class UserEditViewModel(
      */
     fun onAvatarPicked(file: MPPFile) {
         if (!canUploadAvatarState.value) return
-        scope.launchLoggingDropExceptions {
+        workScope.launchLoggingDropExceptions {
             _uploadingAvatarState.value = true
             try {
                 val newId = model.uploadAvatar(userId, file)
@@ -341,14 +548,14 @@ class UserEditViewModel(
         if (isDirtyState.value) {
             _showConfirmDialogState.value = true
         } else {
-            scope.launchLoggingDropExceptions { interactor.onNavigateBack(node) }
+            workScope.launchLoggingDropExceptions { interactor.onNavigateBack(node) }
         }
     }
 
     /** Confirms discarding changes and pops. */
     fun onConfirmBack() {
         _showConfirmDialogState.value = false
-        scope.launchLoggingDropExceptions { interactor.onNavigateBack(node) }
+        workScope.launchLoggingDropExceptions { interactor.onNavigateBack(node) }
     }
 
     /** Cancels the discard dialog, returning to the form. */
@@ -361,14 +568,36 @@ class UserEditViewModel(
      * confirmed, sets it. No-op unless [canSaveState] is `true`.
      */
     fun onSave() {
-        scope.launchLoggingDropExceptions {
-            if (!canSaveState.value) return@launchLoggingDropExceptions
-            _loadingState.value = true
+        if (!canSaveState.value) return
+        val username = Username(_usernameState.value.trim())
+        val password = _passwordState.value
+        _loadingState.value = true
+        _profileSaveErrorState.value = null
+        workScope.launchLoggingDropExceptions {
             try {
-                model.updateUsername(userId, Username(_usernameState.value.trim()))
-                val password = _passwordState.value
+                val usernameSaved = try {
+                    model.updateUsername(userId, username)
+                } catch (error: CancellationException) {
+                    throw error
+                } catch (_: Throwable) {
+                    false
+                }
+                if (!usernameSaved) {
+                    _profileSaveErrorState.value = ProfileSaveError.UsernameSaveFailed
+                    return@launchLoggingDropExceptions
+                }
                 if (password.isNotBlank()) {
-                    model.setPassword(userId, Password(password))
+                    val passwordSaved = try {
+                        model.setPassword(userId, Password(password))
+                    } catch (error: CancellationException) {
+                        throw error
+                    } catch (_: Throwable) {
+                        false
+                    }
+                    if (!passwordSaved) {
+                        _profileSaveErrorState.value = ProfileSaveError.PasswordSaveFailed
+                        return@launchLoggingDropExceptions
+                    }
                 }
                 interactor.onSaved(node)
             } finally {
@@ -379,7 +608,7 @@ class UserEditViewModel(
 
     /** Updates the private owner-email draft. No-op for other profiles or while a request is active. */
     fun onEmailChanged(email: String) {
-        if (!canManageOwnEmailState.value || _emailBusyState.value) return
+        if (!canMutateOwnEmailState.value) return
         _emailInputState.value = email
         _emailDraftDirtyState.value = true
         _emailErrorState.value = null
@@ -394,63 +623,76 @@ class UserEditViewModel(
      * is refreshed so the latest approval state wins.
      */
     fun onSaveEmailAndRequestVerification() {
-        if (!canManageOwnEmailState.value || _emailLoadingState.value || _emailBusyState.value) return
+        if (!canMutateOwnEmailState.value || _ownEmailProfileState.value?.email != null) return
         val email = Email.parse(_emailInputState.value).getOrNull()
         if (email == null) {
             _emailErrorState.value = EmailEditorError.InvalidEmail
             return
         }
 
-        _emailBusyState.value = true
-        _emailErrorState.value = null
-        _emailVerificationResultState.value = null
-        scope.launchLoggingDropExceptions {
-            try {
-                if (!model.setMyEmail(email)) {
-                    _emailErrorState.value = EmailEditorError.SaveFailed
-                    return@launchLoggingDropExceptions
-                }
-                _emailInputState.value = email.string
-                _emailDraftDirtyState.value = false
-                _emailVerificationResultState.value = model.requestMyEmailVerification(email)
+        val mutation = beginEmailMutation() ?: return
+        launchEmailMutation(mutation) {
+            if (!canContinueEmailMutation(mutation)) return@launchEmailMutation
+            val saved = try {
+                model.setMyEmail(email)
             } catch (error: CancellationException) {
                 throw error
             } catch (_: Throwable) {
-                _emailVerificationResultState.value = EmailVerificationRequestResult.DeliveryFailed
-            } finally {
-                _emailBusyState.value = false
-                refreshOwnedEmailProfile()
+                if (isCurrentEmailMutation(mutation)) {
+                    _emailErrorState.value = EmailEditorError.SaveFailed
+                }
+                reconcileOwnedEmailProfile(mutation)
+                return@launchEmailMutation
             }
+            if (!canContinueEmailMutation(mutation)) return@launchEmailMutation
+            if (!saved) {
+                _emailErrorState.value = EmailEditorError.SaveFailed
+                reconcileOwnedEmailProfile(mutation)
+                return@launchEmailMutation
+            }
+
+            _emailInputState.value = email.string
+            _emailDraftDirtyState.value = false
+            val result = try {
+                if (!canContinueEmailMutation(mutation)) return@launchEmailMutation
+                model.requestMyEmailVerification(email)
+            } catch (error: CancellationException) {
+                throw error
+            } catch (_: Throwable) {
+                EmailVerificationRequestResult.DeliveryFailed
+            }
+            if (!canContinueEmailMutation(mutation)) return@launchEmailMutation
+            _emailVerificationResultState.value = result
+            reconcileOwnedEmailProfile(mutation)
         }
     }
 
     /** Retries verification for the current saved, unapproved owner email without rewriting it. */
     fun onResendEmailVerification() {
-        if (!canManageOwnEmailState.value || _emailLoadingState.value || _emailBusyState.value) return
+        if (!canMutateOwnEmailState.value) return
         val profile = _ownEmailProfileState.value ?: return
         val email = profile.email ?: return
         if (profile.emailApproved) return
 
-        _emailBusyState.value = true
-        _emailErrorState.value = null
-        _emailVerificationResultState.value = null
-        scope.launchLoggingDropExceptions {
-            try {
-                _emailVerificationResultState.value = model.requestMyEmailVerification(email)
+        val mutation = beginEmailMutation() ?: return
+        launchEmailMutation(mutation) {
+            if (!canContinueEmailMutation(mutation)) return@launchEmailMutation
+            val result = try {
+                model.requestMyEmailVerification(email)
             } catch (error: CancellationException) {
                 throw error
             } catch (_: Throwable) {
-                _emailVerificationResultState.value = EmailVerificationRequestResult.DeliveryFailed
-            } finally {
-                _emailBusyState.value = false
-                refreshOwnedEmailProfile()
+                EmailVerificationRequestResult.DeliveryFailed
             }
+            if (!canContinueEmailMutation(mutation)) return@launchEmailMutation
+            _emailVerificationResultState.value = result
+            reconcileOwnedEmailProfile(mutation)
         }
     }
 
     /** Refreshes the private owner-email state after an external verification deeplink returns. */
     fun onRefreshEmail() {
-        scope.launchLoggingDropExceptions { refreshOwnedEmailProfile() }
+        requestOwnedEmailRefresh()
     }
 
     /** Opens the delete confirmation dialog. No-op unless the caller is root. */
@@ -461,7 +703,7 @@ class UserEditViewModel(
 
     /** Confirms deletion: removes the user (server cascade) then delegates to [UserEditViewInteractor.onDeleted]. */
     fun onConfirmDelete() {
-        scope.launchLoggingDropExceptions {
+        workScope.launchLoggingDropExceptions {
             _showDeleteDialogState.value = false
             _loadingState.value = true
             try {
@@ -493,6 +735,49 @@ class UserEditViewModel(
      * @return Payload bytes, or `null` on failure.
      */
     suspend fun loadImageBytes(id: FileId): ByteArray? = model.loadImageBytes(id)
+}
+
+/** Root profile-save outcomes that keep the editor open for correction or retry. */
+enum class ProfileSaveError {
+    /** Username persistence was false or could not be confirmed; no password request was sent. */
+    UsernameSaveFailed,
+
+    /** Username persisted, but the optional password request was false or could not be confirmed. */
+    PasswordSaveFailed,
+}
+
+/** Capability lifecycle for the owner-only email section. */
+enum class EmailCapabilityState {
+    /** No owner-private probe has completed for the current observed identity. */
+    Unknown,
+
+    /** A capability/profile refresh is in flight and mutations are fail-closed. */
+    Loading,
+
+    /** SMTP-backed owner verification and a matching private profile are available. */
+    Enabled,
+
+    /** The server confirmed that owner verification delivery is unavailable. */
+    Disabled,
+
+    /** Capability or private-profile loading failed; retry remains available but mutations are blocked. */
+    Failed,
+}
+
+/** Observed authenticated-caller state used to invalidate owner-private work across identity changes. */
+private data class OwnerSession(
+    val callerId: UserId?,
+    val authorised: Boolean,
+)
+
+/** One active owner-bound mutation with an explicit cancellation handle. */
+private class OwnerEmailMutation(
+    val callerId: UserId,
+    val generation: Long,
+    val mutationId: Long,
+) {
+    /** Job launched after this token becomes the active mutation. */
+    var job: Job? = null
 }
 
 /** Local presentation errors that are distinct from server verification outcomes. */

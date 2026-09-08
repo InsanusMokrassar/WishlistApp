@@ -9,6 +9,7 @@ import dev.inmo.wishlist.features.email.common.models.EmailVerificationRequest
 import dev.inmo.wishlist.features.email.common.models.EmailVerificationRequestResult
 import io.ktor.client.HttpClient
 import io.ktor.client.call.body
+import io.ktor.client.plugins.expectSuccess
 import io.ktor.client.request.get
 import io.ktor.client.request.post
 import io.ktor.client.request.put
@@ -47,11 +48,13 @@ class KtorEmailFeature(private val client: HttpClient) : EmailFeature {
     /**
      * Checks whether the server-side email feature is enabled.
      *
-     * @return Server-reported enabled flag, or `false` on failure.
+     * @return Server-reported enabled flag from a successful response.
+     * @throws io.ktor.client.plugins.ResponseException when the capability endpoint is unavailable.
      */
     override suspend fun isFeatureEnabled(): Boolean {
-        val response = client.get(enabledPath)
-        return if (response.status.isSuccess()) response.body() else false
+        return client.get(enabledPath) {
+            expectSuccess = true
+        }.body()
     }
 
     /**
@@ -90,6 +93,7 @@ class KtorEmailFeature(private val client: HttpClient) : EmailFeature {
      */
     override suspend fun requestMyEmailVerification(expectedEmail: Email): EmailVerificationRequestResult =
         client.post(requestMyEmailVerificationPath) {
+            expectSuccess = true
             contentType(ContentType.Application.Json)
             setBody(EmailVerificationRequest(expectedEmail))
         }.body()
