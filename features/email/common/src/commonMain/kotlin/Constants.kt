@@ -24,6 +24,9 @@ object EmailConstants {
     /** Path segment for the self-service email-update action: `/email/myEmail`. */
     const val myEmailPathPart = "myEmail"
 
+    /** Path segment for requesting verification of the caller's current address. */
+    const val requestMyEmailVerificationPathPart = "requestMyEmailVerification"
+
     /** Query parameter consumed by the web shell after a successful email approval redirect. */
     const val approvalQueryParameter = "emailApproval"
 

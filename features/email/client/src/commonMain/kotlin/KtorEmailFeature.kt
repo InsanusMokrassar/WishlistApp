@@ -5,6 +5,8 @@ import dev.inmo.wishlist.features.email.client.EmailFeature
 import dev.inmo.wishlist.features.email.common.models.Email
 import dev.inmo.wishlist.features.email.common.models.SetEmailRequest
 import dev.inmo.wishlist.features.email.common.models.TestEmailRequest
+import dev.inmo.wishlist.features.email.common.models.EmailVerificationRequest
+import dev.inmo.wishlist.features.email.common.models.EmailVerificationRequestResult
 import io.ktor.client.HttpClient
 import io.ktor.client.call.body
 import io.ktor.client.request.get
@@ -37,6 +39,10 @@ class KtorEmailFeature(private val client: HttpClient) : EmailFeature {
     /** Path for `PUT /email/myEmail`. */
     private val myEmailPath =
         "${EmailConstants.prefixPathPart}/${EmailConstants.myEmailPathPart}"
+
+    /** Path for `POST /email/requestMyEmailVerification`. */
+    private val requestMyEmailVerificationPath =
+        "${EmailConstants.prefixPathPart}/${EmailConstants.requestMyEmailVerificationPathPart}"
 
     /**
      * Checks whether the server-side email feature is enabled.
@@ -75,4 +81,16 @@ class KtorEmailFeature(private val client: HttpClient) : EmailFeature {
         }
         return response.status.isSuccess()
     }
+
+    /**
+     * Requests a verification link for [expectedEmail] and returns the server's domain result.
+     *
+     * @param expectedEmail Address currently displayed to the authenticated caller.
+     * @return Decoded verification request result.
+     */
+    override suspend fun requestMyEmailVerification(expectedEmail: Email): EmailVerificationRequestResult =
+        client.post(requestMyEmailVerificationPath) {
+            contentType(ContentType.Application.Json)
+            setBody(EmailVerificationRequest(expectedEmail))
+        }.body()
 }

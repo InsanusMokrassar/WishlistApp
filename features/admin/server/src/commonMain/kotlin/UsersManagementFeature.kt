@@ -7,8 +7,10 @@ import dev.inmo.wishlist.features.admin.common.models.NewUserWithPassword
 import dev.inmo.wishlist.features.admin.common.models.asAdminUser
 import dev.inmo.wishlist.features.auth.common.models.Password
 import dev.inmo.wishlist.features.auth.server.services.AuthFeatureService
+import dev.inmo.wishlist.features.email.server.services.EmailVerificationAccountCoordinator
 import dev.inmo.wishlist.features.users.common.models.NewUser
 import dev.inmo.wishlist.features.users.common.models.UserId
+import dev.inmo.wishlist.features.users.common.models.Username
 import dev.inmo.wishlist.features.users.common.repo.UsersRepo
 import dev.inmo.wishlist.features.wishlist.common.repo.WishlistItemRepo
 import dev.inmo.wishlist.features.wishlist.common.repo.WishlistRepo
@@ -25,12 +27,14 @@ import dev.inmo.wishlist.features.wishlist.common.repo.WishlistRepo
  * @param authService Auth service used to hash passwords and purge credentials/sessions.
  * @param wishlistRepo Wishlist storage, used to enumerate and delete a user's wishlists.
  * @param wishlistItemRepo Wishlist item storage, used to delete items of deleted wishlists.
+ * @param accountCoordinator Shared user-email mutation coordinator.
  */
 class UsersManagementFeature(
     private val usersRepo: UsersRepo,
     private val authService: AuthFeatureService,
     private val wishlistRepo: WishlistRepo,
-    private val wishlistItemRepo: WishlistItemRepo
+    private val wishlistItemRepo: WishlistItemRepo,
+    private val accountCoordinator: EmailVerificationAccountCoordinator,
 ) {
     suspend fun getAll(): List<AdminUser> =
         usersRepo.getAll().values.map { it.asAdminUser() }
@@ -60,9 +64,18 @@ class UsersManagementFeature(
      *   when [newUser]'s username or email is already taken by another user.
      */
     suspend fun update(id: UserId, newUser: NewUser): Boolean? {
-        if (!usersRepo.contains(id)) return null
-        return usersRepo.update(id, newUser) != null
+        return accountCoordinator.updateUser(id, newUser)
     }
+
+    /**
+     * Updates only [username] while preserving the latest address and its approval state.
+     *
+     * @param id User to rename.
+     * @param username Validated replacement username.
+     * @return `true` on success, `false` on an unexpected write failure, or `null` when absent.
+     */
+    suspend fun updateUsername(id: UserId, username: Username): Boolean? =
+        accountCoordinator.updateUsername(id, username)
 
     /**
      * Replaces the password of user [id] using existing [AuthFeatureService.setPassword].

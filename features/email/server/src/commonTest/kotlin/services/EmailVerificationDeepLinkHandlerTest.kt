@@ -67,16 +67,18 @@ class EmailVerificationDeepLinkHandlerTest {
         val subject = BaseRoleSubject.Direct(user.id.long.toString())
         roles.includeDirect(subject, NewUserRole)
         val emails = FakeEmailsService()
-        val handler = createHandler(FakeUsersRepo(mapOf(user.id to user)), roles, emails)
+        val users = FakeUsersRepo(mapOf(user.id to user))
+        val handler = createHandler(users, roles, emails)
 
         val expected = HandleResult.Handled.Redirect(EmailConstants.approvalRedirectPath)
         assertEquals(expected, handler.tryHandle(deeplinkId, EmailVerificationPayload(user.id, user.email)))
         assertEquals(expected, handler.tryHandle(deeplinkId, EmailVerificationPayload(user.id, user.email)))
         assertTrue(roles.contains(subject, UserRole))
         assertEquals(false, roles.contains(subject, NewUserRole))
+        assertTrue(checkNotNull(users.getById(user.id)).emailApproved)
         assertEquals(2, emails.sendTextCalls.size)
         assertEquals(user.email, emails.sendTextCalls.first().recipient)
-        assertEquals("Your WishlistApp account is approved", emails.sendTextCalls.first().subject)
+        assertEquals("Your WishlistApp email address is approved", emails.sendTextCalls.first().subject)
     }
 
     /** A link sent to an earlier address cannot approve an account after the address changes. */

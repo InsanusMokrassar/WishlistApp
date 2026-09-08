@@ -6,15 +6,18 @@ import dev.inmo.micro_utils.startup.plugin.StartPlugin
 import dev.inmo.wishlist.features.admin.client.AdminFeature
 import dev.inmo.wishlist.features.admin.common.Constants as AdminConstants
 import dev.inmo.wishlist.features.auth.client.AuthCredentialsStorage
+import dev.inmo.wishlist.features.auth.client.ClientAuthFeature
 import dev.inmo.wishlist.features.auth.client.meStateFlow
 import dev.inmo.wishlist.features.auth.common.models.Password
 import dev.inmo.wishlist.features.common.client.models.ViewConfig
+import dev.inmo.wishlist.features.email.client.EmailFeature
+import dev.inmo.wishlist.features.email.common.models.Email
+import dev.inmo.wishlist.features.email.common.models.EmailVerificationRequestResult
 import dev.inmo.wishlist.features.files.client.FilesClientService
 import dev.inmo.wishlist.features.files.common.Constants as FilesConstants
 import dev.inmo.wishlist.features.files.common.models.FileId
 import dev.inmo.wishlist.features.roles.client.RolesFeature
 import dev.inmo.wishlist.features.users.client.UsersFeature
-import dev.inmo.wishlist.features.users.common.models.NewUser
 import dev.inmo.wishlist.features.users.common.models.UserId
 import dev.inmo.wishlist.features.users.common.models.Username
 import dev.inmo.wishlist.features.users.common.models.UsersFeatureUser
@@ -63,6 +66,8 @@ object Plugin : StartPlugin {
         factory { UserEditViewModel(node = it.get(), model = get(), interactor = get()) }
         single<UsersModel> {
             val feature = get<UsersFeature>()
+            val authFeature = get<ClientAuthFeature>()
+            val emailFeature = get<EmailFeature>()
             val meState = meStateFlow
             val adminFeature = get<AdminFeature>()
             val filesService = get<FilesClientService>()
@@ -94,8 +99,18 @@ object Plugin : StartPlugin {
                         }
                         .stateIn(scope, SharingStarted.Eagerly, false)
 
+                override suspend fun getMyProfile() = authFeature.getMe()
+
+                override suspend fun isEmailFeatureEnabled(): Boolean = emailFeature.isFeatureEnabled()
+
+                override suspend fun setMyEmail(email: Email?): Boolean = emailFeature.setMyEmail(email)
+
+                override suspend fun requestMyEmailVerification(
+                    expectedEmail: Email
+                ): EmailVerificationRequestResult = emailFeature.requestMyEmailVerification(expectedEmail)
+
                 override suspend fun updateUsername(id: UserId, username: Username): Boolean =
-                    adminFeature.usersManagement.update(id, NewUser(username))
+                    adminFeature.usersManagement.updateUsername(id, username)
 
                 override suspend fun setPassword(id: UserId, password: Password): Boolean =
                     adminFeature.usersManagement.setPassword(id, password)

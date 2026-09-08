@@ -6,6 +6,7 @@ import dev.inmo.wishlist.features.email.common.EmailConstants
 import dev.inmo.wishlist.features.email.server.EmailFeature
 import dev.inmo.wishlist.features.email.common.models.SetEmailRequest
 import dev.inmo.wishlist.features.email.common.models.TestEmailRequest
+import dev.inmo.wishlist.features.email.common.models.EmailVerificationRequest
 import dev.inmo.wishlist.features.users.common.repo.exceptions.DuplicateUserFieldException
 import io.ktor.http.HttpStatusCode
 import io.ktor.server.auth.authenticate
@@ -74,6 +75,12 @@ class EmailRoutingsConfigurator(
                         updated -> call.respond(HttpStatusCode.OK)
                         else -> call.respond(HttpStatusCode.InternalServerError)
                     }
+                }
+
+                post(EmailConstants.requestMyEmailVerificationPathPart) {
+                    val callerId = getCallerUserIdOrAnswerUnauthorized() ?: return@post
+                    val request = call.receive<EmailVerificationRequest>()
+                    call.respond(feature.requestMyEmailVerification(callerId, request.expectedEmail))
                 }
             }
         }

@@ -17,6 +17,7 @@ import java.sql.DriverManager
 import java.util.UUID
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertFalse
 import kotlin.test.assertFailsWith
 import kotlin.test.assertIs
 import kotlin.test.assertNull
@@ -118,6 +119,33 @@ class ExposedUsersRepoSqliteTest {
             assertEquals(2, created.size)
             assertTrue(created.all { it.email == null })
             assertEquals(created.associateBy { it.id }, repo.getAll())
+        }
+    }
+
+    /** Approval is false on insert, conditional on the current address, and resets when the address changes. */
+    @Test
+    fun emailApprovalTracksOnlyTheCurrentStoredAddress() = runTest {
+        withSqliteRepo { repo ->
+            val originalEmail = Email("alice@example.com")
+            val changedEmail = Email("alice+changed@example.com")
+            val created = repo.create(NewUser(Username("alice"), originalEmail)).single()
+
+            assertFalse(created.emailApproved)
+            assertNull(repo.approveEmail(created.id, changedEmail))
+
+            val approved = checkNotNull(repo.approveEmail(created.id, originalEmail))
+            assertTrue(approved.emailApproved)
+
+            val renamed = checkNotNull(repo.update(created.id, NewUser(Username("alice-renamed"), originalEmail)))
+            assertTrue(renamed.emailApproved)
+
+            val changed = checkNotNull(repo.update(created.id, NewUser(renamed.username, changedEmail)))
+            assertFalse(changed.emailApproved)
+            assertNull(repo.approveEmail(created.id, originalEmail))
+
+            val cleared = checkNotNull(repo.update(created.id, NewUser(changed.username, null)))
+            assertEquals(null, cleared.email)
+            assertFalse(cleared.emailApproved)
         }
     }
 

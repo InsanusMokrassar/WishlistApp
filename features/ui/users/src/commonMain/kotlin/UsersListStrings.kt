@@ -112,9 +112,99 @@ object UsersListStrings {
         IetfLang.Russian("Пароли не совпадают")
     }
 
-    /** Note shown to a non-root owner who has no editable fields. */
-    val noEditableFields = buildStringResource("No editable fields available.") {
-        IetfLang.Russian("Нет полей, доступных для редактирования.")
+    /** Permission note shown for admin-managed profile fields. */
+    val noEditableFields = buildStringResource(
+        "Username and password can only be changed by an administrator."
+    ) {
+        IetfLang.Russian("Имя пользователя и пароль может изменить только администратор.")
+    }
+
+    /** Heading for the private owner-email section. */
+    val emailSectionTitle = buildStringResource("Email verification") {
+        IetfLang.Russian("Подтверждение email")
+    }
+
+    /** Label for the owner-only email input. */
+    val emailLabel = buildStringResource("Email address") { IetfLang.Russian("Email-адрес") }
+
+    /** State shown while the private owner-email record is loading. */
+    val emailLoading = buildStringResource("Loading email settings…") {
+        IetfLang.Russian("Загрузка настроек email…")
+    }
+
+    /** Status shown when the owner has not stored an email yet. */
+    val emailMissing = buildStringResource("Add an email address to receive a verification link.") {
+        IetfLang.Russian("Добавьте email-адрес, чтобы получить ссылку для подтверждения.")
+    }
+
+    /** Status shown for an email that still awaits verification. */
+    val emailPendingApproval = buildStringResource("This email address is waiting for verification.") {
+        IetfLang.Russian("Этот email-адрес ожидает подтверждения.")
+    }
+
+    /** Status shown for an approved current email. */
+    val emailApproved = buildStringResource("This email address is verified.") {
+        IetfLang.Russian("Этот email-адрес подтверждён.")
+    }
+
+    /** Saves a new owner email and immediately requests verification. */
+    val saveEmailAndVerifyButton = buildStringResource("Save and send verification") {
+        IetfLang.Russian("Сохранить и отправить подтверждение")
+    }
+
+    /** Requests another verification message for the saved pending email. */
+    val resendEmailVerificationButton = buildStringResource("Resend verification") {
+        IetfLang.Russian("Отправить подтверждение повторно")
+    }
+
+    /** Refreshes private owner-email state after returning from a verification link. */
+    val refreshEmailButton = buildStringResource("Refresh email status") {
+        IetfLang.Russian("Обновить статус email")
+    }
+
+    /** Local validation error for malformed email input. */
+    val emailInvalid = buildStringResource("Enter a valid email address.") {
+        IetfLang.Russian("Введите корректный email-адрес.")
+    }
+
+    /** Local failure state for a private owner-email refresh. */
+    val emailLoadFailed = buildStringResource("Could not load email settings.") {
+        IetfLang.Russian("Не удалось загрузить настройки email.")
+    }
+
+    /** Local failure state when the server did not save the email. */
+    val emailSaveFailed = buildStringResource("Could not save the email address.") {
+        IetfLang.Russian("Не удалось сохранить email-адрес.")
+    }
+
+    /** Server result: verification message accepted for delivery. */
+    val emailVerificationSent = buildStringResource("Verification email sent.") {
+        IetfLang.Russian("Письмо для подтверждения отправлено.")
+    }
+
+    /** Server result: current email is already approved. */
+    val emailVerificationAlreadyApproved = buildStringResource("This email address is already verified.") {
+        IetfLang.Russian("Этот email-адрес уже подтверждён.")
+    }
+
+    /** Server result: SMTP delivery is unavailable. */
+    val emailVerificationUnavailable = buildStringResource("Email delivery is unavailable.") {
+        IetfLang.Russian("Отправка email недоступна.")
+    }
+
+    /** Server result: no current email was available for the request. */
+    val emailVerificationNoEmail = buildStringResource("Add an email address before requesting verification.") {
+        IetfLang.Russian("Добавьте email-адрес перед запросом подтверждения.")
+    }
+
+    /** Server result: the address changed before the request completed. */
+    val emailVerificationChanged = buildStringResource("The email address changed. Refresh and try again.") {
+        IetfLang.Russian("Email-адрес изменился. Обновите страницу и повторите попытку.")
+    }
+
+    /** Server result: verification delivery failed after the address was saved. */
+    val emailVerificationDeliveryFailed = buildStringResource("Could not send the verification email. Try again.") {
+        IetfLang.Russian("Не удалось отправить письмо для подтверждения. Повторите попытку.")
     }
 
     /** Avatar section label. */

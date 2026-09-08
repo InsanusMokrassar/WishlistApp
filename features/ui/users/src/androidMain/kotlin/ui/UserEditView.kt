@@ -31,6 +31,7 @@ import dev.inmo.navigation.core.NavigationChain
 import dev.inmo.navigation.mvvm.compose.ComposeView
 import dev.inmo.wishlist.features.common.client.models.ViewConfig
 import dev.inmo.wishlist.features.common.client.ui.components.BackButton
+import dev.inmo.wishlist.features.email.common.models.EmailVerificationRequestResult
 import dev.inmo.wishlist.features.ui.topBar.ui.TopBarTitleProvider
 import dev.inmo.wishlist.features.ui.users.UsersListStrings
 import dev.inmo.wishlist.features.ui.users.utils.pickImageFile
@@ -64,6 +65,13 @@ class UserEditView(
         val mismatch by viewModel.passwordMismatchState.collectAsState()
         val canSave by viewModel.canSaveState.collectAsState()
         val canUploadAvatar by viewModel.canUploadAvatarState.collectAsState()
+        val canManageOwnEmail by viewModel.canManageOwnEmailState.collectAsState()
+        val ownEmailProfile by viewModel.ownEmailProfileState.collectAsState()
+        val emailInput by viewModel.emailInputState.collectAsState()
+        val emailLoading by viewModel.emailLoadingState.collectAsState()
+        val emailBusy by viewModel.emailBusyState.collectAsState()
+        val emailError by viewModel.emailErrorState.collectAsState()
+        val emailVerificationResult by viewModel.emailVerificationResultState.collectAsState()
         val showDiscard by viewModel.showConfirmDialogState.collectAsState()
         val showDelete by viewModel.showDeleteDialogState.collectAsState()
         val scope = rememberCoroutineScope()
@@ -145,6 +153,121 @@ class UserEditView(
                         if (uploading) UsersListStrings.uploadingPhoto.translation(resources)
                         else UsersListStrings.uploadPhotoButton.translation(resources)
                     )
+                }
+            }
+
+            if (canManageOwnEmail) {
+                Text(
+                    UsersListStrings.emailSectionTitle.translation(resources),
+                    style = MaterialTheme.typography.titleSmall,
+                )
+                when {
+                    emailLoading -> Text(UsersListStrings.emailLoading.translation(resources))
+                    ownEmailProfile == null -> {
+                        Text(
+                            when (emailError) {
+                                EmailEditorError.LoadFailed -> UsersListStrings.emailLoadFailed.translation(resources)
+                                EmailEditorError.InvalidEmail -> UsersListStrings.emailInvalid.translation(resources)
+                                EmailEditorError.SaveFailed -> UsersListStrings.emailSaveFailed.translation(resources)
+                                null -> UsersListStrings.emailLoadFailed.translation(resources)
+                            },
+                            color = MaterialTheme.colorScheme.error,
+                        )
+                    }
+                    ownEmailProfile?.email == null -> {
+                        OutlinedTextField(
+                            value = emailInput,
+                            onValueChange = { viewModel.onEmailChanged(it) },
+                            label = { Text(UsersListStrings.emailLabel.translation(resources)) },
+                            singleLine = true,
+                            enabled = !emailBusy,
+                            isError = emailError == EmailEditorError.InvalidEmail ||
+                                emailError == EmailEditorError.SaveFailed,
+                            modifier = Modifier.fillMaxWidth(),
+                        )
+                        Text(UsersListStrings.emailMissing.translation(resources))
+                        when (emailError) {
+                            EmailEditorError.InvalidEmail -> Text(
+                                UsersListStrings.emailInvalid.translation(resources),
+                                color = MaterialTheme.colorScheme.error,
+                            )
+                            EmailEditorError.SaveFailed -> Text(
+                                UsersListStrings.emailSaveFailed.translation(resources),
+                                color = MaterialTheme.colorScheme.error,
+                            )
+                            EmailEditorError.LoadFailed, null -> Unit
+                        }
+                        Button(
+                            onClick = { viewModel.onSaveEmailAndRequestVerification() },
+                            enabled = !emailBusy,
+                            modifier = Modifier.fillMaxWidth(),
+                        ) {
+                            Text(UsersListStrings.saveEmailAndVerifyButton.translation(resources))
+                        }
+                    }
+                    ownEmailProfile?.emailApproved == true -> {
+                        OutlinedTextField(
+                            value = ownEmailProfile?.email?.string.orEmpty(),
+                            onValueChange = {},
+                            label = { Text(UsersListStrings.emailLabel.translation(resources)) },
+                            singleLine = true,
+                            enabled = false,
+                            readOnly = true,
+                            modifier = Modifier.fillMaxWidth(),
+                        )
+                        Text(UsersListStrings.emailApproved.translation(resources))
+                    }
+                    else -> {
+                        OutlinedTextField(
+                            value = ownEmailProfile?.email?.string.orEmpty(),
+                            onValueChange = {},
+                            label = { Text(UsersListStrings.emailLabel.translation(resources)) },
+                            singleLine = true,
+                            enabled = false,
+                            readOnly = true,
+                            modifier = Modifier.fillMaxWidth(),
+                        )
+                        Text(UsersListStrings.emailPendingApproval.translation(resources))
+                        Button(
+                            onClick = { viewModel.onResendEmailVerification() },
+                            enabled = !emailBusy,
+                            modifier = Modifier.fillMaxWidth(),
+                        ) {
+                            Text(UsersListStrings.resendEmailVerificationButton.translation(resources))
+                        }
+                    }
+                }
+                if (!emailLoading) {
+                    OutlinedButton(
+                        onClick = { viewModel.onRefreshEmail() },
+                        enabled = !emailBusy,
+                        modifier = Modifier.fillMaxWidth(),
+                    ) {
+                        Text(UsersListStrings.refreshEmailButton.translation(resources))
+                    }
+                }
+                when (emailVerificationResult) {
+                    EmailVerificationRequestResult.Sent -> Text(UsersListStrings.emailVerificationSent.translation(resources))
+                    EmailVerificationRequestResult.AlreadyApproved -> Text(
+                        UsersListStrings.emailVerificationAlreadyApproved.translation(resources)
+                    )
+                    EmailVerificationRequestResult.Unavailable -> Text(
+                        UsersListStrings.emailVerificationUnavailable.translation(resources),
+                        color = MaterialTheme.colorScheme.error,
+                    )
+                    EmailVerificationRequestResult.NoEmail -> Text(
+                        UsersListStrings.emailVerificationNoEmail.translation(resources),
+                        color = MaterialTheme.colorScheme.error,
+                    )
+                    EmailVerificationRequestResult.EmailChanged -> Text(
+                        UsersListStrings.emailVerificationChanged.translation(resources),
+                        color = MaterialTheme.colorScheme.error,
+                    )
+                    EmailVerificationRequestResult.DeliveryFailed -> Text(
+                        UsersListStrings.emailVerificationDeliveryFailed.translation(resources),
+                        color = MaterialTheme.colorScheme.error,
+                    )
+                    null -> Unit
                 }
             }
 

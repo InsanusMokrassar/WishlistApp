@@ -174,6 +174,19 @@ class RolesBootstrapTest {
         assertEquals(setOf(UserRole), rolesRepo.getDirectRoles(subject).toSet())
     }
 
+    /** A later approval callback cannot restore ordinary access after an administrator revoked it. */
+    @Test
+    fun promoteNewUserToUserDoesNotRestoreRevokedAccess() = runTest {
+        val rolesRepo = FakeRolesRepo()
+        val subject = BaseRoleSubject.Direct(plainUser.id.long.toString())
+        rolesRepo.includeDirect(subject, NewUserRole)
+        assertTrue(promoteNewUserToUser(rolesRepo, plainUser.id))
+        assertTrue(rolesRepo.excludeDirect(subject, UserRole))
+
+        assertFalse(promoteNewUserToUser(rolesRepo, plainUser.id))
+        assertTrue(rolesRepo.getDirectRoles(subject).isEmpty())
+    }
+
     /** Generic grant followed by the registration-specific marker converges on exactly NewUser. */
     @Test
     fun pendingTransitionWinsAfterGenericGrant() = runTest {

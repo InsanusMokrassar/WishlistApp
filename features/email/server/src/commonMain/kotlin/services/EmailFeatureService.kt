@@ -2,10 +2,14 @@ package dev.inmo.wishlist.features.email.server.services
 
 import dev.inmo.wishlist.features.email.common.EmailConstants
 import dev.inmo.wishlist.features.email.common.models.Email
+import dev.inmo.wishlist.features.email.common.models.EmailVerificationRequestResult
 import dev.inmo.wishlist.features.email.server.EmailFeature
 import dev.inmo.wishlist.features.email.server.EmailsService
+import dev.inmo.wishlist.features.auth.server.RegistrationEmailDeliveryHandle
 import dev.inmo.wishlist.features.roles.server.RolesFeature
 import dev.inmo.wishlist.features.users.common.models.UserId
+import kotlinx.coroutines.NonCancellable
+import kotlinx.coroutines.withContext
 
 /**
  * Server-side [EmailFeature] implementation that unifies SMTP delivery and user-email persistence.
@@ -25,11 +29,14 @@ import dev.inmo.wishlist.features.users.common.models.UserId
  *   atomicity.
  * @param rolesFeature Functionality-availability check used to gate [sendTestEmail]; see
  *   `features/roles` (issue #68).
+ * @param inviteSender Existing exact-recipient deeplink sender reused for owner verification; `null`
+ *   only in narrowly constructed legacy/test graphs where verification delivery is unavailable.
  */
 class EmailFeatureService(
     private val emailsService: EmailsService,
     private val accountCoordinator: EmailVerificationAccountCoordinator,
-    private val rolesFeature: RolesFeature
+    private val rolesFeature: RolesFeature,
+    private val inviteSender: EmailRegistrationInviteSender? = null,
 ) : EmailFeature {
 
     /**
@@ -72,4 +79,53 @@ class EmailFeatureService(
      */
     override suspend fun setMyEmail(callerId: UserId, email: Email?): Boolean =
         accountCoordinator.updateStoredEmail(callerId, email)
+
+    /**
+     * Delivers a verification link only for the caller's exact, pending current address.
+     *
+     * SMTP and deeplink work intentionally occur outside the coordinator mutex. The record is checked
+     * again afterward; if a concurrent write made the delivered link stale, only the request-local
+     * link is removed and the newer address is left intact.
+     *
+     * @param callerId Authenticated owner whose address is considered.
+     * @param expectedEmail Address the owner saw before submitting.
+     * @return Delivery or current-address result.
+     */
+    override suspend fun requestMyEmailVerification(
+        callerId: UserId,
+        expectedEmail: Email,
+    ): EmailVerificationRequestResult {
+        val initial = accountCoordinator.getCurrentUser(callerId)
+            ?: return EmailVerificationRequestResult.NoEmail
+        val currentEmail = initial.email ?: return EmailVerificationRequestResult.NoEmail
+        if (currentEmail != expectedEmail) return EmailVerificationRequestResult.EmailChanged
+        if (initial.emailApproved) return EmailVerificationRequestResult.AlreadyApproved
+
+        val sender = inviteSender ?: return EmailVerificationRequestResult.Unavailable
+        val delivery = sender.sendRegistrationEmailWithCompensation(initial)
+            ?: return EmailVerificationRequestResult.DeliveryFailed
+        val current = accountCoordinator.getCurrentUser(callerId)
+        return when {
+            current == null || current.email == null -> {
+                rollbackDelivery(delivery)
+                EmailVerificationRequestResult.NoEmail
+            }
+            current.email != expectedEmail -> {
+                rollbackDelivery(delivery)
+                EmailVerificationRequestResult.EmailChanged
+            }
+            current.emailApproved -> {
+                rollbackDelivery(delivery)
+                EmailVerificationRequestResult.AlreadyApproved
+            }
+            else -> EmailVerificationRequestResult.Sent
+        }
+    }
+
+    /** Removes the one link owned by a stale request even if parent work was cancelled. */
+    private suspend fun rollbackDelivery(delivery: RegistrationEmailDeliveryHandle) {
+        withContext(NonCancellable) {
+            delivery.rollback()
+        }
+    }
 }

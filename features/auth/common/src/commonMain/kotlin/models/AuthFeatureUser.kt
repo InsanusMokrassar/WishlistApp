@@ -22,12 +22,15 @@ import kotlinx.serialization.Serializable
  * @property username Unique login name of the authenticated user.
  * @property email Stored email of the authenticated user, or `null` when unset. Kept intentionally —
  *   see class KDoc.
+ * @property emailApproved Whether the caller's current stored email has been approved. Kept on this
+ *   private own-record surface only; public user listings deliberately omit it.
  */
 @Serializable
 data class AuthFeatureUser(
     val id: UserId,
     val username: Username,
-    val email: Email?
+    val email: Email?,
+    val emailApproved: Boolean = false
 )
 
 /**
@@ -40,7 +43,8 @@ data class AuthFeatureUser(
 fun RegisteredUser.asAuthFeatureUser(): AuthFeatureUser = AuthFeatureUser(
     id = id,
     username = username,
-    email = email
+    email = email,
+    emailApproved = emailApproved
 )
 
 /**
@@ -54,5 +58,6 @@ fun RegisteredUser.asAuthFeatureUser(): AuthFeatureUser = AuthFeatureUser(
 fun AuthFeatureUser.asRegisteredUser(): RegisteredUser = RegisteredUser(
     id = id,
     username = username,
-    email = email
+    email = email,
+    emailApproved = emailApproved
 )
