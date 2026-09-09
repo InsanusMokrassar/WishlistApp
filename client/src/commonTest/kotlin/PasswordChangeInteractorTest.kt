@@ -60,6 +60,9 @@ internal class HeldPasswordChangeUsersModel : UsersModel {
     /** Immutable requests accepted by the actual submitting ViewModel. */
     val requests = mutableListOf<CompletePasswordChangeRequest>()
 
+    /** Signals that the submitting ViewModel reached the held completion boundary. */
+    val requestReceived = CompletableDeferred<Unit>()
+
     /** Makes the test double return a result after cancellation to exercise the ViewModel guard. */
     var returnsChangedAfterCancellation = false
 
@@ -92,6 +95,7 @@ internal class HeldPasswordChangeUsersModel : UsersModel {
     /** Holds completion until the test-controlled deferred result is released. */
     override suspend fun completePasswordChange(request: CompletePasswordChangeRequest): PasswordChangeResult? {
         requests += request
+        requestReceived.complete(Unit)
         return try {
             completion.await()
         } catch (cause: CancellationException) {

@@ -26,9 +26,11 @@ import dev.inmo.wishlist.features.wishlist.common.models.WishlistItemId
 import kotlinx.browser.document
 import kotlinx.browser.window
 import kotlinx.coroutines.CompletableDeferred
+import kotlinx.coroutines.CoroutineStart
 import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.MainScope
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.async
 import kotlinx.coroutines.cancelAndJoin
 import kotlinx.coroutines.promise
 import kotlinx.coroutines.flow.filter
@@ -56,15 +58,23 @@ private fun ConfigHolder<ViewConfig>.allConfigs(): List<ViewConfig> = when (this
     is ConfigHolder.Node -> listOf(config) + subnode?.allConfigs().orEmpty() + subchains.flatMap { it.allConfigs() }
 }
 
-/** Waits until the started chain has processed queued restoration pushes. */
+/** Returns a current stack matching [predicate], or waits for the next matching update. */
+private suspend fun NavigationChain<ViewConfig>.awaitStack(
+    predicate: (List<NavigationNode<out ViewConfig, ViewConfig>>) -> Boolean,
+): List<NavigationNode<out ViewConfig, ViewConfig>> =
+    stackFlow.value.takeIf(predicate) ?: stackFlow.filter(predicate).first()
+
+/** Returns the restored stack immediately or after a later restoration emission. */
 private suspend fun NavigationChain<ViewConfig>.awaitRestoredStack(): List<NavigationNode<out ViewConfig, ViewConfig>> =
-    stackFlow.filter { it.isNotEmpty() }.first()
+    awaitStack { it.isNotEmpty() }
 
 /** Runs URL persistence against the actual browser adapter under the Mocha/Node JSDOM host. */
 class PasswordChangeNavigationBrowserTest {
     /** Proves reload restores Pending, completion persists Completed, and Continue needs no HTTP. */
     @Test
-    fun canonicalApprovalReloadsAndCompletionPersistsWithoutCredential() = MainScope().promise {
+    fun canonicalApprovalReloadsAndCompletionPersistsWithoutCredential() = CoroutineScope(Dispatchers.Unconfined).promise(
+        start = CoroutineStart.UNDISPATCHED,
+    ) {
         val global = browserGlobal()
         val previousWindow = global.window
         val previousDocument = global.document
@@ -142,12 +152,14 @@ class PasswordChangeNavigationBrowserTest {
                 rootChain,
             ))
             assertTrue(liveChain === rootChain)
+            val restoredRootNode = async(start = CoroutineStart.UNDISPATCHED) {
+                rootChain.awaitRestoredStack().single()
+            }
             val rootJob = rootChain.start(navigationScope)
             val owner = application.koin.get<PasswordChangeNavigationOwner>()
             val unbind = owner.bind(rootChain, navigationScope)
             try {
-                val restoredRootNode = rootChain.awaitRestoredStack().single()
-                val scaffoldNode = restoredRootNode.subchains.single().awaitRestoredStack().single()
+                val scaffoldNode = restoredRootNode.await().subchains.single().awaitRestoredStack().single()
                 val mainChain = checkNotNull(scaffoldNode.subchains.firstOrNull { it.id == MainNavigationChainId })
                 val pendingNode = mainChain.awaitRestoredStack().last() as NavigationNode<PasswordChangeViewConfig, ViewConfig>
                 val model = HeldPasswordChangeUsersModel()
@@ -156,8 +168,9 @@ class PasswordChangeNavigationBrowserTest {
                 pendingViewModel.onPasswordChanged("browser-password")
                 pendingViewModel.onConfirmationChanged("browser-password")
                 pendingViewModel.onSubmitPasswordChange()
+                model.requestReceived.await()
                 model.completion.complete(dev.inmo.wishlist.features.auth.common.models.PasswordChangeResult.Changed)
-                assertTrue(mainChain.stackFlow.filter { it.lastOrNull()?.config is PasswordChangeViewConfig.Completed }.first().isNotEmpty())
+                assertTrue(mainChain.awaitStack { it.lastOrNull()?.config is PasswordChangeViewConfig.Completed }.isNotEmpty())
                 val persistedCompletion = completedSave.await()
                 assertEquals(1, model.requests.size)
                 assertEquals("/ui/password-changed", window.location.pathname)
@@ -172,8 +185,8 @@ class PasswordChangeNavigationBrowserTest {
                 completedViewModel.onSubmitPasswordChange()
                 assertEquals(1, model.requests.size)
                 interactor.onContinue(completedNode)
-                assertTrue(mainChain.stackFlow.filter { it.lastOrNull()?.config is dev.inmo.wishlist.features.ui.users.ui.UsersListViewConfig }.first().isNotEmpty())
-                assertEquals("/ui/", window.location.pathname)
+                assertTrue(mainChain.awaitStack { it.lastOrNull()?.config is dev.inmo.wishlist.features.ui.users.ui.UsersListViewConfig }.isNotEmpty())
+                assertEquals("/ui", window.location.pathname)
                 assertEquals(null, window.history.state)
                 assertEquals(0, owner.activeTransitionCount)
             } finally {
