@@ -20,6 +20,7 @@ import dev.inmo.wishlist.features.files.common.models.FileId
 import dev.inmo.wishlist.features.ui.users.ui.PasswordChangeViewModel
 import dev.inmo.wishlist.features.ui.users.ui.PasswordChangeViewConfig
 import dev.inmo.wishlist.features.ui.users.ui.PasswordChangeViewInteractor
+import dev.inmo.wishlist.features.ui.users.ui.UserViewConfig
 import dev.inmo.wishlist.features.ui.users.ui.UsersListViewConfig
 import dev.inmo.wishlist.features.ui.users.ui.UsersModel
 import dev.inmo.wishlist.features.users.common.models.UserId
@@ -219,6 +220,186 @@ class PasswordChangeInteractorTest {
             leafStartJob?.join()
             heldScopeJob.join()
             rootJob.cancelAndJoin()
+        }
+    }
+
+    /** Rejects an owner transition whose queued Pending replacement loses to an earlier exact replacement. */
+    @Test
+    fun queuedNodeSupersessionNeverSavesCompleted() = runTest {
+        val repo = RecordingPasswordNavigationRepo()
+        val owner = PasswordChangeNavigationOwner(repo)
+        val chain = NavigationChain<ViewConfig>(null, NavigationNodeFactory { parent, config ->
+            NavigationNode.Empty(parent, config)
+        })
+        val chainJob = chain.start(this)
+        val unbind = owner.bind(chain, this)
+        try {
+            chain.push(UsersListViewConfig())
+            val pending = checkNotNull(chain.push(PasswordChangeViewConfig.Pending(UserId(7), approvalId)))
+                as NavigationNode<PasswordChangeViewConfig, ViewConfig>
+            advanceUntilIdle()
+
+            owner.onChanged(pending)
+            val competingReplacement = checkNotNull(chain.replace(pending, UsersListViewConfig())).second
+            advanceUntilIdle()
+
+            assertSame(competingReplacement, chain.stackFlow.value.last())
+            assertEquals(0, repo.saveAttempts)
+            assertEquals(0, owner.activeTransitionCount)
+            assertFalse(chain.stackFlow.value.any { it.config == PasswordChangeViewConfig.Completed })
+        } finally {
+            unbind()
+            chainJob.cancelAndJoin()
+        }
+    }
+
+    /** Rejects a completed replacement that loses current-root membership before root persistence resumes. */
+    @Test
+    fun replacementSupersededBeforeSaveIsIgnored() = runTest {
+        val repo = RecordingPasswordNavigationRepo()
+        val owner = PasswordChangeNavigationOwner(repo)
+        val chain = NavigationChain<ViewConfig>(null, NavigationNodeFactory { parent, config ->
+            NavigationNode.Empty(parent, config)
+        })
+        val chainJob = chain.start(this)
+        val timerScheduler = TestCoroutineScheduler()
+        val heldDispatcher = HeldNavigationDispatcher(StandardTestDispatcher(timerScheduler))
+        val rootJob = SupervisorJob(coroutineContext[Job])
+        val unbind = owner.bind(chain, CoroutineScope(rootJob + heldDispatcher))
+        try {
+            chain.push(UsersListViewConfig())
+            val pending = checkNotNull(chain.push(PasswordChangeViewConfig.Pending(UserId(7), approvalId)))
+                as NavigationNode<PasswordChangeViewConfig, ViewConfig>
+            advanceUntilIdle()
+
+            owner.onChanged(pending)
+            assertTrue(heldDispatcher.runNext())
+            runCurrent()
+            val completed = chain.stackFlow.value.last()
+            assertEquals(PasswordChangeViewConfig.Completed, completed.config)
+            val newer = checkNotNull(chain.replace(completed, UsersListViewConfig())).second
+            runCurrent()
+            heldDispatcher.drain()
+
+            assertSame(newer, chain.stackFlow.value.last())
+            assertEquals(0, repo.saveAttempts)
+            assertEquals(0, owner.activeTransitionCount)
+        } finally {
+            unbind()
+            rootJob.cancel()
+            heldDispatcher.drain()
+            rootJob.join()
+            chainJob.cancelAndJoin()
+        }
+    }
+
+    /** Persists a newer destination above Completed when the exact replacement remains reachable. */
+    @Test
+    fun newerDestinationAboveCompletedIsPreservedInSavedHierarchy() = runTest {
+        val repo = RecordingPasswordNavigationRepo()
+        val owner = PasswordChangeNavigationOwner(repo)
+        val chain = NavigationChain<ViewConfig>(null, NavigationNodeFactory { parent, config ->
+            NavigationNode.Empty(parent, config)
+        })
+        val chainJob = chain.start(this)
+        val timerScheduler = TestCoroutineScheduler()
+        val heldDispatcher = HeldNavigationDispatcher(StandardTestDispatcher(timerScheduler))
+        val rootJob = SupervisorJob(coroutineContext[Job])
+        val unbind = owner.bind(chain, CoroutineScope(rootJob + heldDispatcher))
+        try {
+            chain.push(UsersListViewConfig())
+            val pending = checkNotNull(chain.push(PasswordChangeViewConfig.Pending(UserId(7), approvalId)))
+                as NavigationNode<PasswordChangeViewConfig, ViewConfig>
+            advanceUntilIdle()
+
+            owner.onChanged(pending)
+            assertTrue(heldDispatcher.runNext())
+            runCurrent()
+            assertEquals(PasswordChangeViewConfig.Completed, chain.stackFlow.value.last().config)
+            val newer = checkNotNull(chain.push(UserViewConfig(UserId(8))))
+            runCurrent()
+            heldDispatcher.drain()
+
+            assertSame(newer, chain.stackFlow.value.last())
+            assertEquals(1, repo.saveAttempts)
+            assertEquals(0, owner.activeTransitionCount)
+            val saved = repo.holders.single() as ConfigHolder.Chain<ViewConfig>
+            val users = checkNotNull(saved.firstNodeConfig)
+            val completed = checkNotNull(users.subnode)
+            val savedNewer = checkNotNull(completed.subnode)
+            assertTrue(users.config is UsersListViewConfig)
+            assertEquals(PasswordChangeViewConfig.Completed, completed.config)
+            assertEquals(UserViewConfig(UserId(8)), savedNewer.config)
+            assertEquals(null, savedNewer.subnode)
+        } finally {
+            unbind()
+            rootJob.cancel()
+            heldDispatcher.drain()
+            rootJob.join()
+            chainJob.cancelAndJoin()
+        }
+    }
+
+    /** Keeps a replacement binding alive while stale cleanup cancels only former-root transitions. */
+    @Test
+    fun oldBindingCleanupCannotClearNewBinding() = runTest {
+        val repo = RecordingPasswordNavigationRepo()
+        val owner = PasswordChangeNavigationOwner(repo)
+        val factory = NavigationNodeFactory<ViewConfig> { parent, config -> NavigationNode.Empty(parent, config) }
+        val rootA = NavigationChain<ViewConfig>(null, factory)
+        val rootB = NavigationChain<ViewConfig>(null, factory)
+        val rootAJob = rootA.start(this)
+        val rootBJob = rootB.start(this)
+        val scopeAJob = SupervisorJob(coroutineContext[Job])
+        val scopeBJob = SupervisorJob(coroutineContext[Job])
+        val timerScheduler = TestCoroutineScheduler()
+        val heldDispatcher = HeldNavigationDispatcher(StandardTestDispatcher(timerScheduler))
+        val unbindA = owner.bind(rootA, CoroutineScope(scopeAJob + heldDispatcher))
+        try {
+            rootA.push(UsersListViewConfig())
+            val pendingA = checkNotNull(rootA.push(PasswordChangeViewConfig.Pending(UserId(7), approvalId)))
+                as NavigationNode<PasswordChangeViewConfig, ViewConfig>
+            advanceUntilIdle()
+            owner.onChanged(pendingA)
+            assertTrue(heldDispatcher.runNext())
+            runCurrent()
+            assertEquals(1, owner.activeTransitionCount)
+
+            val unbindB = owner.bind(rootB, CoroutineScope(coroutineContext + scopeBJob))
+            try {
+                unbindA()
+                advanceUntilIdle()
+                assertEquals(0, owner.activeTransitionCount)
+                owner.onContinue(pendingA)
+                runCurrent()
+                assertEquals(0, repo.saveAttempts)
+
+                rootB.push(UsersListViewConfig())
+                val pendingB = checkNotNull(rootB.push(PasswordChangeViewConfig.Pending(UserId(8), approvalId)))
+                    as NavigationNode<PasswordChangeViewConfig, ViewConfig>
+                advanceUntilIdle()
+                owner.onChanged(pendingB)
+                advanceUntilIdle()
+                assertEquals(1, repo.saveAttempts)
+                assertEquals(PasswordChangeViewConfig.Completed, rootB.stackFlow.value.last().config)
+
+                val inactiveScopeJob = SupervisorJob(coroutineContext[Job]).apply { cancel() }
+                owner.bind(rootB, CoroutineScope(coroutineContext + inactiveScopeJob))
+                owner.onContinue(rootB.stackFlow.value.last() as NavigationNode<PasswordChangeViewConfig, ViewConfig>)
+                runCurrent()
+                assertEquals(0, owner.activeTransitionCount)
+                inactiveScopeJob.join()
+            } finally {
+                unbindB()
+            }
+        } finally {
+            unbindA()
+            scopeAJob.cancel()
+            heldDispatcher.drain()
+            scopeAJob.join()
+            scopeBJob.cancelAndJoin()
+            rootAJob.cancelAndJoin()
+            rootBJob.cancelAndJoin()
         }
     }
 

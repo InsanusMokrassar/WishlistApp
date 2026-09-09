@@ -4,7 +4,9 @@ import dev.inmo.kslog.common.KSLog
 import dev.inmo.kslog.common.w
 import dev.inmo.navigation.core.NavigationChain
 import dev.inmo.navigation.core.NavigationNode
-import dev.inmo.navigation.core.extensions.rootChain
+import dev.inmo.navigation.core.extensions.changesInSubTreeFlow
+import dev.inmo.navigation.core.extensions.findChainInSubTree
+import dev.inmo.navigation.core.extensions.findNodeInSubTree
 import dev.inmo.navigation.core.repo.NavigationConfigsRepo
 import dev.inmo.navigation.core.repo.storeHierarchy
 import dev.inmo.wishlist.features.common.client.models.ViewConfig
@@ -16,10 +18,15 @@ import kotlinx.coroutines.CoroutineStart
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.cancelAndJoin
+import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.currentCoroutineContext
 import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.flow.takeWhile
+import kotlinx.coroutines.CompletableDeferred
+import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.flow.merge
+import kotlinx.coroutines.flow.onStart
+import kotlinx.coroutines.flow.collect
 import kotlinx.coroutines.withTimeoutOrNull
 
 /**
@@ -50,12 +57,11 @@ internal class PasswordChangeNavigationOwner(
      */
     fun bind(root: NavigationChain<ViewConfig>, scope: CoroutineScope): () -> Unit {
         val newBinding = Binding(root, scope)
-        binding?.transitions?.values?.forEach { transition -> transition.cancel() }
+        binding?.transitions?.values?.toList()?.forEach { transition -> transition.cancel() }
         binding = newBinding
         return {
+            newBinding.transitions.values.toList().forEach { transition -> transition.cancel() }
             if (binding === newBinding) {
-                newBinding.transitions.values.forEach { transition -> transition.cancel() }
-                newBinding.transitions.clear()
                 binding = null
             }
         }
@@ -93,47 +99,71 @@ internal class PasswordChangeNavigationOwner(
         val acceptedBinding = activeBindingFor(node) ?: return
         if (acceptedBinding.transitions.containsKey(node)) return
         val transition = acceptedBinding.scope.launch(start = CoroutineStart.LAZY) {
-            var observer: Job? = null
             try {
                 if (binding !== acceptedBinding || activeBindingFor(node) !== acceptedBinding) return@launch
                 var replacement: NavigationNode<out ViewConfig, ViewConfig>? = null
-                val observedReplacement = kotlinx.coroutines.CompletableDeferred<Boolean>()
-                observer = launch(start = CoroutineStart.UNDISPATCHED) {
-                    node.chain.stackFlow.takeWhile { stack ->
-                        val expected = replacement
+                val observedReplacement = CompletableDeferred<Boolean>()
+                val acceptedChain = node.chain
+                coroutineScope {
+                    fun sampleTransition() {
                         when {
-                            expected != null && stack.any { candidate -> candidate === expected } -> {
-                                observedReplacement.complete(true)
-                                false
-                            }
-                            stack.none { candidate -> candidate === node } -> {
+                            binding !== acceptedBinding || !acceptedBinding.scopeIsActive() -> {
                                 observedReplacement.complete(false)
-                                false
                             }
-                            node.chain.rootChain() !== acceptedBinding.root -> {
+                            acceptedBinding.root.findChainInSubTree { candidate -> candidate === acceptedChain } !== acceptedChain -> {
                                 observedReplacement.complete(false)
-                                false
                             }
-                            else -> true
+                            else -> {
+                                val expected = replacement
+                                when {
+                                    expected != null &&
+                                        acceptedBinding.root.findNodeInSubTree { candidate -> candidate === expected } === expected &&
+                                        acceptedChain.stackFlow.value.any { candidate -> candidate === expected } -> {
+                                        observedReplacement.complete(true)
+                                    }
+                                    acceptedChain.stackFlow.value.none { candidate -> candidate === node } ||
+                                        acceptedBinding.root.findNodeInSubTree { candidate -> candidate === node } !== node -> {
+                                        observedReplacement.complete(false)
+                                    }
+                                }
+                            }
                         }
-                    }.collect {}
+                    }
+
+                    val observer = launch(start = CoroutineStart.UNDISPATCHED) {
+                        merge(
+                            acceptedBinding.root.changesInSubTreeFlow().map { Unit },
+                            acceptedChain.stackFlow.map { Unit },
+                        ).onStart { emit(Unit) }.collect {
+                            sampleTransition()
+                        }
+                    }
+                    try {
+                        replacement = acceptedChain.replace(node, destination)?.second ?: return@coroutineScope
+                        sampleTransition()
+                        if (withTimeoutOrNull(5_000) { observedReplacement.await() } != true) return@coroutineScope
+                    } finally {
+                        observer.cancelAndJoin()
+                    }
                 }
-                replacement = node.chain.replace(node, destination)?.second ?: return@launch
-                if (withTimeoutOrNull(5_000) { observedReplacement.await() } != true) return@launch
-                if (binding !== acceptedBinding) return@launch
-                if (node.chain.rootChain() !== acceptedBinding.root) return@launch
-                if (node.chain.stackFlow.value.none { candidate -> candidate === replacement }) return@launch
+                val expectedReplacement = replacement ?: return@launch
+                if (binding !== acceptedBinding || !acceptedBinding.scopeIsActive()) return@launch
+                if (acceptedBinding.root.findChainInSubTree { candidate -> candidate === acceptedChain } !== acceptedChain) return@launch
+                if (acceptedBinding.root.findNodeInSubTree { candidate -> candidate === expectedReplacement } !== expectedReplacement) return@launch
+                if (acceptedChain.stackFlow.value.none { candidate -> candidate === expectedReplacement }) return@launch
                 navigationConfigsRepo.save(checkNotNull(acceptedBinding.root.storeHierarchy()))
             } catch (cause: CancellationException) {
                 throw cause
             } catch (_: Throwable) {
                 logger.w("Password-change navigation transition failed")
-            } finally {
-                observer?.cancelAndJoin()
-                acceptedBinding.transitions.remove(node)
             }
         }
         acceptedBinding.transitions[node] = transition
+        transition.invokeOnCompletion {
+            if (acceptedBinding.transitions[node] === transition) {
+                acceptedBinding.transitions.remove(node)
+            }
+        }
         transition.start()
     }
 
@@ -142,7 +172,8 @@ internal class PasswordChangeNavigationOwner(
         node: NavigationNode<PasswordChangeViewConfig, ViewConfig>,
     ): Binding? {
         val candidate = binding ?: return null
-        if (node.chain.rootChain() !== candidate.root) return null
+        if (!candidate.scopeIsActive()) return null
+        if (candidate.root.findNodeInSubTree { current -> current === node } !== node) return null
         if (node.chain.stackFlow.value.lastOrNull() !== node) return null
         return candidate
     }
@@ -156,5 +187,8 @@ internal class PasswordChangeNavigationOwner(
     ) {
         /** Pending root jobs keyed by the exact page node accepted for replacement. */
         val transitions = mutableMapOf<NavigationNode<PasswordChangeViewConfig, ViewConfig>, Job>()
+
+        /** Reports whether the composition scope can still own a navigation transition. */
+        fun scopeIsActive(): Boolean = scope.coroutineContext[Job]?.isActive == true
     }
 }

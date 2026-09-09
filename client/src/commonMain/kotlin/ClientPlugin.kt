@@ -1,9 +1,7 @@
 package dev.inmo.wishlist.client
 
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.rememberCoroutineScope
 import dev.inmo.micro_utils.common.either
 import dev.inmo.micro_utils.coroutines.MutableRedeliverStateFlow
 import dev.inmo.micro_utils.startup.plugin.StartPlugin
@@ -28,6 +26,7 @@ import dev.inmo.wishlist.features.common.client.models.RootNodeFactoryGetter
 import dev.inmo.wishlist.features.common.client.models.ViewConfig
 import dev.inmo.wishlist.features.common.client.utils.replaceLastOrBackUntil
 import dev.inmo.wishlist.features.common.client.utils.resetToSingleNode
+import dev.inmo.wishlist.client.utils.WithPasswordChangeNavigationBinding
 import dev.inmo.wishlist.features.ui.adminPanel.ui.AdminPanelViewConfig
 import dev.inmo.wishlist.features.ui.adminPanel.ui.AdminPanelViewInteractor
 import dev.inmo.wishlist.features.ui.adminPanel.ui.AdminUserEditViewConfig
@@ -608,27 +607,24 @@ object ClientPlugin : StartPlugin {
         val navigationConfigsRepo = koin.get<NavigationConfigsRepo<ViewConfig>>()
         val passwordChangeNavigationOwner = koin.get<PasswordChangeNavigationOwner>()
         koin.get<(@Composable () -> Unit) -> Unit>().invoke {
-            val rootScope = rememberCoroutineScope()
-            DisposableEffect(passwordChangeNavigationOwner, rootChain, rootScope) {
-                val unbind = passwordChangeNavigationOwner.bind(rootChain, rootScope)
-                onDispose(unbind)
-            }
-            initNavigation<ViewConfig>(
-                EmptyConfig(),
-                configsRepo = navigationConfigsRepo,
-                nodesFactory = koin.get<RootNodeFactoryGetter>().invoke(),
-                scope = rootScope,
-                dropRedundantChainsOnRestore = true,
-                rootChain = rootChain
-            ) {
-                val rootChain = getChainFromLocalProvider<ViewConfig>()!!
-                LaunchedEffect(rootChain) {
-                    rootChain.either<NavigationChain<ViewConfig>, NavigationNode<out ViewConfig, ViewConfig>>().changesInSubtreeFlow().conflate().collect {
-                        println(rootChain.makeChainString(""))
+            WithPasswordChangeNavigationBinding(passwordChangeNavigationOwner, rootChain) { rootScope ->
+                initNavigation<ViewConfig>(
+                    EmptyConfig(),
+                    configsRepo = navigationConfigsRepo,
+                    nodesFactory = koin.get<RootNodeFactoryGetter>().invoke(),
+                    scope = rootScope,
+                    dropRedundantChainsOnRestore = true,
+                    rootChain = rootChain
+                ) {
+                    val rootChain = getChainFromLocalProvider<ViewConfig>()!!
+                    LaunchedEffect(rootChain) {
+                        rootChain.either<NavigationChain<ViewConfig>, NavigationNode<out ViewConfig, ViewConfig>>().changesInSubtreeFlow().conflate().collect {
+                            println(rootChain.makeChainString(""))
+                        }
                     }
-                }
-                InjectNavigationChain<ViewConfig> {
-                    InjectNavigationNode(mainScaffoldConfig)
+                    InjectNavigationChain<ViewConfig> {
+                        InjectNavigationNode(mainScaffoldConfig)
+                    }
                 }
             }
         }
