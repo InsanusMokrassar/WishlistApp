@@ -90,6 +90,34 @@ class PasswordChangeViewModelTest {
         }
     }
 
+    /** Raw input state, rather than asynchronously derived presentation state, controls admission. */
+    @Test
+    fun synchronousSubmissionGuardRejectsStaleMismatchAndDuplicateClick() = runTest {
+        val model = UserEditTestUsersModel(null, null, initiallyAuthorised = false)
+        val viewModel = PasswordChangeViewModel(
+            passwordChangeTestNode(pendingConfig),
+            model,
+            RecordingPasswordChangeInteractor(),
+            StandardTestDispatcher(testScheduler),
+        )
+        try {
+            viewModel.onPasswordChanged("new-password")
+            viewModel.onConfirmationChanged("different")
+            viewModel.onSubmitPasswordChange()
+            assertEquals(PasswordChangeSubmissionState.Mismatch, viewModel.resultState.value)
+            assertTrue(model.passwordChangeRequests.isEmpty())
+
+            viewModel.onConfirmationChanged("new-password")
+            viewModel.onSubmitPasswordChange()
+            viewModel.onSubmitPasswordChange()
+            assertTrue(viewModel.loadingState.value)
+            runCurrent()
+            assertEquals(1, model.passwordChangeRequests.size)
+        } finally {
+            viewModel.scope.cancel()
+        }
+    }
+
     /** A rejected approval becomes terminal and suppresses accidental replay from the same page. */
     @Test
     fun invalidApprovalPreventsDuplicateSubmission() = runTest {

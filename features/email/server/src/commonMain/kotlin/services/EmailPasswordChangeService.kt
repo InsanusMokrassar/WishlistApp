@@ -77,11 +77,23 @@ class EmailPasswordChangeService(
                 links.createDeepLink(EmailPasswordChange.handlerId, payload)
             }
             currentCoroutineContext().ensureActive()
-            val delivered = emails.sendHtml(
+            val delivered = try {
+                emails.sendHtml(
                 recipient = expectedEmail,
                 subject = subject,
                 html = "<p>Change your WishlistApp password by <a href=\"${buildPublicDeepLinkUrl(publicHttpOrigin, deeplinkId)}\">changing your password</a>.</p>",
             )
+            } catch (error: CancellationException) {
+                throw error
+            } catch (error: Throwable) {
+                try {
+                    removeApproval(links, deeplinkId)
+                } catch (cleanupError: Throwable) {
+                    error.addSuppressed(cleanupError)
+                    throw error
+                }
+                return PasswordChangeEmailRequestResult.DeliveryFailed
+            }
             if (!delivered) {
                 removeApproval(links, deeplinkId)
                 return PasswordChangeEmailRequestResult.DeliveryFailed
@@ -99,9 +111,6 @@ class EmailPasswordChangeService(
         } catch (error: CancellationException) {
             deeplinkId?.let { id -> removeApprovalSuppressing(links, id, error) }
             throw error
-        } catch (_: Throwable) {
-            deeplinkId?.let { id -> removeApproval(links, id) }
-            return PasswordChangeEmailRequestResult.DeliveryFailed
         }
     }
 

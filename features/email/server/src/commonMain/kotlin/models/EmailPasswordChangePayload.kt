@@ -3,9 +3,11 @@ package dev.inmo.wishlist.features.email.server.models
 import dev.inmo.wishlist.features.email.common.models.Email
 import dev.inmo.wishlist.features.users.common.models.UserId
 import kotlinx.serialization.Serializable
+import kotlinx.serialization.SerialName
 
 /** Server-only deeplink payload binding password approval to current protected account state. */
 @Serializable
+@SerialName("email.password_change.v1")
 data class EmailPasswordChangePayload(
     /** Subject whose password may be changed after completion. */
     val userId: UserId,

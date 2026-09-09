@@ -76,6 +76,14 @@ class PasswordChangeViewModel(
             password != confirmation && (password.isNotEmpty() || confirmation.isNotEmpty())
         }.stateIn(workScope, SharingStarted.Eagerly, false)
 
+    /** Shows local policy guidance as soon as a non-empty entered password violates the policy. */
+    val passwordInvalidState: StateFlow<Boolean> =
+        _passwordState
+            .combine(_confirmationState) { password, _ ->
+                password.isNotEmpty() && !isAcceptablePasswordChangePassword(Password(password))
+            }
+            .stateIn(workScope, SharingStarted.Eagerly, false)
+
     /** Allows one submission only for a valid pending config and matching locally acceptable input. */
     val canSubmitState: StateFlow<Boolean> =
         combine(
@@ -123,16 +131,21 @@ class PasswordChangeViewModel(
      * obviously invalid password.
      */
     fun onSubmitPasswordChange() {
-        if (!canSubmitState.value) {
-            if (!completedState && _passwordState.value != _confirmationState.value) {
-                _resultState.value = PasswordChangeSubmissionState.Mismatch
-            } else if (!completedState && !isAcceptablePasswordChangePassword(Password(_passwordState.value))) {
-                _resultState.value = PasswordChangeSubmissionState.InvalidPassword
-            }
-            return
-        }
         val pending = config as? PasswordChangeViewConfig.Pending ?: return
-        val request = CompletePasswordChangeRequest(pending.userId, pending.approvalId, Password(_passwordState.value))
+        val password = _passwordState.value
+        val confirmation = _confirmationState.value
+        when {
+            _loadingState.value || _terminalInvalidApprovalState.value -> return
+            password != confirmation -> {
+                _resultState.value = PasswordChangeSubmissionState.Mismatch
+                return
+            }
+            !isAcceptablePasswordChangePassword(Password(password)) -> {
+                _resultState.value = PasswordChangeSubmissionState.InvalidPassword
+                return
+            }
+        }
+        val request = CompletePasswordChangeRequest(pending.userId, pending.approvalId, Password(password))
         _loadingState.value = true
         _resultState.value = null
         workScope.launchLoggingDropExceptions {

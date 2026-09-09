@@ -110,3 +110,5 @@ Key data types:
 - **Handler-owned redirect safety.** The dispatcher preserves `Handled.Redirect(url)` without parsing
   or rewriting it. A concrete handler owns destination safety; the email handler emits only its fixed
   same-origin root path, never payload-controlled text.
+- **Public GET failures.** Lookup and handler failures are sanitized to HTTP 500 while cancellation,
+  policy headers, and in-process exception propagation remain preserved.

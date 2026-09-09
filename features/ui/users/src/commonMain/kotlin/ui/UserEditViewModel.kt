@@ -720,8 +720,16 @@ class UserEditViewModel(
      * caller from publishing feedback or issuing a follow-up private request after identity changes.
      */
     fun onRequestPasswordChangeEmail() {
-        if (!canRequestPasswordChangeEmailState.value) return
-        val email = _ownEmailProfileState.value?.email ?: return
+        val profile = _ownEmailProfileState.value ?: return
+        val email = profile.email ?: return
+        if (
+            _emailCapabilityState.value != EmailCapabilityState.Enabled ||
+            _emailLoadingState.value ||
+            _emailBusyState.value ||
+            model.currentUserIdFlow.value != userId ||
+            profile.id != userId ||
+            !profile.emailApproved
+        ) return
         val mutation = beginEmailMutation() ?: return
         launchEmailMutation(mutation) {
             if (!canContinueEmailMutation(mutation)) return@launchEmailMutation

@@ -65,8 +65,10 @@ object Plugin : StartPlugin {
                 polymorphic(ViewConfig::class, UserViewConfig::class, UserViewConfig.serializer())
                 polymorphic(Any::class, UserEditViewConfig::class, UserEditViewConfig.serializer())
                 polymorphic(ViewConfig::class, UserEditViewConfig::class, UserEditViewConfig.serializer())
-                polymorphic(Any::class, PasswordChangeViewConfig::class, PasswordChangeViewConfig.serializer())
-                polymorphic(ViewConfig::class, PasswordChangeViewConfig::class, PasswordChangeViewConfig.serializer())
+                polymorphic(Any::class, PasswordChangeViewConfig.Pending::class, PasswordChangeViewConfig.Pending.serializer())
+                polymorphic(Any::class, PasswordChangeViewConfig.Completed::class, PasswordChangeViewConfig.Completed.serializer())
+                polymorphic(ViewConfig::class, PasswordChangeViewConfig.Pending::class, PasswordChangeViewConfig.Pending.serializer())
+                polymorphic(ViewConfig::class, PasswordChangeViewConfig.Completed::class, PasswordChangeViewConfig.Completed.serializer())
             }
         }
         factory { UsersListViewModel(node = it.get(), model = get(), interactor = get()) }

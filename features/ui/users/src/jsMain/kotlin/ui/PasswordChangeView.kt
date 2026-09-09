@@ -43,6 +43,8 @@ class PasswordChangeView(
         val loading by viewModel.loadingState.collectAsState()
         val canSubmit by viewModel.canSubmitState.collectAsState()
         val result by viewModel.resultState.collectAsState()
+        val mismatch by viewModel.passwordsMismatchState.collectAsState()
+        val invalidPassword by viewModel.passwordInvalidState.collectAsState()
 
         ContentColumn {
             if (viewModel.completedState) {
@@ -83,7 +85,13 @@ class PasswordChangeView(
                         disabled = loading,
                         id = "password-change-confirmation",
                     )
-                    passwordChangeHint(result)?.let { hint -> FormHint(hint.first, hint.second) }
+                    passwordChangeHint(
+                        result ?: when {
+                            mismatch -> PasswordChangeSubmissionState.Mismatch
+                            invalidPassword -> PasswordChangeSubmissionState.InvalidPassword
+                            else -> null
+                        },
+                    )?.let { hint -> FormHint(hint.first, hint.second) }
                     CalmButton(
                         text = UsersListStrings.changePasswordButton.translation(),
                         onClick = {},

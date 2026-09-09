@@ -5,6 +5,8 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.text.KeyboardActions
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.Button
 import androidx.compose.material.MaterialTheme
 import androidx.compose.material.OutlinedTextField
@@ -13,6 +15,8 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.text.input.ImeAction
+import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.unit.dp
 import dev.inmo.micro_utils.strings.translation
@@ -45,6 +49,8 @@ class PasswordChangeView(
         val loading by viewModel.loadingState.collectAsState()
         val canSubmit by viewModel.canSubmitState.collectAsState()
         val result by viewModel.resultState.collectAsState()
+        val mismatch by viewModel.passwordsMismatchState.collectAsState()
+        val invalidPassword by viewModel.passwordInvalidState.collectAsState()
         Column(
             modifier = Modifier.fillMaxSize().padding(16.dp),
             verticalArrangement = Arrangement.spacedBy(8.dp),
@@ -63,6 +69,8 @@ class PasswordChangeView(
                 onValueChange = viewModel::onPasswordChanged,
                 label = { Text(UsersListStrings.newPasswordLabel.translation()) },
                 visualTransformation = PasswordVisualTransformation(),
+                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password, imeAction = ImeAction.Next),
+                singleLine = true,
                 enabled = !loading,
                 modifier = Modifier.fillMaxWidth(),
             )
@@ -71,11 +79,18 @@ class PasswordChangeView(
                 onValueChange = viewModel::onConfirmationChanged,
                 label = { Text(UsersListStrings.confirmPasswordLabel.translation()) },
                 visualTransformation = PasswordVisualTransformation(),
+                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password, imeAction = ImeAction.Done),
+                keyboardActions = KeyboardActions(onDone = { viewModel.onSubmitPasswordChange() }),
+                singleLine = true,
                 enabled = !loading,
                 modifier = Modifier.fillMaxWidth(),
             )
             Text(UsersListStrings.passwordChangePolicy.translation())
-            passwordChangeMessage(result)?.let { message ->
+            passwordChangeMessage(result ?: when {
+                mismatch -> PasswordChangeSubmissionState.Mismatch
+                invalidPassword -> PasswordChangeSubmissionState.InvalidPassword
+                else -> null
+            })?.let { message ->
                 Text(message, color = MaterialTheme.colors.error)
             }
             Button(
