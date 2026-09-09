@@ -159,7 +159,6 @@ class UserEditView(
             }
 
             if (canManageOwnEmail) {
-                Text(UsersListStrings.emailSectionTitle.translation(), style = MaterialTheme.typography.subtitle1)
                 when {
                     emailLoading -> Text(UsersListStrings.emailLoading.translation())
                     ownEmailProfile == null -> {

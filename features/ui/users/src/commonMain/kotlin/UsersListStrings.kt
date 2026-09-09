@@ -119,11 +119,6 @@ object UsersListStrings {
         IetfLang.Russian("Имя пользователя и пароль может изменить только администратор.")
     }
 
-    /** Heading for the private owner-email section. */
-    val emailSectionTitle = buildStringResource("Email verification") {
-        IetfLang.Russian("Подтверждение email")
-    }
-
     /** Label for the owner-only email input. */
     val emailLabel = buildStringResource("Email address") { IetfLang.Russian("Email-адрес") }
 
