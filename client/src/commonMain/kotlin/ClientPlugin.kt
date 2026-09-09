@@ -1,7 +1,9 @@
 package dev.inmo.wishlist.client
 
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.rememberCoroutineScope
 import dev.inmo.micro_utils.common.either
 import dev.inmo.micro_utils.coroutines.MutableRedeliverStateFlow
 import dev.inmo.micro_utils.startup.plugin.StartPlugin
@@ -78,11 +80,7 @@ import dev.inmo.wishlist.features.ui.wishlist.ui.UserWishlistsViewInteractor
 import dev.inmo.wishlist.features.users.common.models.UserId
 import dev.inmo.wishlist.features.wishlist.common.models.WishlistId
 import dev.inmo.wishlist.features.wishlist.common.models.WishlistItemId
-import kotlinx.coroutines.CoroutineStart
-import kotlinx.coroutines.async
-import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.flow.conflate
-import kotlinx.coroutines.flow.first
 import kotlinx.serialization.json.JsonObject
 import org.koin.core.Koin
 import org.koin.core.module.Module
@@ -178,28 +176,8 @@ object ClientPlugin : StartPlugin {
             }
         }
 
-        single<PasswordChangeViewInteractor> {
-            val navigationConfigsRepo = get<NavigationConfigsRepo<ViewConfig>>()
-            object : PasswordChangeViewInteractor {
-                override suspend fun onChanged(node: NavigationNode<PasswordChangeViewConfig, ViewConfig>) {
-                    val completedHierarchy = coroutineScope {
-                        val hierarchy = async(start = CoroutineStart.UNDISPATCHED) {
-                            node.chain.stackFlow.first { stack ->
-                                stack.lastOrNull()?.config is PasswordChangeViewConfig.Completed
-                            }
-                            checkNotNull(node.chain.rootChain().storeHierarchy())
-                        }
-                        node.chain.replaceLastOrBackUntil(PasswordChangeViewConfig.Completed)
-                        hierarchy.await()
-                    }
-                    navigationConfigsRepo.save(completedHierarchy)
-                }
-
-                override suspend fun onContinue(node: NavigationNode<PasswordChangeViewConfig, ViewConfig>) {
-                    node.chain.replaceLastOrBackUntil(UsersListViewConfig())
-                }
-            }
-        }
+        single { PasswordChangeNavigationOwner(get<NavigationConfigsRepo<ViewConfig>>()) }
+        single<PasswordChangeViewInteractor> { get<PasswordChangeNavigationOwner>() }
 
         single<TopBarViewInteractor> {
             val rootChain = get<NavigationChain<ViewConfig>>()
@@ -626,11 +604,18 @@ object ClientPlugin : StartPlugin {
         super.startPlugin(koin)
         val rootChain = koin.get<NavigationChain<ViewConfig>>()
         val navigationConfigsRepo = koin.get<NavigationConfigsRepo<ViewConfig>>()
+        val passwordChangeNavigationOwner = koin.get<PasswordChangeNavigationOwner>()
         koin.get<(@Composable () -> Unit) -> Unit>().invoke {
+            val rootScope = rememberCoroutineScope()
+            DisposableEffect(passwordChangeNavigationOwner, rootChain, rootScope) {
+                val unbind = passwordChangeNavigationOwner.bind(rootChain, rootScope)
+                onDispose(unbind)
+            }
             initNavigation<ViewConfig>(
                 EmptyConfig(),
                 configsRepo = navigationConfigsRepo,
                 nodesFactory = koin.get<RootNodeFactoryGetter>().invoke(),
+                scope = rootScope,
                 dropRedundantChainsOnRestore = true,
                 rootChain = rootChain
             ) {

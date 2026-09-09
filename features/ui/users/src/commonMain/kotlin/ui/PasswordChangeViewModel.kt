@@ -13,6 +13,8 @@ import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.currentCoroutineContext
+import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -155,7 +157,9 @@ class PasswordChangeViewModel(
         _resultState.value = null
         workScope.launchLoggingDropExceptions {
             try {
-                when (model.completePasswordChange(request)) {
+                val result = model.completePasswordChange(request)
+                currentCoroutineContext().ensureActive()
+                when (result) {
                     PasswordChangeResult.Changed -> {
                         _submissionSucceededState.value = true
                         _passwordState.value = ""

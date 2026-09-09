@@ -1,6 +1,7 @@
 package dev.inmo.wishlist.features.common.server.utils
 
 import io.ktor.server.application.ApplicationCall
+import io.ktor.server.engine.defaultExceptionStatusCode
 import io.ktor.server.plugins.statuspages.StatusPagesConfig
 import io.ktor.server.request.httpMethod
 import io.ktor.server.response.respond
@@ -28,7 +29,13 @@ fun safeCallLogLine(call: ApplicationCall): String =
 fun StatusPagesConfig.installSanitizedUnhandledErrorBoundary() {
     exception<Throwable> { call, cause ->
         if (cause is CancellationException) throw cause
-        call.respond(HttpStatusCode.InternalServerError)
-        LoggerFactory.getLogger("Ktor").error(safeCallLogLine(call))
+        val status = defaultExceptionStatusCode(cause) ?: HttpStatusCode.InternalServerError
+        call.respond(status)
+        val logger = LoggerFactory.getLogger("Ktor")
+        if (status.value >= HttpStatusCode.InternalServerError.value) {
+            logger.error(safeCallLogLine(call))
+        } else {
+            logger.debug(safeCallLogLine(call))
+        }
     }
 }

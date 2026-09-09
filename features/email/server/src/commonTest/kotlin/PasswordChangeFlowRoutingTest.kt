@@ -12,12 +12,13 @@ import dev.inmo.wishlist.features.auth.common.models.Token
 import dev.inmo.wishlist.features.auth.server.Plugin as AuthServerPlugin
 import dev.inmo.wishlist.features.auth.server.ServerPasswordChangeFeature
 import dev.inmo.wishlist.features.auth.server.UserRoleAuthorization
+import dev.inmo.wishlist.features.auth.server.configurators.AuthRoutingsConfigurator
 import dev.inmo.wishlist.features.auth.server.configurators.BearerAuthenticationConfigurator
 import dev.inmo.wishlist.features.auth.server.configurators.PasswordChangeRoutingsConfigurator
 import dev.inmo.wishlist.features.auth.server.repo.PasswordsRepo
 import dev.inmo.wishlist.features.auth.server.services.AuthFeatureService
 import dev.inmo.wishlist.features.common.common.Plugin as CommonPlugin
-import dev.inmo.wishlist.features.common.server.utils.installSanitizedUnhandledErrorBoundary
+import dev.inmo.wishlist.features.common.server.JVMPlugin as CommonServerJVMPlugin
 import dev.inmo.wishlist.features.common.server.utils.safeCallLogLine
 import dev.inmo.wishlist.features.deeplinks.common.repo.DeepLinksRepo
 import dev.inmo.wishlist.features.deeplinks.server.Plugin as DeepLinksServerPlugin
@@ -54,7 +55,6 @@ import io.ktor.server.application.install
 import io.ktor.server.auth.Authentication
 import io.ktor.server.plugins.calllogging.CallLogging
 import io.ktor.server.plugins.contentnegotiation.ContentNegotiation
-import io.ktor.server.plugins.statuspages.StatusPages
 import io.ktor.server.response.respond
 import io.ktor.server.routing.get
 import io.ktor.server.routing.route
@@ -68,6 +68,8 @@ import kotlinx.serialization.json.buildJsonObject
 import kotlinx.serialization.json.put
 import org.koin.core.KoinApplication
 import org.koin.dsl.module
+import dev.inmo.micro_utils.koin.getAllDistinct
+import dev.inmo.micro_utils.ktor.server.configurators.StatusPagesConfigurator
 import org.slf4j.LoggerFactory
 import org.slf4j.event.Level
 import kotlin.test.Test
@@ -178,6 +180,7 @@ class PasswordChangeFlowRoutingTest {
             single<UserRoleAuthorization> { PasswordChangeRoleAuthorization() }
             single<EmailsService> { emails }
             with(CommonPlugin) { setupDI(config()) }
+            with(CommonServerJVMPlugin) { setupDI(config()) }
             with(AuthServerPlugin) { setupDI(config()) }
             with(DeepLinksServerPlugin) { setupDI(config()) }
             with(Plugin) { setupDI(config()) }
@@ -219,9 +222,7 @@ class PasswordChangeFlowRoutingTest {
             install(ContentNegotiation) {
                 json(graph.json)
             }
-            install(StatusPages) {
-                installSanitizedUnhandledErrorBoundary()
-            }
+            with(StatusPagesConfigurator(graph.application.koin.getAllDistinct())) { configure() }
             install(CallLogging) {
                 level = Level.WARN
                 logger = LoggerFactory.getLogger("Ktor")
@@ -229,6 +230,7 @@ class PasswordChangeFlowRoutingTest {
             }
             routing {
                 route("/api") {
+                    with(AuthRoutingsConfigurator(graph.auth)) { invoke() }
                     with(PasswordChangeRoutingsConfigurator(graph.passwordChange)) { invoke() }
                     with(DeepLinksRoutingConfigurator(graph.links)) { invoke() }
                 }
@@ -238,6 +240,29 @@ class PasswordChangeFlowRoutingTest {
                     }
                 }
             }
+        }
+    }
+
+    /** Preserves Auth's malformed-body and explicit authentication/path status contracts globally. */
+    @Test
+    fun malformedLegacyAuthBodiesRemainBadRequestUnderProductionStatusPages() = testApplication {
+        val graph = graph()
+        val sentinel = "malformed-auth-body-sentinel"
+        try {
+            installFlowRoutes(graph)
+            listOf("register", "login", "refresh").forEach { endpoint ->
+                val response = client.post("/api/auth/$endpoint") {
+                    contentType(ContentType.Application.Json)
+                    setBody("{\"sentinel\":\"$sentinel\"")
+                }
+                assertEquals(HttpStatusCode.BadRequest, response.status)
+                assertFalse(response.bodyAsText().contains(sentinel))
+            }
+            val unknown = client.get("/api/auth/$sentinel")
+            assertEquals(HttpStatusCode.NotFound, unknown.status)
+            assertFalse(unknown.bodyAsText().contains(sentinel))
+        } finally {
+            graph.close()
         }
     }
 
