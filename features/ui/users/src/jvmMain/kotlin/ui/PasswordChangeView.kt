@@ -41,8 +41,9 @@ class PasswordChangeView(
     override val title: String
         @Composable get() = UsersListStrings.passwordChangeTitle.translation()
 
+    /** Draws the live pending form or credential-free completed state for the factory configuration. */
     @Composable
-    override fun onDraw() {
+    public override fun onDraw() {
         super.onDraw()
         val password by viewModel.passwordState.collectAsState()
         val confirmation by viewModel.confirmationState.collectAsState()
@@ -69,7 +70,8 @@ class PasswordChangeView(
                 onValueChange = viewModel::onPasswordChanged,
                 label = { Text(UsersListStrings.newPasswordLabel.translation()) },
                 visualTransformation = PasswordVisualTransformation(),
-                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password, imeAction = ImeAction.Next),
+                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password, imeAction = ImeAction.Done),
+                keyboardActions = KeyboardActions(onDone = { viewModel.onSubmitPasswordChange() }),
                 singleLine = true,
                 enabled = !loading,
                 modifier = Modifier.fillMaxWidth(),
@@ -86,12 +88,18 @@ class PasswordChangeView(
                 modifier = Modifier.fillMaxWidth(),
             )
             Text(UsersListStrings.passwordChangePolicy.translation())
-            passwordChangeMessage(result ?: when {
-                mismatch -> PasswordChangeSubmissionState.Mismatch
-                invalidPassword -> PasswordChangeSubmissionState.InvalidPassword
-                else -> null
-            })?.let { message ->
+            passwordChangeMessage(result)?.let { message ->
                 Text(message, color = MaterialTheme.colors.error)
+            }
+            if (mismatch && result != PasswordChangeSubmissionState.Mismatch) {
+                passwordChangeMessage(PasswordChangeSubmissionState.Mismatch)?.let { message ->
+                    Text(message, color = MaterialTheme.colors.error)
+                }
+            }
+            if (invalidPassword && result != PasswordChangeSubmissionState.InvalidPassword) {
+                passwordChangeMessage(PasswordChangeSubmissionState.InvalidPassword)?.let { message ->
+                    Text(message, color = MaterialTheme.colors.error)
+                }
             }
             Button(
                 onClick = viewModel::onSubmitPasswordChange,

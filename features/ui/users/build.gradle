@@ -11,6 +11,7 @@ apply from: "$mppJvmJsAndroidWithCompose"
 android {
     testOptions {
         unitTests.returnDefaultValues = true
+        unitTests.includeAndroidResources = true
     }
 }
 
@@ -31,6 +32,12 @@ kotlin {
         jsTest {
             dependencies {
                 implementation devNpm("jsdom", "26.1.0")
+            }
+        }
+        androidUnitTest {
+            dependencies {
+                implementation libs.robolectric
+                implementation libs.androidx.compose.ui.test.junit4
             }
         }
     }
