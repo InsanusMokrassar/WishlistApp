@@ -28,6 +28,7 @@ import io.ktor.serialization.kotlinx.json.json
 import kotlinx.serialization.json.Json
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertFalse
 import kotlin.test.assertTrue
 
 /** Verifies Auth route authorization, anonymous completion, and secret-safe response hardening. */
@@ -52,6 +53,7 @@ class PasswordChangeRoutingsConfiguratorTest {
         }
         assertEquals(HttpStatusCode.OK, authenticated.status)
         assertEquals("no-store", authenticated.headers[HttpHeaders.CacheControl])
+        assertEquals("no-referrer", authenticated.headers["Referrer-Policy"])
         assertTrue(authenticated.bodyAsText().contains(PasswordChangeEmailRequestResult.Sent.name))
         assertEquals(listOf(UserId(1L) to Email("owner@example.com")), feature.requestCalls)
     }
@@ -78,17 +80,39 @@ class PasswordChangeRoutingsConfiguratorTest {
         )
     }
 
-    /** Malformed completion bodies fail before invoking a domain operation. */
+    /** Malformed or incomplete route bodies fail before invoking a domain operation. */
     @Test
     fun malformedCompletionBodyFailsClosedWithoutDelegation() = testApplication {
         val feature = RecordingPasswordChangeFeature()
         installPasswordChangeRoutes(feature)
+        val malformedRequest = client.post("/api/auth/requestPasswordChangeEmail") {
+            header(HttpHeaders.Authorization, "Bearer owner")
+            contentType(ContentType.Application.Json)
+            setBody("{")
+        }
+        assertEquals(HttpStatusCode.BadRequest, malformedRequest.status)
+        assertEquals("no-store", malformedRequest.headers[HttpHeaders.CacheControl])
+        assertEquals("no-referrer", malformedRequest.headers["Referrer-Policy"])
+        val missingRequestField = client.post("/api/auth/requestPasswordChangeEmail") {
+            header(HttpHeaders.Authorization, "Bearer owner")
+            contentType(ContentType.Application.Json)
+            setBody("{}")
+        }
+        assertEquals(HttpStatusCode.BadRequest, missingRequestField.status)
         val malformed = client.post("/api/auth/completePasswordChange") {
             contentType(ContentType.Application.Json)
             setBody("{")
         }
         assertEquals(HttpStatusCode.BadRequest, malformed.status)
+        assertEquals("no-store", malformed.headers[HttpHeaders.CacheControl])
+        assertEquals("no-referrer", malformed.headers["Referrer-Policy"])
+        val missingCompletionField = client.post("/api/auth/completePasswordChange") {
+            contentType(ContentType.Application.Json)
+            setBody("{\"userId\":7}")
+        }
+        assertEquals(HttpStatusCode.BadRequest, missingCompletionField.status)
         assertTrue(feature.completionCalls.isEmpty())
+        assertTrue(feature.requestCalls.isEmpty())
     }
 
     /** Missing Email wiring retains Auth startup and returns ordinary fail-closed domain results. */
@@ -101,11 +125,73 @@ class PasswordChangeRoutingsConfiguratorTest {
             setBody("{\"expectedEmail\":\"owner@example.com\"}")
         }
         assertTrue(missingRequest.bodyAsText().contains(PasswordChangeEmailRequestResult.Unavailable.name))
+        assertEquals("no-store", missingRequest.headers[HttpHeaders.CacheControl])
+        assertEquals("no-referrer", missingRequest.headers["Referrer-Policy"])
         val missingCompletion = client.post("/api/auth/completePasswordChange") {
             contentType(ContentType.Application.Json)
             setBody("{\"userId\":7,\"approvalId\":\"123e4567-e89b-42d3-a456-426614174000\",\"password\":\"new-password\"}")
         }
         assertTrue(missingCompletion.bodyAsText().contains(PasswordChangeResult.InvalidApproval.name))
+        assertEquals("no-store", missingCompletion.headers[HttpHeaders.CacheControl])
+        assertEquals("no-referrer", missingCompletion.headers["Referrer-Policy"])
+    }
+
+    /** Routes preserve ordinary feature outcomes without remapping them to exceptional statuses. */
+    @Test
+    fun requestAndCompletionRoutesReturnEveryDomainOutcomeWithPolicyHeaders() = testApplication {
+        val feature = RecordingPasswordChangeFeature()
+        installPasswordChangeRoutes(feature)
+        PasswordChangeEmailRequestResult.entries.forEach { expected ->
+            feature.requestResult = expected
+            val response = client.post("/api/auth/requestPasswordChangeEmail") {
+                header(HttpHeaders.Authorization, "Bearer owner")
+                contentType(ContentType.Application.Json)
+                setBody("{\"expectedEmail\":\"owner@example.com\"}")
+            }
+            assertEquals(HttpStatusCode.OK, response.status)
+            assertTrue(response.bodyAsText().contains(expected.name))
+            assertEquals("no-store", response.headers[HttpHeaders.CacheControl])
+            assertEquals("no-referrer", response.headers["Referrer-Policy"])
+        }
+        PasswordChangeResult.entries.forEach { expected ->
+            feature.completionResult = expected
+            val response = client.post("/api/auth/completePasswordChange") {
+                contentType(ContentType.Application.Json)
+                setBody("{\"userId\":7,\"approvalId\":\"123e4567-e89b-42d3-a456-426614174000\",\"password\":\"new-password\"}")
+            }
+            assertEquals(HttpStatusCode.OK, response.status)
+            assertTrue(response.bodyAsText().contains(expected.name))
+            assertEquals("no-store", response.headers[HttpHeaders.CacheControl])
+            assertEquals("no-referrer", response.headers["Referrer-Policy"])
+        }
+    }
+
+    /** Route exception boundaries retain cancellation handling while hiding ordinary failure detail. */
+    @Test
+    fun requestAndCompletionExceptionsAreSanitized() = testApplication {
+        val feature = RecordingPasswordChangeFeature()
+        installPasswordChangeRoutes(feature)
+        val sentinel = "password-change-route-sentinel"
+        feature.requestFailure = IllegalStateException(sentinel)
+        val requestResponse = client.post("/api/auth/requestPasswordChangeEmail") {
+            header(HttpHeaders.Authorization, "Bearer owner")
+            contentType(ContentType.Application.Json)
+            setBody("{\"expectedEmail\":\"owner@example.com\"}")
+        }
+        assertEquals(HttpStatusCode.InternalServerError, requestResponse.status)
+        assertFalse(requestResponse.bodyAsText().contains(sentinel))
+        assertEquals("no-store", requestResponse.headers[HttpHeaders.CacheControl])
+        assertEquals("no-referrer", requestResponse.headers["Referrer-Policy"])
+        feature.requestFailure = null
+        feature.completionFailure = IllegalStateException(sentinel)
+        val completionResponse = client.post("/api/auth/completePasswordChange") {
+            contentType(ContentType.Application.Json)
+            setBody("{\"userId\":7,\"approvalId\":\"123e4567-e89b-42d3-a456-426614174000\",\"password\":\"new-password\"}")
+        }
+        assertEquals(HttpStatusCode.InternalServerError, completionResponse.status)
+        assertFalse(completionResponse.bodyAsText().contains(sentinel))
+        assertEquals("no-store", completionResponse.headers[HttpHeaders.CacheControl])
+        assertEquals("no-referrer", completionResponse.headers["Referrer-Policy"])
     }
 
     /** Installs Auth's password routes behind the same bearer identity source used by production. */
@@ -133,19 +219,33 @@ class PasswordChangeRoutingsConfiguratorTest {
         /** Anonymous completion DTOs in arrival order. */
         val completionCalls = mutableListOf<CompletePasswordChangeRequest>()
 
+        /** Current domain outcome returned by issuance delegation. */
+        var requestResult: PasswordChangeEmailRequestResult = PasswordChangeEmailRequestResult.Sent
+
+        /** Current ordinary failure thrown by issuance delegation. */
+        var requestFailure: Throwable? = null
+
+        /** Current domain outcome returned by completion delegation. */
+        var completionResult: PasswordChangeResult = PasswordChangeResult.Changed
+
+        /** Current ordinary failure thrown by completion delegation. */
+        var completionFailure: Throwable? = null
+
         /** Records the caller-derived subject and returns a sent result. */
         override suspend fun requestPasswordChangeEmail(
             callerId: UserId,
             expectedEmail: Email,
         ): PasswordChangeEmailRequestResult {
             requestCalls += callerId to expectedEmail
-            return PasswordChangeEmailRequestResult.Sent
+            requestFailure?.let { throw it }
+            return requestResult
         }
 
         /** Records one exact token-authorized DTO and returns a changed result. */
         override suspend fun completePasswordChange(request: CompletePasswordChangeRequest): PasswordChangeResult {
             completionCalls += request
-            return PasswordChangeResult.Changed
+            completionFailure?.let { throw it }
+            return completionResult
         }
     }
 }

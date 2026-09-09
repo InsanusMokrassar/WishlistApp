@@ -21,7 +21,7 @@ End-to-end bearer-token authentication. Handles login (BCrypt password check), o
 | POST | `/auth/refresh` | None | `RefreshRequest → AuthCredentials \| 401` | Exchanges refreshToken for new credentials |
 | POST | `/auth/logout` | Bearer | `→ 200` | Invalidates the bearer token |
 | GET | `/auth/getMe` | Bearer | `→ AuthFeatureUser \| 401` | Returns the caller's own record for the current token |
-| POST | `/auth/requestPasswordChangeEmail` | Bearer | `PasswordChangeEmailRequest → PasswordChangeEmailRequestResult` | Requests one approval message for the caller's exact approved current email; ordinary outcomes remain `200` and the response is `Cache-Control: no-store` |
+| POST | `/auth/requestPasswordChangeEmail` | Bearer | `PasswordChangeEmailRequest → PasswordChangeEmailRequestResult` | Requests one approval message for the caller's exact approved current email; ordinary outcomes remain `200` and the response is `Cache-Control: no-store` plus `Referrer-Policy: no-referrer` |
 | POST | `/auth/completePasswordChange` | None | `CompletePasswordChangeRequest → PasswordChangeResult` | Anonymous redemption of the delivered approval; the supplied user id is an equality assertion against persisted approval state, and the response is `Cache-Control: no-store` plus `Referrer-Policy: no-referrer` |
 
 ## Models

@@ -35,6 +35,7 @@ class PasswordChangeRoutingsConfigurator(
             authenticate {
                 post(Constants.requestPasswordChangeEmailPathPart) {
                     call.response.headers.append(HttpHeaders.CacheControl, "no-store")
+                    call.response.headers.append("Referrer-Policy", "no-referrer")
                     val callerId = getCallerUserIdOrAnswerUnauthorized() ?: return@post
                     val request = try {
                         call.receive<PasswordChangeEmailRequest>()
