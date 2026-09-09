@@ -12,6 +12,7 @@ import io.ktor.server.response.respondRedirect
 import io.ktor.server.routing.Route
 import io.ktor.server.routing.get
 import io.ktor.server.routing.route
+import kotlinx.coroutines.CancellationException
 
 /**
  * Registers the user-facing deeplink route `GET {id}` under [DeepLinksConstants.linksPrefixPathPart],
@@ -39,11 +40,17 @@ class DeepLinksRoutingConfigurator(
                         call.respond(HttpStatusCode.BadRequest)
                         return@get
                     }
-                when (val result = service.handle(deeplinkId)) {
-                    HandleResult.Handled.Common -> call.respond(HttpStatusCode.OK)
-                    is HandleResult.Handled.Redirect -> call.respondRedirect(result.url, permanent = false)
-                    HandleResult.NotFound,
-                    HandleResult.Unhandled -> call.respond(HttpStatusCode.NotFound)
+                try {
+                    when (val result = service.handle(deeplinkId)) {
+                        HandleResult.Handled.Common -> call.respond(HttpStatusCode.OK)
+                        is HandleResult.Handled.Redirect -> call.respondRedirect(result.url, permanent = false)
+                        HandleResult.NotFound,
+                        HandleResult.Unhandled -> call.respond(HttpStatusCode.NotFound)
+                    }
+                } catch (error: CancellationException) {
+                    throw error
+                } catch (_: Throwable) {
+                    call.respond(HttpStatusCode.InternalServerError)
                 }
             }
         }

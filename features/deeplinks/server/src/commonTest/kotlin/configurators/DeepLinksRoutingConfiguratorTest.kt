@@ -57,6 +57,24 @@ class DeepLinksRoutingConfiguratorTest {
         }
     }
 
+    /** Converts internal lookup or handler failures to a policy-protected public 500 response. */
+    @Test
+    fun handlerFailureIsSanitizedToInternalServerError() = testApplication {
+        val repo = RoutingDeepLinksRepo()
+        val handlerId = DeepLinkHandlerId("failing")
+        val approvalId = DeepLinkId("approval-id")
+        repo.set(approvalId, DeepLinkHandlerInfo(handlerId, "value"))
+        val service = DeepLinksService(repo, listOf(object : DeepLinkHandler {
+            override val id = handlerId
+            override suspend fun tryHandle(deeplinkId: DeepLinkId, value: Any): HandleResult.Handled? = error("storage detail")
+        }))
+        application { routing { route("/api") { with(DeepLinksRoutingConfigurator(service)) { invoke() } } } }
+        val response = createClient { followRedirects = false }.get("/api/links/${approvalId.string}")
+        assertEquals(HttpStatusCode.InternalServerError, response.status)
+        assertEquals("no-store", response.headers[HttpHeaders.CacheControl])
+        assertEquals("no-referrer", response.headers["Referrer-Policy"])
+    }
+
     /** Minimal persistent repository for the actual routing/service boundary. */
     private class RoutingDeepLinksRepo : DeepLinksRepo,
         dev.inmo.micro_utils.repos.KeyValueRepo<DeepLinkId, DeepLinkHandlerInfo> by MapKeyValueRepo()
