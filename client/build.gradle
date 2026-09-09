@@ -80,3 +80,9 @@ project.tasks.configureEach {
         it.dependsOn("jsBrowserDevelopmentWebpack")
     }
 }
+
+project.tasks.configureEach {
+    if (it.name == "jvmTest") {
+        it.systemProperty("passwordChangeHtmlPolicyPath", file("src/jsMain/resources/index.html").absolutePath)
+    }
+}

@@ -53,6 +53,7 @@ import dev.inmo.wishlist.features.common.server.configurators.ContentNegotiation
 import dev.inmo.wishlist.features.common.server.configurators.InternalApplicationRoutingConfigurator
 import dev.inmo.wishlist.features.common.server.models.Config
 import dev.inmo.wishlist.features.common.server.models.KtorConfig
+import dev.inmo.wishlist.features.common.server.utils.installSanitizedUnhandledErrorBoundary
 import dev.inmo.wishlist.features.common.server.utils.safeCallLogLine
 import io.ktor.http.HttpStatusCode
 import java.io.File
@@ -95,6 +96,11 @@ object JVMPlugin : StartPlugin {
             )
         }
         single { InternalApplicationRoutingConfigurator(getAllDistinct()) }
+        singleWithRandomQualifier<StatusPagesConfigurator.Element> {
+            StatusPagesConfigurator.Element {
+                installSanitizedUnhandledErrorBoundary()
+            }
+        }
         singleWithRandomQualifier<KtorApplicationConfigurator> { StatusPagesConfigurator(getAllDistinct()) }
         singleWithRandomQualifier<KtorApplicationConfigurator> { ApplicationCachingHeadersConfigurator(getAllDistinct()) }
         singleWithRandomQualifier<KtorApplicationConfigurator> { ApplicationSessionsConfigurator(getAllDistinct()) }

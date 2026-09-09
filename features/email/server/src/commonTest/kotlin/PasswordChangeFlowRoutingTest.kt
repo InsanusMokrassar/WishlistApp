@@ -1,5 +1,9 @@
 package dev.inmo.wishlist.features.email.server
 
+import ch.qos.logback.classic.Level as LogbackLevel
+import ch.qos.logback.classic.Logger as LogbackLogger
+import ch.qos.logback.classic.spi.ILoggingEvent
+import ch.qos.logback.core.read.ListAppender
 import dev.inmo.kroles.repos.RolesRepo
 import dev.inmo.wishlist.features.auth.common.models.CompletePasswordChangeRequest
 import dev.inmo.wishlist.features.auth.common.models.Password
@@ -13,12 +17,14 @@ import dev.inmo.wishlist.features.auth.server.configurators.PasswordChangeRoutin
 import dev.inmo.wishlist.features.auth.server.repo.PasswordsRepo
 import dev.inmo.wishlist.features.auth.server.services.AuthFeatureService
 import dev.inmo.wishlist.features.common.common.Plugin as CommonPlugin
+import dev.inmo.wishlist.features.common.server.utils.installSanitizedUnhandledErrorBoundary
 import dev.inmo.wishlist.features.common.server.utils.safeCallLogLine
 import dev.inmo.wishlist.features.deeplinks.common.repo.DeepLinksRepo
 import dev.inmo.wishlist.features.deeplinks.server.Plugin as DeepLinksServerPlugin
 import dev.inmo.wishlist.features.deeplinks.server.configurators.DeepLinksRoutingConfigurator
 import dev.inmo.wishlist.features.deeplinks.server.services.DeepLinksService
 import dev.inmo.wishlist.features.email.common.models.Email
+import dev.inmo.wishlist.features.email.server.models.EmailPasswordChangePayload
 import dev.inmo.wishlist.features.email.server.services.FakeEmailsService
 import dev.inmo.wishlist.features.email.server.services.FakeRolesFeature
 import dev.inmo.wishlist.features.email.server.services.FakeRolesRepo
@@ -43,10 +49,14 @@ import io.ktor.http.HttpHeaders
 import io.ktor.http.HttpStatusCode
 import io.ktor.http.contentType
 import io.ktor.serialization.kotlinx.json.json
+import io.ktor.server.application.ApplicationCallPipeline
 import io.ktor.server.application.install
 import io.ktor.server.auth.Authentication
 import io.ktor.server.plugins.calllogging.CallLogging
 import io.ktor.server.plugins.contentnegotiation.ContentNegotiation
+import io.ktor.server.plugins.statuspages.StatusPages
+import io.ktor.server.response.respond
+import io.ktor.server.routing.get
 import io.ktor.server.routing.route
 import io.ktor.server.routing.routing
 import io.ktor.server.testing.ApplicationTestBuilder
@@ -58,9 +68,8 @@ import kotlinx.serialization.json.buildJsonObject
 import kotlinx.serialization.json.put
 import org.koin.core.KoinApplication
 import org.koin.dsl.module
-import org.slf4j.Logger
+import org.slf4j.LoggerFactory
 import org.slf4j.event.Level
-import java.lang.reflect.Proxy
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
@@ -93,6 +102,32 @@ private class PasswordChangeFlowGraph(
     /** Closes the isolated dependency graph after an HTTP test completes. */
     fun close() {
         application.close()
+    }
+}
+
+/** Owns isolated Logback appenders attached to the production Ktor logger for one test. */
+private class KtorLogCapture(
+    /** Production logger instances whose emitted events are asserted by the test. */
+    private val loggers: List<LogbackLogger>,
+) : AutoCloseable {
+    /** Test-owned appenders paired with [loggers] in construction order. */
+    private val appenders = loggers.map { logger ->
+        ListAppender<ILoggingEvent>().also { appender ->
+            appender.context = logger.loggerContext
+            appender.start()
+            logger.addAppender(appender)
+        }
+    }
+
+    /** Returns an immutable event snapshot before the appenders are detached. */
+    fun events(): List<ILoggingEvent> = appenders.flatMap { it.list.toList() }
+
+    /** Detaches and stops every test-owned appender. */
+    override fun close() {
+        loggers.zip(appenders).forEach { (logger, appender) ->
+            logger.detachAppender(appender)
+            appender.stop()
+        }
     }
 }
 
@@ -167,26 +202,16 @@ class PasswordChangeFlowRoutingTest {
         )
     }
 
-    /** Captures CallLogging output through its normal SLF4J callback without a production logging change. */
-    private fun capturedLogger(lines: MutableList<String>): Logger = Proxy.newProxyInstance(
-        Logger::class.java.classLoader,
-        arrayOf(Logger::class.java),
-    ) { proxy, method, arguments ->
-        when (method.name) {
-            "getName" -> "password-change-flow-test"
-            "isTraceEnabled", "isDebugEnabled", "isInfoEnabled", "isWarnEnabled", "isErrorEnabled" -> true
-            "trace", "debug", "info", "warn", "error" -> {
-                arguments?.filterIsInstance<String>()?.firstOrNull()?.let(lines::add)
-                null
-            }
-            "equals" -> proxy === arguments?.firstOrNull()
-            "hashCode" -> System.identityHashCode(proxy)
-            else -> null
-        }
-    } as Logger
+    /** Attaches test-owned appenders to the same logger used by production Ktor configuration. */
+    private fun captureKtorLogs(): KtorLogCapture = KtorLogCapture(
+        listOf(LoggerFactory.getLogger("Ktor") as LogbackLogger),
+    )
 
     /** Installs the actual bearer, password-change, and deeplink configurators below `/api`. */
-    private fun ApplicationTestBuilder.installFlowRoutes(graph: PasswordChangeFlowGraph, logs: MutableList<String>) {
+    private fun ApplicationTestBuilder.installFlowRoutes(
+        graph: PasswordChangeFlowGraph,
+        installUnhandledFailureRoute: Boolean = false,
+    ) {
         application {
             install(Authentication) {
                 with(BearerAuthenticationConfigurator(graph.auth)) { invoke() }
@@ -194,15 +219,23 @@ class PasswordChangeFlowRoutingTest {
             install(ContentNegotiation) {
                 json(graph.json)
             }
+            install(StatusPages) {
+                installSanitizedUnhandledErrorBoundary()
+            }
             install(CallLogging) {
                 level = Level.WARN
-                logger = capturedLogger(logs)
+                logger = LoggerFactory.getLogger("Ktor")
                 format { call -> safeCallLogLine(call) }
             }
             routing {
                 route("/api") {
                     with(PasswordChangeRoutingsConfigurator(graph.passwordChange)) { invoke() }
                     with(DeepLinksRoutingConfigurator(graph.links)) { invoke() }
+                }
+                if (installUnhandledFailureRoute) {
+                    get("/unhandled/{detail}") {
+                        error("unhandled route failure ${call.parameters["detail"]}")
+                    }
                 }
             }
         }
@@ -257,9 +290,8 @@ class PasswordChangeFlowRoutingTest {
     @Test
     fun issuedEmailRedirectUsesSameApprovalAndAnonymousCompletionChangesOnlyOwner() = testApplication {
         val graph = graph()
-        val logs = mutableListOf<String>()
         try {
-            installFlowRoutes(graph, logs)
+            installFlowRoutes(graph)
             val href = issueApproval(graph)
             val approvalId = approvalId(href)
             val redirect = createClient { followRedirects = false }.get(href.removePrefix("https://wishlist.example"))
@@ -279,9 +311,8 @@ class PasswordChangeFlowRoutingTest {
     @Test
     fun unrelatedBrowserBearerCannotSelectPasswordChangeSubject() = testApplication {
         val graph = graph()
-        val logs = mutableListOf<String>()
         try {
-            installFlowRoutes(graph, logs)
+            installFlowRoutes(graph)
             val approvalId = approvalId(issueApproval(graph))
             completeApproval(graph, approvalId, browserToken = graph.unrelatedToken)
         } finally {
@@ -289,15 +320,121 @@ class PasswordChangeFlowRoutingTest {
         }
     }
 
+    /** Verifies known response status and unset status use the production status-only format. */
+    @Test
+    fun safeCallLogLineUsesKnownStatusAndZeroFallback() = testApplication {
+        val beforeResponseLines = mutableListOf<String>()
+        captureKtorLogs().use { capture ->
+            application {
+                intercept(ApplicationCallPipeline.Plugins) {
+                    beforeResponseLines.add(safeCallLogLine(context))
+                }
+                install(CallLogging) {
+                    level = Level.WARN
+                    logger = LoggerFactory.getLogger("Ktor")
+                    format { call -> safeCallLogLine(call) }
+                }
+                routing {
+                    get("/known") {
+                        call.respond(HttpStatusCode(418, "Teapot"))
+                    }
+                }
+            }
+            assertEquals(HttpStatusCode(418, "Teapot"), client.get("/known").status)
+            assertEquals(listOf("GET 0"), beforeResponseLines)
+            assertTrue(capture.events().any { event -> event.formattedMessage == "GET 418" })
+        }
+    }
+
+    /** Verifies production Ktor logging and unhandled errors cannot expose actionable request detail. */
+    @Test
+    fun productionLoggingRedactsRouteAndUnhandledFailureDetails() = testApplication {
+        val graph = graph()
+        val approvalPathMarker = "approval-uuid-sentinel"
+        val queryMarker = "query-sentinel"
+        val bodyMarker = "body-sentinel"
+        val repositoryMarker = "repository-exception-sentinel"
+        try {
+            captureKtorLogs().use { capture ->
+                installFlowRoutes(graph, installUnhandledFailureRoute = true)
+                val href = issueApproval(graph)
+                val approvalId = approvalId(href)
+                val redirect = createClient { followRedirects = false }
+                    .get("/api/links/$approvalId?$queryMarker=$queryMarker")
+                assertEquals(HttpStatusCode.Found, redirect.status)
+                val location = requireNotNull(redirect.headers[HttpHeaders.Location])
+                val rejection = client.post("/api/auth/requestPasswordChangeEmail?$queryMarker=$queryMarker") {
+                    header(HttpHeaders.Authorization, "Bearer rejected-$approvalPathMarker")
+                    contentType(ContentType.Application.Json)
+                    setBody("{\"expectedEmail\":\"owner@example.com\",\"marker\":\"$bodyMarker\"}")
+                }
+                assertEquals(HttpStatusCode.Unauthorized, rejection.status)
+                graph.linksRepo.resetOperationRecords()
+                graph.passwords.resetIssuedPasswordWriteCount()
+                graph.linksRepo.beforeGet = { error(repositoryMarker) }
+                val lookupFailure = createClient { followRedirects = false }
+                    .get("/api/links/$approvalId?$queryMarker=$queryMarker")
+                assertEquals(HttpStatusCode.InternalServerError, lookupFailure.status)
+                assertEquals("no-store", lookupFailure.headers[HttpHeaders.CacheControl])
+                assertEquals("no-referrer", lookupFailure.headers["Referrer-Policy"])
+                assertFalse(lookupFailure.bodyAsText().contains(repositoryMarker))
+                assertTrue(graph.linksRepo.setIds.isEmpty())
+                assertTrue(graph.linksRepo.unsetIds.isEmpty())
+                assertEquals(0, graph.passwords.issuedPasswordWriteCount)
+                val unhandled = client.get("/unhandled/$approvalPathMarker?$queryMarker=$queryMarker")
+                assertEquals(HttpStatusCode.InternalServerError, unhandled.status)
+
+                val events = capture.events()
+                assertTrue(events.any { event -> event.level == LogbackLevel.WARN && event.formattedMessage == "POST 200" })
+                assertTrue(events.any { event -> event.level == LogbackLevel.WARN && event.formattedMessage == "GET 302" })
+                assertTrue(events.any { event -> event.level == LogbackLevel.WARN && event.formattedMessage == "POST 401" })
+                assertTrue(events.any { event -> event.level == LogbackLevel.WARN && event.formattedMessage == "GET 500" })
+                assertTrue(events.any { event -> event.level == LogbackLevel.ERROR && event.formattedMessage == "GET 500" })
+                val forbidden = listOf(
+                    approvalId,
+                    approvalPathMarker,
+                    queryMarker,
+                    bodyMarker,
+                    location,
+                    repositoryMarker,
+                )
+                events.forEach { event ->
+                    forbidden.forEach { marker ->
+                        assertFalse(event.formattedMessage.contains(marker))
+                        assertFalse(event.throwableProxy?.message?.contains(marker) == true)
+                    }
+                }
+            }
+        } finally {
+            graph.close()
+        }
+    }
+
+    /** Verifies request and payload diagnostic strings redact all approval and credential-bearing fields. */
+    @Test
+    fun passwordChangeDiagnosticStringsRedactApprovalPasswordEmailAndCredentialState() {
+        val approval = "approval-uuid-sentinel"
+        val password = "plaintext-password-sentinel"
+        val email = "private-email@example.com"
+        val credentialState = "credential-state-sentinel"
+        val request = CompletePasswordChangeRequest(owner.id, dev.inmo.wishlist.features.deeplinks.common.models.DeepLinkId(approval), Password(password))
+        val payload = EmailPasswordChangePayload(owner.id, Email(email), 1L, credentialState)
+        listOf(request.toString(), payload.toString()).forEach { text ->
+            listOf(approval, password, email, credentialState).forEach { marker ->
+                assertFalse(text.contains(marker))
+            }
+            assertTrue(text.contains("<redacted>"))
+        }
+    }
+
     /** Ensures a real issuance repository exception reaches no public body or call log detail. */
     @Test
     fun issuanceRepositoryFailureIsSanitizedInResponseAndCallLog() = testApplication {
         val graph = graph()
-        val logs = mutableListOf<String>()
         val sentinel = "issuance-repository-sentinel"
         try {
             graph.linksRepo.beforeSet = { error(sentinel) }
-            installFlowRoutes(graph, logs)
+            installFlowRoutes(graph)
             val response = client.post("/api/auth/requestPasswordChangeEmail") {
                 header(HttpHeaders.Authorization, "Bearer ${graph.ownerToken.string}")
                 contentType(ContentType.Application.Json)
@@ -307,8 +444,6 @@ class PasswordChangeFlowRoutingTest {
             assertEquals("no-store", response.headers[HttpHeaders.CacheControl])
             assertEquals("no-referrer", response.headers["Referrer-Policy"])
             assertFalse(response.bodyAsText().contains(sentinel))
-            assertTrue(logs.contains("POST 500"))
-            assertTrue(logs.none { it.contains(sentinel) })
         } finally {
             graph.close()
         }
@@ -318,10 +453,9 @@ class PasswordChangeFlowRoutingTest {
     @Test
     fun deeplinkLookupFailureIsSanitizedWithoutWritesOrSentinelLeak() = testApplication {
         val graph = graph()
-        val logs = mutableListOf<String>()
         val sentinel = "deeplink-lookup-sentinel"
         try {
-            installFlowRoutes(graph, logs)
+            installFlowRoutes(graph)
             val approvalId = approvalId(issueApproval(graph))
             graph.linksRepo.resetOperationRecords()
             graph.passwords.resetIssuedPasswordWriteCount()
@@ -335,8 +469,6 @@ class PasswordChangeFlowRoutingTest {
             assertTrue(graph.linksRepo.setIds.isEmpty())
             assertTrue(graph.linksRepo.unsetIds.isEmpty())
             assertEquals(0, graph.passwords.issuedPasswordWriteCount)
-            assertTrue(logs.contains("GET 500"))
-            assertTrue(logs.none { it.contains(sentinel) })
         } finally {
             graph.close()
         }
