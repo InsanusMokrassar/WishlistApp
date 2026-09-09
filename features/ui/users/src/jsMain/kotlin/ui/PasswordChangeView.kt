@@ -35,8 +35,9 @@ class PasswordChangeView(
     override val title: String
         @Composable get() = UsersListStrings.passwordChangeTitle.translation()
 
+    /** Draws pending form or credential-free completed content for the active route. */
     @Composable
-    override fun onDraw() {
+    public override fun onDraw() {
         super.onDraw()
         val password by viewModel.passwordState.collectAsState()
         val confirmation by viewModel.confirmationState.collectAsState()
@@ -85,13 +86,17 @@ class PasswordChangeView(
                         disabled = loading,
                         id = "password-change-confirmation",
                     )
-                    passwordChangeHint(
-                        result ?: when {
-                            mismatch -> PasswordChangeSubmissionState.Mismatch
-                            invalidPassword -> PasswordChangeSubmissionState.InvalidPassword
-                            else -> null
-                        },
-                    )?.let { hint -> FormHint(hint.first, hint.second) }
+                    passwordChangeHint(result)?.let { hint -> FormHint(hint.first, hint.second) }
+                    if (mismatch && result != PasswordChangeSubmissionState.Mismatch) {
+                        passwordChangeHint(PasswordChangeSubmissionState.Mismatch)?.let { hint ->
+                            FormHint(hint.first, hint.second)
+                        }
+                    }
+                    if (invalidPassword && result != PasswordChangeSubmissionState.InvalidPassword) {
+                        passwordChangeHint(PasswordChangeSubmissionState.InvalidPassword)?.let { hint ->
+                            FormHint(hint.first, hint.second)
+                        }
+                    }
                     CalmButton(
                         text = UsersListStrings.changePasswordButton.translation(),
                         onClick = {},

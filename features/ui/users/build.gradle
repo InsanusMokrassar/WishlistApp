@@ -28,5 +28,15 @@ kotlin {
                 api project(":wishlist.features.roles.client")
             }
         }
+        jsTest {
+            dependencies {
+                implementation devNpm("jsdom", "26.1.0")
+            }
+        }
     }
+}
+
+tasks.named("jsNodeTest") {
+    filter.excludeTestsMatching("dev.inmo.wishlist.features.ui.users.ui.PasswordChangeViewBrowserTest")
+    filter.excludeTestsMatching("dev.inmo.wishlist.features.ui.users.ui.UserEditViewBrowserTest")
 }

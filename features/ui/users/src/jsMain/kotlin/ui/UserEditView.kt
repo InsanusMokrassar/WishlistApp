@@ -63,8 +63,9 @@ class UserEditView(
     override val title: String
         @Composable get() = UsersListStrings.editProfileTitle.translation()
 
+    /** Draws profile fields and owner-scoped email controls from the current ViewModel state. */
     @Composable
-    override fun onDraw() {
+    public override fun onDraw() {
         super.onDraw()
         val isRoot by viewModel.isRootState.collectAsState()
         val username by viewModel.usernameState.collectAsState()
