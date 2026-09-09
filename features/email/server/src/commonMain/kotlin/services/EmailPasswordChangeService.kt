@@ -71,6 +71,9 @@ class EmailPasswordChangeService(
             credentialState = credentialState,
         )
         var deeplinkId: DeepLinkId? = null
+        var outcome: PasswordChangeEmailRequestResult? = null
+        var primaryFailure: Throwable? = null
+        var smtpFailure: Exception? = null
         try {
             currentCoroutineContext().ensureActive()
             deeplinkId = withContext(NonCancellable) {
@@ -79,39 +82,49 @@ class EmailPasswordChangeService(
             currentCoroutineContext().ensureActive()
             val delivered = try {
                 emails.sendHtml(
-                recipient = expectedEmail,
-                subject = subject,
-                html = "<p>Change your WishlistApp password by <a href=\"${buildPublicDeepLinkUrl(publicHttpOrigin, deeplinkId)}\">changing your password</a>.</p>",
-            )
+                    recipient = expectedEmail,
+                    subject = subject,
+                    html = "<p>Change your WishlistApp password by <a href=\"${buildPublicDeepLinkUrl(publicHttpOrigin, deeplinkId)}\">changing your password</a>.</p>",
+                )
             } catch (error: CancellationException) {
                 throw error
-            } catch (error: Throwable) {
-                try {
-                    removeApproval(links, deeplinkId)
-                } catch (cleanupError: Throwable) {
-                    error.addSuppressed(cleanupError)
-                    throw error
-                }
-                return PasswordChangeEmailRequestResult.DeliveryFailed
+            } catch (error: Exception) {
+                smtpFailure = error
+                false
             }
             if (!delivered) {
-                removeApproval(links, deeplinkId)
-                return PasswordChangeEmailRequestResult.DeliveryFailed
+                outcome = PasswordChangeEmailRequestResult.DeliveryFailed
+            } else {
+                val stillEligible = accountCoordinator.withApprovedEmail(callerId, expectedEmail) {
+                    nowEpochMillis() < expiresAtEpochMillis &&
+                        authFeatureService.passwordChangeState(callerId) == credentialState
+                } ?: false
+                outcome = if (stillEligible) {
+                    currentCoroutineContext().ensureActive()
+                    PasswordChangeEmailRequestResult.Sent
+                } else {
+                    PasswordChangeEmailRequestResult.Ineligible
+                }
             }
-            val stillEligible = accountCoordinator.withApprovedEmail(callerId, expectedEmail) {
-                nowEpochMillis() < expiresAtEpochMillis &&
-                    authFeatureService.passwordChangeState(callerId) == credentialState
-            } ?: false
-            if (!stillEligible) {
-                removeApproval(links, deeplinkId)
-                return PasswordChangeEmailRequestResult.Ineligible
-            }
-            currentCoroutineContext().ensureActive()
-            return PasswordChangeEmailRequestResult.Sent
-        } catch (error: CancellationException) {
-            deeplinkId?.let { id -> removeApprovalSuppressing(links, id, error) }
-            throw error
+        } catch (error: Throwable) {
+            primaryFailure = error
         }
+        val ownedId = deeplinkId
+        if (ownedId != null && outcome != PasswordChangeEmailRequestResult.Sent) {
+            try {
+                removeApproval(links, ownedId)
+            } catch (cleanupError: Throwable) {
+                val failure = primaryFailure ?: smtpFailure
+                if (failure != null) {
+                    failure.addSuppressed(cleanupError)
+                    throw failure
+                }
+                throw cleanupError
+            }
+        }
+        primaryFailure?.let { throw it }
+        if (smtpFailure != null) return PasswordChangeEmailRequestResult.DeliveryFailed
+        return requireNotNull(outcome)
     }
 
     override suspend fun completePasswordChange(request: CompletePasswordChangeRequest): PasswordChangeResult {
@@ -165,23 +178,22 @@ class EmailPasswordChangeService(
         return info.value as? EmailPasswordChangePayload
     }
 
-    /** Removes exactly one owned approval in a bounded non-cancellable cleanup region. */
+    /**
+     * Removes exactly one owned approval in a bounded non-cancellable cleanup region.
+     *
+     * Captures a cleanup failure inside the context and rethrows outside it so callers retain the
+     * original throwable object when recording primary or suppressed failure precedence.
+     */
     private suspend fun removeApproval(links: DeepLinksService, deeplinkId: DeepLinkId) {
+        var failure: Throwable? = null
         withContext(NonCancellable) {
-            links.removeDeepLink(deeplinkId)
+            try {
+                links.removeDeepLink(deeplinkId)
+            } catch (error: Throwable) {
+                failure = error
+            }
         }
+        failure?.let { throw it }
     }
 
-    /** Preserves [error] while reporting a cleanup failure through suppressed exceptions. */
-    private suspend fun removeApprovalSuppressing(
-        links: DeepLinksService,
-        deeplinkId: DeepLinkId,
-        error: Throwable,
-    ) {
-        try {
-            removeApproval(links, deeplinkId)
-        } catch (cleanupError: Throwable) {
-            error.addSuppressed(cleanupError)
-        }
-    }
 }

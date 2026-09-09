@@ -1,26 +1,15 @@
 package dev.inmo.wishlist.features.email.server.services
 
-import dev.inmo.micro_utils.repos.KeyValueRepo
-import dev.inmo.micro_utils.repos.MapKeyValueRepo
 import dev.inmo.wishlist.features.auth.common.models.CompletePasswordChangeRequest
 import dev.inmo.wishlist.features.auth.common.models.Password
 import dev.inmo.wishlist.features.auth.common.models.PasswordChangeEmailRequestResult
 import dev.inmo.wishlist.features.auth.common.models.PasswordChangeResult
-import dev.inmo.wishlist.features.auth.server.UserRoleAuthorization
-import dev.inmo.wishlist.features.auth.server.repo.PasswordsRepo
-import dev.inmo.wishlist.features.auth.server.services.AuthFeatureService
-import dev.inmo.wishlist.features.deeplinks.common.models.DeepLinkHandlerInfo
 import dev.inmo.wishlist.features.deeplinks.common.models.DeepLinkId
 import dev.inmo.wishlist.features.deeplinks.common.models.HandleResult
-import dev.inmo.wishlist.features.deeplinks.common.repo.DeepLinksRepo
-import dev.inmo.wishlist.features.deeplinks.server.services.DeepLinksService
 import dev.inmo.wishlist.features.email.common.models.Email
 import dev.inmo.wishlist.features.email.server.EmailsService
 import dev.inmo.wishlist.features.email.server.models.EmailPasswordChange
 import dev.inmo.wishlist.features.email.server.models.EmailPasswordChangePayload
-import dev.inmo.wishlist.features.users.common.models.RegisteredUser
-import dev.inmo.wishlist.features.users.common.models.UserId
-import dev.inmo.wishlist.features.users.common.models.Username
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
@@ -31,26 +20,6 @@ import kotlin.test.assertFailsWith
 import kotlin.test.assertFalse
 import kotlin.test.assertNull
 import kotlin.test.assertTrue
-
-/** In-memory deeplink persistence used by password-approval integration tests. */
-private class PasswordChangeDeepLinksRepo : DeepLinksRepo,
-    KeyValueRepo<DeepLinkId, DeepLinkHandlerInfo> by MapKeyValueRepo()
-
-/** In-memory BCrypt storage used only by the Auth service exercised through Email orchestration. */
-private class PasswordChangePasswordsRepo : PasswordsRepo,
-    KeyValueRepo<UserId, Password> by MapKeyValueRepo()
-
-/** Mutable direct-role authorization fixture for stale-role completion tests. */
-private class PasswordChangeRoleAuthorization(
-    /** Current direct User-role decision. */
-    var directRolePresent: Boolean = true,
-) : UserRoleAuthorization {
-    /** Registration is outside these approval tests and never creates a role. */
-    override suspend fun ensureUserRole(userId: UserId): Boolean = directRolePresent
-
-    /** Returns the current direct-role decision. */
-    override suspend fun hasUserRole(userId: UserId): Boolean = directRolePresent
-}
 
 /** Email transport that changes credentials during delivery to exercise post-delivery revalidation. */
 private class CredentialReplacingEmailsService(
@@ -63,64 +32,19 @@ private class CredentialReplacingEmailsService(
     }
 }
 
-/** Fully wired in-memory Email/Auth/deeplink fixture for one approval-bound account. */
-private class PasswordChangeFixture(
-    val user: RegisteredUser,
-    val users: FakeUsersRepo,
-    val roles: PasswordChangeRoleAuthorization,
-    val passwords: PasswordChangePasswordsRepo,
-    val auth: AuthFeatureService,
-    val coordinator: EmailVerificationAccountCoordinator,
-    val linksRepo: PasswordChangeDeepLinksRepo,
-    val links: DeepLinksService,
-    val service: EmailPasswordChangeService,
-)
-
 /** Exercises server-owned approval persistence, delivery compensation, and final Auth commit boundaries. */
 class EmailPasswordChangeServiceTest {
     /** Approved account shared by every password-approval test. */
-    private val user = RegisteredUser(
-        id = UserId(7L),
-        username = Username("owner"),
-        email = Email("owner@example.com"),
-        emailApproved = true,
-    )
+    private val user = PasswordChangeTestFixtures.user
 
     /** Original credential used to prove completion changes only the approval subject. */
-    private val oldPassword = Password("old-password")
+    private val oldPassword = PasswordChangeTestFixtures.oldPassword
 
     /** Builds an approval fixture with a deferred handler provider, matching the production DI cycle break. */
     private suspend fun fixture(
         emails: EmailsService? = FakeEmailsService(),
         nowEpochMillis: () -> Long = { 1_000L },
-    ): PasswordChangeFixture {
-        val users = FakeUsersRepo(mapOf(user.id to user))
-        val roles = PasswordChangeRoleAuthorization()
-        val passwords = PasswordChangePasswordsRepo()
-        val auth = AuthFeatureService(
-            usersRepo = users,
-            writeUsersRepo = users,
-            passwordsRepo = passwords,
-            userRoleAuthorization = roles,
-        )
-        auth.setPassword(user.id, oldPassword)
-        val coordinator = EmailVerificationAccountCoordinator(users, FakeRolesRepo())
-        val linksRepo = PasswordChangeDeepLinksRepo()
-        lateinit var service: EmailPasswordChangeService
-        val links = DeepLinksService(
-            linksRepo,
-            listOf(EmailPasswordChangeDeepLinkHandler { service }),
-        )
-        service = EmailPasswordChangeService(
-            emailsService = emails,
-            deepLinksService = links,
-            accountCoordinator = coordinator,
-            authFeatureService = auth,
-            publicHttpOrigin = "https://wishlist.example",
-            nowEpochMillis = nowEpochMillis,
-        )
-        return PasswordChangeFixture(user, users, roles, passwords, auth, coordinator, linksRepo, links, service)
-    }
+    ): PasswordChangeFixture = PasswordChangeTestFixtures.fixture(emails, nowEpochMillis)
 
     /** Requests one approval, proves GET is read-only, then consumes the exact id once. */
     @Test
