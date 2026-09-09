@@ -47,7 +47,16 @@ kotlin {
                 api project(":wishlist.features.ui.sidebar")
             }
         }
+        jsTest {
+            dependencies {
+                implementation devNpm("jsdom", "26.1.0")
+            }
+        }
     }
+}
+
+tasks.named("jsNodeTest") {
+    filter.excludeTestsMatching("dev.inmo.wishlist.client.PasswordChangeNavigationBrowserTest")
 }
 
 compose.desktop {
