@@ -114,11 +114,15 @@ internal class PasswordChangeDeepLinksRepo(
     /** Ordered identifiers submitted to delegated deeplink writes. */
     val setIds = mutableListOf<DeepLinkId>()
 
+    /** Ordered identifiers submitted to delegated deeplink reads. */
+    val getIds = mutableListOf<DeepLinkId>()
+
     /** Ordered identifiers submitted to delegated deeplink removals. */
     val unsetIds = mutableListOf<DeepLinkId>()
 
     /** Runs the configured hooks around a delegated deeplink read. */
     override suspend fun get(k: DeepLinkId): DeepLinkHandlerInfo? {
+        getIds += k
         beforeGet?.invoke()
         return delegate.get(k).also { afterGet?.invoke() }
     }
@@ -147,6 +151,7 @@ internal class PasswordChangeDeepLinksRepo(
     /** Removes historical operation records before one focused assertion. */
     fun resetOperationRecords() {
         setIds.clear()
+        getIds.clear()
         unsetIds.clear()
     }
 }
