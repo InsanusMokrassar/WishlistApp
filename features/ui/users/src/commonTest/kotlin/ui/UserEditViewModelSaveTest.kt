@@ -182,6 +182,7 @@ class UserEditViewModelSaveTest {
             val lifecycleJob = checkNotNull(viewModel.scope.coroutineContext[Job])
             viewModel.scope.cancel()
             lifecycleJob.join()
+            runCurrent()
 
             assertFalse(viewModel.loadingState.value)
             assertNull(viewModel.profileSaveErrorState.value)
