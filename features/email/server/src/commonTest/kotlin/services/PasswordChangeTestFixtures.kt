@@ -216,6 +216,8 @@ internal object PasswordChangeTestFixtures {
         emails: EmailsService? = FakeEmailsService(),
         nowEpochMillis: () -> Long = { 1_000L },
         linksRepo: PasswordChangeDeepLinksRepo = PasswordChangeDeepLinksRepo(),
+        user: RegisteredUser = this.user,
+        roleBridgePresent: Boolean = true,
     ): PasswordChangeFixture {
         val users = FakeUsersRepo(mapOf(user.id to user))
         val trackedUsers = PasswordChangeUsersRepo(users)
@@ -225,7 +227,7 @@ internal object PasswordChangeTestFixtures {
             usersRepo = trackedUsers,
             writeUsersRepo = trackedUsers,
             passwordsRepo = passwords,
-            userRoleAuthorization = roles,
+            userRoleAuthorization = roles.takeIf { roleBridgePresent },
         )
         auth.setPassword(user.id, oldPassword)
         passwords.resetIssuedPasswordWriteCount()

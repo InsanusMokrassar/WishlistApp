@@ -150,6 +150,44 @@ class PasswordChangeViewModelTest {
         }
     }
 
+    /** Raw admission accepts valid input before derived presentation state catches up and rejects stale policy state. */
+    @Test
+    fun immediateAdmissionAndLocalValidationDoNotTrustDerivedSubmitState() = runTest {
+        val model = UserEditTestUsersModel(null, null, initiallyAuthorised = false)
+        val viewModel = PasswordChangeViewModel(
+            passwordChangeTestNode(pendingConfig), model, RecordingPasswordChangeInteractor(), StandardTestDispatcher(testScheduler),
+        )
+        try {
+            viewModel.onPasswordChanged("new-password")
+            viewModel.onConfirmationChanged("new-password")
+            viewModel.onSubmitPasswordChange()
+            assertTrue(viewModel.loadingState.value)
+            runCurrent()
+            assertEquals(1, model.passwordChangeRequests.size)
+
+            val staleModel = UserEditTestUsersModel(null, null, initiallyAuthorised = false)
+            val staleViewModel = PasswordChangeViewModel(
+                passwordChangeTestNode(pendingConfig), staleModel, RecordingPasswordChangeInteractor(), StandardTestDispatcher(testScheduler),
+            )
+            try {
+                staleViewModel.onPasswordChanged("new-password")
+                staleViewModel.onConfirmationChanged("new-password")
+                runCurrent()
+                assertTrue(staleViewModel.canSubmitState.value)
+                val oversizedUtf8 = "a".repeat(71) + "€"
+                staleViewModel.onPasswordChanged(oversizedUtf8)
+                staleViewModel.onConfirmationChanged(oversizedUtf8)
+                staleViewModel.onSubmitPasswordChange()
+                assertEquals(PasswordChangeSubmissionState.InvalidPassword, staleViewModel.resultState.value)
+                assertTrue(staleModel.passwordChangeRequests.isEmpty())
+            } finally {
+                staleViewModel.scope.cancel()
+            }
+        } finally {
+            viewModel.scope.cancel()
+        }
+    }
+
     /** A rejected approval becomes terminal and suppresses accidental replay from the same page. */
     @Test
     fun invalidApprovalPreventsDuplicateSubmission() = runTest {

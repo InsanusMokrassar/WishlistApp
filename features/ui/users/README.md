@@ -61,7 +61,7 @@ verification request), `features/admin/client` (root-only username/password/dele
 - All views use the shared `ScreenTitle` / `BackButton` / `ListRow` components from `features/common/client` (`ui.components`).
 - All four screen families' interactors are implemented in `client/ClientPlugin` (intra-feature push/pop). `onOpenProfile`/`UserViewInteractor.onEditUser` push `UserViewConfig`/`UserEditViewConfig` onto `node.chain`.
 - `build.gradle` deps: `features/auth/client` (`ClientAuthFeature`), `features/admin/client` (`AdminFeature`), `features/files/client` (`FilesClientService`).
-- **Single model**: `UsersListModel` was renamed to `UsersModel` and expanded to back all three screens (matching the one-model-per-UI-feature convention used by `wishlist`/`adminPanel`).
+- **Single model**: `UsersListModel` was renamed to `UsersModel` and expanded to back all four screen families (matching the one-model-per-UI-feature convention used by `wishlist`/`adminPanel`).
 - **Superadmin/functionality detection is client-side**, via `roles/client` (issue #68) — replaces the
   previous `me.value?.username?.string == "root"` comparison. `UsersModel.isCurrentUserRootFlow` is
   backed by `roles/client` `RolesFeature.isFunctionalityAvailable(adminPanelFunctionalityId)` over

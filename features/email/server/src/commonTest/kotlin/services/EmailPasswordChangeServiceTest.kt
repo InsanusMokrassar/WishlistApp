@@ -5,11 +5,16 @@ import dev.inmo.wishlist.features.auth.common.models.Password
 import dev.inmo.wishlist.features.auth.common.models.PasswordChangeEmailRequestResult
 import dev.inmo.wishlist.features.auth.common.models.PasswordChangeResult
 import dev.inmo.wishlist.features.deeplinks.common.models.DeepLinkId
+import dev.inmo.wishlist.features.deeplinks.common.models.DeepLinkHandlerId
+import dev.inmo.wishlist.features.deeplinks.common.models.DeepLinkHandlerInfo
 import dev.inmo.wishlist.features.deeplinks.common.models.HandleResult
 import dev.inmo.wishlist.features.email.common.models.Email
 import dev.inmo.wishlist.features.email.server.EmailsService
 import dev.inmo.wishlist.features.email.server.models.EmailPasswordChange
 import dev.inmo.wishlist.features.email.server.models.EmailPasswordChangePayload
+import dev.inmo.wishlist.features.users.common.models.UserId
+import dev.inmo.micro_utils.repos.deleteById
+import dev.inmo.micro_utils.repos.unset
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
@@ -44,7 +49,8 @@ class EmailPasswordChangeServiceTest {
     private suspend fun fixture(
         emails: EmailsService? = FakeEmailsService(),
         nowEpochMillis: () -> Long = { 1_000L },
-    ): PasswordChangeFixture = PasswordChangeTestFixtures.fixture(emails, nowEpochMillis)
+        roleBridgePresent: Boolean = true,
+    ): PasswordChangeFixture = PasswordChangeTestFixtures.fixture(emails, nowEpochMillis, roleBridgePresent = roleBridgePresent)
 
     /** Requests one approval, proves GET is read-only, then consumes the exact id once. */
     @Test
@@ -180,5 +186,61 @@ class EmailPasswordChangeServiceTest {
         assertEquals(1, outcomes.count { it == PasswordChangeResult.InvalidApproval })
         assertNull(fixture.linksRepo.get(approvalId))
         assertFalse(fixture.auth.login(fixture.user.username, oldPassword) != null)
+    }
+
+    /** Independent malformed, unknown, consumed, handler, payload, and subject cases never write a password. */
+    @Test
+    fun invalidApprovalMatrixFailsClosedWithoutPasswordWrites() = runTest {
+        suspend fun issued(): Pair<PasswordChangeFixture, DeepLinkId> {
+            val fixture = fixture()
+            assertEquals(PasswordChangeEmailRequestResult.Sent, fixture.service.requestPasswordChangeEmail(fixture.user.id, fixture.user.email!!))
+            fixture.passwords.resetIssuedPasswordWriteCount()
+            return fixture to fixture.linksRepo.getAll().keys.single()
+        }
+        suspend fun invalid(fixture: PasswordChangeFixture, request: CompletePasswordChangeRequest) {
+            assertEquals(PasswordChangeResult.InvalidApproval, fixture.service.completePasswordChange(request))
+            assertEquals(0, fixture.passwords.issuedPasswordWriteCount)
+        }
+        run {
+            val (fixture, id) = issued()
+            invalid(fixture, CompletePasswordChangeRequest(fixture.user.id, DeepLinkId("123e4567-e89b-42d3-a456-426614174001"), Password("new-password")))
+            invalid(fixture, CompletePasswordChangeRequest(fixture.user.id, DeepLinkId("not-a-uuid"), Password("new-password")))
+            assertEquals(PasswordChangeResult.Changed, fixture.service.completePasswordChange(CompletePasswordChangeRequest(fixture.user.id, id, Password("new-password"))))
+            assertEquals(PasswordChangeResult.InvalidApproval, fixture.service.completePasswordChange(CompletePasswordChangeRequest(fixture.user.id, id, Password("another-password"))))
+        }
+        run { val (fixture, id) = issued(); fixture.linksRepo.seed(id, DeepLinkHandlerInfo(DeepLinkHandlerId("wrong.handler"), "wrong payload")); invalid(fixture, CompletePasswordChangeRequest(fixture.user.id, id, Password("new-password"))) }
+        run { val (fixture, id) = issued(); fixture.linksRepo.seed(id, DeepLinkHandlerInfo(EmailPasswordChange.handlerId, "wrong payload")); invalid(fixture, CompletePasswordChangeRequest(fixture.user.id, id, Password("new-password"))) }
+        run { val (fixture, id) = issued(); invalid(fixture, CompletePasswordChangeRequest(UserId(99L), id, Password("new-password"))) }
+    }
+
+    /** Current identity, email, authorization, credential fingerprint, expiry, and policy boundaries stay independent. */
+    @Test
+    fun authorizationAndPolicyMatrixFailsClosedWithoutPasswordWrites() = runTest {
+        suspend fun issued(now: () -> Long = { 1_000L }, roleBridgePresent: Boolean = true): Pair<PasswordChangeFixture, DeepLinkId> {
+            val fixture = fixture(nowEpochMillis = now, roleBridgePresent = roleBridgePresent)
+            assertEquals(PasswordChangeEmailRequestResult.Sent, fixture.service.requestPasswordChangeEmail(fixture.user.id, fixture.user.email!!))
+            fixture.passwords.resetIssuedPasswordWriteCount()
+            return fixture to fixture.linksRepo.getAll().keys.single()
+        }
+        suspend fun invalid(fixture: PasswordChangeFixture, id: DeepLinkId) {
+            assertEquals(PasswordChangeResult.InvalidApproval, fixture.service.completePasswordChange(CompletePasswordChangeRequest(fixture.user.id, id, Password("new-password"))))
+            assertEquals(0, fixture.passwords.issuedPasswordWriteCount)
+        }
+        run { var now = 1_000L; val (fixture, id) = issued({ now }); now += 15L * 60L * 1000L; invalid(fixture, id) }
+        run { var now = 1_000L; val (fixture, id) = issued({ now }); now += 15L * 60L * 1000L + 1L; invalid(fixture, id) }
+        run { val (fixture, id) = issued(); fixture.coordinator.updateStoredEmail(fixture.user.id, Email("changed@example.com")); invalid(fixture, id) }
+        run { val (fixture, id) = issued(); fixture.coordinator.updateStoredEmail(fixture.user.id, null); invalid(fixture, id) }
+        run { val (fixture, id) = issued(); fixture.coordinator.updateStoredEmail(fixture.user.id, Email("other@example.com")); fixture.coordinator.updateStoredEmail(fixture.user.id, fixture.user.email!!); invalid(fixture, id) }
+        run { val (fixture, id) = issued(); fixture.roles.directRolePresent = false; invalid(fixture, id) }
+        run {
+            val fixture = fixture(roleBridgePresent = false)
+            val id = DeepLinkId("123e4567-e89b-42d3-a456-426614174001")
+            fixture.linksRepo.seed(id, DeepLinkHandlerInfo(EmailPasswordChange.handlerId, EmailPasswordChangePayload(fixture.user.id, fixture.user.email!!, 901_000L, "untrusted-state")))
+            invalid(fixture, id)
+        }
+        run { val (fixture, id) = issued(); fixture.passwords.unset(listOf(fixture.user.id)); invalid(fixture, id) }
+        run { val (fixture, id) = issued(); fixture.users.deleteById(fixture.user.id); invalid(fixture, id) }
+        run { val (fixture, id) = issued(); fixture.auth.setPassword(fixture.user.id, oldPassword); fixture.passwords.resetIssuedPasswordWriteCount(); invalid(fixture, id) }
+        run { val (fixture, id) = issued(); assertEquals(PasswordChangeResult.InvalidPassword, fixture.service.completePasswordChange(CompletePasswordChangeRequest(fixture.user.id, id, Password("short")))); assertTrue(fixture.linksRepo.get(id) != null); assertEquals(PasswordChangeResult.Changed, fixture.service.completePasswordChange(CompletePasswordChangeRequest(fixture.user.id, id, Password("new-password")))) }
     }
 }
