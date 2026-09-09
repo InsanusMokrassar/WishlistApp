@@ -7,6 +7,7 @@ import dev.inmo.wishlist.features.users.common.models.UserId
 import dev.inmo.wishlist.features.users.common.models.Username
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.test.advanceUntilIdle
 import kotlinx.coroutines.test.runCurrent
 import kotlinx.coroutines.test.runTest
@@ -156,8 +157,9 @@ class PasswordChangeViewModelTest {
 
         viewModel.onPasswordChanged("new-password")
         viewModel.onConfirmationChanged("new-password")
+        val lifecycleJob = checkNotNull(viewModel.scope.coroutineContext[Job])
         viewModel.scope.cancel()
-        advanceUntilIdle()
+        lifecycleJob.join()
 
         assertEquals("", viewModel.passwordState.value)
         assertEquals("", viewModel.confirmationState.value)
