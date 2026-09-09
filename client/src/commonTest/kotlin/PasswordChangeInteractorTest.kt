@@ -207,8 +207,53 @@ class PasswordChangeInteractorTest {
                 advanceUntilIdle()
                 assertTrue(chain.stackFlow.value.last().config is UsersListViewConfig)
                 assertTrue(chain.stackFlow.value.isNotEmpty())
+                assertNotNull(navigationConfigsRepo.saved)
                 unbind()
             } finally {
+                chainJob.cancel()
+            }
+        } finally {
+            stopKoin()
+        }
+    }
+
+    /** Rejects a stale pending callback after another destination has become the active last node. */
+    @Test
+    fun stalePendingCannotReplaceNewerDestination() = runTest {
+        var saves = 0
+        val navigationConfigsRepo = object : NavigationConfigsRepo<ViewConfig> {
+            override fun save(holder: ConfigHolder<ViewConfig>) { saves += 1 }
+            override fun get(): ConfigHolder<ViewConfig>? = null
+        }
+        val application = startKoin {
+            modules(module {
+                with(dev.inmo.wishlist.features.common.common.Plugin) { setupDI(JsonObject(emptyMap())) }
+                with(dev.inmo.wishlist.features.ui.users.Plugin) { setupDI(JsonObject(emptyMap())) }
+                with(ClientPlugin) { setupDI(JsonObject(emptyMap())) }
+                single<NavigationConfigsRepo<ViewConfig>> { navigationConfigsRepo }
+            })
+        }
+        try {
+            val owner = application.koin.get<PasswordChangeNavigationOwner>()
+            val interactor = application.koin.get<PasswordChangeViewInteractor>()
+            val chain = NavigationChain<ViewConfig>(null, NavigationNodeFactory { parent, config ->
+                NavigationNode.Empty(parent, config)
+            })
+            val chainJob = chain.start(this)
+            val unbind = owner.bind(chain, this)
+            try {
+                chain.push(UsersListViewConfig())
+                val pending = checkNotNull(chain.push(PasswordChangeViewConfig.Pending(UserId(7), approvalId)))
+                    as NavigationNode<PasswordChangeViewConfig, ViewConfig>
+                advanceUntilIdle()
+                chain.push(UsersListViewConfig())
+                advanceUntilIdle()
+                interactor.onChanged(pending)
+                advanceUntilIdle()
+                assertTrue(chain.stackFlow.value.last().config is UsersListViewConfig)
+                assertEquals(0, saves)
+            } finally {
+                unbind()
                 chainJob.cancel()
             }
         } finally {
