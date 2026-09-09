@@ -30,15 +30,24 @@ import dev.inmo.wishlist.features.ui.users.UsersListStrings
 import org.koin.core.component.inject
 import org.koin.core.parameter.parametersOf
 
-/** Android Material3 screen for a pending or completed email-authorized password change. */
+/**
+ * Android Material3 screen for a pending or completed email-authorized password change.
+ *
+ * @param chain Navigation chain containing the password-change node.
+ * @param config Pending or completed route configuration used to create the screen.
+ */
 class PasswordChangeView(
+    /** Navigation chain containing the password-change node. */
     chain: NavigationChain<ViewConfig>,
+    /** Pending or completed route configuration used to create the screen. */
     config: PasswordChangeViewConfig,
 ) : ComposeView<PasswordChangeViewConfig, ViewConfig, PasswordChangeViewModel>(config, chain), TopBarTitleProvider {
+    /** ViewModel owning transient fields, HTTP completion, and submission state. */
     override val viewModel: PasswordChangeViewModel by inject(mode = LazyThreadSafetyMode.SYNCHRONIZED) {
         parametersOf(this@PasswordChangeView)
     }
 
+    /** Localized title shown by the shared top bar. */
     override val title: String
         @Composable get() = UsersListStrings.passwordChangeTitle.translation(LocalResources.current)
 

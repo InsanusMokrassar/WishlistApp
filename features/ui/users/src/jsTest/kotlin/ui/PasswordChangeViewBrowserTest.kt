@@ -26,9 +26,9 @@ import kotlin.test.assertFalse
 import kotlin.test.assertNotNull
 import kotlin.test.assertTrue
 
-/** Executes the real JS password-change view against browser DOM events. */
+/** Compose HTML browser tests for pending and credential-free completed password screens. */
 class PasswordChangeViewBrowserTest {
-    /** Pending form renders secure inputs, live feedback, and admits one native form submission. */
+    /** Verifies native form submission uses password inputs and one guarded request. */
     @Test
     fun pendingFormUsesPasswordInputsAndNativeSubmitOnlyOnce() = MainScope().promise {
         val response = CompletableDeferred<PasswordChangeResult?>()
@@ -119,6 +119,7 @@ class PasswordChangeViewBrowserTest {
     }
 
     /** Completed config mounts the production credential-free screen without either password input. */
+    /** Verifies completed content contains no password inputs. */
     @Test
     fun completedFormContainsNoPasswordInputs() = MainScope().promise {
         val model = UserEditTestUsersModel(null, null, initiallyAuthorised = false)

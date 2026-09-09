@@ -62,6 +62,7 @@ import kotlin.test.assertTrue
 
 /** Resolves the production users model and proves private email calls stay on their owning features. */
 class UsersModelTest {
+    /** Verifies password-email and completion calls retain arguments through UsersModel. */
     @Test
     fun pluginModelDelegatesPrivateEmailAndUsernameOperationsWithoutChangingArguments() = runTest {
         val profile = AuthFeatureUser(UserId(7L), Username("owner"), Email("owner@example.com"), emailApproved = false)
@@ -104,6 +105,7 @@ class UsersModelTest {
         }
     }
 
+    /** Builds a production users-model graph around recording feature doubles. */
     private fun startModelKoin(
         auth: RecordingAuthFeature,
         email: RecordingEmailFeature,
@@ -135,6 +137,7 @@ class UsersModelTest {
         )
     }
 
+    /** Auth client double returning the configured profile. */
     private class RecordingAuthFeature(val profile: AuthFeatureUser) : ClientAuthFeature {
         override suspend fun logout() = Unit
         override suspend fun getMe(): AuthFeatureUser = profile
@@ -145,6 +148,7 @@ class UsersModelTest {
         override suspend fun isRegistrationAvailable(): Boolean = error("unused")
     }
 
+    /** Email client double recording private-email operations. */
     private class RecordingEmailFeature : EmailFeature {
         val setCalls = mutableListOf<Email?>()
         val requestCalls = mutableListOf<Email>()
@@ -181,6 +185,7 @@ class UsersModelTest {
         }
     }
 
+    /** Admin client double recording username operations. */
     private class RecordingUsersManagementFeature : UsersManagementFeature {
         val usernameCalls = mutableListOf<Pair<UserId, Username>>()
         override suspend fun getAll(): List<AdminUser> = error("unused")
@@ -195,20 +200,24 @@ class UsersModelTest {
         override suspend fun delete(id: UserId): Boolean = error("unused")
     }
 
+    /** Credentials storage double with an authenticated state and no stored token. */
     private object TestCredentialsStorage : AuthCredentialsStorage {
         override val userAuthorised = MutableStateFlow(true)
         override suspend fun get(): AuthCredentials? = null
         override suspend fun save(credentials: AuthCredentials?) = Unit
     }
 
+    /** Public users feature double returning an empty list. */
     private object EmptyUsersFeature : UsersFeature {
         override suspend fun getAll(): List<UsersFeatureUser> = emptyList()
     }
 
+    /** Roles feature double denying unrelated functionality probes. */
     private object NoRolesFeature : RolesFeature {
         override suspend fun isFunctionalityAvailable(functionalityId: FunctionalityId): Boolean = false
     }
 
+    /** Files feature double for dependencies outside the tested model methods. */
     private object UnusedFilesFeature : FilesFeature {
         override suspend fun finalize(request: FinalizeFileRequest): FilesFeatureMetaInfo? = error("unused")
         override suspend fun getMeta(id: FileId): FilesFeatureMetaInfo? = error("unused")
@@ -216,6 +225,7 @@ class UsersModelTest {
         override suspend fun setAvatar(userId: UserId, fileId: FileId): Boolean = error("unused")
     }
 
+    /** Admin wishlist double for dependencies outside the tested model methods. */
     private object UnusedWishlistsFeature : AdminWishlistsFeature {
         override suspend fun getAll(): List<AdminWishlist> = error("unused")
         override suspend fun getByUserId(userId: UserId): List<AdminWishlist> = error("unused")
@@ -225,6 +235,7 @@ class UsersModelTest {
         override suspend fun delete(id: WishlistId): Boolean = error("unused")
     }
 
+    /** Admin wishlist-item double for dependencies outside the tested model methods. */
     private object UnusedWishlistItemsFeature : AdminWishlistItemsFeature {
         override suspend fun getByWishlistId(wishlistId: WishlistId): List<AdminWishlistItem> = error("unused")
         override suspend fun create(item: NewWishlistItem): AdminWishlistItem? = error("unused")

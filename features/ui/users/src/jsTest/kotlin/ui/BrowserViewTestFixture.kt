@@ -77,6 +77,7 @@ private class BrowserDomEnvironment private constructor(
     companion object {
         private var installed: BrowserDomEnvironment? = null
 
+        /** Installs or returns the process-shared JSDOM environment. */
         fun install(): BrowserDomEnvironment {
             installed?.let { return it }
             val global = globalObject()
@@ -162,6 +163,7 @@ internal class BrowserViewTestFixture private constructor(
 ) {
     /** Adds a real browser host for a production Compose HTML composition. */
     companion object {
+        /** Creates a temporary host attached to the installed browser document. */
         fun create(): BrowserViewTestFixture {
             val environment = BrowserDomEnvironment.install()
             val host = document.createElement("div") as HTMLDivElement

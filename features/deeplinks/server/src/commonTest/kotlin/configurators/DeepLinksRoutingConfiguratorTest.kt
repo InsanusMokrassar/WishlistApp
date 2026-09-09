@@ -21,6 +21,7 @@ import kotlin.test.assertEquals
 /** Verifies deeplink responses apply redaction headers before any purpose-specific handling. */
 class DeepLinksRoutingConfiguratorTest {
     /** Redirects and lookup failures both suppress caching and referrer disclosure. */
+    /** Verifies every deeplink outcome carries cache and referrer protections. */
     @Test
     fun everyResolutionOutcomeCarriesNoStoreAndNoReferrer() = testApplication {
         val repo = RoutingDeepLinksRepo()
@@ -58,6 +59,7 @@ class DeepLinksRoutingConfiguratorTest {
     }
 
     /** Converts internal lookup or handler failures to a policy-protected public 500 response. */
+    /** Verifies handler failures are sanitized at the public route boundary. */
     @Test
     fun handlerFailureIsSanitizedToInternalServerError() = testApplication {
         val repo = RoutingDeepLinksRepo()

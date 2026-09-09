@@ -19,6 +19,7 @@ import kotlin.test.assertFalse
 /** Proves the production Json aggregation accepts concrete password-change navigation variants. */
 class PasswordChangeSerializationTest {
     /** Resolves the actual contributed serializers before round-tripping both polymorphic boundaries. */
+    /** Verifies production JSON registers both concrete password route configurations. */
     @Test
     fun productionJsonRoundTripsConcretePasswordChangeConfigs() {
         val application = startKoin {

@@ -187,6 +187,7 @@ class UserEditViewModel(
     val emailVerificationResultState: StateFlow<EmailVerificationRequestResult?> =
         _emailVerificationResultState.asStateFlow()
 
+    /** Backing state for password-change email outcomes shown in the owner section. */
     private val _passwordChangeEmailResultState = MutableRedeliverStateFlow<PasswordChangeEmailRequestResult?>(null)
 
     /** Most recent request outcome for an email-authorized password change. */
@@ -231,18 +232,25 @@ class UserEditViewModel(
             canMutate && profile?.email != null && profile.emailApproved
         }.stateIn(workScope, SharingStarted.Eagerly, false)
 
+    /** Monotonic private-email refresh version used to reject stale responses. */
     private var emailRefreshVersion = 0L
 
+    /** Monotonic owner-session generation used to invalidate identity-bound work. */
     private var ownerGeneration = 0L
 
+    /** Last owner session observed by the lifecycle reconciler. */
     private var observedOwnerSession: OwnerSession? = null
 
+    /** Sequence source for owner-email mutation tokens. */
     private var nextEmailMutationId = 0L
 
+    /** Currently admitted owner-email mutation, if any. */
     private var activeEmailMutation: OwnerEmailMutation? = null
 
+    /** Job for the latest private-email capability/profile refresh. */
     private var emailRefreshJob: Job? = null
 
+    /** Indicates that refresh was requested while an owner mutation was active. */
     private var pendingEmailRefresh = false
 
     /**
@@ -826,14 +834,19 @@ enum class EmailCapabilityState {
 
 /** Observed authenticated-caller state used to invalidate owner-private work across identity changes. */
 private data class OwnerSession(
+    /** Authenticated caller identity observed at reconciliation time. */
     val callerId: UserId?,
+    /** Authorization status observed with [callerId]. */
     val authorised: Boolean,
 )
 
 /** One active owner-bound mutation with an explicit cancellation handle. */
 private class OwnerEmailMutation(
+    /** Authenticated owner identity captured for this mutation. */
     val callerId: UserId,
+    /** Owner-session generation captured for stale-result rejection. */
     val generation: Long,
+    /** Mutation sequence number used for exact active-operation checks. */
     val mutationId: Long,
 ) {
     /** Job launched after this token becomes the active mutation. */

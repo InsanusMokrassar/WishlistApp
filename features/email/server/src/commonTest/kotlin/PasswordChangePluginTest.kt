@@ -230,6 +230,7 @@ class PasswordChangePluginTest {
     }
 
     /** Production graphs resolve Auth-first and deeplinks-first in both SMTP graph shapes. */
+    /** Verifies production plugin order resolves every password-change binding and SMTP shape. */
     @Test
     fun productionPluginsResolveInEveryRequiredOrderAndSmtpShape() = kotlinx.coroutines.test.runTest {
         assertProductionGraph(smtpEnabled = false, authFirst = true)
@@ -239,6 +240,7 @@ class PasswordChangePluginTest {
     }
 
     /** Aggregated production Json persists the stable password payload name and keeps verification payload support. */
+    /** Verifies production JSON round-trips payloads and rejects missing fields. */
     @Test
     fun productionJsonRoundTripsPasswordPayloadAndRejectsMissingRequiredFields() {
         val graph = graph(smtpEnabled = false)
@@ -270,6 +272,7 @@ class PasswordChangePluginTest {
     }
 
     /** Auth remains independently constructible when Email's optional password-change port is absent. */
+    /** Verifies absent Email infrastructure leaves the optional port unset. */
     @Test
     fun absentEmailPluginLeavesOptionalPasswordChangePortUnset() {
         val graph = graph(smtpEnabled = false, includeEmailPlugin = false)

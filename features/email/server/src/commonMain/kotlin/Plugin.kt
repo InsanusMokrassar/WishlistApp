@@ -62,6 +62,7 @@ import org.koin.core.module.Module
  * in this `commonMain` source set — the same approach used by `currency/server` with OkHttp.
  */
 object Plugin : StartPlugin {
+    /** Registers Email services, serializers, handlers, and password-change orchestration. */
     override fun Module.setupDI(config: JsonObject) {
         val emailConfigElement = emailConfigElementOrNull(config)
         val serverConfig = Json { ignoreUnknownKeys = true }
@@ -124,6 +125,7 @@ object Plugin : StartPlugin {
         }
     }
 
+    /** Starts Email server initialization after optional SMTP bindings are available. */
     override suspend fun startPlugin(koin: Koin) {
         super.startPlugin(koin)
     }

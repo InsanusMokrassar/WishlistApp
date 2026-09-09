@@ -45,9 +45,12 @@ import kotlin.test.assertFalse
 import kotlin.test.assertNotNull
 import kotlin.test.assertTrue
 
+/** Returns the browser global object used by the JSDOM harness. */
 private fun browserGlobal(): dynamic = js("globalThis")
+/** Creates an isolated JSDOM window at [url] for URL and navigation assertions. */
 private fun browserDom(url: String): dynamic = js("new (require('jsdom').JSDOM)('<!doctype html><html><head></head><body></body></html>', { url: url, pretendToBeVisual: true })")
 
+/** Flattens a restored configuration hierarchy for credential and route assertions. */
 private fun ConfigHolder<ViewConfig>.allConfigs(): List<ViewConfig> = when (this) {
     is ConfigHolder.Chain -> firstNodeConfig?.allConfigs().orEmpty()
     is ConfigHolder.Node -> listOf(config) + subnode?.allConfigs().orEmpty() + subchains.flatMap { it.allConfigs() }
@@ -59,6 +62,7 @@ private suspend fun NavigationChain<ViewConfig>.awaitRestoredStack(): List<Navig
 
 /** Runs URL persistence against the actual browser adapter under the Mocha/Node JSDOM host. */
 class PasswordChangeNavigationBrowserTest {
+    /** Proves reload restores Pending, completion persists Completed, and Continue needs no HTTP. */
     @Test
     fun canonicalApprovalReloadsAndCompletionPersistsWithoutCredential() = MainScope().promise {
         val global = browserGlobal()

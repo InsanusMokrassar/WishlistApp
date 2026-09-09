@@ -27,6 +27,7 @@ class DefaultUrlHttpClientConfigurator(
     private val storage: ServerUrlStorage,
     private val useDefaultUrlPrefix: Boolean = true
 ) : HttpClientConfigurator {
+    /** Installs request URL rewriting that applies the configured server URL and API prefix. */
     override fun HttpClientConfig<*>.configure() {
         val storage = storage
         val plugin = createClientPlugin("DefaultServerUrlPlugin") {

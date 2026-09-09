@@ -28,6 +28,7 @@ import kotlinx.coroutines.CancellationException
 class DeepLinksRoutingConfigurator(
     private val service: DeepLinksService
 ) : ApplicationRoutingConfigurator.Element {
+    /** Installs the public read-only deeplink resolution route. */
     override fun Route.invoke() {
         route(DeepLinksConstants.linksPrefixPathPart) {
             get("{${DeepLinksConstants.deeplinkIdParameter}}") {

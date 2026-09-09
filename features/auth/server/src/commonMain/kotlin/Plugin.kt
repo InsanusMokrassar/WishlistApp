@@ -15,7 +15,10 @@ import dev.inmo.wishlist.features.auth.server.configurators.PasswordChangeRoutin
 import dev.inmo.wishlist.features.auth.server.services.AuthFeatureService
 import dev.inmo.wishlist.features.common.server.configurators.ApplicationAuthenticationConfigurator
 
+/** Auth server startup plugin wiring routes and the optional Email password-change port. */
+/** Auth server startup plugin wiring routes and the optional Email password-change port. */
 object Plugin : StartPlugin {
+    /** Registers Auth services, routes, serializers, and the optional password-change port. */
     override fun Module.setupDI(config: JsonObject) {
         single { get<Json>().decodeFromJsonElement(Config.serializer(), config) }
         single {
@@ -47,6 +50,7 @@ object Plugin : StartPlugin {
         }
     }
 
+    /** Starts Auth server state after service bindings are installed. */
     override suspend fun startPlugin(koin: Koin) {
         super.startPlugin(koin)
     }

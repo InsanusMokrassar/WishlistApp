@@ -37,6 +37,11 @@ class KtorPasswordChangeFeature(
     /** Relative route used by native completion when no browser origin binding exists. */
     private val completionPath = "${Constants.prefixPathPart}/${Constants.completePasswordChangePathPart}"
 
+    /**
+     * Posts the owner's exact approved address and decodes a typed issuance outcome.
+     *
+     * @param expectedEmail Approved owner email submitted for issuance.
+     */
     override suspend fun requestPasswordChangeEmail(expectedEmail: Email): PasswordChangeEmailRequestResult? =
         decodeSuccessful<PasswordChangeEmailRequestResult> {
             client.post(requestPath) {
@@ -45,6 +50,11 @@ class KtorPasswordChangeFeature(
             }
         }
 
+    /**
+     * Posts the exact approval-bound request without bearer refresh or automatic retry.
+     *
+     * @param request Approval-bound user and password payload.
+     */
     override suspend fun completePasswordChange(request: CompletePasswordChangeRequest): PasswordChangeResult? =
         decodeSuccessful<PasswordChangeResult> {
             client.post(completionUrl?.string ?: completionPath) {

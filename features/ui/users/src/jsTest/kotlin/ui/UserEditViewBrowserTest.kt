@@ -26,7 +26,7 @@ import kotlin.test.assertFalse
 import kotlin.test.assertNotNull
 import kotlin.test.assertTrue
 
-/** Executes the owner-only password-email control in the real JS profile-edit DOM. */
+/** Compose HTML DOM tests for owner password-email visibility and feedback. */
 class UserEditViewBrowserTest {
     /** Returns the currently rendered password-email action, never a detached historical node. */
     private fun BrowserViewTestFixture.passwordChangeRequestButton(): HTMLButtonElement? {
@@ -83,7 +83,7 @@ class UserEditViewBrowserTest {
         }
     }
 
-    /** Approved owner sees one request control and receives its distinct delivery failure feedback. */
+    /** Verifies the approved owner action is visible, busy-disabled, and reports failure. */
     @Test
     fun approvedOwnerRequestIsVisibleDisabledWhileBusyAndReportsDeliveryFailure() = MainScope().promise {
         val ownerId = UserId(7L)
@@ -142,6 +142,7 @@ class UserEditViewBrowserTest {
     }
 
     /** Hides the owner password-email action after a disabled SMTP capability probe. */
+    /** Verifies disabled SMTP hides the password-change request action. */
     @Test
     fun disabledSmtpHidesPasswordChangeRequest() = MainScope().promise {
         val ownerId = UserId(7L)
@@ -158,6 +159,7 @@ class UserEditViewBrowserTest {
     }
 
     /** Omits the request control while an owner has no stored private email. */
+    /** Verifies a missing email hides the password-change request action. */
     @Test
     fun missingEmailHidesPasswordChangeRequest() = MainScope().promise {
         val ownerId = UserId(7L)
@@ -174,6 +176,7 @@ class UserEditViewBrowserTest {
     }
 
     /** Omits the request control while an owner's stored email is awaiting approval. */
+    /** Verifies an unapproved email hides the password-change request action. */
     @Test
     fun unapprovedEmailHidesPasswordChangeRequest() = MainScope().promise {
         val ownerId = UserId(7L)
@@ -190,6 +193,7 @@ class UserEditViewBrowserTest {
     }
 
     /** Keeps another profile's private owner-email controls and feedback out of the rendered DOM. */
+    /** Verifies another user's editor hides private password-change controls. */
     @Test
     fun anotherUserHidesPrivatePasswordChangeControls() = MainScope().promise {
         val ownerId = UserId(7L)
@@ -204,6 +208,7 @@ class UserEditViewBrowserTest {
     }
 
     /** Keeps root authority from exposing another user's private owner-email controls or feedback. */
+    /** Verifies root editing another user hides private password-change controls. */
     @Test
     fun rootOnOtherUserHidesPrivatePasswordChangeControls() = MainScope().promise {
         val ownerId = UserId(7L)
@@ -218,6 +223,7 @@ class UserEditViewBrowserTest {
     }
 
     /** Removes the current request control during a held refresh instead of retaining the old approved branch. */
+    /** Verifies refresh clearing the profile removes the current request action. */
     @Test
     fun heldRefreshRemovesCurrentPasswordChangeRequest() = MainScope().promise {
         val ownerId = UserId(7L)

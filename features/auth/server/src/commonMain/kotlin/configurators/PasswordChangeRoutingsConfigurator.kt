@@ -30,6 +30,7 @@ import kotlinx.coroutines.CancellationException
 class PasswordChangeRoutingsConfigurator(
     private val feature: ServerPasswordChangeFeature?,
 ) : ApplicationRoutingConfigurator.Element {
+    /** Installs authenticated issuance and anonymous approval-completion routes. */
     override fun Route.invoke() {
         route(Constants.prefixPathPart) {
             authenticate {

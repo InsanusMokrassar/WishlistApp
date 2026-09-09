@@ -34,6 +34,7 @@ import kotlin.test.assertTrue
 /** Verifies Auth route authorization, anonymous completion, and secret-safe response hardening. */
 class PasswordChangeRoutingsConfiguratorTest {
     /** Request issuance requires a valid bearer and forwards only the authenticated caller identity. */
+    /** Verifies issuance requires bearer authorization and preserves typed outcomes. */
     @Test
     fun requestRouteRequiresBearerAndReturnsTypedDomainResult() = testApplication {
         val feature = RecordingPasswordChangeFeature()
@@ -59,6 +60,7 @@ class PasswordChangeRoutingsConfiguratorTest {
     }
 
     /** Completion is anonymous, retains the supplied subject assertion, and emits no-store/no-referrer headers. */
+    /** Verifies anonymous completion forwards the exact approval-bound payload. */
     @Test
     fun completionRouteIsAnonymousAndForwardsExactPayload() = testApplication {
         val feature = RecordingPasswordChangeFeature()
@@ -81,6 +83,7 @@ class PasswordChangeRoutingsConfiguratorTest {
     }
 
     /** Malformed or incomplete route bodies fail before invoking a domain operation. */
+    /** Verifies malformed completion bodies fail closed before service delegation. */
     @Test
     fun malformedCompletionBodyFailsClosedWithoutDelegation() = testApplication {
         val feature = RecordingPasswordChangeFeature()
@@ -116,6 +119,7 @@ class PasswordChangeRoutingsConfiguratorTest {
     }
 
     /** Missing Email wiring retains Auth startup and returns ordinary fail-closed domain results. */
+    /** Verifies absent Email binding returns unavailable without removing routes. */
     @Test
     fun missingEmailBindingReturnsUnavailableWithoutBreakingRoutes() = testApplication {
         installPasswordChangeRoutes(null)
@@ -137,6 +141,7 @@ class PasswordChangeRoutingsConfiguratorTest {
     }
 
     /** Routes preserve ordinary feature outcomes without remapping them to exceptional statuses. */
+    /** Verifies all domain outcomes and no-store policy headers on both routes. */
     @Test
     fun requestAndCompletionRoutesReturnEveryDomainOutcomeWithPolicyHeaders() = testApplication {
         val feature = RecordingPasswordChangeFeature()
@@ -167,6 +172,7 @@ class PasswordChangeRoutingsConfiguratorTest {
     }
 
     /** Route exception boundaries retain cancellation handling while hiding ordinary failure detail. */
+    /** Verifies service exceptions become sanitized internal-server responses. */
     @Test
     fun requestAndCompletionExceptionsAreSanitized() = testApplication {
         val feature = RecordingPasswordChangeFeature()

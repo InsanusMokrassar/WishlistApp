@@ -28,7 +28,9 @@ import kotlin.test.assertNull
 import kotlin.test.assertTrue
 
 /** Email transport that changes credentials during delivery to exercise post-delivery revalidation. */
+/** Email transport test double that mutates credentials immediately before success. */
 private class CredentialReplacingEmailsService(
+    /** Concurrent mutation invoked before a successful SMTP result. */
     private val beforeSuccess: suspend () -> Unit,
 ) : EmailsService by FakeEmailsService() {
     /** Applies the configured concurrent credential mutation before reporting successful delivery. */
@@ -38,7 +40,7 @@ private class CredentialReplacingEmailsService(
     }
 }
 
-/** Exercises server-owned approval persistence, delivery compensation, and final Auth commit boundaries. */
+/** Service-level authorization, delivery, and completion tests for password approvals. */
 class EmailPasswordChangeServiceTest {
     /** Approved account shared by every password-approval test. */
     private val user = PasswordChangeTestFixtures.user
@@ -54,6 +56,7 @@ class EmailPasswordChangeServiceTest {
     ): PasswordChangeFixture = PasswordChangeTestFixtures.fixture(emails, nowEpochMillis, roleBridgePresent = roleBridgePresent)
 
     /** Requests one approval, proves GET is read-only, then consumes the exact id once. */
+    /** Verifies read-only redirect and one subject-scoped completion. */
     @Test
     fun deliveredApprovalRedirectsReadOnlyAndChangesOnlyItsSubjectOnce() = runTest {
         val fixture = fixture()
@@ -82,6 +85,7 @@ class EmailPasswordChangeServiceTest {
     }
 
     /** Expiry, stale email, revoked direct role, and subject mismatch all reject without password mutation. */
+    /** Verifies invalid approval states never replace a password. */
     @Test
     fun invalidApprovalStatesNeverReplaceThePassword() = runTest {
         var now = 1_000L
@@ -108,6 +112,7 @@ class EmailPasswordChangeServiceTest {
     }
 
     /** Missing infrastructure, a false send, and delivery cancellation retain no exact newly minted link. */
+    /** Verifies unavailable and cancelled delivery fail closed with exact cleanup. */
     @Test
     fun unavailableAndCancelledDeliveryFailClosedWithExactLinkCleanup() = runTest {
         val unavailable = fixture(emails = null)
@@ -139,6 +144,7 @@ class EmailPasswordChangeServiceTest {
     }
 
     /** SMTP receives the approved address and one fixed URL containing the persisted approval id. */
+    /** Verifies issuance uses the exact approved recipient and persisted link. */
     @Test
     fun sentApprovalUsesExactApprovedRecipientAndPersistedLink() = runTest {
         val emails = FakeEmailsService()
@@ -151,6 +157,7 @@ class EmailPasswordChangeServiceTest {
     }
 
     /** Credential replacement during SMTP causes post-delivery validation to remove the new approval. */
+    /** Verifies credential change invalidates and cleans the consumed approval. */
     @Test
     fun postDeliveryCredentialChangeInvalidatesAndCleansTheApproval() = runTest {
         lateinit var createdFixture: PasswordChangeFixture
@@ -168,6 +175,7 @@ class EmailPasswordChangeServiceTest {
     }
 
     /** Concurrent completion attempts with one persisted UUID can accept at most one password write. */
+    /** Verifies concurrent completion consumes at most one approval. */
     @Test
     fun concurrentCompletionConsumesAtMostOneApproval() = runTest {
         val fixture = fixture()
@@ -190,6 +198,7 @@ class EmailPasswordChangeServiceTest {
     }
 
     /** Independent malformed, unknown, consumed, handler, payload, and subject cases never write a password. */
+    /** Verifies invalid authorization and policy states produce no password writes. */
     @Test
     fun invalidApprovalMatrixFailsClosedWithoutPasswordWrites() = runTest {
         suspend fun issued(): Pair<PasswordChangeFixture, DeepLinkId> {
@@ -215,6 +224,7 @@ class EmailPasswordChangeServiceTest {
     }
 
     /** Current identity, email, authorization, credential fingerprint, expiry, and policy boundaries stay independent. */
+    /** Verifies valid credential state with a missing role bridge fails closed. */
     @Test
     fun authorizationAndPolicyMatrixFailsClosedWithoutPasswordWrites() = runTest {
         suspend fun issued(now: () -> Long = { 1_000L }, roleBridgePresent: Boolean = true): Pair<PasswordChangeFixture, DeepLinkId> {

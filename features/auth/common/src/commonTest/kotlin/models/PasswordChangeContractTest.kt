@@ -16,6 +16,7 @@ import kotlin.test.assertTrue
 /** Verifies password-change wire data is secret-safe and its shared route policy is exact. */
 class PasswordChangeContractTest {
     /** The shared password policy counts BCrypt's byte boundary instead of silently truncating UTF-8. */
+    /** Verifies character minimum and UTF-8 byte maximum password policy boundaries. */
     @Test
     fun passwordPolicyUsesCharacterMinimumAndUtf8Maximum() {
         assertFalse(isAcceptablePasswordChangePassword(Password("short")))
@@ -25,6 +26,7 @@ class PasswordChangeContractTest {
     }
 
     /** Only the UUID spelling produced by the existing UUID-v4 deeplink minting path can enter routes. */
+    /** Verifies only canonical UUID segments produce a pending password route. */
     @Test
     fun pendingPathRejectsNonCanonicalOrUnsafeApprovalIds() {
         val approvalId = DeepLinkId("123e4567-e89b-42d3-a456-426614174000")
@@ -37,6 +39,7 @@ class PasswordChangeContractTest {
     }
 
     /** JSON preserves the supplied approval exactly while incidental string output excludes secrets. */
+    /** Verifies wire values survive serialization while diagnostics redact secrets. */
     @Test
     fun completionContractRetainsWireValuesButRedactsToString() {
         val request = CompletePasswordChangeRequest(

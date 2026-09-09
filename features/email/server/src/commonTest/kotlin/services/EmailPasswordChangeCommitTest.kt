@@ -35,6 +35,7 @@ private object PasswordAfterDelegationFailure : IllegalStateException("password 
 
 /** Exercises final approval reread, consume, password-write, and lock-release integrity boundaries. */
 @OptIn(ExperimentalCoroutinesApi::class)
+/** Commit-boundary tests for approval consumption and password replacement ordering. */
 class EmailPasswordChangeCommitTest {
     /** Returns one delivered approval and clears issuance evidence before the commit assertion starts. */
     private suspend fun issuedFixture(): Pair<PasswordChangeFixture, DeepLinkId> {
@@ -72,6 +73,7 @@ class EmailPasswordChangeCommitTest {
     }
 
     /** Two overlapping valid submitters serialize at final reread and produce one consume/write only. */
+    /** Verifies concurrent submitters produce one consumed approval and one write. */
     @Test
     fun overlappingSubmittersProduceOneChangedAndOnePasswordWrite() = runTest {
         val (fixture, approvalId) = issuedFixture()
@@ -108,6 +110,7 @@ class EmailPasswordChangeCommitTest {
     }
 
     /** A persisted link replaced after the initial read cannot be consumed at the final reread. */
+    /** Verifies changed approval state aborts before consume or password write. */
     @Test
     fun changedLinkBeforeFinalRereadRejectsWithoutConsumeOrPasswordWrite() = runTest {
         val (fixture, approvalId) = issuedFixture()
@@ -133,6 +136,7 @@ class EmailPasswordChangeCommitTest {
     }
 
     /** A persisted link removed after the initial read cannot produce a second removal or password write. */
+    /** Verifies removed approval state aborts before password write. */
     @Test
     fun removedLinkBeforeFinalRereadRejectsWithoutPasswordWrite() = runTest {
         val (fixture, approvalId) = issuedFixture()
@@ -159,6 +163,7 @@ class EmailPasswordChangeCommitTest {
     }
 
     /** A coordinated email update waits behind final commit and progresses after coordinator release. */
+    /** Verifies email updates wait for the password commit and then progress. */
     @Test
     fun coordinatedEmailUpdateWaitsForCommitAndThenProgresses() = runTest {
         val (fixture, approvalId) = issuedFixture()
@@ -186,6 +191,7 @@ class EmailPasswordChangeCommitTest {
     }
 
     /** An Auth password update waits behind final commit and progresses after Auth lock release. */
+    /** Verifies Auth password writes wait for the password commit and then progress. */
     @Test
     fun authSetPasswordWaitsForCommitAndThenProgresses() = runTest {
         val (fixture, approvalId) = issuedFixture()
@@ -214,6 +220,7 @@ class EmailPasswordChangeCommitTest {
     }
 
     /** Auth purge waits behind final commit and progresses after Auth lock release without deadlock. */
+    /** Verifies Auth user purge waits for the password commit and then progresses. */
     @Test
     fun authPurgeUserWaitsForCommitAndThenProgresses() = runTest {
         val (fixture, approvalId) = issuedFixture()
@@ -241,6 +248,7 @@ class EmailPasswordChangeCommitTest {
     }
 
     /** A removal failure before delegation leaves approval and old password intact without a write. */
+    /** Verifies removal failure before delegation preserves approval and old credential. */
     @Test
     fun removalFailureBeforeDelegationLeavesApprovalAndOldPassword() = runTest {
         val (fixture, approvalId) = issuedFixture()
@@ -259,6 +267,7 @@ class EmailPasswordChangeCommitTest {
     }
 
     /** A removal failure after delegation consumes approval but never starts a password write. */
+    /** Verifies removal failure after delegation consumes approval without a password write. */
     @Test
     fun removalFailureAfterDelegationConsumesApprovalWithoutPasswordWrite() = runTest {
         val (fixture, approvalId) = issuedFixture()
@@ -277,6 +286,7 @@ class EmailPasswordChangeCommitTest {
     }
 
     /** A password failure before delegation consumes approval but keeps the old credential and rejects replay. */
+    /** Verifies pre-delegation password failure consumes approval and keeps old credential. */
     @Test
     fun passwordFailureBeforeDelegationConsumesApprovalAndKeepsOldCredential() = runTest {
         val (fixture, approvalId) = issuedFixture()
@@ -296,6 +306,7 @@ class EmailPasswordChangeCommitTest {
     }
 
     /** A password failure after delegation consumes approval, may persist new credential, and rejects replay. */
+    /** Verifies post-delegation password failure leaves the commit outcome observable. */
     @Test
     fun passwordFailureAfterDelegationConsumesApprovalAndMayPersistNewCredential() = runTest {
         val (fixture, approvalId) = issuedFixture()
@@ -315,6 +326,7 @@ class EmailPasswordChangeCommitTest {
     }
 
     /** Cancellation before the non-cancellable consume/write region leaves approval and password unchanged. */
+    /** Verifies cancellation before commit leaves approval and password untouched. */
     @Test
     fun cancellationBeforeCommitLeavesApprovalAndPasswordUntouched() = runTest {
         val (fixture, approvalId) = issuedFixture()
@@ -339,6 +351,7 @@ class EmailPasswordChangeCommitTest {
     }
 
     /** Cancellation during non-cancellable removal completes consume/write, propagates cancellation, and rejects replay. */
+    /** Verifies cancellation during removal completes commit before propagation. */
     @Test
     fun cancellationDuringRemovalCompletesCommitThenPropagatesCancellation() = runTest {
         val (fixture, approvalId) = issuedFixture()
@@ -364,6 +377,7 @@ class EmailPasswordChangeCommitTest {
     }
 
     /** Cancellation during non-cancellable password storage completes write, propagates cancellation, and rejects replay. */
+    /** Verifies cancellation during password write completes commit before propagation. */
     @Test
     fun cancellationDuringPasswordWriteCompletesCommitThenPropagatesCancellation() = runTest {
         val (fixture, approvalId) = issuedFixture()

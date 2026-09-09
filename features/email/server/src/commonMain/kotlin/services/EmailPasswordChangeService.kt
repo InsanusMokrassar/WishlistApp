@@ -54,6 +54,12 @@ class EmailPasswordChangeService(
     /** Human-readable subject for the only password-change message. */
     private val subject = "Change your WishlistApp password"
 
+    /**
+     * Mints, delivers, and compensates one approval for the caller's current approved address.
+     *
+     * @param callerId Authenticated caller whose approved address is checked.
+     * @param expectedEmail Approved address expected at issuance and delivery time.
+     */
     override suspend fun requestPasswordChangeEmail(
         callerId: UserId,
         expectedEmail: Email,
@@ -127,6 +133,11 @@ class EmailPasswordChangeService(
         return requireNotNull(outcome)
     }
 
+    /**
+     * Validates and consumes the exact approval before delegating the password write to Auth.
+     *
+     * @param request Approval-bound user, approval, and candidate-password payload.
+     */
     override suspend fun completePasswordChange(request: CompletePasswordChangeRequest): PasswordChangeResult {
         if (!isCanonicalPasswordChangeApprovalId(request.approvalId)) return PasswordChangeResult.InvalidApproval
         if (!isAcceptablePasswordChangePassword(request.password)) return PasswordChangeResult.InvalidPassword

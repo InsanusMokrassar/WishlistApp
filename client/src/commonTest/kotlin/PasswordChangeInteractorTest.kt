@@ -75,13 +75,21 @@ internal class HeldPasswordChangeUsersModel : UsersModel {
     /** Inert avatar capability state required by the shared users model interface. */
     override val canChangeAvatarForOthersFlow: StateFlow<Boolean> = MutableStateFlow(false)
 
+    /** Returns no public users for this navigation-only test. */
     override suspend fun getAllUsers(): List<UsersFeatureUser> = emptyList()
+    /** Returns no user detail for this navigation-only test. */
     override suspend fun getUser(id: UserId): UsersFeatureUser? = null
+    /** Returns no authenticated profile for this navigation-only test. */
     override suspend fun getMyProfile(): AuthFeatureUser? = null
+    /** Reports email infrastructure as unavailable. */
     override suspend fun isEmailFeatureEnabled(): Boolean = false
+    /** Rejects private email mutation in this test double. */
     override suspend fun setMyEmail(email: Email?): Boolean = false
+    /** Rejects email verification requests in this test double. */
     override suspend fun requestMyEmailVerification(expectedEmail: Email): EmailVerificationRequestResult = EmailVerificationRequestResult.Unavailable
+    /** Does not issue password-change email approvals. */
     override suspend fun requestPasswordChangeEmail(expectedEmail: Email): PasswordChangeEmailRequestResult? = null
+    /** Holds completion until the test-controlled deferred result is released. */
     override suspend fun completePasswordChange(request: CompletePasswordChangeRequest): PasswordChangeResult? {
         requests += request
         return try {
@@ -90,18 +98,26 @@ internal class HeldPasswordChangeUsersModel : UsersModel {
             if (returnsChangedAfterCancellation) PasswordChangeResult.Changed else throw cause
         }
     }
+    /** Returns no administrator username mutation. */
     override suspend fun updateUsername(id: UserId, username: Username): Boolean = false
+    /** Returns no administrator password mutation. */
     override suspend fun setPassword(id: UserId, password: Password): Boolean = false
+    /** Returns no administrator deletion. */
     override suspend fun deleteUser(id: UserId): Boolean = false
+    /** Returns no avatar metadata. */
     override suspend fun getAvatar(userId: UserId): FileId? = null
+    /** Rejects avatar uploads in this test double. */
     override suspend fun uploadAvatar(userId: UserId, file: MPPFile): FileId? = null
+    /** Returns no avatar URL. */
     override fun imageUrl(id: FileId): String = ""
+    /** Returns no downloaded avatar bytes. */
     override suspend fun loadImageBytes(id: FileId): ByteArray? = null
 }
 
 /** Exercises the production client password-change navigation binding against an active chain. */
 @OptIn(ExperimentalCoroutinesApi::class)
 class PasswordChangeInteractorTest {
+    /** Canonical approval reused by all navigation fixtures. */
     private val approvalId = DeepLinkId("123e4567-e89b-42d3-a456-426614174000")
 
     /** Proves replacement destroys the submitting ViewModel before the root-owned save completes. */
@@ -178,6 +194,7 @@ class PasswordChangeInteractorTest {
         }
     }
 
+    /** Proves Continue persists a users-list destination after completion. */
     @Test
     fun changedPendingReplacesCredentialRouteAndContinueAlwaysReachesUsersList() = runTest {
         val navigationConfigsRepo = object : NavigationConfigsRepo<ViewConfig> {
@@ -246,6 +263,7 @@ class PasswordChangeInteractorTest {
     }
 
     /** Rejects a stale pending callback after another destination has become the active last node. */
+    /** Proves a stale Pending node cannot replace a newer destination. */
     @Test
     fun stalePendingCannotReplaceNewerDestination() = runTest {
         var saves = 0
@@ -290,6 +308,7 @@ class PasswordChangeInteractorTest {
     }
 
     /** Cancellation-resistant model output cannot hand a destroyed pending page to the root owner. */
+    /** Proves cancellation during submission cannot start a changed handoff. */
     @Test
     fun cancelledSubmittingViewModelCannotStartChangedHandoff() = runTest {
         var saves = 0
@@ -327,6 +346,7 @@ class PasswordChangeInteractorTest {
     }
 
     /** A root binding disposal cancels a queued replacement before a stopped chain can publish it. */
+    /** Proves root binding disposal cancels and removes owned transitions. */
     @Test
     fun rootBindingDisposalCancelsPendingTransitionAndCleansOwnerJobs() = runTest {
         var saves = 0
@@ -358,6 +378,7 @@ class PasswordChangeInteractorTest {
     }
 
     /** A stopped chain reaches the finite five-second observer timeout without a stale save. */
+    /** Proves unobserved replacement times out and cleans owner jobs. */
     @Test
     fun unprocessedReplacementTimesOutAndCleansOwnerJobs() = runTest {
         var saves = 0
@@ -388,6 +409,7 @@ class PasswordChangeInteractorTest {
     }
 
     /** A synchronous save failure never replays HTTP and a later completed-page exit remains usable. */
+    /** Proves save failure is not replayed and later Continue remains usable. */
     @Test
     fun saveFailureDoesNotReplayAndLaterContinuePersistsUsersList() = runTest {
         var saves = 0

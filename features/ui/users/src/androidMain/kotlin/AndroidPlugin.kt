@@ -16,8 +16,9 @@ import kotlinx.serialization.json.JsonObject
 import org.koin.core.Koin
 import org.koin.core.module.Module
 
-/** Android startup plugin — registers the users list, profile view and profile edit node factories. */
+/** Android startup plugin registering list, profile, editor, and pending/completed password factories. */
 object AndroidPlugin : StartPlugin {
+    /** Delegates shared users bindings and registers all four Compose Material3 node factories. */
     override fun Module.setupDI(config: JsonObject) {
         with(Plugin) { setupDI(config) }
 
@@ -43,6 +44,7 @@ object AndroidPlugin : StartPlugin {
         }
     }
 
+    /** Starts shared users feature initialization after platform registrations are available. */
     override suspend fun startPlugin(koin: Koin) {
         super.startPlugin(koin)
         Plugin.startPlugin(koin)

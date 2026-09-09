@@ -55,6 +55,7 @@ import org.koin.core.module.Module
  * [FilesClientService].
  */
 object Plugin : StartPlugin {
+    /** Registers shared serializers, four ViewModel factories, and the users feature facade. */
     @OptIn(ExperimentalCoroutinesApi::class)
     override fun Module.setupDI(config: JsonObject) {
         singleWithRandomQualifier {
@@ -153,6 +154,7 @@ object Plugin : StartPlugin {
         }
     }
 
+    /** Completes shared plugin startup; platform plugins call this after their registrations. */
     override suspend fun startPlugin(koin: Koin) {
         super.startPlugin(koin)
     }

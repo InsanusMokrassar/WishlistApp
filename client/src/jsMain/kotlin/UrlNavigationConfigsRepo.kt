@@ -341,11 +341,13 @@ private fun parsePath(data: LocationData): ConfigHolder.Chain<ViewConfig>? {
  * deep links to the content screens are shareable and survive a reload.
  */
 fun WishlistsAppUrlNavigationConfigsRepo(): NavigationConfigsRepo<ViewConfig> = object : NavigationConfigsRepo<ViewConfig> {
+    /** Writes the current hierarchy as a browser URL with a null history state. */
     override fun save(holder: ConfigHolder<ViewConfig>) {
         val locationData = LocationData.build { buildPath(holder) }
         window.history.pushState(null, SITE_TITLE, locationData.buildUrl())
     }
 
+    /** Restores a hierarchy from pathname and search without consulting history state. */
     override fun get(): ConfigHolder<ViewConfig>? = parsePath(
         LocationData(
             document.location?.pathname ?: "",

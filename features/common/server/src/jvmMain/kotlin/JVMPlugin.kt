@@ -59,6 +59,7 @@ import io.ktor.http.HttpStatusCode
 import java.io.File
 
 object JVMPlugin : StartPlugin {
+    /** Registers JVM Ktor infrastructure including the sanitized global StatusPages boundary. */
     override fun Module.setupDI(config: JsonObject) {
         with(JVMPlugin) { setupDI(config) }
         with(Plugin) { setupDI(config) }
@@ -184,6 +185,7 @@ object JVMPlugin : StartPlugin {
         }
     }
 
+    /** Starts the common JVM server plugin after all Ktor bindings are installed. */
     override suspend fun startPlugin(koin: Koin) {
         super.startPlugin(koin)
         JVMPlugin.startPlugin(koin)

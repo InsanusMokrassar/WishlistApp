@@ -117,6 +117,7 @@ object ClientPlugin : StartPlugin {
     val mainScaffoldConfig: ScaffoldViewConfig
         get() = mainScaffoldConfigProvider()
 
+    /** Registers client navigation, feature models, ViewModels, and root-owned transition state. */
     override fun Module.setupDI(config: JsonObject) {
         single<RootNodeFactoryGetter> {
             val nodeFactory: NavigationNodeFactory<ViewConfig> = getKoin().nodeFactory<ViewConfig>()
@@ -600,6 +601,7 @@ object ClientPlugin : StartPlugin {
         return "$spacers[Chain ${id?.string ?: "Anonymous"}] State ${parentNode ?.state ?: NavigationNodeState.RESUMED}\n${stack.joinToString("\n") { it.makeNodeString("$spacers  ") }}"
     }
 
+    /** Starts the root composition and binds password transitions to its surviving scope. */
     override suspend fun startPlugin(koin: Koin) {
         super.startPlugin(koin)
         val rootChain = koin.get<NavigationChain<ViewConfig>>()

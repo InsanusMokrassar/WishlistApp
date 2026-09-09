@@ -71,6 +71,7 @@ private object AuthReadFailure : IllegalStateException("credential read failed")
 
 /** Covers every issuance outcome at real Email, Auth, coordinator, and deeplink boundaries. */
 @OptIn(ExperimentalCoroutinesApi::class)
+/** Issuance cleanup tests for password approvals and SMTP outcomes. */
 class EmailPasswordChangeIssuanceTest {
     /** Captures the exact throwable object emitted by one suspend operation. */
     private suspend inline fun <reified T : Throwable> captureFailure(action: suspend () -> Unit): T = try {
@@ -91,6 +92,7 @@ class EmailPasswordChangeIssuanceTest {
     }
 
     /** A mint failure before persistence delegation retains its real DeepLinksService cleanup behavior. */
+    /** Verifies mint failure propagates and cleans exactly the allocated approval. */
     @Test
     fun mintBeforeWriteFailurePropagatesAndCleansExactlyAllocatedId() = runTest {
         val linksRepo = PasswordChangeDeepLinksRepo()
@@ -111,6 +113,7 @@ class EmailPasswordChangeIssuanceTest {
     }
 
     /** A real DeepLinksService mint write that loses its response keeps its own primary and suppressed failures. */
+    /** Verifies write-then-throw preserves primary failure and suppressed cleanup. */
     @Test
     fun mintWriteThenThrowPreservesDeepLinksPrimaryAndCleanupFailure() = runTest {
         val linksRepo = PasswordChangeDeepLinksRepo()
@@ -134,6 +137,7 @@ class EmailPasswordChangeIssuanceTest {
     }
 
     /** A false SMTP response returns DeliveryFailed only after exactly one successful owned-id removal. */
+    /** Verifies false SMTP removes only the owned approval and preserves siblings. */
     @Test
     fun falseSmtpRemovesOwnedApprovalAndPreservesSiblingRecords() = runTest {
         val emails = ControlledIssuanceEmailsService().apply { result = false }
@@ -152,6 +156,7 @@ class EmailPasswordChangeIssuanceTest {
     }
 
     /** A false SMTP response exposes a first removal failure instead of falsely reporting delivery failure. */
+    /** Verifies false SMTP cleanup failure is primary and attempted once. */
     @Test
     fun falseSmtpRemovalFailureIsPrimaryAndAttemptsExactIdOnce() = runTest {
         val cleanupFailure = CleanupFailure
@@ -170,6 +175,7 @@ class EmailPasswordChangeIssuanceTest {
     }
 
     /** An ordinary SMTP exception becomes DeliveryFailed after successful one-attempt cleanup. */
+    /** Verifies ordinary SMTP failure returns DeliveryFailed after cleanup. */
     @Test
     fun ordinarySmtpExceptionReturnsDeliveryFailedAfterCleanup() = runTest {
         val fixture = PasswordChangeTestFixtures.fixture(
@@ -188,6 +194,7 @@ class EmailPasswordChangeIssuanceTest {
     }
 
     /** An ordinary SMTP exception remains primary when its owned-id cleanup also fails. */
+    /** Verifies SMTP failure remains primary when cleanup also fails. */
     @Test
     fun ordinarySmtpExceptionPreservesPrimaryWhenCleanupFails() = runTest {
         val smtpFailure = SmtpFailure
@@ -209,6 +216,7 @@ class EmailPasswordChangeIssuanceTest {
     }
 
     /** A post-send Auth state read failure remains primary and does not write a password. */
+    /** Verifies post-send Auth read failure cleans the owned approval. */
     @Test
     fun postSendAuthReadFailureCleansOwnedApprovalAndPreservesFailureIdentity() = runTest {
         val readFailure = AuthReadFailure
@@ -228,6 +236,7 @@ class EmailPasswordChangeIssuanceTest {
     }
 
     /** A post-send Auth read failure retains its identity and suppresses a failed owned-id removal. */
+    /** Verifies cleanup failure is suppressed on post-send Auth read failure. */
     @Test
     fun postSendAuthReadFailureSuppressesCleanupFailure() = runTest {
         val readFailure = AuthReadFailure
@@ -249,6 +258,7 @@ class EmailPasswordChangeIssuanceTest {
     }
 
     /** A delivery-time approved-email change returns Ineligible and removes only the issued approval. */
+    /** Verifies changed account state returns Ineligible with exact cleanup. */
     @Test
     fun changedAccountStateAfterDeliveryReturnsIneligibleWithExactCleanup() = runTest {
         val emails = ControlledIssuanceEmailsService()
@@ -269,6 +279,7 @@ class EmailPasswordChangeIssuanceTest {
     }
 
     /** Cancellation observed after the non-cancellable mint enrollment removes the returned exact id. */
+    /** Verifies cancellation after mint enrollment cleans the exact approval. */
     @Test
     fun cancellationAfterMintEnrollmentCleansExactOwnedApproval() = runTest {
         val fixture = PasswordChangeTestFixtures.fixture()
@@ -287,6 +298,7 @@ class EmailPasswordChangeIssuanceTest {
     }
 
     /** Cancellation after SMTP accepted delivery transfers the pending Sent outcome to exact cleanup. */
+    /** Verifies cancellation after SMTP acceptance cleans the exact approval. */
     @Test
     fun cancellationAfterSmtpAcceptanceCleansExactOwnedApproval() = runTest {
         val emails = ControlledIssuanceEmailsService()
@@ -307,6 +319,7 @@ class EmailPasswordChangeIssuanceTest {
     }
 
     /** Cancellation while SMTP is suspended performs bounded cleanup without awaiting the SMTP gate. */
+    /** Verifies cancellation while SMTP is suspended cleans the exact approval. */
     @Test
     fun cancellationWhileSmtpSuspendedCleansExactOwnedApproval() = runTest {
         val emails = ControlledIssuanceEmailsService()
@@ -329,6 +342,7 @@ class EmailPasswordChangeIssuanceTest {
     }
 
     /** A Sent result retains the issued approval and does not remove sibling or unrelated records. */
+    /** Verifies Sent retains its approval while false delivery removes only that approval. */
     @Test
     fun sentRetainsIssuedApprovalAndFalseDeliveryRemovesOnlyIssuedApproval() = runTest {
         val sentFixture = PasswordChangeTestFixtures.fixture()

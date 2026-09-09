@@ -44,26 +44,31 @@ class PasswordChangeViewModel(
     /** Immutable navigation configuration for this ViewModel lifetime. */
     val config: PasswordChangeViewConfig = node.config
 
+    /** Backing state for the transient plaintext password field. */
     private val _passwordState = MutableRedeliverStateFlow("")
 
     /** New plaintext password held only until submission/navigation destruction. */
     val passwordState: StateFlow<String> = _passwordState.asStateFlow()
 
+    /** Backing state for the transient plaintext confirmation field. */
     private val _confirmationState = MutableRedeliverStateFlow("")
 
     /** Matching confirmation held only in ViewModel memory. */
     val confirmationState: StateFlow<String> = _confirmationState.asStateFlow()
 
+    /** Backing state that prevents concurrent completion requests. */
     private val _loadingState = MutableRedeliverStateFlow(false)
 
     /** `true` while one completion request is awaiting a response. */
     val loadingState: StateFlow<Boolean> = _loadingState.asStateFlow()
 
+    /** Backing state for the latest local or server-facing completion outcome. */
     private val _resultState = MutableRedeliverStateFlow<PasswordChangeSubmissionState?>(null)
 
     /** Most recent local or server-facing completion result. */
     val resultState: StateFlow<PasswordChangeSubmissionState?> = _resultState.asStateFlow()
 
+    /** Backing state that permanently disables this page after approval rejection. */
     private val _terminalInvalidApprovalState = MutableRedeliverStateFlow(false)
 
     /** `true` once an approval is rejected, preventing unsafe replay from the same screen. */

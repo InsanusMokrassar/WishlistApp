@@ -24,7 +24,7 @@ import kotlin.test.assertFalse
 import kotlin.test.assertNull
 import kotlin.test.assertTrue
 
-/** Exercises synchronous authorization and result handling for the owner password-email action. */
+/** Owner eligibility, stale-state, and password-email feedback regression tests. */
 @OptIn(ExperimentalCoroutinesApi::class)
 class UserEditViewModelPasswordChangeTest {
     /** Approved private profile used by the permitted owner flows. */
@@ -61,6 +61,7 @@ class UserEditViewModelPasswordChangeTest {
     }
 
     /** Confirms ordinary owners and root editing their own profile issue exactly the displayed address. */
+    /** Verifies eligible owner and root-self requests use only the displayed approved email. */
     @Test
     fun ownerAndRootOnSelfIssueOnlyDisplayedApprovedEmailWithoutOtherMutations() = runTest {
         listOf(false, true).forEach { root ->
@@ -83,6 +84,7 @@ class UserEditViewModelPasswordChangeTest {
     }
 
     /** Rejects every caller, profile, and capability state that cannot prove an eligible current owner. */
+    /** Verifies raw admission rejects unauthorized, missing, mismatched, and unavailable states. */
     @Test
     fun rawAdmissionRejectsUnauthorizedMissingUnapprovedMismatchedAndUnavailableStates() = runTest {
         val cases = listOf(
@@ -114,6 +116,7 @@ class UserEditViewModelPasswordChangeTest {
     }
 
     /** Rejects an immediate repeated click while the first owner-bound request holds the busy slot. */
+    /** Verifies busy admission accepts one password-change email request. */
     @Test
     fun busyPasswordChangeRequestAcceptsOnlyOneClick() = runTest {
         val entered = CompletableDeferred<Unit>()
@@ -145,6 +148,7 @@ class UserEditViewModelPasswordChangeTest {
     }
 
     /** Separates domain results and null transport uncertainty while reconciling before a retry. */
+    /** Verifies distinct feedback and eligible retry reconciliation. */
     @Test
     fun passwordChangeFeedbackIsDistinctAndEligibleRetryReconcilesProfile() = runTest {
         val outcomes = listOf(
@@ -177,6 +181,7 @@ class UserEditViewModelPasswordChangeTest {
     }
 
     /** Keeps password-email admission closed until every cold, held, and failed owner refresh settles. */
+    /** Verifies Unknown, Loading, refresh, and failure states remain ineligible. */
     @Test
     fun unknownLoadingAndRefreshKeepPasswordRequestIneligible() = runTest {
         val dispatcher = StandardTestDispatcher(testScheduler)
@@ -251,6 +256,7 @@ class UserEditViewModelPasswordChangeTest {
     }
 
     /** Rejects an action when a queued derived state is stale true but raw authorization is already false. */
+    /** Verifies stale derived eligibility cannot authorize a raw-invalid request. */
     @Test
     fun staleTrueCannotAuthorizePasswordEmail() = runTest {
         val dispatcher = StandardTestDispatcher(testScheduler)
@@ -269,6 +275,7 @@ class UserEditViewModelPasswordChangeTest {
     }
 
     /** Admits a raw-valid request when queued derived eligibility is still stale false during refresh completion. */
+    /** Verifies stale derived ineligibility cannot block a raw-valid request. */
     @Test
     fun staleFalseDoesNotBlockValidRawAdmission() = runTest {
         val dispatcher = StandardTestDispatcher(testScheduler)
@@ -308,6 +315,7 @@ class UserEditViewModelPasswordChangeTest {
     }
 
     /** Prevents an obsolete completion from publishing or clearing a distinct later owner mutation. */
+    /** Verifies an obsolete completion cannot publish or clear a later mutation. */
     @Test
     fun stalePasswordChangeCompletionCannotPublishOrClearLaterMutation() = runTest {
         val firstEntered = CompletableDeferred<Unit>()

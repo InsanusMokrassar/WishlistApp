@@ -21,6 +21,7 @@ class PasswordChangeHtmlPolicyTest {
     }
 
     /** Ensures the no-referrer declaration occurs before every script and link resource element. */
+    /** Verifies the no-referrer meta tag precedes every external HTML resource. */
     @Test
     fun noReferrerMetaPrecedesEveryScriptAndLinkResource() {
         val html = productionHtml()
@@ -40,6 +41,7 @@ class PasswordChangeHtmlPolicyTest {
     }
 
     /** Ensures password-change navigation diagnostics never expose an actionable approval UUID. */
+    /** Verifies pending route diagnostics redact the approval identifier. */
     @Test
     fun pendingPasswordChangeConfigRedactsApprovalIdentifier() {
         val approval = "approval-uuid-sentinel"

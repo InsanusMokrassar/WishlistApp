@@ -23,7 +23,9 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.flow.merge
 
+/** Registers shared Auth client transport, credentials, and password-change bindings. */
 object Plugin : StartPlugin {
+    /** Registers Auth transport, credentials, and password-change client bindings. */
     override fun Module.setupDI(config: JsonObject) {
         singleWithRandomQualifier<HttpClientConfigurator> {
             DefaultUrlHttpClientConfigurator(get())
@@ -46,6 +48,7 @@ object Plugin : StartPlugin {
         }
     }
 
+    /** Starts Auth client state synchronization after dependency registration. */
     override suspend fun startPlugin(koin: Koin) {
         super.startPlugin(koin)
 

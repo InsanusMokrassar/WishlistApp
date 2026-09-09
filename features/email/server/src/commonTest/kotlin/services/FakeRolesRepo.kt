@@ -12,10 +12,15 @@ import kotlinx.coroutines.flow.asSharedFlow
 
 /** In-memory role repository used by email verification handler tests. */
 internal class FakeRolesRepo : RolesRepo {
+    /** Mutable direct role grants keyed by subject. */
     private val grants = mutableMapOf<BaseRoleSubject, MutableSet<BaseRole>>()
+    /** Event stream for direct role inclusion. */
     private val _roleIncluded = MutableSharedFlow<Pair<BaseRoleSubject, BaseRole>>()
+    /** Event stream for direct role exclusion. */
     private val _roleExcluded = MutableSharedFlow<Pair<BaseRoleSubject, BaseRole>>()
+    /** Event stream for role creation. */
     private val _roleCreated = MutableSharedFlow<BaseRole>()
+    /** Event stream for role removal. */
     private val _roleRemoved = MutableSharedFlow<BaseRole>()
 
     /** Number of direct inclusion calls, including idempotent calls. */

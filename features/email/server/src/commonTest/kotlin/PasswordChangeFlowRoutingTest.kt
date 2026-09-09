@@ -168,6 +168,7 @@ private class KtorLogCapture(
 }
 
 /** Exercises the production Auth, Email, and deeplink HTTP boundary for password approvals. */
+/** Production-route matrix for email-authorized password change and global error handling. */
 class PasswordChangeFlowRoutingTest {
     /** Approved account that is the only permitted password-change subject in these flows. */
     private val owner = RegisteredUser(
@@ -342,6 +343,7 @@ class PasswordChangeFlowRoutingTest {
     }
 
     /** Preserves Auth's malformed-body and explicit authentication/path status contracts globally. */
+    /** Verifies malformed legacy Auth bodies remain HTTP 400 under production StatusPages. */
     @Test
     fun malformedLegacyAuthBodiesRemainBadRequestUnderProductionStatusPages() = testApplication {
         val graph = graph()
@@ -372,6 +374,7 @@ class PasswordChangeFlowRoutingTest {
     }
 
     /** Establishes the unsanitized Ktor baseline used by the production 400 parity regression. */
+    /** Verifies the unsanitized Ktor bad-request baseline remains HTTP 400. */
     @Test
     fun unsanitizedKtorBadRequestBaselineIsBadRequest() = testApplication {
         application {
@@ -385,6 +388,7 @@ class PasswordChangeFlowRoutingTest {
     }
 
     /** Preserves Ktor's typed status classes while redacting request and exception detail in production logs. */
+    /** Verifies typed Ktor statuses and every log representation remain secret-safe. */
     @Test
     fun productionStatusPagesPreserveTypedKtorStatusesAndRedactAllLogRepresentations() = testApplication {
         val graph = graph()
@@ -436,6 +440,7 @@ class PasswordChangeFlowRoutingTest {
     }
 
     /** Invokes Common's contributed Throwable callback to prove both cancellation classes rethrow by identity. */
+    /** Verifies contributed StatusPages callbacks rethrow cancellation without side effects. */
     @Test
     fun contributedThrowableCallbackRethrowsCancellationWithoutResponseOrBoundaryLog() = testApplication {
         val graph = graph()
@@ -589,6 +594,7 @@ class PasswordChangeFlowRoutingTest {
     }
 
     /** Captures issuance, read-only redirect, and anonymous approval-bound password completion. */
+    /** Verifies one approval redirects read-only and completion changes only its subject. */
     @Test
     fun issuedEmailRedirectUsesSameApprovalAndAnonymousCompletionChangesOnlyOwner() = testApplication {
         val graph = graph()
@@ -616,6 +622,7 @@ class PasswordChangeFlowRoutingTest {
     }
 
     /** Proves a valid unrelated browser bearer cannot override the approval-bound completion subject. */
+    /** Verifies an unrelated bearer cannot select the approval's password subject. */
     @Test
     fun unrelatedBrowserBearerCannotSelectPasswordChangeSubject() = testApplication {
         val graph = graph()
@@ -632,6 +639,7 @@ class PasswordChangeFlowRoutingTest {
     }
 
     /** Proves live approval invalidation, session preservation, and zero role mutation across two real accounts. */
+    /** Verifies sibling invalidation preserves sessions and roles across two accounts. */
     @Test
     fun siblingInvalidationPreservesExistingSessionsAndAccountEightApprovalWithoutRoleMutation() = testApplication {
         val graph = graph()
@@ -701,6 +709,7 @@ class PasswordChangeFlowRoutingTest {
     }
 
     /** Verifies known response status and unset status use the production status-only format. */
+    /** Verifies safe call logging keeps known status and zero-status fallback semantics. */
     @Test
     fun safeCallLogLineUsesKnownStatusAndZeroFallback() = testApplication {
         val beforeResponseLines = mutableListOf<String>()
@@ -727,6 +736,7 @@ class PasswordChangeFlowRoutingTest {
     }
 
     /** Verifies production Ktor logging and unhandled errors cannot expose actionable request detail. */
+    /** Verifies production logging redacts route and unhandled failure details. */
     @Test
     fun productionLoggingRedactsRouteAndUnhandledFailureDetails() = testApplication {
         val graph = graph()
@@ -791,6 +801,7 @@ class PasswordChangeFlowRoutingTest {
     }
 
     /** Verifies request and payload diagnostic strings redact all approval and credential-bearing fields. */
+    /** Verifies password diagnostics redact approval, password, email, and credential state. */
     @Test
     fun passwordChangeDiagnosticStringsRedactApprovalPasswordEmailAndCredentialState() {
         val approval = "approval-uuid-sentinel"
@@ -808,6 +819,7 @@ class PasswordChangeFlowRoutingTest {
     }
 
     /** Ensures a real issuance repository exception reaches no public body or call log detail. */
+    /** Verifies issuance repository failure is sanitized without sentinel disclosure. */
     @Test
     fun issuanceRepositoryFailureIsSanitizedInResponseAndCallLog() = testApplication {
         val graph = graph()
@@ -830,6 +842,7 @@ class PasswordChangeFlowRoutingTest {
     }
 
     /** Ensures a real deeplink lookup failure becomes a header-protected 500 without mutation or leakage. */
+    /** Verifies deeplink lookup failure is sanitized without writes or sentinel leakage. */
     @Test
     fun deeplinkLookupFailureIsSanitizedWithoutWritesOrSentinelLeak() = testApplication {
         val graph = graph()

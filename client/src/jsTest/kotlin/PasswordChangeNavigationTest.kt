@@ -9,7 +9,7 @@ import kotlin.test.assertNull
 
 /** Verifies credential-free password-change URL serialization at the browser navigation seam. */
 class PasswordChangeNavigationTest {
-    /** A canonical pending approval survives URL emission and parsing unchanged. */
+    /** Verifies canonical approval segments round-trip through the browser route parser. */
     @Test
     fun pendingApprovalRoundTripsThroughExactSegments() {
         val config = PasswordChangeViewConfig.Pending(
@@ -27,7 +27,7 @@ class PasswordChangeNavigationTest {
         )
     }
 
-    /** Invalid identities and path shapes never create an actionable pending configuration. */
+    /** Verifies malformed approval segments are rejected instead of normalized. */
     @Test
     fun malformedApprovalSegmentsAreRejected() {
         assertNull(

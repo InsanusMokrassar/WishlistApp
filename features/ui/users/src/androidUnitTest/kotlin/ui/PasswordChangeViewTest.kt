@@ -50,12 +50,14 @@ import kotlin.test.assertTrue
 /** Executes the Android platform password-change factory in a Robolectric-owned ComponentActivity. */
 @RunWith(RobolectricTestRunner::class)
 @Config(sdk = [35])
+/** Android Compose tests for protected pending and credential-free completed views. */
 class PasswordChangeViewTest {
     /** Empty Compose rule synchronizes semantics while each test explicitly owns its activity host. */
     @get:Rule
     val composeRule = createEmptyComposeRule()
 
     /** Pending form keeps its configuration, exposes password Done semantics, and admits one corrected request. */
+    /** Verifies the pending factory masks fields and admits one corrected IME submission. */
     @Test
     fun pendingFactoryDrawsProtectedFormAndAdmitsOneCorrectedImeSubmission() {
         val response = CompletableDeferred<PasswordChangeResult?>()
@@ -103,6 +105,7 @@ class PasswordChangeViewTest {
     }
 
     /** Completed factory config draws credential-free content and never renders editable password fields. */
+    /** Verifies the completed factory omits password inputs and actions. */
     @Test
     fun completedFactoryDrawsCredentialFreeContentWithoutPasswordInputs() {
         val fixture = createFixture(UserEditTestUsersModel(null, null, initiallyAuthorised = false), PasswordChangeViewConfig.Completed)

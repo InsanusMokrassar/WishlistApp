@@ -18,7 +18,7 @@ import kotlin.test.assertEquals
 import kotlin.test.assertFalse
 import kotlin.test.assertTrue
 
-/** Exercises token-bound form validation and completion outcomes without platform UI dependencies. */
+/** Shared ViewModel tests for approval-bound password submission and secret clearing. */
 @OptIn(ExperimentalCoroutinesApi::class)
 class PasswordChangeViewModelTest {
     /** Fixed canonical v4 approval used to prove the ViewModel never rewrites route identity. */
@@ -27,7 +27,7 @@ class PasswordChangeViewModelTest {
     /** Pending configuration used by tests that submit a real immutable subject and approval. */
     private val pendingConfig = PasswordChangeViewConfig.Pending(UserId(7L), approvalId)
 
-    /** A matching acceptable submission sends the exact route values and retires entered passwords. */
+    /** Verifies matching input submits the exact approval and clears plaintext. */
     @Test
     fun matchingSubmissionUsesExactApprovalAndClearsSensitiveFields() = runTest {
         val model = UserEditTestUsersModel(
@@ -64,6 +64,7 @@ class PasswordChangeViewModelTest {
     }
 
     /** Mismatch and UTF-8-overlong input fail locally without spending the persisted approval. */
+    /** Verifies invalid local input never submits an approval. */
     @Test
     fun invalidLocalInputNeverSubmitsApproval() = runTest {
         val model = UserEditTestUsersModel(null, null, initiallyAuthorised = false)
@@ -92,6 +93,7 @@ class PasswordChangeViewModelTest {
     }
 
     /** Raw input state, rather than asynchronously derived presentation state, controls admission. */
+    /** Verifies synchronous guards reject stale mismatch and duplicate clicks. */
     @Test
     fun synchronousSubmissionGuardRejectsStaleMismatchAndDuplicateClick() = runTest {
         val model = UserEditTestUsersModel(null, null, initiallyAuthorised = false)
@@ -120,6 +122,7 @@ class PasswordChangeViewModelTest {
     }
 
     /** A pending server response holds the raw busy slot before dispatched work starts. */
+    /** Verifies immediate double submission admits exactly one request. */
     @Test
     fun immediateDoubleSubmitAdmitsOneRequest() = runTest {
         val response = CompletableDeferred<PasswordChangeResult?>()
@@ -151,6 +154,7 @@ class PasswordChangeViewModelTest {
     }
 
     /** Raw admission accepts valid input before derived presentation state catches up and rejects stale policy state. */
+    /** Verifies admission uses raw fields instead of lagging derived state. */
     @Test
     fun immediateAdmissionAndLocalValidationDoNotTrustDerivedSubmitState() = runTest {
         val model = UserEditTestUsersModel(null, null, initiallyAuthorised = false)
@@ -189,6 +193,7 @@ class PasswordChangeViewModelTest {
     }
 
     /** A rejected approval becomes terminal and suppresses accidental replay from the same page. */
+    /** Verifies invalid approval becomes terminal and prevents duplicate submission. */
     @Test
     fun invalidApprovalPreventsDuplicateSubmission() = runTest {
         val model = UserEditTestUsersModel(null, null, initiallyAuthorised = false).apply {
@@ -220,6 +225,7 @@ class PasswordChangeViewModelTest {
     }
 
     /** A completed route carries no approval and cannot issue a completion transport request. */
+    /** Verifies completed configuration has no actionable credential form. */
     @Test
     fun completedConfigIsCredentialFreeAndNonActionable() = runTest {
         val model = UserEditTestUsersModel(null, null, initiallyAuthorised = false)
@@ -244,6 +250,7 @@ class PasswordChangeViewModelTest {
     }
 
     /** Destroying the pending node clears plaintext inputs even when no server response arrives. */
+    /** Verifies ViewModel destruction clears in-memory password fields. */
     @Test
     fun destructionClearsInMemoryPasswordInputs() = runTest {
         val viewModel = PasswordChangeViewModel(

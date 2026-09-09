@@ -44,8 +44,10 @@ import kotlin.test.assertTrue
 
 /** Runs the platform-contributed JVM password-change factory through a real Compose semantics host. */
 @OptIn(ExperimentalTestApi::class)
+/** JVM Compose tests for protected pending and credential-free completed views. */
 class PasswordChangeViewTest {
     /** Pending form keeps its immutable configuration, protects both fields, and admits one Done request. */
+    /** Verifies the pending factory masks fields and admits one corrected IME submission. */
     @Test
     fun pendingFactoryDrawsProtectedFormAndAdmitsOneCorrectedImeSubmission() = runComposeUiTest {
         val response = CompletableDeferred<PasswordChangeResult?>()
@@ -93,6 +95,7 @@ class PasswordChangeViewTest {
     }
 
     /** Completed factory config draws only credential-free completion content. */
+    /** Verifies the completed factory omits password inputs and actions. */
     @Test
     fun completedFactoryDrawsCredentialFreeContentWithoutPasswordInputs() = runComposeUiTest {
         val fixture = createFixture(UserEditTestUsersModel(null, null, initiallyAuthorised = false), PasswordChangeViewConfig.Completed)

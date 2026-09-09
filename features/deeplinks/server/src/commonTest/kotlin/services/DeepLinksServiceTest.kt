@@ -53,6 +53,7 @@ class DeepLinksServiceTest {
     }
 
     /** A nonexistent identifier never reaches a handler and returns the not-found result. */
+    /** Verifies missing records map to NotFound without handler invocation. */
     @Test
     fun missingLinkReturnsNotFound() = runTest {
         val service = DeepLinksService(FakeDeepLinksRepo(), emptyList())
@@ -61,6 +62,7 @@ class DeepLinksServiceTest {
     }
 
     /** Unknown handlers and nullable handler outcomes both remain unhandled. */
+    /** Verifies links with no matching handler remain unhandled. */
     @Test
     fun unclaimedLinksReturnUnhandled() = runTest {
         val repo = FakeDeepLinksRepo()
@@ -78,6 +80,7 @@ class DeepLinksServiceTest {
     }
 
     /** Successful outcomes are returned exactly, including the redirect destination. */
+    /** Verifies handler results are returned without dispatcher rewriting. */
     @Test
     fun handledResultsArePreserved() = runTest {
         val repo = FakeDeepLinksRepo()
@@ -100,6 +103,7 @@ class DeepLinksServiceTest {
     }
 
     /** Duplicate handler identifiers fail immediately instead of shadowing one registration. */
+    /** Verifies duplicate handler identifiers fail during service construction. */
     @Test
     fun duplicateHandlerIdsFailAtConstruction() {
         val id = DeepLinkHandlerId("duplicate")
@@ -110,6 +114,7 @@ class DeepLinksServiceTest {
     }
 
     /** A persistence exception after commit triggers non-cancellable removal of only the minted UUID. */
+    /** Verifies mint failures remove exactly the allocated deeplink. */
     @Test
     fun mintFailureCleansExactlyTheAllocatedLink() = runTest {
         val repo = CommitThenThrowDeepLinksRepo()
