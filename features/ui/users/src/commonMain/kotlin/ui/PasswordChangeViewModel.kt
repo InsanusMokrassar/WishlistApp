@@ -67,6 +67,9 @@ class PasswordChangeViewModel(
     /** `true` once an approval is rejected, preventing unsafe replay from the same screen. */
     val terminalInvalidApprovalState: StateFlow<Boolean> = _terminalInvalidApprovalState.asStateFlow()
 
+    /** Prevents a retained pending node from submitting again after a successful transition. */
+    private val _submissionSucceededState = MutableRedeliverStateFlow(false)
+
     /** Whether this node already represents a credential-free completed state. */
     val completedState: Boolean = config is PasswordChangeViewConfig.Completed
 
@@ -91,10 +94,12 @@ class PasswordChangeViewModel(
             _confirmationState,
             _loadingState,
             _terminalInvalidApprovalState,
-        ) { password, confirmation, loading, terminalInvalidApproval ->
+            _submissionSucceededState,
+        ) { password, confirmation, loading, terminalInvalidApproval, submissionSucceeded ->
             config is PasswordChangeViewConfig.Pending &&
                 !loading &&
                 !terminalInvalidApproval &&
+                !submissionSucceeded &&
                 password == confirmation &&
                 isAcceptablePasswordChangePassword(Password(password))
         }.stateIn(workScope, SharingStarted.Eagerly, false)
@@ -135,7 +140,7 @@ class PasswordChangeViewModel(
         val password = _passwordState.value
         val confirmation = _confirmationState.value
         when {
-            _loadingState.value || _terminalInvalidApprovalState.value -> return
+            _loadingState.value || _terminalInvalidApprovalState.value || _submissionSucceededState.value -> return
             password != confirmation -> {
                 _resultState.value = PasswordChangeSubmissionState.Mismatch
                 return
@@ -152,6 +157,7 @@ class PasswordChangeViewModel(
             try {
                 when (model.completePasswordChange(request)) {
                     PasswordChangeResult.Changed -> {
+                        _submissionSucceededState.value = true
                         _passwordState.value = ""
                         _confirmationState.value = ""
                         interactor.onChanged(node)

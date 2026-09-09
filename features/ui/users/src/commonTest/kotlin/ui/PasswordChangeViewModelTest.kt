@@ -12,6 +12,7 @@ import kotlinx.coroutines.test.advanceUntilIdle
 import kotlinx.coroutines.test.runCurrent
 import kotlinx.coroutines.test.runTest
 import kotlinx.coroutines.test.StandardTestDispatcher
+import kotlinx.coroutines.CompletableDeferred
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
@@ -113,6 +114,37 @@ class PasswordChangeViewModelTest {
             assertTrue(viewModel.loadingState.value)
             runCurrent()
             assertEquals(1, model.passwordChangeRequests.size)
+        } finally {
+            viewModel.scope.cancel()
+        }
+    }
+
+    /** A pending server response holds the raw busy slot before dispatched work starts. */
+    @Test
+    fun immediateDoubleSubmitAdmitsOneRequest() = runTest {
+        val response = CompletableDeferred<PasswordChangeResult?>()
+        val model = UserEditTestUsersModel(null, null, initiallyAuthorised = false).apply {
+            passwordChangeHandler = { response.await() }
+        }
+        val interactor = RecordingPasswordChangeInteractor()
+        val viewModel = PasswordChangeViewModel(
+            passwordChangeTestNode(pendingConfig), model, interactor, StandardTestDispatcher(testScheduler),
+        )
+        try {
+            viewModel.onPasswordChanged("new-password")
+            viewModel.onConfirmationChanged("new-password")
+            viewModel.onSubmitPasswordChange()
+            viewModel.onSubmitPasswordChange()
+            assertTrue(viewModel.loadingState.value)
+            runCurrent()
+            assertEquals(1, model.passwordChangeRequests.size)
+            response.complete(PasswordChangeResult.Changed)
+            advanceUntilIdle()
+            assertEquals(1, interactor.changedCalls)
+            viewModel.onSubmitPasswordChange()
+            advanceUntilIdle()
+            assertEquals(1, model.passwordChangeRequests.size)
+            assertEquals(1, interactor.changedCalls)
         } finally {
             viewModel.scope.cancel()
         }
