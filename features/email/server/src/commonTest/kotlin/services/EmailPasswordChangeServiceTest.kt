@@ -4,6 +4,7 @@ import dev.inmo.wishlist.features.auth.common.models.CompletePasswordChangeReque
 import dev.inmo.wishlist.features.auth.common.models.Password
 import dev.inmo.wishlist.features.auth.common.models.PasswordChangeEmailRequestResult
 import dev.inmo.wishlist.features.auth.common.models.PasswordChangeResult
+import dev.inmo.wishlist.features.auth.server.services.AuthFeatureService
 import dev.inmo.wishlist.features.deeplinks.common.models.DeepLinkId
 import dev.inmo.wishlist.features.deeplinks.common.models.DeepLinkHandlerId
 import dev.inmo.wishlist.features.deeplinks.common.models.DeepLinkHandlerInfo
@@ -233,10 +234,32 @@ class EmailPasswordChangeServiceTest {
         run { val (fixture, id) = issued(); fixture.coordinator.updateStoredEmail(fixture.user.id, Email("other@example.com")); fixture.coordinator.updateStoredEmail(fixture.user.id, fixture.user.email!!); invalid(fixture, id) }
         run { val (fixture, id) = issued(); fixture.roles.directRolePresent = false; invalid(fixture, id) }
         run {
-            val fixture = fixture(roleBridgePresent = false)
-            val id = DeepLinkId("123e4567-e89b-42d3-a456-426614174001")
-            fixture.linksRepo.seed(id, DeepLinkHandlerInfo(EmailPasswordChange.handlerId, EmailPasswordChangePayload(fixture.user.id, fixture.user.email!!, 901_000L, "untrusted-state")))
-            invalid(fixture, id)
+            val fixture = fixture()
+            assertEquals(
+                PasswordChangeEmailRequestResult.Sent,
+                fixture.service.requestPasswordChangeEmail(fixture.user.id, fixture.user.email!!),
+            )
+            val id = fixture.linksRepo.getAll().keys.single()
+            val bridgeAbsentAuth = AuthFeatureService(
+                usersRepo = fixture.trackedUsers,
+                writeUsersRepo = fixture.trackedUsers,
+                passwordsRepo = fixture.passwords,
+                userRoleAuthorization = null,
+            )
+            val bridgeAbsentService = EmailPasswordChangeService(
+                emailsService = null,
+                deepLinksService = fixture.links,
+                accountCoordinator = fixture.coordinator,
+                authFeatureService = bridgeAbsentAuth,
+                publicHttpOrigin = "https://wishlist.example",
+            )
+            fixture.passwords.resetIssuedPasswordWriteCount()
+            val request = CompletePasswordChangeRequest(fixture.user.id, id, Password("new-password"))
+            assertEquals(PasswordChangeResult.InvalidApproval, bridgeAbsentService.completePasswordChange(request))
+            assertEquals(0, fixture.passwords.issuedPasswordWriteCount)
+            assertTrue(fixture.linksRepo.get(id) != null)
+            assertEquals(PasswordChangeResult.Changed, fixture.service.completePasswordChange(request))
+            assertEquals(1, fixture.passwords.issuedPasswordWriteCount)
         }
         run { val (fixture, id) = issued(); fixture.passwords.unset(listOf(fixture.user.id)); invalid(fixture, id) }
         run { val (fixture, id) = issued(); fixture.users.deleteById(fixture.user.id); invalid(fixture, id) }

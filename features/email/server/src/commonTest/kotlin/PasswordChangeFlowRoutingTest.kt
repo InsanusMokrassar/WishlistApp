@@ -4,10 +4,16 @@ import ch.qos.logback.classic.Level as LogbackLevel
 import ch.qos.logback.classic.Logger as LogbackLogger
 import ch.qos.logback.classic.spi.ILoggingEvent
 import ch.qos.logback.core.read.ListAppender
+import dev.inmo.kroles.repos.BaseRoleSubject
 import dev.inmo.kroles.repos.RolesRepo
+import dev.inmo.wishlist.features.auth.common.models.AuthCredentials
+import dev.inmo.wishlist.features.auth.common.models.AuthFeatureUser
 import dev.inmo.wishlist.features.auth.common.models.CompletePasswordChangeRequest
+import dev.inmo.wishlist.features.auth.common.models.LoginRequest
 import dev.inmo.wishlist.features.auth.common.models.Password
 import dev.inmo.wishlist.features.auth.common.models.PasswordChangeEmailRequest
+import dev.inmo.wishlist.features.auth.common.models.PasswordChangeResult
+import dev.inmo.wishlist.features.auth.common.models.RefreshRequest
 import dev.inmo.wishlist.features.auth.common.models.Token
 import dev.inmo.wishlist.features.auth.server.Plugin as AuthServerPlugin
 import dev.inmo.wishlist.features.auth.server.ServerPasswordChangeFeature
@@ -71,6 +77,7 @@ import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.TimeoutCancellationException
 import kotlinx.coroutines.awaitCancellation
 import kotlinx.coroutines.withTimeout
+import kotlinx.serialization.decodeFromString
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonObject
@@ -109,10 +116,14 @@ private class PasswordChangeFlowGraph(
     val linksRepo: PasswordChangeDeepLinksRepo,
     /** Controlled persistence store behind real Auth password writes. */
     val passwords: PasswordChangePasswordsRepo,
-    /** Existing owner access token minted by the real Auth service. */
-    val ownerToken: Token,
-    /** Existing unrelated-account access token minted by the real Auth service. */
-    val unrelatedToken: Token,
+    /** Real role repository whose mutation attempts remain observable after fixture bootstrap. */
+    val rolesRepo: FakeRolesRepo,
+    /** Real Auth direct-role bridge whose creation attempts remain observable after fixture bootstrap. */
+    val roleAuthorization: PasswordChangeRoleAuthorization,
+    /** Complete owner credentials minted before every password-approval action. */
+    val ownerCredentials: AuthCredentials,
+    /** Complete account-8 credentials minted before every password-approval action. */
+    val unrelatedCredentials: AuthCredentials,
 ) {
     /** Closes the isolated dependency graph after an HTTP test completes. */
     fun close() {
@@ -191,6 +202,8 @@ class PasswordChangeFlowRoutingTest {
         val passwords = PasswordChangePasswordsRepo()
         val linksRepo = PasswordChangeDeepLinksRepo()
         val emails = FakeEmailsService()
+        val rolesRepo = FakeRolesRepo()
+        val roleAuthorization = PasswordChangeRoleAuthorization()
         val application = KoinApplication.init()
         application.modules(module {
             single<UsersRepo> { users }
@@ -198,9 +211,9 @@ class PasswordChangeFlowRoutingTest {
             single<WriteUsersRepo> { users }
             single<PasswordsRepo> { passwords }
             single<DeepLinksRepo> { linksRepo }
-            single<RolesRepo> { FakeRolesRepo() }
+            single<RolesRepo> { rolesRepo }
             single<RolesFeature> { FakeRolesFeature() }
-            single<UserRoleAuthorization> { PasswordChangeRoleAuthorization() }
+            single<UserRoleAuthorization> { roleAuthorization }
             single<EmailsService> { emails }
             with(CommonPlugin) { setupDI(config()) }
             with(CommonServerJVMPlugin) { setupDI(config()) }
@@ -223,8 +236,10 @@ class PasswordChangeFlowRoutingTest {
             emails = emails,
             linksRepo = linksRepo,
             passwords = passwords,
-            ownerToken = ownerCredentials.token,
-            unrelatedToken = unrelatedCredentials.token,
+            rolesRepo = rolesRepo,
+            roleAuthorization = roleAuthorization,
+            ownerCredentials = ownerCredentials,
+            unrelatedCredentials = unrelatedCredentials,
         )
     }
 
@@ -463,19 +478,24 @@ class PasswordChangeFlowRoutingTest {
         }
     }
 
-    /** Requests one approval as the real owner and returns the sole delivered absolute href. */
-    private suspend fun ApplicationTestBuilder.issueApproval(graph: PasswordChangeFlowGraph): String {
+    /** Requests one approval through Auth's real bearer route and returns the delivered absolute href. */
+    private suspend fun ApplicationTestBuilder.issueApproval(
+        graph: PasswordChangeFlowGraph,
+        requester: RegisteredUser,
+        credentials: AuthCredentials,
+    ): String {
+        val deliveriesBefore = graph.emails.sendHtmlCalls.size
         val response = client.post("/api/auth/requestPasswordChangeEmail") {
-            header(HttpHeaders.Authorization, "Bearer ${graph.ownerToken.string}")
+            header(HttpHeaders.Authorization, "Bearer ${credentials.token.string}")
             contentType(ContentType.Application.Json)
-            setBody(graph.json.encodeToString(PasswordChangeEmailRequest(owner.email!!)))
+            setBody(graph.json.encodeToString(PasswordChangeEmailRequest(requireNotNull(requester.email))))
         }
         assertEquals(HttpStatusCode.OK, response.status)
         assertEquals("no-store", response.headers[HttpHeaders.CacheControl])
         assertEquals("no-referrer", response.headers["Referrer-Policy"])
         assertEquals("\"Sent\"", response.bodyAsText())
-        assertEquals(1, graph.emails.sendHtmlCalls.size)
-        val matches = Regex("""href=\"([^\"]+)\"""").findAll(graph.emails.sendHtmlCalls.single().html).toList()
+        assertEquals(deliveriesBefore + 1, graph.emails.sendHtmlCalls.size)
+        val matches = Regex("""href=\"([^\"]+)\"""").findAll(graph.emails.sendHtmlCalls.last().html).toList()
         assertEquals(1, matches.size)
         return matches.single().groupValues[1]
     }
@@ -483,29 +503,89 @@ class PasswordChangeFlowRoutingTest {
     /** Extracts the opaque deeplink identifier from an Email-owned generated URL. */
     private fun approvalId(href: String): String = href.substringAfterLast('/')
 
-    /** Verifies completion replaces only the approval-bound owner credential. */
+    /** Confirms a persisted approval is valid, read-only, and still bound to its original subject. */
+    private suspend fun ApplicationTestBuilder.assertApprovalRedirectsReadOnly(
+        graph: PasswordChangeFlowGraph,
+        subject: RegisteredUser,
+        href: String,
+    ) {
+        val id = approvalId(href)
+        val response = createClient { followRedirects = false }.get(href.removePrefix("https://wishlist.example"))
+        assertEquals(HttpStatusCode.Found, response.status)
+        assertEquals("/password-change/${subject.id.long}/$id", response.headers[HttpHeaders.Location])
+        assertNotNull(graph.linksRepo.get(dev.inmo.wishlist.features.deeplinks.common.models.DeepLinkId(id)))
+    }
+
+    /** Completes an approval through the real public Auth route and returns the exact domain result. */
     private suspend fun ApplicationTestBuilder.completeApproval(
         graph: PasswordChangeFlowGraph,
+        subject: RegisteredUser,
         approvalId: String,
-        browserToken: Token?,
-    ) {
-        val replacement = Password("owner-new-password")
+        replacement: Password,
+        browserToken: Token? = null,
+    ): PasswordChangeResult {
         val response = client.post("/api/auth/completePasswordChange") {
             browserToken?.let { header(HttpHeaders.Authorization, "Bearer ${it.string}") }
             contentType(ContentType.Application.Json)
             setBody(
                 graph.json.encodeToString(
-                    CompletePasswordChangeRequest(owner.id, dev.inmo.wishlist.features.deeplinks.common.models.DeepLinkId(approvalId), replacement),
+                    CompletePasswordChangeRequest(
+                        subject.id,
+                        dev.inmo.wishlist.features.deeplinks.common.models.DeepLinkId(approvalId),
+                        replacement,
+                    ),
                 ),
             )
         }
         assertEquals(HttpStatusCode.OK, response.status)
         assertEquals("no-store", response.headers[HttpHeaders.CacheControl])
         assertEquals("no-referrer", response.headers["Referrer-Policy"])
-        assertEquals("\"Changed\"", response.bodyAsText())
-        assertNotNull(graph.auth.login(owner.username, replacement))
-        assertEquals(null, graph.auth.login(owner.username, ownerPassword))
-        assertNotNull(graph.auth.login(unrelated.username, unrelatedPassword))
+        return graph.json.decodeFromString(response.bodyAsText())
+    }
+
+    /** Uses the real Auth `getMe` route to prove an access credential retains its original subject. */
+    private suspend fun ApplicationTestBuilder.assertAccessTokenSubject(
+        graph: PasswordChangeFlowGraph,
+        token: Token,
+        subject: RegisteredUser,
+    ) {
+        val response = client.get("/api/auth/getMe") {
+            header(HttpHeaders.Authorization, "Bearer ${token.string}")
+        }
+        assertEquals(HttpStatusCode.OK, response.status)
+        assertEquals(
+            subject.id,
+            graph.json.decodeFromString<AuthFeatureUser>(response.bodyAsText()).id,
+        )
+    }
+
+    /** Refreshes one pre-change credential through the real Auth route and verifies the returned subject. */
+    private suspend fun ApplicationTestBuilder.refreshAndAssertSubject(
+        graph: PasswordChangeFlowGraph,
+        credentials: AuthCredentials,
+        subject: RegisteredUser,
+    ) {
+        val response = client.post("/api/auth/refresh") {
+            contentType(ContentType.Application.Json)
+            setBody(graph.json.encodeToString(RefreshRequest(credentials.refreshToken)))
+        }
+        assertEquals(HttpStatusCode.OK, response.status)
+        val refreshed = graph.json.decodeFromString<AuthCredentials>(response.bodyAsText())
+        assertAccessTokenSubject(graph, refreshed.token, subject)
+    }
+
+    /** Submits one password through Auth's real login route and asserts the selected status. */
+    private suspend fun ApplicationTestBuilder.assertLoginStatus(
+        graph: PasswordChangeFlowGraph,
+        subject: RegisteredUser,
+        password: Password,
+        expected: HttpStatusCode,
+    ) {
+        val response = client.post("/api/auth/login") {
+            contentType(ContentType.Application.Json)
+            setBody(graph.json.encodeToString(LoginRequest(subject.username, password)))
+        }
+        assertEquals(expected, response.status)
     }
 
     /** Captures issuance, read-only redirect, and anonymous approval-bound password completion. */
@@ -514,7 +594,7 @@ class PasswordChangeFlowRoutingTest {
         val graph = graph()
         try {
             installFlowRoutes(graph)
-            val href = issueApproval(graph)
+            val href = issueApproval(graph, owner, graph.ownerCredentials)
             val approvalId = approvalId(href)
             val redirect = createClient { followRedirects = false }.get(href.removePrefix("https://wishlist.example"))
             assertEquals(HttpStatusCode.Found, redirect.status)
@@ -523,7 +603,13 @@ class PasswordChangeFlowRoutingTest {
             assertEquals("no-referrer", redirect.headers["Referrer-Policy"])
             assertNotNull(graph.linksRepo.get(dev.inmo.wishlist.features.deeplinks.common.models.DeepLinkId(approvalId)))
             assertEquals(0, graph.passwords.issuedPasswordWriteCount)
-            completeApproval(graph, approvalId, browserToken = null)
+            assertEquals(
+                PasswordChangeResult.Changed,
+                completeApproval(graph, owner, approvalId, Password("owner-new-password")),
+            )
+            assertNotNull(graph.auth.login(owner.username, Password("owner-new-password")))
+            assertEquals(null, graph.auth.login(owner.username, ownerPassword))
+            assertNotNull(graph.auth.login(unrelated.username, unrelatedPassword))
         } finally {
             graph.close()
         }
@@ -535,8 +621,80 @@ class PasswordChangeFlowRoutingTest {
         val graph = graph()
         try {
             installFlowRoutes(graph)
-            val approvalId = approvalId(issueApproval(graph))
-            completeApproval(graph, approvalId, browserToken = graph.unrelatedToken)
+            val approvalId = approvalId(issueApproval(graph, owner, graph.ownerCredentials))
+            assertEquals(
+                PasswordChangeResult.Changed,
+                completeApproval(graph, owner, approvalId, Password("owner-new-password"), graph.unrelatedCredentials.token),
+            )
+        } finally {
+            graph.close()
+        }
+    }
+
+    /** Proves live approval invalidation, session preservation, and zero role mutation across two real accounts. */
+    @Test
+    fun siblingInvalidationPreservesExistingSessionsAndAccountEightApprovalWithoutRoleMutation() = testApplication {
+        val graph = graph()
+        val ownerReplacement = Password("owner-new-password")
+        val unrelatedReplacement = Password("other-new-password")
+        try {
+            installFlowRoutes(graph)
+            val ownerSubject = BaseRoleSubject.Direct(owner.id.long.toString())
+            val unrelatedSubject = BaseRoleSubject.Direct(unrelated.id.long.toString())
+            val rolesBefore = mapOf(
+                ownerSubject to graph.rolesRepo.getDirectRoles(ownerSubject),
+                unrelatedSubject to graph.rolesRepo.getDirectRoles(unrelatedSubject),
+            )
+            graph.rolesRepo.resetMutationAttempts()
+            graph.roleAuthorization.resetAttemptCounts()
+
+            val ownerApprovalA = issueApproval(graph, owner, graph.ownerCredentials)
+            val ownerApprovalB = issueApproval(graph, owner, graph.ownerCredentials)
+            val unrelatedApproval = issueApproval(graph, unrelated, graph.unrelatedCredentials)
+            assertApprovalRedirectsReadOnly(graph, owner, ownerApprovalA)
+            assertApprovalRedirectsReadOnly(graph, owner, ownerApprovalB)
+            assertApprovalRedirectsReadOnly(graph, unrelated, unrelatedApproval)
+            assertEquals(0, graph.passwords.issuedPasswordWriteCount)
+
+            assertEquals(
+                PasswordChangeResult.Changed,
+                completeApproval(graph, owner, approvalId(ownerApprovalA), ownerReplacement),
+            )
+            assertEquals(1, graph.passwords.issuedPasswordWriteCount)
+            assertEquals(
+                PasswordChangeResult.InvalidApproval,
+                completeApproval(graph, owner, approvalId(ownerApprovalB), Password("owner-sibling-password")),
+            )
+            assertEquals(1, graph.passwords.issuedPasswordWriteCount)
+
+            assertAccessTokenSubject(graph, graph.ownerCredentials.token, owner)
+            assertAccessTokenSubject(graph, graph.unrelatedCredentials.token, unrelated)
+            refreshAndAssertSubject(graph, graph.ownerCredentials, owner)
+            refreshAndAssertSubject(graph, graph.unrelatedCredentials, unrelated)
+            assertLoginStatus(graph, owner, ownerPassword, HttpStatusCode.Unauthorized)
+            assertLoginStatus(graph, owner, ownerReplacement, HttpStatusCode.OK)
+            assertLoginStatus(graph, unrelated, unrelatedPassword, HttpStatusCode.OK)
+            assertLoginStatus(graph, unrelated, Password("unrelated-wrong-password"), HttpStatusCode.Unauthorized)
+
+            assertEquals(
+                PasswordChangeResult.Changed,
+                completeApproval(graph, unrelated, approvalId(unrelatedApproval), unrelatedReplacement),
+            )
+            assertEquals(2, graph.passwords.issuedPasswordWriteCount)
+            assertLoginStatus(graph, unrelated, unrelatedPassword, HttpStatusCode.Unauthorized)
+            assertLoginStatus(graph, unrelated, unrelatedReplacement, HttpStatusCode.OK)
+            assertLoginStatus(graph, owner, ownerReplacement, HttpStatusCode.OK)
+
+            val rolesAfter = mapOf(
+                ownerSubject to graph.rolesRepo.getDirectRoles(ownerSubject),
+                unrelatedSubject to graph.rolesRepo.getDirectRoles(unrelatedSubject),
+            )
+            assertEquals(rolesBefore, rolesAfter)
+            assertEquals(0, graph.rolesRepo.includeAttempts)
+            assertEquals(0, graph.rolesRepo.excludeAttempts)
+            assertEquals(0, graph.rolesRepo.createAttempts)
+            assertEquals(0, graph.rolesRepo.removeAttempts)
+            assertEquals(0, graph.roleAuthorization.ensureAttempts)
         } finally {
             graph.close()
         }
@@ -579,7 +737,7 @@ class PasswordChangeFlowRoutingTest {
         try {
             captureKtorLogs().use { capture ->
                 installFlowRoutes(graph, installUnhandledFailureRoute = true)
-                val href = issueApproval(graph)
+                val href = issueApproval(graph, owner, graph.ownerCredentials)
                 val approvalId = approvalId(href)
                 val redirect = createClient { followRedirects = false }
                     .get("/api/links/$approvalId?$queryMarker=$queryMarker")
@@ -658,7 +816,7 @@ class PasswordChangeFlowRoutingTest {
             graph.linksRepo.beforeSet = { error(sentinel) }
             installFlowRoutes(graph)
             val response = client.post("/api/auth/requestPasswordChangeEmail") {
-                header(HttpHeaders.Authorization, "Bearer ${graph.ownerToken.string}")
+                header(HttpHeaders.Authorization, "Bearer ${graph.ownerCredentials.token.string}")
                 contentType(ContentType.Application.Json)
                 setBody(graph.json.encodeToString(PasswordChangeEmailRequest(owner.email!!)))
             }
@@ -678,7 +836,7 @@ class PasswordChangeFlowRoutingTest {
         val sentinel = "deeplink-lookup-sentinel"
         try {
             installFlowRoutes(graph)
-            val approvalId = approvalId(issueApproval(graph))
+            val approvalId = approvalId(issueApproval(graph, owner, graph.ownerCredentials))
             graph.linksRepo.resetOperationRecords()
             graph.passwords.resetIssuedPasswordWriteCount()
             graph.linksRepo.beforeGet = { error(sentinel) }

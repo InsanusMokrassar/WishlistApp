@@ -18,6 +18,22 @@ internal class FakeRolesRepo : RolesRepo {
     private val _roleCreated = MutableSharedFlow<BaseRole>()
     private val _roleRemoved = MutableSharedFlow<BaseRole>()
 
+    /** Number of direct inclusion calls, including idempotent calls. */
+    var includeAttempts: Int = 0
+        private set
+
+    /** Number of direct exclusion calls, including idempotent calls. */
+    var excludeAttempts: Int = 0
+        private set
+
+    /** Number of role-creation calls. */
+    var createAttempts: Int = 0
+        private set
+
+    /** Number of role-removal calls. */
+    var removeAttempts: Int = 0
+        private set
+
     /** Role inclusion events emitted by the fake repository. */
     override val roleIncluded: Flow<Pair<BaseRoleSubject, BaseRole>> = _roleIncluded.asSharedFlow()
 
@@ -64,6 +80,7 @@ internal class FakeRolesRepo : RolesRepo {
 
     /** Adds [role] to [subject] idempotently. */
     override suspend fun includeDirect(subject: BaseRoleSubject, role: BaseRole): Boolean {
+        includeAttempts++
         val changed = grants.getOrPut(subject) { mutableSetOf() }.add(role)
         if (changed) _roleIncluded.emit(subject to role)
         return changed
@@ -71,19 +88,33 @@ internal class FakeRolesRepo : RolesRepo {
 
     /** Removes [role] from [subject] idempotently. */
     override suspend fun excludeDirect(subject: BaseRoleSubject, role: BaseRole): Boolean {
+        excludeAttempts++
         val changed = grants[subject]?.remove(role) ?: false
         if (changed) _roleExcluded.emit(subject to role)
         return changed
     }
 
     /** Records a role creation request. */
-    override suspend fun createRole(newRole: BaseRole): Boolean = true.also { _roleCreated.emit(newRole) }
+    override suspend fun createRole(newRole: BaseRole): Boolean {
+        createAttempts++
+        _roleCreated.emit(newRole)
+        return true
+    }
 
     /** Removes [role] from every subject. */
     override suspend fun removeRole(role: BaseRole): Boolean {
+        removeAttempts++
         var changed = false
         grants.values.forEach { changed = it.remove(role) || changed }
         if (changed) _roleRemoved.emit(role)
         return changed
+    }
+
+    /** Clears post-bootstrap role mutation attempt evidence. */
+    fun resetMutationAttempts() {
+        includeAttempts = 0
+        excludeAttempts = 0
+        createAttempts = 0
+        removeAttempts = 0
     }
 }

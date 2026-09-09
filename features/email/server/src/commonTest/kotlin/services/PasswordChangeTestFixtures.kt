@@ -27,11 +27,31 @@ internal class PasswordChangeRoleAuthorization(
     /** Current direct authorization result. */
     var directRolePresent: Boolean = true,
 ) : UserRoleAuthorization {
+    /** Number of direct-role creation attempts observed after fixture bootstrap. */
+    var ensureAttempts: Int = 0
+        private set
+
+    /** Number of direct-role checks observed after fixture bootstrap. */
+    var hasAttempts: Int = 0
+        private set
+
     /** Registration is outside this fixture and never creates a role. */
-    override suspend fun ensureUserRole(userId: UserId): Boolean = directRolePresent
+    override suspend fun ensureUserRole(userId: UserId): Boolean {
+        ensureAttempts++
+        return directRolePresent
+    }
 
     /** Returns the current direct authorization result. */
-    override suspend fun hasUserRole(userId: UserId): Boolean = directRolePresent
+    override suspend fun hasUserRole(userId: UserId): Boolean {
+        hasAttempts++
+        return directRolePresent
+    }
+
+    /** Clears post-bootstrap direct-role bridge attempt evidence. */
+    fun resetAttemptCounts() {
+        ensureAttempts = 0
+        hasAttempts = 0
+    }
 }
 
 /** Map-backed password store with suspendable read/write hooks and isolated write counters. */
