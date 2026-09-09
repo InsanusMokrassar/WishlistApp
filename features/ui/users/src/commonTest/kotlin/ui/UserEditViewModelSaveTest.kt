@@ -6,6 +6,7 @@ import dev.inmo.wishlist.features.users.common.models.Username
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.cancel
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.test.StandardTestDispatcher
 import kotlinx.coroutines.test.advanceUntilIdle
 import kotlinx.coroutines.test.runCurrent
@@ -178,8 +179,9 @@ class UserEditViewModelSaveTest {
             runCurrent()
             assertTrue(usernameEntered.isCompleted)
 
+            val lifecycleJob = checkNotNull(viewModel.scope.coroutineContext[Job])
             viewModel.scope.cancel()
-            runCurrent()
+            lifecycleJob.join()
 
             assertFalse(viewModel.loadingState.value)
             assertNull(viewModel.profileSaveErrorState.value)
