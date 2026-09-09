@@ -53,14 +53,24 @@ import io.ktor.serialization.kotlinx.json.json
 import io.ktor.server.application.ApplicationCallPipeline
 import io.ktor.server.application.install
 import io.ktor.server.auth.Authentication
+import io.ktor.server.plugins.BadRequestException
+import io.ktor.server.plugins.CannotTransformContentToTypeException
+import io.ktor.server.plugins.NotFoundException
+import io.ktor.server.plugins.PayloadTooLargeException
+import io.ktor.server.plugins.UnsupportedMediaTypeException
 import io.ktor.server.plugins.calllogging.CallLogging
 import io.ktor.server.plugins.contentnegotiation.ContentNegotiation
 import io.ktor.server.response.respond
 import io.ktor.server.routing.get
+import io.ktor.server.routing.post
 import io.ktor.server.routing.route
 import io.ktor.server.routing.routing
 import io.ktor.server.testing.ApplicationTestBuilder
 import io.ktor.server.testing.testApplication
+import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.TimeoutCancellationException
+import kotlinx.coroutines.awaitCancellation
+import kotlinx.coroutines.withTimeout
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonObject
@@ -72,10 +82,13 @@ import dev.inmo.micro_utils.koin.getAllDistinct
 import dev.inmo.micro_utils.ktor.server.configurators.StatusPagesConfigurator
 import org.slf4j.LoggerFactory
 import org.slf4j.event.Level
+import java.util.concurrent.TimeoutException
+import kotlin.reflect.typeOf
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
 import kotlin.test.assertNotNull
+import kotlin.test.assertSame
 import kotlin.test.assertTrue
 
 /** Isolated production-service graph used by the HTTP password-change flow assertions. */
@@ -107,11 +120,14 @@ private class PasswordChangeFlowGraph(
     }
 }
 
-/** Owns isolated Logback appenders attached to the production Ktor logger for one test. */
+/** Owns isolated Logback appenders and level overrides for production application and Ktor loggers. */
 private class KtorLogCapture(
     /** Production logger instances whose emitted events are asserted by the test. */
     private val loggers: List<LogbackLogger>,
 ) : AutoCloseable {
+    /** Direct logger levels before the test-specific DEBUG capture override. */
+    private val levels = loggers.map(LogbackLogger::getLevel)
+
     /** Test-owned appenders paired with [loggers] in construction order. */
     private val appenders = loggers.map { logger ->
         ListAppender<ILoggingEvent>().also { appender ->
@@ -121,14 +137,21 @@ private class KtorLogCapture(
         }
     }
 
+    init {
+        loggers.forEach { logger -> logger.level = LogbackLevel.DEBUG }
+    }
+
     /** Returns an immutable event snapshot before the appenders are detached. */
     fun events(): List<ILoggingEvent> = appenders.flatMap { it.list.toList() }
 
     /** Detaches and stops every test-owned appender. */
     override fun close() {
-        loggers.zip(appenders).forEach { (logger, appender) ->
+        loggers.zip(appenders).zip(levels).forEach { pair ->
+            val (loggerAndAppender, level) = pair
+            val (logger, appender) = loggerAndAppender
             logger.detachAppender(appender)
             appender.stop()
+            logger.level = level
         }
     }
 }
@@ -205,15 +228,19 @@ class PasswordChangeFlowRoutingTest {
         )
     }
 
-    /** Attaches test-owned appenders to the same logger used by production Ktor configuration. */
+    /** Attaches test-owned appenders to both Ktor request logging and the application logger. */
     private fun captureKtorLogs(): KtorLogCapture = KtorLogCapture(
-        listOf(LoggerFactory.getLogger("Ktor") as LogbackLogger),
+        listOf(
+            LoggerFactory.getLogger("Ktor") as LogbackLogger,
+            LoggerFactory.getLogger("io.ktor.server.Application") as LogbackLogger,
+        ),
     )
 
     /** Installs the actual bearer, password-change, and deeplink configurators below `/api`. */
     private fun ApplicationTestBuilder.installFlowRoutes(
         graph: PasswordChangeFlowGraph,
         installUnhandledFailureRoute: Boolean = false,
+        installClassificationRoutes: Boolean = false,
     ) {
         application {
             install(Authentication) {
@@ -239,6 +266,62 @@ class PasswordChangeFlowRoutingTest {
                         error("unhandled route failure ${call.parameters["detail"]}")
                     }
                 }
+                if (installClassificationRoutes) {
+                    route("/classified/{kind}/{approvalId}") {
+                        get {
+                            throw classifiedFailure(
+                                kind = requireNotNull(call.parameters["kind"]),
+                                marker = requireNotNull(call.parameters["approvalId"]),
+                            )
+                        }
+                        post {
+                            throw classifiedFailure(
+                                kind = requireNotNull(call.parameters["kind"]),
+                                marker = requireNotNull(call.parameters["approvalId"]),
+                            )
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    /** Creates a sensitive exception instance for every Ktor status classifier covered by the matrix. */
+    @OptIn(ExperimentalStdlibApi::class)
+    private fun classifiedFailure(kind: String, marker: String): Throwable {
+        val cause = IllegalStateException("cause-$marker").also {
+            it.addSuppressed(IllegalArgumentException("suppressed-$marker"))
+        }
+        return when (kind) {
+            "bad-request" -> BadRequestException("bad-request-$marker", cause)
+            "not-found" -> NotFoundException("not-found-$marker").also { it.initCause(cause) }
+            "unsupported-media" -> UnsupportedMediaTypeException(ContentType.parse("application/$marker")).also {
+                it.initCause(cause)
+            }
+            "cannot-transform" -> CannotTransformContentToTypeException(typeOf<String>()).also { it.initCause(cause) }
+            "payload-too-large" -> PayloadTooLargeException(13L).also { it.initCause(cause) }
+            "timeout" -> TimeoutException("timeout-$marker").also { it.initCause(cause) }
+            "illegal-state" -> IllegalStateException("illegal-state-$marker", cause)
+            else -> error("Unknown Ktor classifier case: $kind")
+        }
+    }
+
+    /** Produces a real coroutine timeout exception rather than constructing a cancellation lookalike. */
+    private suspend fun actualTimeoutCancellationException(): TimeoutCancellationException = try {
+        withTimeout(1) { awaitCancellation() }
+        error("Expected withTimeout to throw TimeoutCancellationException")
+    } catch (cause: TimeoutCancellationException) {
+        cause
+    }
+
+    /** Verifies every captured event has no sensitive formatted, MDC, argument, or throwable data. */
+    private fun assertLogEventsRedact(events: List<ILoggingEvent>, forbidden: List<String>) {
+        events.forEach { event ->
+            assertEquals(null, event.throwableProxy)
+            forbidden.forEach { marker ->
+                assertFalse(event.formattedMessage.contains(marker))
+                assertFalse(event.mdcPropertyMap.values.any { value -> value.contains(marker) })
+                assertFalse(event.argumentArray.orEmpty().any { argument -> argument.toString().contains(marker) })
             }
         }
     }
@@ -257,10 +340,124 @@ class PasswordChangeFlowRoutingTest {
                 }
                 assertEquals(HttpStatusCode.BadRequest, response.status)
                 assertFalse(response.bodyAsText().contains(sentinel))
+                val missingFieldResponse = client.post("/api/auth/$endpoint") {
+                    contentType(ContentType.Application.Json)
+                    setBody("{}")
+                }
+                assertEquals(HttpStatusCode.BadRequest, missingFieldResponse.status)
+                assertFalse(missingFieldResponse.bodyAsText().contains(sentinel))
             }
             val unknown = client.get("/api/auth/$sentinel")
             assertEquals(HttpStatusCode.NotFound, unknown.status)
             assertFalse(unknown.bodyAsText().contains(sentinel))
+            assertEquals(HttpStatusCode.Unauthorized, client.get("/api/auth/getMe").status)
+        } finally {
+            graph.close()
+        }
+    }
+
+    /** Establishes the unsanitized Ktor baseline used by the production 400 parity regression. */
+    @Test
+    fun unsanitizedKtorBadRequestBaselineIsBadRequest() = testApplication {
+        application {
+            routing {
+                get("/baseline") {
+                    throw BadRequestException("baseline-sensitive-detail")
+                }
+            }
+        }
+        assertEquals(HttpStatusCode.BadRequest, client.get("/baseline").status)
+    }
+
+    /** Preserves Ktor's typed status classes while redacting request and exception detail in production logs. */
+    @Test
+    fun productionStatusPagesPreserveTypedKtorStatusesAndRedactAllLogRepresentations() = testApplication {
+        val graph = graph()
+        val approvalId = "8caed0c4-0c53-4d92-9374-b79bb07a2bf1"
+        val queryMarker = "query-sentinel"
+        val bodyMarker = "body-sentinel"
+        val emailMarker = "private-email@example.com"
+        val passwordMarker = "plaintext-password-sentinel"
+        val locationMarker = "https://wishlist.example/password-change/$approvalId"
+        val cases = listOf(
+            "bad-request" to HttpStatusCode.BadRequest,
+            "not-found" to HttpStatusCode.NotFound,
+            "unsupported-media" to HttpStatusCode.UnsupportedMediaType,
+            "cannot-transform" to HttpStatusCode.UnsupportedMediaType,
+            "payload-too-large" to HttpStatusCode.PayloadTooLarge,
+            "timeout" to HttpStatusCode.GatewayTimeout,
+            "illegal-state" to HttpStatusCode.InternalServerError,
+        )
+        try {
+            captureKtorLogs().use { capture ->
+                installFlowRoutes(graph, installClassificationRoutes = true)
+                cases.forEach { (kind, expectedStatus) ->
+                    val response = client.post("/classified/$kind/$approvalId?$queryMarker=$queryMarker") {
+                        contentType(ContentType.Application.Json)
+                        setBody("{\"email\":\"$emailMarker\",\"password\":\"$passwordMarker\",\"body\":\"$bodyMarker\"}")
+                    }
+                    assertEquals(expectedStatus, response.status)
+                    assertFalse(response.bodyAsText().contains(approvalId))
+                    assertFalse(response.bodyAsText().contains(queryMarker))
+                    assertFalse(response.bodyAsText().contains(bodyMarker))
+                    assertFalse(response.bodyAsText().contains(emailMarker))
+                    assertFalse(response.bodyAsText().contains(passwordMarker))
+                    assertFalse(response.bodyAsText().contains(locationMarker))
+                    assertFalse(response.bodyAsText().contains("cause-$approvalId"))
+                    assertFalse(response.bodyAsText().contains("suppressed-$approvalId"))
+                }
+                val events = capture.events()
+                cases.forEach { (_, expectedStatus) ->
+                    assertTrue(events.any { event -> event.formattedMessage == "POST ${expectedStatus.value}" })
+                }
+                assertLogEventsRedact(
+                    events,
+                    listOf(approvalId, queryMarker, bodyMarker, emailMarker, passwordMarker, locationMarker, "cause-$approvalId", "suppressed-$approvalId"),
+                )
+            }
+        } finally {
+            graph.close()
+        }
+    }
+
+    /** Invokes Common's contributed Throwable callback to prove both cancellation classes rethrow by identity. */
+    @Test
+    fun contributedThrowableCallbackRethrowsCancellationWithoutResponseOrBoundaryLog() = testApplication {
+        val graph = graph()
+        val observed = mutableListOf<Throwable>()
+        try {
+            captureKtorLogs().use { capture ->
+                application {
+                    val config = io.ktor.server.plugins.statuspages.StatusPagesConfig()
+                    graph.application.koin.getAllDistinct<StatusPagesConfigurator.Element>().forEach { element ->
+                        with(element) { config.invoke() }
+                    }
+                    val callback = requireNotNull(config.exceptions[Throwable::class])
+                    routing {
+                        get("/direct-cancellation/{kind}") {
+                            val expected = when (requireNotNull(call.parameters["kind"])) {
+                                "cancellation" -> CancellationException("cancellation-sentinel")
+                                "timeout-cancellation" -> actualTimeoutCancellationException()
+                                else -> error("Unknown cancellation case")
+                            }
+                            try {
+                                callback(call, expected)
+                                error("Throwable callback unexpectedly completed")
+                            } catch (actual: Throwable) {
+                                assertSame(expected, actual)
+                                assertEquals(null, call.response.status())
+                                observed.add(actual)
+                            }
+                        }
+                    }
+                }
+                listOf("cancellation", "timeout-cancellation").forEach { kind ->
+                    assertEquals(HttpStatusCode.NotFound, client.get("/direct-cancellation/$kind").status)
+                }
+                assertEquals(2, observed.size)
+                assertTrue(observed[1] is TimeoutCancellationException)
+                assertTrue(capture.events().isEmpty())
+            }
         } finally {
             graph.close()
         }
