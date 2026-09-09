@@ -26,10 +26,15 @@ import dev.inmo.wishlist.features.users.common.models.Username
 import dev.inmo.wishlist.features.users.common.models.UsersFeatureUser
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.cancelAndJoin
 import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.test.StandardTestDispatcher
+import kotlinx.coroutines.test.advanceTimeBy
 import kotlinx.coroutines.test.advanceUntilIdle
 import kotlinx.coroutines.test.runCurrent
 import kotlinx.coroutines.test.runTest
@@ -48,12 +53,15 @@ import kotlin.test.assertNotNull
 import kotlin.test.assertTrue
 
 /** Minimal production-interface model that holds completion until the lifecycle test releases it. */
-private class HeldPasswordChangeUsersModel : UsersModel {
+internal class HeldPasswordChangeUsersModel : UsersModel {
     /** Completion gate controlled by the enclosing test. */
     val completion = CompletableDeferred<PasswordChangeResult?>()
 
     /** Immutable requests accepted by the actual submitting ViewModel. */
     val requests = mutableListOf<CompletePasswordChangeRequest>()
+
+    /** Makes the test double return a result after cancellation to exercise the ViewModel guard. */
+    var returnsChangedAfterCancellation = false
 
     /** Inert authorization state required by the shared users model interface. */
     override val userAuthorisedState: StateFlow<Boolean> = MutableStateFlow(false)
@@ -76,7 +84,11 @@ private class HeldPasswordChangeUsersModel : UsersModel {
     override suspend fun requestPasswordChangeEmail(expectedEmail: Email): PasswordChangeEmailRequestResult? = null
     override suspend fun completePasswordChange(request: CompletePasswordChangeRequest): PasswordChangeResult? {
         requests += request
-        return completion.await()
+        return try {
+            completion.await()
+        } catch (cause: CancellationException) {
+            if (returnsChangedAfterCancellation) PasswordChangeResult.Changed else throw cause
+        }
     }
     override suspend fun updateUsername(id: UserId, username: Username): Boolean = false
     override suspend fun setPassword(id: UserId, password: Password): Boolean = false
@@ -133,7 +145,7 @@ class PasswordChangeInteractorTest {
                 assertEquals(PasswordChangeViewConfig.Completed, chain.stackFlow.value.last().config)
                 assertTrue(viewModel.passwordState.value.isEmpty())
                 assertTrue(viewModel.confirmationState.value.isEmpty())
-                assertTrue(viewModel.scope.coroutineContext[Job]?.isCancelled == true)
+                assertEquals(dev.inmo.navigation.core.NavigationNodeState.NEW, node.state)
                 val saved = assertNotNull(navigationConfigsRepo.saved) as ConfigHolder.Chain<ViewConfig>
                 assertEquals(
                     PasswordChangeViewConfig.Completed,
@@ -141,6 +153,22 @@ class PasswordChangeInteractorTest {
                 )
                 assertFalse(saved.toString().contains(approvalId.string))
                 assertFalse(saved.toString().contains("replacement-password"))
+
+                val completedNode = chain.stackFlow.value.last() as NavigationNode<PasswordChangeViewConfig, ViewConfig>
+                val completedViewModel = PasswordChangeViewModel(
+                    completedNode,
+                    model,
+                    interactor,
+                    StandardTestDispatcher(testScheduler),
+                )
+                completedViewModel.onSubmitPasswordChange()
+                advanceUntilIdle()
+                assertEquals(1, model.requests.size)
+                interactor.onContinue(completedNode)
+                advanceUntilIdle()
+                assertTrue(chain.stackFlow.value.last().config is UsersListViewConfig)
+                assertNotNull(navigationConfigsRepo.saved)
+                assertEquals(0, owner.activeTransitionCount)
             } finally {
                 unbind()
                 chainJob.cancel()
@@ -258,6 +286,142 @@ class PasswordChangeInteractorTest {
             }
         } finally {
             stopKoin()
+        }
+    }
+
+    /** Cancellation-resistant model output cannot hand a destroyed pending page to the root owner. */
+    @Test
+    fun cancelledSubmittingViewModelCannotStartChangedHandoff() = runTest {
+        var saves = 0
+        val repo = object : NavigationConfigsRepo<ViewConfig> {
+            override fun save(holder: ConfigHolder<ViewConfig>) { saves += 1 }
+            override fun get(): ConfigHolder<ViewConfig>? = null
+        }
+        val owner = PasswordChangeNavigationOwner(repo)
+        val chain = NavigationChain<ViewConfig>(null, NavigationNodeFactory { parent, config -> NavigationNode.Empty(parent, config) })
+        val chainJob = chain.start(this)
+        val unbind = owner.bind(chain, this)
+        try {
+            val model = HeldPasswordChangeUsersModel().apply { returnsChangedAfterCancellation = true }
+            chain.push(UsersListViewConfig())
+            val pending = checkNotNull(chain.push(PasswordChangeViewConfig.Pending(UserId(7), approvalId)))
+                as NavigationNode<PasswordChangeViewConfig, ViewConfig>
+            advanceUntilIdle()
+            val viewModel = PasswordChangeViewModel(pending, model, owner, StandardTestDispatcher(testScheduler))
+            viewModel.onPasswordChanged("cancellation-resistant")
+            viewModel.onConfirmationChanged("cancellation-resistant")
+            viewModel.onSubmitPasswordChange()
+            advanceUntilIdle()
+            chain.replace(pending, UsersListViewConfig())
+            advanceUntilIdle()
+            assertEquals(dev.inmo.navigation.core.NavigationNodeState.NEW, pending.state)
+            advanceUntilIdle()
+            assertEquals(1, model.requests.size)
+            assertEquals(0, saves)
+            assertTrue(chain.stackFlow.value.last().config is UsersListViewConfig)
+            assertEquals(0, owner.activeTransitionCount)
+        } finally {
+            unbind()
+            chainJob.cancelAndJoin()
+        }
+    }
+
+    /** A root binding disposal cancels a queued replacement before a stopped chain can publish it. */
+    @Test
+    fun rootBindingDisposalCancelsPendingTransitionAndCleansOwnerJobs() = runTest {
+        var saves = 0
+        val repo = object : NavigationConfigsRepo<ViewConfig> {
+            override fun save(holder: ConfigHolder<ViewConfig>) { saves += 1 }
+            override fun get(): ConfigHolder<ViewConfig>? = null
+        }
+        val chain = NavigationChain<ViewConfig>(null, NavigationNodeFactory { parent, config -> NavigationNode.Empty(parent, config) })
+        val chainJob = chain.start(this)
+        chain.push(UsersListViewConfig())
+        val pending = checkNotNull(chain.push(PasswordChangeViewConfig.Pending(UserId(7), approvalId)))
+            as NavigationNode<PasswordChangeViewConfig, ViewConfig>
+        advanceUntilIdle()
+        chainJob.cancelAndJoin()
+        val rootJob = SupervisorJob()
+        val owner = PasswordChangeNavigationOwner(repo)
+        val unbind = owner.bind(chain, CoroutineScope(coroutineContext + rootJob))
+        try {
+            owner.onChanged(pending)
+            runCurrent()
+            assertEquals(1, owner.activeTransitionCount)
+            unbind()
+            advanceUntilIdle()
+            assertEquals(0, owner.activeTransitionCount)
+            assertEquals(0, saves)
+        } finally {
+            rootJob.cancelAndJoin()
+        }
+    }
+
+    /** A stopped chain reaches the finite five-second observer timeout without a stale save. */
+    @Test
+    fun unprocessedReplacementTimesOutAndCleansOwnerJobs() = runTest {
+        var saves = 0
+        val repo = object : NavigationConfigsRepo<ViewConfig> {
+            override fun save(holder: ConfigHolder<ViewConfig>) { saves += 1 }
+            override fun get(): ConfigHolder<ViewConfig>? = null
+        }
+        val chain = NavigationChain<ViewConfig>(null, NavigationNodeFactory { parent, config -> NavigationNode.Empty(parent, config) })
+        val chainJob = chain.start(this)
+        chain.push(UsersListViewConfig())
+        val pending = checkNotNull(chain.push(PasswordChangeViewConfig.Pending(UserId(7), approvalId)))
+            as NavigationNode<PasswordChangeViewConfig, ViewConfig>
+        advanceUntilIdle()
+        chainJob.cancelAndJoin()
+        val owner = PasswordChangeNavigationOwner(repo)
+        val unbind = owner.bind(chain, this)
+        try {
+            owner.onChanged(pending)
+            runCurrent()
+            assertEquals(1, owner.activeTransitionCount)
+            advanceTimeBy(5_001)
+            advanceUntilIdle()
+            assertEquals(0, saves)
+            assertEquals(0, owner.activeTransitionCount)
+        } finally {
+            unbind()
+        }
+    }
+
+    /** A synchronous save failure never replays HTTP and a later completed-page exit remains usable. */
+    @Test
+    fun saveFailureDoesNotReplayAndLaterContinuePersistsUsersList() = runTest {
+        var saves = 0
+        val repo = object : NavigationConfigsRepo<ViewConfig> {
+            var persisted: ConfigHolder<ViewConfig>? = null
+            override fun save(holder: ConfigHolder<ViewConfig>) {
+                saves += 1
+                if (saves == 1) error("first save fails")
+                persisted = holder
+            }
+            override fun get(): ConfigHolder<ViewConfig>? = null
+        }
+        val owner = PasswordChangeNavigationOwner(repo)
+        val chain = NavigationChain<ViewConfig>(null, NavigationNodeFactory { parent, config -> NavigationNode.Empty(parent, config) })
+        val chainJob = chain.start(this)
+        val unbind = owner.bind(chain, this)
+        try {
+            chain.push(UsersListViewConfig())
+            val pending = checkNotNull(chain.push(PasswordChangeViewConfig.Pending(UserId(7), approvalId)))
+                as NavigationNode<PasswordChangeViewConfig, ViewConfig>
+            advanceUntilIdle()
+            owner.onChanged(pending)
+            advanceUntilIdle()
+            assertEquals(1, saves)
+            val completed = chain.stackFlow.value.last() as NavigationNode<PasswordChangeViewConfig, ViewConfig>
+            owner.onContinue(completed)
+            advanceUntilIdle()
+            assertEquals(2, saves)
+            assertNotNull(repo.persisted)
+            assertTrue(chain.stackFlow.value.last().config is UsersListViewConfig)
+            assertEquals(0, owner.activeTransitionCount)
+        } finally {
+            unbind()
+            chainJob.cancelAndJoin()
         }
     }
 }

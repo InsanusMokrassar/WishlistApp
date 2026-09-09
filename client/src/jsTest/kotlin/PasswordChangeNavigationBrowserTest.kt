@@ -17,6 +17,7 @@ import dev.inmo.wishlist.features.ui.scaffold.ui.ScaffoldViewConfig
 import dev.inmo.wishlist.features.ui.sidebar.ui.SidebarViewConfig
 import dev.inmo.wishlist.features.ui.topBar.ui.TopBarViewConfig
 import dev.inmo.wishlist.features.ui.users.ui.PasswordChangeViewConfig
+import dev.inmo.wishlist.features.ui.users.ui.PasswordChangeViewModel
 import dev.inmo.wishlist.features.ui.wishlist.ui.WishlistItemViewConfig
 import dev.inmo.wishlist.features.ui.wishlist.ui.WishlistViewConfig
 import dev.inmo.wishlist.features.users.common.models.UserId
@@ -32,6 +33,7 @@ import kotlinx.coroutines.cancelAndJoin
 import kotlinx.coroutines.promise
 import kotlinx.coroutines.flow.filter
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.Job
 import kotlin.coroutines.coroutineContext
 import kotlinx.serialization.json.JsonObject
 import org.koin.dsl.koinApplication
@@ -62,6 +64,10 @@ class PasswordChangeNavigationBrowserTest {
         val global = browserGlobal()
         val previousWindow = global.window
         val previousDocument = global.document
+        val previousNode = global.Node
+        val previousElement = global.Element
+        val previousHTMLElement = global.HTMLElement
+        val previousHTMLBaseElement = global.HTMLBaseElement
         val dom = browserDom("https://wishlist.test/ui/password-change/7/123e4567-e89b-42d3-a456-426614174000")
         val previousProvider = ClientPlugin.mainScaffoldConfigProvider
         global.window = dom.window
@@ -133,19 +139,41 @@ class PasswordChangeNavigationBrowserTest {
             ))
             assertTrue(liveChain === rootChain)
             val rootJob = rootChain.start(navigationScope)
+            val owner = application.koin.get<PasswordChangeNavigationOwner>()
+            val unbind = owner.bind(rootChain, navigationScope)
             try {
                 val restoredRootNode = rootChain.awaitRestoredStack().single()
                 val scaffoldNode = restoredRootNode.subchains.single().awaitRestoredStack().single()
                 val mainChain = checkNotNull(scaffoldNode.subchains.firstOrNull { it.id == MainNavigationChainId })
                 val pendingNode = mainChain.awaitRestoredStack().last() as NavigationNode<PasswordChangeViewConfig, ViewConfig>
-                application.koin.get<dev.inmo.wishlist.features.ui.users.ui.PasswordChangeViewInteractor>()
-                    .onChanged(pendingNode)
+                val model = HeldPasswordChangeUsersModel()
+                val interactor = application.koin.get<dev.inmo.wishlist.features.ui.users.ui.PasswordChangeViewInteractor>()
+                val pendingViewModel = PasswordChangeViewModel(pendingNode, model, interactor)
+                pendingViewModel.onPasswordChanged("browser-password")
+                pendingViewModel.onConfirmationChanged("browser-password")
+                pendingViewModel.onSubmitPasswordChange()
+                model.completion.complete(dev.inmo.wishlist.features.auth.common.models.PasswordChangeResult.Changed)
                 assertTrue(mainChain.stackFlow.filter { it.lastOrNull()?.config is PasswordChangeViewConfig.Completed }.first().isNotEmpty())
                 val persistedCompletion = completedSave.await()
+                assertEquals(1, model.requests.size)
                 assertEquals("/ui/password-changed", window.location.pathname)
+                assertEquals(null, window.history.state)
                 assertTrue(persistedCompletion.allConfigs().any { it is PasswordChangeViewConfig.Completed })
                 assertFalse(persistedCompletion.allConfigs().any { it is PasswordChangeViewConfig.Pending })
+                assertTrue(pendingViewModel.passwordState.value.isEmpty())
+                assertTrue(pendingViewModel.confirmationState.value.isEmpty())
+                assertEquals(dev.inmo.navigation.core.NavigationNodeState.NEW, pendingNode.state)
+                val completedNode = mainChain.stackFlow.value.last() as NavigationNode<PasswordChangeViewConfig, ViewConfig>
+                val completedViewModel = PasswordChangeViewModel(completedNode, model, interactor)
+                completedViewModel.onSubmitPasswordChange()
+                assertEquals(1, model.requests.size)
+                interactor.onContinue(completedNode)
+                assertTrue(mainChain.stackFlow.filter { it.lastOrNull()?.config is dev.inmo.wishlist.features.ui.users.ui.UsersListViewConfig }.first().isNotEmpty())
+                assertEquals("/ui/", window.location.pathname)
+                assertEquals(null, window.history.state)
+                assertEquals(0, owner.activeTransitionCount)
             } finally {
+                unbind()
                 savingJob.cancelAndJoin()
                 rootJob.cancelAndJoin()
                 navigationJob.cancelAndJoin()
@@ -183,6 +211,10 @@ class PasswordChangeNavigationBrowserTest {
             dom.window.close()
             global.window = previousWindow
             global.document = previousDocument
+            global.Node = previousNode
+            global.Element = previousElement
+            global.HTMLElement = previousHTMLElement
+            global.HTMLBaseElement = previousHTMLBaseElement
         }
     }
 }

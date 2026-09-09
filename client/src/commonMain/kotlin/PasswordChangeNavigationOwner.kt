@@ -15,10 +15,11 @@ import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineStart
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.cancelAndJoin
 import kotlinx.coroutines.currentCoroutineContext
 import kotlinx.coroutines.ensureActive
-import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.flow.takeWhile
 import kotlinx.coroutines.withTimeoutOrNull
 
 /**
@@ -35,6 +36,10 @@ internal class PasswordChangeNavigationOwner(
 
     /** Current root-composition binding, or `null` outside a composed root. */
     private var binding: Binding? = null
+
+    /** Number of currently owned replacement operations; exposed to client lifecycle tests. */
+    internal val activeTransitionCount: Int
+        get() = binding?.transitions?.size ?: 0
 
     /**
      * Connects this owner to one live root composition.
@@ -88,15 +93,33 @@ internal class PasswordChangeNavigationOwner(
         val acceptedBinding = activeBindingFor(node) ?: return
         if (acceptedBinding.transitions.containsKey(node)) return
         val transition = acceptedBinding.scope.launch(start = CoroutineStart.LAZY) {
+            var observer: Job? = null
             try {
                 if (binding !== acceptedBinding || activeBindingFor(node) !== acceptedBinding) return@launch
-                val replacement = node.chain.replace(node, destination)?.second ?: return@launch
-                withTimeoutOrNull(5_000) {
-                    node.chain.stackFlow.first { stack ->
-                        stack.any { candidate -> candidate === replacement } ||
-                            stack.none { candidate -> candidate === node }
-                    }
-                } ?: return@launch
+                var replacement: NavigationNode<out ViewConfig, ViewConfig>? = null
+                val observedReplacement = kotlinx.coroutines.CompletableDeferred<Boolean>()
+                observer = launch(start = CoroutineStart.UNDISPATCHED) {
+                    node.chain.stackFlow.takeWhile { stack ->
+                        val expected = replacement
+                        when {
+                            expected != null && stack.any { candidate -> candidate === expected } -> {
+                                observedReplacement.complete(true)
+                                false
+                            }
+                            stack.none { candidate -> candidate === node } -> {
+                                observedReplacement.complete(false)
+                                false
+                            }
+                            node.chain.rootChain() !== acceptedBinding.root -> {
+                                observedReplacement.complete(false)
+                                false
+                            }
+                            else -> true
+                        }
+                    }.collect {}
+                }
+                replacement = node.chain.replace(node, destination)?.second ?: return@launch
+                if (withTimeoutOrNull(5_000) { observedReplacement.await() } != true) return@launch
                 if (binding !== acceptedBinding) return@launch
                 if (node.chain.rootChain() !== acceptedBinding.root) return@launch
                 if (node.chain.stackFlow.value.none { candidate -> candidate === replacement }) return@launch
@@ -106,6 +129,7 @@ internal class PasswordChangeNavigationOwner(
             } catch (_: Throwable) {
                 logger.w("Password-change navigation transition failed")
             } finally {
+                observer?.cancelAndJoin()
                 acceptedBinding.transitions.remove(node)
             }
         }
