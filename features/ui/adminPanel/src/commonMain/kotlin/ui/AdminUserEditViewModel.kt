@@ -138,14 +138,16 @@ class AdminUserEditViewModel(
             _loadingState.value = true
             try {
                 val id = node.config.userId
-                if (id == null) {
+                val saved = if (id == null) {
                     val password = _passwordState.value.trim()
                     if (password.isBlank()) return@launchLoggingDropExceptions
-                    model.createUser(NewUserWithPassword(Username(username), Password(password)))
+                    model.createUser(NewUserWithPassword(Username(username), Password(password))) != null
                 } else {
-                    model.updateUser(id, NewUser(Username(username)))
+                    model.updateUsername(id, Username(username))
                 }
-                interactor.onSaved(node)
+                if (saved) {
+                    interactor.onSaved(node)
+                }
             } finally {
                 _loadingState.value = false
             }

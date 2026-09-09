@@ -13,6 +13,7 @@ import dev.inmo.wishlist.features.auth.server.utils.getCallerUserIdOrAnswerUnaut
 import dev.inmo.wishlist.features.roles.server.RolesFeature
 import dev.inmo.wishlist.features.users.common.models.NewUser
 import dev.inmo.wishlist.features.users.common.models.UserId
+import dev.inmo.wishlist.features.users.common.models.Username
 import dev.inmo.wishlist.features.users.common.repo.ReadUsersRepo
 import dev.inmo.wishlist.features.users.common.repo.exceptions.DuplicateUserFieldException
 import dev.inmo.wishlist.features.wishlist.common.models.NewWishlist
@@ -45,6 +46,7 @@ import io.ktor.server.routing.route
  * - `GET    /admin/users/getAll`         — list all registered users
  * - `POST   /admin/users/create`         — create user with password; body: [NewUserWithPassword]; `409` on duplicate username
  * - `PUT    /admin/users/update/{id}`    — update user info; body: [NewUser]; `409` on duplicate username/email
+ * - `PUT    /admin/users/setUsername/{id}` — update username only; `409` on duplicate username
  * - `DELETE /admin/users/delete/{id}`    — remove user by id
  *
  * **Wishlists management routes** (`/admin/wishlists/...`):
@@ -123,6 +125,25 @@ class AdminRoutingsConfigurator(
                         val newUser = call.receive<NewUser>()
                         val result = try {
                             adminFeature.usersManagement.update(id, newUser)
+                        } catch (e: DuplicateUserFieldException) {
+                            call.respond(HttpStatusCode.Conflict)
+                            return@put
+                        }
+                        when (result) {
+                            true -> call.respond(HttpStatusCode.OK)
+                            false -> call.respond(HttpStatusCode.InternalServerError)
+                            null -> call.respond(HttpStatusCode.NotFound)
+                        }
+                    }
+                    put("${Constants.usersSetUsernamePathPart}/{id}") {
+                        requireAdmin() ?: return@put
+                        val id = call.parameters["id"]?.toLongOrNull()?.let(::UserId) ?: run {
+                            call.respond(HttpStatusCode.BadRequest)
+                            return@put
+                        }
+                        val username = call.receive<Username>()
+                        val result = try {
+                            adminFeature.usersManagement.updateUsername(id, username)
                         } catch (e: DuplicateUserFieldException) {
                             call.respond(HttpStatusCode.Conflict)
                             return@put

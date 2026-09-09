@@ -5,8 +5,11 @@ import dev.inmo.wishlist.features.email.client.EmailFeature
 import dev.inmo.wishlist.features.email.common.models.Email
 import dev.inmo.wishlist.features.email.common.models.SetEmailRequest
 import dev.inmo.wishlist.features.email.common.models.TestEmailRequest
+import dev.inmo.wishlist.features.email.common.models.EmailVerificationRequest
+import dev.inmo.wishlist.features.email.common.models.EmailVerificationRequestResult
 import io.ktor.client.HttpClient
 import io.ktor.client.call.body
+import io.ktor.client.plugins.expectSuccess
 import io.ktor.client.request.get
 import io.ktor.client.request.post
 import io.ktor.client.request.put
@@ -38,14 +41,20 @@ class KtorEmailFeature(private val client: HttpClient) : EmailFeature {
     private val myEmailPath =
         "${EmailConstants.prefixPathPart}/${EmailConstants.myEmailPathPart}"
 
+    /** Path for `POST /email/requestMyEmailVerification`. */
+    private val requestMyEmailVerificationPath =
+        "${EmailConstants.prefixPathPart}/${EmailConstants.requestMyEmailVerificationPathPart}"
+
     /**
      * Checks whether the server-side email feature is enabled.
      *
-     * @return Server-reported enabled flag, or `false` on failure.
+     * @return Server-reported enabled flag from a successful response.
+     * @throws io.ktor.client.plugins.ResponseException when the capability endpoint is unavailable.
      */
     override suspend fun isFeatureEnabled(): Boolean {
-        val response = client.get(enabledPath)
-        return if (response.status.isSuccess()) response.body() else false
+        return client.get(enabledPath) {
+            expectSuccess = true
+        }.body()
     }
 
     /**
@@ -75,4 +84,17 @@ class KtorEmailFeature(private val client: HttpClient) : EmailFeature {
         }
         return response.status.isSuccess()
     }
+
+    /**
+     * Requests a verification link for [expectedEmail] and returns the server's domain result.
+     *
+     * @param expectedEmail Address currently displayed to the authenticated caller.
+     * @return Decoded verification request result.
+     */
+    override suspend fun requestMyEmailVerification(expectedEmail: Email): EmailVerificationRequestResult =
+        client.post(requestMyEmailVerificationPath) {
+            expectSuccess = true
+            contentType(ContentType.Application.Json)
+            setBody(EmailVerificationRequest(expectedEmail))
+        }.body()
 }

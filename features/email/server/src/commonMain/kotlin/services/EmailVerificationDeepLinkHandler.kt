@@ -27,10 +27,10 @@ class EmailVerificationDeepLinkHandler(
     override val id: DeepLinkHandlerId = EmailVerification.handlerId
 
     /** Subject used for the post-approval confirmation message. */
-    private val approvalSubject = "Your WishlistApp account is approved"
+    private val approvalSubject = "Your WishlistApp email address is approved"
 
     /** Fixed plain-text body for the post-approval confirmation message. */
-    private val approvalText = "Your email has been approved. You can now sign in to WishlistApp."
+    private val approvalText = "Your email address has been approved for WishlistApp."
 
     /**
      * Promotes the payload's account only while the stored address still matches the invited one.

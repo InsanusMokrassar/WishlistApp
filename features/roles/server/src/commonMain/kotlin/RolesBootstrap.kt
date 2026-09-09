@@ -124,20 +124,35 @@ internal suspend fun removeDirectUserRoles(rolesRepo: RolesRepo, userId: UserId)
 /**
  * Promotes a verified account to the normal user role.
  *
- * The complete exclusion/inclusion sequence shares a lock with [grantDefaultRoles], so a delayed
- * required-email callback cannot add [NewUserRole] after approval. Repeated verification-link opens
- * converge on exactly the approved role state.
+ * The complete inclusion/confirmation/exclusion sequence shares a lock with [grantDefaultRoles], so
+ * a delayed required-email callback cannot add [NewUserRole] after approval. A pending marker remains
+ * in place until direct [UserRole] membership is observable: an ordinary failed grant can therefore
+ * be retried through the same verification link without granting access to a revoked subject.
+ * Repeated verification-link opens converge on exactly the approved role state.
  *
  * @param rolesRepo Repo roles are updated through.
  * @param userId Account being approved.
+ * @return `true` when the account was already approved or was pending and became approved; `false`
+ *   when no direct pending/approved role exists, which prevents a revoked account from regaining access.
  */
-suspend fun promoteNewUserToUser(rolesRepo: RolesRepo, userId: UserId) {
+suspend fun promoteNewUserToUser(rolesRepo: RolesRepo, userId: UserId): Boolean =
     roleTransitionMutex.withLock {
         val subject = roleSubject(userId)
-        rolesRepo.excludeDirect(subject, NewUserRole)
-        rolesRepo.includeDirect(subject, UserRole)
+        val roles = rolesRepo.getDirectRoles(subject)
+        when {
+            NewUserRole in roles -> {
+                if (UserRole !in roles) {
+                    rolesRepo.includeDirect(subject, UserRole)
+                    if (UserRole !in rolesRepo.getDirectRoles(subject)) return@withLock false
+                }
+                rolesRepo.excludeDirect(subject, NewUserRole)
+                val resultingRoles = rolesRepo.getDirectRoles(subject)
+                UserRole in resultingRoles && NewUserRole !in resultingRoles
+            }
+            UserRole in roles || SuperAdminRole in roles -> true
+            else -> false
+        }
     }
-}
 
 /**
  * One-time migration body (issue #68 point 6's "small migration"): applies [grantDefaultRoles] to

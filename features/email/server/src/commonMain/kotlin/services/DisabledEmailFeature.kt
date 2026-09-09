@@ -1,6 +1,7 @@
 package dev.inmo.wishlist.features.email.server.services
 
 import dev.inmo.wishlist.features.email.common.models.Email
+import dev.inmo.wishlist.features.email.common.models.EmailVerificationRequestResult
 import dev.inmo.wishlist.features.email.server.EmailFeature
 import dev.inmo.wishlist.features.users.common.models.UserId
 
@@ -55,4 +56,16 @@ class DisabledEmailFeature(
      */
     override suspend fun setMyEmail(callerId: UserId, email: Email?): Boolean =
         accountCoordinator.updateStoredEmail(callerId, email)
+
+    /**
+     * Reports unavailable delivery without minting a deeplink or changing stored address state.
+     *
+     * @param callerId Authenticated owner; intentionally unused while delivery is disabled.
+     * @param expectedEmail Address the owner intended to verify; intentionally unused.
+     * @return [EmailVerificationRequestResult.Unavailable].
+     */
+    override suspend fun requestMyEmailVerification(
+        callerId: UserId,
+        expectedEmail: Email,
+    ): EmailVerificationRequestResult = EmailVerificationRequestResult.Unavailable
 }

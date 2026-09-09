@@ -2,6 +2,7 @@ package dev.inmo.wishlist.features.auth.server.services
 
 import dev.inmo.micro_utils.repos.MapCRUDRepo
 import dev.inmo.micro_utils.repos.MapKeyValueRepo
+import dev.inmo.micro_utils.coroutines.withWriteLock
 import dev.inmo.wishlist.features.auth.common.models.AuthFeatureUser
 import dev.inmo.wishlist.features.auth.common.models.AuthConfig
 import dev.inmo.wishlist.features.auth.common.models.Password
@@ -54,7 +55,11 @@ internal class FakeUsersRepo(
     private var nextId: Long = (initialUsers.keys.maxOfOrNull { it.long } ?: 0L) + 1L
 
     override suspend fun updateObject(newValue: NewUser, id: UserId, old: RegisteredUser): RegisteredUser =
-        old.copy(username = newValue.username, email = newValue.email)
+        old.copy(
+            username = newValue.username,
+            email = newValue.email,
+            emailApproved = newValue.email != null && old.email == newValue.email && old.emailApproved,
+        )
 
     override suspend fun createObject(newValue: NewUser): Pair<UserId, RegisteredUser> {
         if (map.values.any { it.username == newValue.username }) {
@@ -69,6 +74,13 @@ internal class FakeUsersRepo(
 
     override suspend fun getUserByUsername(username: Username): RegisteredUser? =
         getAll().values.firstOrNull { it.username == username }
+
+    override suspend fun approveEmail(id: UserId, expectedEmail: Email): RegisteredUser? =
+        locker.withWriteLock {
+            val current = map[id] ?: return@withWriteLock null
+            if (current.email != expectedEmail) return@withWriteLock null
+            current.copy(emailApproved = true).also { map[id] = it }
+        }?.also { _updatedObjectsFlow.emit(it) }
 }
 
 /**

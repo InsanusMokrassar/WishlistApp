@@ -11,30 +11,30 @@ import kotlin.test.Test
 import kotlin.test.assertEquals
 
 /**
- * Verifies [AuthFeatureUser]'s wire shape (which deliberately keeps `email`, unlike
+ * Verifies [AuthFeatureUser]'s wire shape (which deliberately keeps private email approval data, unlike
  * [dev.inmo.wishlist.features.users.common.models.UsersFeatureUser]) and its [asAuthFeatureUser]
  * mapper.
  */
 class AuthFeatureUserTest {
 
-    /** Encoded JSON carries exactly `id`/`username`/`email` — `email` is kept deliberately on this own-record surface. */
+    /** Encoded JSON carries private email approval when true on this own-record surface. */
     @Test
-    fun serializedFormContainsExactlyIdUsernameAndEmail() {
-        val user = AuthFeatureUser(UserId(1L), Username("alice"), Email("alice@example.com"))
+    fun serializedFormContainsEmailAndApprovalWhenApproved() {
+        val user = AuthFeatureUser(UserId(1L), Username("alice"), Email("alice@example.com"), emailApproved = true)
 
         val json = Json.encodeToJsonElement(AuthFeatureUser.serializer(), user).jsonObject
 
-        assertEquals(setOf("id", "username", "email"), json.keys)
+        assertEquals(setOf("id", "username", "email", "emailApproved"), json.keys)
     }
 
-    /** A [RegisteredUser] with a non-null email maps every field through unchanged, including email. */
+    /** A [RegisteredUser] with an approved non-null email maps every private own-record field unchanged. */
     @Test
-    fun mapperCarriesNonNullEmailThrough() {
-        val registered = RegisteredUser(UserId(7L), Username("bob"), Email("bob@example.com"))
+    fun mapperCarriesNonNullEmailAndApprovalThrough() {
+        val registered = RegisteredUser(UserId(7L), Username("bob"), Email("bob@example.com"), emailApproved = true)
 
         val projected = registered.asAuthFeatureUser()
 
-        assertEquals(AuthFeatureUser(UserId(7L), Username("bob"), Email("bob@example.com")), projected)
+        assertEquals(AuthFeatureUser(UserId(7L), Username("bob"), Email("bob@example.com"), emailApproved = true), projected)
     }
 
     /** A [RegisteredUser] with no email maps to a null email, not a default/placeholder value. */
@@ -50,7 +50,7 @@ class AuthFeatureUserTest {
     /** Round trip base → feature → base restores the original unchanged — no extra arguments required. */
     @Test
     fun reverseMapperRoundTripsToOriginalRegisteredUser() {
-        val original = RegisteredUser(UserId(7L), Username("bob"), Email("bob@example.com"))
+        val original = RegisteredUser(UserId(7L), Username("bob"), Email("bob@example.com"), emailApproved = true)
 
         assertEquals(original, original.asAuthFeatureUser().asRegisteredUser())
     }

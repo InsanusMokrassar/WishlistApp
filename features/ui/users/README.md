@@ -21,16 +21,19 @@ design skill's `ui_kits/calm-studio` reference so the phase-1 shell CSS styles t
   included). Shows the username and avatar (when set). Shows an **Edit** button only to the profile
   owner and a SuperAdmin.
 - **User profile edit** (`UserEditViewConfig(userId)`) — reachable by the owner and a SuperAdmin. A
-  non-root owner has **no editable text fields** but may upload an avatar; a SuperAdmin may edit the
-  username, set a new password (with a confirmation field that must match), upload an avatar, and
-  **delete** the user. The user id is never editable. User *creation* is not done here (admin panel).
+  non-root owner cannot edit administrator-managed username/password fields but may upload an avatar
+  and, when SMTP email verification is enabled, add a missing private email and request or retry its
+  verification. A SuperAdmin may edit the username, set a new password (with a confirmation field
+  that must match), upload an avatar, and **delete** the user. The user id is never editable. User
+  *creation* is not done here (admin panel).
 
 No auth required to view the users list or a profile.
 
 ## Routes
 
 None — client-only UI feature. Consumes `features/users/client` (public read), `features/auth/client`
-(current caller + root check), `features/admin/client` (root-only username/password/delete) and
+(current caller + private own-record read), `features/email/client` (owner email storage and
+verification request), `features/admin/client` (root-only username/password/delete) and
 `features/files/client` (avatar storage).
 
 ## Models
@@ -40,13 +43,13 @@ None — client-only UI feature. Consumes `features/users/client` (public read),
 | `UsersListViewConfig` | Empty `@Serializable class` — main slot root identifier |
 | `UserViewConfig` | `data class(userId: UserId)` — public profile detail |
 | `UserEditViewConfig` | `data class(userId: UserId)` — profile edit (owner/root) |
-| `UsersModel` | Single feature model (renamed from `UsersListModel`). Wraps `UsersFeature.getAll()` (returns `UsersFeatureUser` — no email, see `features/users/README.md`), auth "me" `StateFlow<RegisteredUser?>` from `features/auth/client` `Scope.meStateFlow` (`getCurrentUserId`, `isCurrentUserRootFlow` — backed by `roles/client` `RolesFeature.isFunctionalityAvailable(adminPanelFunctionalityId)` over `meStateFlow`, see Architecture Notes), admin `AdminFeature.usersManagement` (`updateUsername`, `setPassword`, `deleteUser`), and `FilesClientService` (`getAvatar`, `uploadAvatar`, `imageUrl`, `loadImageBytes`); `canChangeAvatarForOthersFlow` — backed by `RolesFeature.isFunctionalityAvailable(avatarChangeForOthersFunctionalityId)`; `getUser(id)` resolves a `UsersFeatureUser?` from the public list |
+| `UsersModel` | Single feature model (renamed from `UsersListModel`). Wraps `UsersFeature.getAll()` (returns `UsersFeatureUser` — no email, see `features/users/README.md`), auth's private `ClientAuthFeature.getMe()` for the owner record, `EmailFeature` (`isEmailFeatureEnabled`, `setMyEmail`, `requestMyEmailVerification`), admin `AdminFeature.usersManagement` (`updateUsername`, `setPassword`, `deleteUser`), and `FilesClientService` (`getAvatar`, `uploadAvatar`, `imageUrl`, `loadImageBytes`). The public list is never used to read email or approval state. |
 | `UsersListViewInteractor` | `onUserSelected(node, userId)` (→ user's all-items view), `onOpenProfile(node, userId)` (→ profile view) |
 | `UserViewInteractor` | `onBack(node)`, `onEditUser(node)` (→ edit) |
 | `UserEditViewInteractor` | `onNavigateBack(node)`, `onSaved(node)`, `onDeleted(node)` |
 | `UsersListViewModel` | `usersState`, `avatarsState` (`Map<UserId, FileId>`), `loadingState`, `currentUserIdState`; `onUserSelected`, `onMyProfile`, `imageUrl`/`loadImageBytes` |
 | `UserViewModel` | `userState`, `avatarIdState`, `canEditState`, `loadingState`; auto-`onBack` when the user is gone after reload |
-| `UserEditViewModel` | `isRootState`, `usernameState`, `passwordState`, `confirmPasswordState`, `avatarIdState`, `uploadingAvatarState`, `passwordMismatchState`, `canSaveState`, `canUploadAvatarState`, discard/delete dialog states |
+| `UserEditViewModel` | Existing profile/avatar/admin-edit state plus owner-only `canManageOwnEmailState`, private profile/email input, loading/busy/error state, and explicit verification result state |
 
 ## Architecture Notes
 
@@ -67,8 +70,10 @@ None — client-only UI feature. Consumes `features/users/client` (public read),
 - **My profile**: `UsersListViewModel` loads `currentUserIdState` (= `me.value?.id`); the header button is shown only when non-null and pushes `UserViewConfig(currentUserId)`.
 - **Profile edit gating** (`UserEditViewModel`):
   - `isRootState` gates the editable username/password fields, the delete button, and `canSaveState`. Non-root owners see read-only username + a "no editable fields" note + the avatar uploader.
-  - `canSaveState` = root && username non-blank && not loading && (password blank or password == confirm). `passwordMismatchState` drives the inline error. `onSave` calls `updateUsername` always and `setPassword` only when a new password was entered.
+  - `canSaveState` = root && username non-blank && not loading && (password blank or password == confirm). `passwordMismatchState` drives the inline error. `onSave` requires a confirmed username result before it attempts an optional password change and navigates only after every requested mutation succeeds. Username and password failures render separate feedback; a password failure after a successful username is intentionally a visible partial commit rather than a rollback.
   - **Avatar upload** (owner or root): shown only when `canUploadAvatarState` is true (owner OR has `avatarChangeForOthers` functionality). The image picker is the feature's own `utils/pickImageFile` (`expect`/`actual`; JS hidden input, JVM `JFileChooser`, Android `AvatarImagePicker` registered by `MainActivity`). `onAvatarPicked` → `model.uploadAvatar(userId, file)` (finalize + associate) → refresh `avatarIdState`. Avatar changes persist immediately and do not set the dirty flag.
+  - **Owner email verification:** the editor derives owner-only visibility from the current authorized caller and a local `Unknown`/`Loading`/`Enabled`/`Disabled`/`Failed` capability state. Only a matching private profile under `Enabled` permits writes; probe/profile failure leaves a visible Refresh action but keeps mutations fail-closed, and root editing someone else never sees private feedback. Each owner operation captures caller identity and an owner generation, is cancelled on identity/session loss, and rechecks ownership after every suspension so an obsolete PUT/POST/reconciliation cannot publish or issue a later request. With no stored email, save first calls `setMyEmail` and only requests verification after a confirmed success. A false or uncertain PUT is shown as a storage-confirmation failure and never posts; a later private reconciliation may reveal a pending address without automatically sending. POST failures become the distinct `DeliveryFailed` result. A saved unapproved address is read-only and offers resend; an approved address has no resend. Every current save/retry reconciles the private profile so a deeplink approval is reflected, while an unsaved draft survives retry. The JS, JVM, and Android implementations use the same state and controls.
+  - **Owner lifecycle confinement:** owner generations, refresh versions, mutation tokens/jobs, authorization checks, and private-state publications run in a `Dispatchers.Main.immediate` child scope that retains the navigation ViewModel lifecycle job. UI callbacks enter on that same UI dispatcher; tests inject one shared serial dispatcher. This prevents a worker that passed an old ownership check from publishing after invalidation while retaining node-destruction cancellation.
   - **Delete** (root only) was **moved here from the users list** (per the requirement). A single confirmation dialog → `model.deleteUser(id)` → `interactor.onDeleted(node)` pops the edit screen; `UserViewModel` then reloads, finds the user gone, and auto-`onBack`s.
 - Avatar rendering: JS uses `<img src=imageUrl>`; JVM/Android use a feature-local `RemoteImage` composable (Skia / `BitmapFactory`), mirroring the wishlist feature. The **users list** loads each user's avatar id via `UsersModel.getAvatar` into `avatarsState` during `loadUsers` and renders it as the `ListRow` `leading` slot (circular 48dp thumbnail, neutral placeholder box when none), mirroring the `UserWishlistsView` item-avatar pattern.
 - JS uses Bootstrap modals; JVM uses Material v2 `AlertDialog`; Android uses Material3 `AlertDialog`.

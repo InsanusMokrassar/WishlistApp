@@ -12,6 +12,7 @@ object Constants {
     const val usersGetAllPathPart = "getAll"
     const val usersCreatePathPart = "create"
     const val usersUpdatePathPart = "update"
+    const val usersSetUsernamePathPart = "setUsername"
     const val usersSetPasswordPathPart = "setPassword"
     const val usersDeletePathPart = "delete"
 

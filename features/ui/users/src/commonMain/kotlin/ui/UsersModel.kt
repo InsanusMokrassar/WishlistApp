@@ -1,6 +1,9 @@
 package dev.inmo.wishlist.features.ui.users.ui
 
 import dev.inmo.micro_utils.common.MPPFile
+import dev.inmo.wishlist.features.auth.common.models.AuthFeatureUser
+import dev.inmo.wishlist.features.email.common.models.Email
+import dev.inmo.wishlist.features.email.common.models.EmailVerificationRequestResult
 import dev.inmo.wishlist.features.auth.common.models.Password
 import dev.inmo.wishlist.features.files.common.models.FileId
 import dev.inmo.wishlist.features.users.common.models.UserId
@@ -65,6 +68,39 @@ interface UsersModel {
      * yet resolved.
      */
     val canChangeAvatarForOthersFlow: StateFlow<Boolean>
+
+    /**
+     * Resolves the authenticated caller's private profile record.
+     *
+     * This must never be substituted with the public users listing because email and approval state
+     * are intentionally private to the owner.
+     *
+     * @return The authenticated caller's private profile, or `null` when the session is absent.
+     */
+    suspend fun getMyProfile(): AuthFeatureUser?
+
+    /**
+     * Returns whether self-service email verification delivery is configured.
+     *
+     * @return `true` when SMTP-backed email operations are available.
+     */
+    suspend fun isEmailFeatureEnabled(): Boolean
+
+    /**
+     * Replaces the authenticated caller's stored email address.
+     *
+     * @param email Validated address to persist, or `null` to clear the caller's address.
+     * @return `true` when the server persisted the requested value.
+     */
+    suspend fun setMyEmail(email: Email?): Boolean
+
+    /**
+     * Requests a verification message for the caller's displayed current email address.
+     *
+     * @param expectedEmail Current private-profile email snapshot.
+     * @return Server result describing delivery or the current account state.
+     */
+    suspend fun requestMyEmailVerification(expectedEmail: Email): EmailVerificationRequestResult
 
     /**
      * Updates the username of user [id] (root-only on the server).

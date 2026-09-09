@@ -6,6 +6,7 @@ import dev.inmo.micro_utils.startup.plugin.StartPlugin
 import dev.inmo.wishlist.features.admin.common.Constants
 import dev.inmo.wishlist.features.admin.server.configurators.AdminRoutingsConfigurator
 import dev.inmo.wishlist.features.auth.server.services.AuthFeatureService
+import dev.inmo.wishlist.features.email.server.services.EmailVerificationAccountCoordinator
 import dev.inmo.wishlist.features.roles.common.FeatureRolesRegistry
 import dev.inmo.wishlist.features.roles.common.models.SuperAdminRole
 import dev.inmo.wishlist.features.roles.common.utils.singleRequirement
@@ -25,7 +26,8 @@ object Plugin : StartPlugin {
                 usersRepo = get<UsersRepo>(),
                 authService = get<AuthFeatureService>(),
                 wishlistRepo = get<WishlistRepo>(),
-                wishlistItemRepo = get<WishlistItemRepo>()
+                wishlistItemRepo = get<WishlistItemRepo>(),
+                accountCoordinator = get<EmailVerificationAccountCoordinator>(),
             )
         }
         single { AdminFeature(get()) }

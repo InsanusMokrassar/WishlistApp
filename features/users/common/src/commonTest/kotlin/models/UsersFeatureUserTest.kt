@@ -13,7 +13,7 @@ import kotlin.test.assertEquals
  */
 class UsersFeatureUserTest {
 
-    /** Encoded JSON carries exactly the `id`/`username` keys — no `email` key present. */
+    /** Encoded JSON carries exactly the `id`/`username` keys — no private email fields are present. */
     @Test
     fun serializedFormContainsExactlyIdAndUsernameNoEmail() {
         val user = UsersFeatureUser(id = UserId(1L), username = Username("alice"))
@@ -23,10 +23,10 @@ class UsersFeatureUserTest {
         assertEquals(setOf("id", "username"), json.keys)
     }
 
-    /** A [RegisteredUser] with a non-null email maps to id/username and drops the email. */
+    /** A [RegisteredUser] with an approved non-null email maps to id/username and drops private fields. */
     @Test
-    fun mapperDropsNonNullEmail() {
-        val registered = RegisteredUser(UserId(7L), Username("bob"), Email("bob@example.com"))
+    fun mapperDropsNonNullEmailAndApproval() {
+        val registered = RegisteredUser(UserId(7L), Username("bob"), Email("bob@example.com"), emailApproved = true)
 
         val projected = registered.asUsersFeatureUser()
 
@@ -43,22 +43,25 @@ class UsersFeatureUserTest {
         assertEquals(UsersFeatureUser(UserId(8L), Username("carol")), projected)
     }
 
-    /** Round trip base → feature → base with the original email re-supplied explicitly restores the original. */
+    /** Round trip restores private email and approval only when both are explicitly re-supplied. */
     @Test
-    fun reverseMapperRestoresNonNullEmailRoundTrip() {
-        val original = RegisteredUser(UserId(7L), Username("bob"), Email("bob@example.com"))
+    fun reverseMapperRestoresNonNullEmailAndApprovalRoundTrip() {
+        val original = RegisteredUser(UserId(7L), Username("bob"), Email("bob@example.com"), emailApproved = true)
 
-        val restored = original.asUsersFeatureUser().asRegisteredUser(email = original.email)
+        val restored = original.asUsersFeatureUser().asRegisteredUser(
+            email = original.email,
+            emailApproved = original.emailApproved,
+        )
 
         assertEquals(original, restored)
     }
 
-    /** Round trip with `email = null` passed consciously preserves the absent email. */
+    /** Round trip with absent email and false approval passed consciously preserves the original. */
     @Test
     fun reverseMapperPreservesNullEmailRoundTrip() {
         val original = RegisteredUser(UserId(8L), Username("carol"), null)
 
-        val restored = original.asUsersFeatureUser().asRegisteredUser(email = null)
+        val restored = original.asUsersFeatureUser().asRegisteredUser(email = null, emailApproved = false)
 
         assertEquals(original, restored)
     }

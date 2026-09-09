@@ -30,6 +30,7 @@ import dev.inmo.wishlist.features.ui.adminPanel.ui.AdminWishlistsListViewConfig
 import dev.inmo.wishlist.features.ui.adminPanel.ui.AdminWishlistsListViewModel
 import dev.inmo.wishlist.features.users.common.models.NewUser
 import dev.inmo.wishlist.features.users.common.models.UserId
+import dev.inmo.wishlist.features.users.common.models.Username
 import dev.inmo.wishlist.features.wishlist.common.models.NewWishlist
 import dev.inmo.wishlist.features.wishlist.common.models.NewWishlistInFeature
 import dev.inmo.wishlist.features.wishlist.common.models.NewWishlistItem
@@ -100,6 +101,9 @@ object Plugin : StartPlugin {
 
                 override suspend fun updateUser(id: UserId, newUser: NewUser): Boolean =
                     admin.usersManagement.update(id, newUser)
+
+                override suspend fun updateUsername(id: UserId, username: Username): Boolean =
+                    admin.usersManagement.updateUsername(id, username)
 
                 override suspend fun deleteUser(id: UserId): Boolean =
                     admin.usersManagement.delete(id)

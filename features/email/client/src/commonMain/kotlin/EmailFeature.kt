@@ -1,6 +1,7 @@
 package dev.inmo.wishlist.features.email.client
 
 import dev.inmo.wishlist.features.email.common.models.Email
+import dev.inmo.wishlist.features.email.common.models.EmailVerificationRequestResult
 
 /**
  * Client-side capability surface for the email feature.
@@ -45,4 +46,12 @@ interface EmailFeature {
      * @return `true` when the update was persisted successfully; `false` otherwise.
      */
     suspend fun setMyEmail(email: Email?): Boolean
+
+    /**
+     * Requests a verification message for the authenticated caller's current [expectedEmail].
+     *
+     * @param expectedEmail Address displayed by the owner profile before the request.
+     * @return The server's delivery/result state.
+     */
+    suspend fun requestMyEmailVerification(expectedEmail: Email): EmailVerificationRequestResult
 }

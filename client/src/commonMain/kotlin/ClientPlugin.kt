@@ -466,6 +466,12 @@ object ClientPlugin : StartPlugin {
                 override suspend fun onOpenWishlists(node: NavigationNode<AdminPanelViewConfig, ViewConfig>) {
                     node.chain.push(AdminWishlistsListViewConfig())
                 }
+                override suspend fun onUserSelected(
+                    node: NavigationNode<AdminPanelViewConfig, ViewConfig>,
+                    userId: UserId
+                ) {
+                    node.chain.push(AdminUserViewConfig(userId))
+                }
             }
         }
 

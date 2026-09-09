@@ -11,7 +11,8 @@ deeplinks in-process, and resolves an opened `links/{deeplink_uuid}` by dispatch
 registered under the stored `DeepLinkHandlerId`.
 
 The email feature provides the first concrete handler: registration verification links carry an
-`EmailVerificationPayload` and promote the referenced account from `NewUser` to `User`.
+`EmailVerificationPayload`, conditionally approve the referenced account's current exact email, and
+then promote a still-pending `NewUser` to `User` without restoring a revoked role.
 
 The feature ships **zero** concrete handlers — it only declares the `DeepLinkHandler` interface and
 the dispatch infrastructure. Other features provide their own handlers (registered in their own
@@ -93,7 +94,8 @@ Key data types:
   (→ `404`) for any stored link until a feature provides a handler. This is expected infra behavior.
 - **Email verification handler:** `features/email/server` registers `email.registration_verification`
   and its polymorphic payload when the email plugin is loaded. The deeplinks core remains generic; the
-  handler checks that the referenced user exists and performs the idempotent role transition.
+  handler delegates current-email equality checking, conditional approval, and revocation-safe pending
+  role promotion to the email account coordinator.
 - **Handler-owned redirect safety.** The dispatcher preserves `Handled.Redirect(url)` without parsing
   or rewriting it. A concrete handler owns destination safety; the email handler emits only its fixed
   same-origin root path, never payload-controlled text.

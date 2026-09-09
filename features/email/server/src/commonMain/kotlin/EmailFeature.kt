@@ -1,6 +1,7 @@
 package dev.inmo.wishlist.features.email.server
 
 import dev.inmo.wishlist.features.email.common.models.Email
+import dev.inmo.wishlist.features.email.common.models.EmailVerificationRequestResult
 import dev.inmo.wishlist.features.users.common.models.UserId
 
 /**
@@ -46,4 +47,16 @@ interface EmailFeature {
      *   when [email] is already stored for a different user.
      */
     suspend fun setMyEmail(callerId: UserId, email: Email?): Boolean
+
+    /**
+     * Requests verification of the caller's current address only when it still equals [expectedEmail].
+     *
+     * @param callerId Authenticated caller whose current address is considered.
+     * @param expectedEmail Address the caller saw before asking for delivery.
+     * @return A domain result that distinguishes pending, stale, disabled, and delivery outcomes.
+     */
+    suspend fun requestMyEmailVerification(
+        callerId: UserId,
+        expectedEmail: Email,
+    ): EmailVerificationRequestResult
 }

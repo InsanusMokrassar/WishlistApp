@@ -19,6 +19,7 @@ import dev.inmo.wishlist.features.common.client.ui.components.ContentColumn
 import dev.inmo.wishlist.features.common.client.ui.components.FieldSet
 import dev.inmo.wishlist.features.common.client.ui.components.FormHint
 import dev.inmo.wishlist.features.common.client.ui.components.PageHead
+import dev.inmo.wishlist.features.email.common.models.EmailVerificationRequestResult
 import dev.inmo.wishlist.features.ui.topBar.ui.TopBarTitleProvider
 import dev.inmo.wishlist.features.ui.users.UsersListStrings
 import dev.inmo.wishlist.features.ui.users.utils.pickImageFile
@@ -74,6 +75,16 @@ class UserEditView(
         val mismatch by viewModel.passwordMismatchState.collectAsState()
         val canSave by viewModel.canSaveState.collectAsState()
         val canUploadAvatar by viewModel.canUploadAvatarState.collectAsState()
+        val canManageOwnEmail by viewModel.canManageOwnEmailState.collectAsState()
+        val canMutateOwnEmail by viewModel.canMutateOwnEmailState.collectAsState()
+        val ownEmailProfile by viewModel.ownEmailProfileState.collectAsState()
+        val emailInput by viewModel.emailInputState.collectAsState()
+        val emailLoading by viewModel.emailLoadingState.collectAsState()
+        val emailBusy by viewModel.emailBusyState.collectAsState()
+        val emailError by viewModel.emailErrorState.collectAsState()
+        val emailLoadFailed by viewModel.emailLoadFailedState.collectAsState()
+        val emailVerificationResult by viewModel.emailVerificationResultState.collectAsState()
+        val profileSaveError by viewModel.profileSaveErrorState.collectAsState()
         val showDiscard by viewModel.showConfirmDialogState.collectAsState()
         val showDelete by viewModel.showDeleteDialogState.collectAsState()
         val scope = rememberCoroutineScope()
@@ -124,13 +135,118 @@ class UserEditView(
                             )
                         }
                     }
-                    if (canUploadAvatar) {
+                if (canUploadAvatar) {
                         CalmButton(
                             text = if (uploading) UsersListStrings.uploadingPhoto.translation()
                                 else UsersListStrings.uploadPhotoButton.translation(),
                             onClick = { scope.launch { pickImageFile()?.let { viewModel.onAvatarPicked(it) } } },
                             disabled = loading || uploading,
                         )
+                    }
+                }
+
+                if (canManageOwnEmail) {
+                    FieldSet(label = UsersListStrings.emailSectionTitle.translation()) {
+                        when {
+                            emailLoading -> FormHint(UsersListStrings.emailLoading.translation())
+                            ownEmailProfile == null -> {
+                                FormHint(
+                                    if (emailLoadFailed) UsersListStrings.emailLoadFailed.translation()
+                                    else UsersListStrings.emailLoading.translation(),
+                                    error = true,
+                                )
+                            }
+                            ownEmailProfile?.email == null -> {
+                                CalmTextField(
+                                    value = emailInput,
+                                    onValueChange = { viewModel.onEmailChanged(it) },
+                                    label = UsersListStrings.emailLabel.translation(),
+                                    type = InputType.Email,
+                                    disabled = !canMutateOwnEmail,
+                                    hint = UsersListStrings.emailMissing.translation(),
+                                    id = "settings-email",
+                                )
+                                CalmButton(
+                                    text = UsersListStrings.saveEmailAndVerifyButton.translation(),
+                                    onClick = { viewModel.onSaveEmailAndRequestVerification() },
+                                    variant = CalmButtonVariant.Primary,
+                                    disabled = !canMutateOwnEmail,
+                                )
+                            }
+                            ownEmailProfile?.emailApproved == true -> {
+                                CalmTextField(
+                                    value = ownEmailProfile?.email?.string.orEmpty(),
+                                    onValueChange = {},
+                                    label = UsersListStrings.emailLabel.translation(),
+                                    type = InputType.Email,
+                                    disabled = true,
+                                    hint = UsersListStrings.emailApproved.translation(),
+                                    id = "settings-email",
+                                )
+                            }
+                            else -> {
+                                CalmTextField(
+                                    value = ownEmailProfile?.email?.string.orEmpty(),
+                                    onValueChange = {},
+                                    label = UsersListStrings.emailLabel.translation(),
+                                    type = InputType.Email,
+                                    disabled = true,
+                                    hint = UsersListStrings.emailPendingApproval.translation(),
+                                    id = "settings-email",
+                                )
+                                CalmButton(
+                                    text = UsersListStrings.resendEmailVerificationButton.translation(),
+                                    onClick = { viewModel.onResendEmailVerification() },
+                                    variant = CalmButtonVariant.Primary,
+                                    disabled = !canMutateOwnEmail,
+                                )
+                            }
+                        }
+                        when (emailError) {
+                            EmailEditorError.InvalidEmail -> FormHint(
+                                UsersListStrings.emailInvalid.translation(),
+                                error = true,
+                            )
+                            EmailEditorError.SaveFailed -> FormHint(
+                                UsersListStrings.emailSaveFailed.translation(),
+                                error = true,
+                            )
+                            EmailEditorError.LoadFailed, null -> Unit
+                        }
+                        if (emailLoadFailed && ownEmailProfile != null) {
+                            FormHint(UsersListStrings.emailLoadFailed.translation(), error = true)
+                        }
+                        CalmButton(
+                            text = UsersListStrings.refreshEmailButton.translation(),
+                            onClick = { viewModel.onRefreshEmail() },
+                            variant = CalmButtonVariant.Ghost,
+                            disabled = emailBusy || emailLoading,
+                        )
+                        when (emailVerificationResult) {
+                            EmailVerificationRequestResult.Sent -> FormHint(
+                                UsersListStrings.emailVerificationSent.translation()
+                            )
+                            EmailVerificationRequestResult.AlreadyApproved -> FormHint(
+                                UsersListStrings.emailVerificationAlreadyApproved.translation()
+                            )
+                            EmailVerificationRequestResult.Unavailable -> FormHint(
+                                UsersListStrings.emailVerificationUnavailable.translation(),
+                                error = true,
+                            )
+                            EmailVerificationRequestResult.NoEmail -> FormHint(
+                                UsersListStrings.emailVerificationNoEmail.translation(),
+                                error = true,
+                            )
+                            EmailVerificationRequestResult.EmailChanged -> FormHint(
+                                UsersListStrings.emailVerificationChanged.translation(),
+                                error = true,
+                            )
+                            EmailVerificationRequestResult.DeliveryFailed -> FormHint(
+                                UsersListStrings.emailVerificationDeliveryFailed.translation(),
+                                error = true,
+                            )
+                            null -> Unit
+                        }
                     }
                 }
 
@@ -163,6 +279,17 @@ class UserEditView(
                         if (mismatch) {
                             FormHint(UsersListStrings.passwordMismatch.translation(), error = true)
                         }
+                    }
+                    when (profileSaveError) {
+                        ProfileSaveError.UsernameSaveFailed -> FormHint(
+                            UsersListStrings.profileUsernameSaveFailed.translation(),
+                            error = true,
+                        )
+                        ProfileSaveError.PasswordSaveFailed -> FormHint(
+                            UsersListStrings.profilePasswordSaveFailed.translation(),
+                            error = true,
+                        )
+                        null -> Unit
                     }
                     Div({ classes(CalmStudioStyleSheet.formactions) }) {
                         CalmButton(

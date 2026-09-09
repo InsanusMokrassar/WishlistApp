@@ -11,12 +11,16 @@ import dev.inmo.wishlist.features.users.common.models.Username
 import dev.inmo.wishlist.features.users.common.repo.exceptions.DuplicateUserFieldException
 import org.jetbrains.exposed.v1.core.Op
 import org.jetbrains.exposed.v1.core.ResultRow
+import org.jetbrains.exposed.v1.core.and
+import org.jetbrains.exposed.v1.core.booleanLiteral
+import org.jetbrains.exposed.v1.core.case
 import org.jetbrains.exposed.v1.core.eq
 import org.jetbrains.exposed.v1.core.statements.InsertStatement
 import org.jetbrains.exposed.v1.core.statements.UpdateBuilder
 import org.jetbrains.exposed.v1.exceptions.ExposedSQLException
 import org.jetbrains.exposed.v1.jdbc.Database
 import org.jetbrains.exposed.v1.jdbc.transactions.transaction
+import org.jetbrains.exposed.v1.jdbc.update as exposedUpdate
 
 /**
  * Exposed-backed PostgreSQL and SQLite implementation of [UsersRepo].
@@ -54,6 +58,14 @@ class ExposedUsersRepo(
      */
     private val emailColumn = text("email").nullable().uniqueIndex()
 
+    /**
+     * Durable approval evidence for [emailColumn].
+     *
+     * The non-null default makes the additive migration conservative: every historic row starts
+     * pending instead of inferring mailbox ownership from a role or a previously stored address.
+     */
+    private val emailApprovedColumn = bool("email_approved").default(false)
+
     override val primaryKey = PrimaryKey(idColumn)
 
     /**
@@ -63,11 +75,15 @@ class ExposedUsersRepo(
      * malformed rows — invalid stored values are treated as absent (`null`).
      */
     override val ResultRow.asObject: RegisteredUser
-        get() = RegisteredUser(
-            id = UserId(get(idColumn)),
-            username = Username(get(usernameColumn)),
-            email = get(emailColumn)?.let { Email.parse(it).getOrNull() }
-        )
+        get() {
+            val email = get(emailColumn)?.let { Email.parse(it).getOrNull() }
+            return RegisteredUser(
+                id = UserId(get(idColumn)),
+                username = Username(get(usernameColumn)),
+                email = email,
+                emailApproved = email != null && get(emailApprovedColumn)
+            )
+        }
 
     /** Maps a result row to a [UserId]. */
     override val ResultRow.asId: UserId
@@ -85,6 +101,13 @@ class ExposedUsersRepo(
     override fun update(id: UserId?, value: NewUser, it: UpdateBuilder<Int>) {
         it[usernameColumn] = value.username.string
         it[emailColumn] = value.email?.string
+        if (id == null || value.email == null) {
+            it[emailApprovedColumn] = false
+        } else {
+            it[emailApprovedColumn] = case()
+                .When(emailColumn eq value.email.string, emailApprovedColumn)
+                .Else(booleanLiteral(false))
+        }
     }
 
     /**
@@ -97,7 +120,8 @@ class ExposedUsersRepo(
         RegisteredUser(
             id = UserId(this[idColumn]),
             username = value.username,
-            email = value.email
+            email = value.email,
+            emailApproved = false
         )
 
     /**
@@ -150,6 +174,35 @@ class ExposedUsersRepo(
         } catch (e: ExposedSQLException) {
             if (e.isUniqueViolation()) throw DuplicateUserFieldException(cause = e) else throw e
         }
+
+    /**
+     * Conditionally approves [expectedEmail] for [id] and emits exactly one update after commit.
+     *
+     * The SQL predicate includes both identity and the stored address, so a stale verification link
+     * cannot approve a later replacement. Repeating a valid approval returns the stored approved row
+     * and remains idempotent; an absent user or mismatched/cleared address emits no event.
+     *
+     * @param id User whose current email is being approved.
+     * @param expectedEmail Address bound to the verification link.
+     * @return The approved user, or `null` when the conditional predicate did not match.
+     */
+    override suspend fun approveEmail(id: UserId, expectedEmail: Email): RegisteredUser? {
+        val approved = transaction(db = database) {
+            val predicate = (idColumn eq id.long) and (emailColumn eq expectedEmail.string)
+            val changed = this@ExposedUsersRepo.exposedUpdate({ predicate }) {
+                it[emailApprovedColumn] = true
+            }
+            if (changed == 0) {
+                null
+            } else {
+                selectAll().where { predicate }.limit(1).firstOrNull()?.asObject
+            }
+        }
+        if (approved != null) {
+            _updatedObjectsFlow.emit(approved)
+        }
+        return approved
+    }
 
     init {
         initTable()
