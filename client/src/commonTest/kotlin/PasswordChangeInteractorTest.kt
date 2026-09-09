@@ -3,6 +3,8 @@ package dev.inmo.wishlist.client
 import dev.inmo.navigation.core.NavigationChain
 import dev.inmo.navigation.core.NavigationNode
 import dev.inmo.navigation.core.NavigationNodeFactory
+import dev.inmo.navigation.core.repo.ConfigHolder
+import dev.inmo.navigation.core.repo.NavigationConfigsRepo
 import dev.inmo.wishlist.features.common.client.models.ViewConfig
 import dev.inmo.wishlist.features.deeplinks.common.models.DeepLinkId
 import dev.inmo.wishlist.features.ui.users.ui.PasswordChangeViewConfig
@@ -32,11 +34,21 @@ class PasswordChangeInteractorTest {
 
     @Test
     fun changedPendingReplacesCredentialRouteAndContinueAlwaysReachesUsersList() = runTest {
+        val navigationConfigsRepo = object : NavigationConfigsRepo<ViewConfig> {
+            var saved: ConfigHolder<ViewConfig>? = null
+
+            override fun save(holder: ConfigHolder<ViewConfig>) {
+                saved = holder
+            }
+
+            override fun get(): ConfigHolder<ViewConfig>? = null
+        }
         val application = startKoin {
             modules(module {
                 with(dev.inmo.wishlist.features.common.common.Plugin) { setupDI(JsonObject(emptyMap())) }
                 with(dev.inmo.wishlist.features.ui.users.Plugin) { setupDI(JsonObject(emptyMap())) }
                 with(ClientPlugin) { setupDI(JsonObject(emptyMap())) }
+                single<NavigationConfigsRepo<ViewConfig>> { navigationConfigsRepo }
             })
         }
         try {
@@ -64,6 +76,11 @@ class PasswordChangeInteractorTest {
 
                 assertEquals(PasswordChangeViewConfig.Completed, chain.stackFlow.value.last().config)
                 assertFalse(chain.stackFlow.value.any { it.config.toString().contains(approvalId.string) })
+                val persistedChain = navigationConfigsRepo.saved as ConfigHolder.Chain<ViewConfig>
+                assertEquals(
+                    PasswordChangeViewConfig.Completed,
+                    (persistedChain.firstNodeConfig as ConfigHolder.Node<ViewConfig>).subnode?.config,
+                )
 
                 val completedNode = chain.stackFlow.value.last() as NavigationNode<PasswordChangeViewConfig, ViewConfig>
                 interactor.onContinue(completedNode)

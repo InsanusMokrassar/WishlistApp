@@ -1,8 +1,10 @@
 package dev.inmo.wishlist.client
 
 import dev.inmo.navigation.core.repo.ConfigHolder
+import dev.inmo.navigation.core.NavigationChain
 import dev.inmo.navigation.core.NavigationNode
 import dev.inmo.navigation.core.NavigationNodeFactory
+import dev.inmo.navigation.core.repo.NavigationConfigsRepo
 import dev.inmo.navigation.core.repo.enableSavingHierarchy
 import dev.inmo.navigation.core.repo.restoreHierarchy
 import dev.inmo.wishlist.features.common.client.models.EmptyConfig
@@ -22,12 +24,17 @@ import dev.inmo.wishlist.features.wishlist.common.models.WishlistId
 import dev.inmo.wishlist.features.wishlist.common.models.WishlistItemId
 import kotlinx.browser.document
 import kotlinx.browser.window
+import kotlinx.coroutines.CompletableDeferred
+import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.MainScope
+import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.cancelAndJoin
 import kotlinx.coroutines.promise
-import kotlinx.coroutines.yield
+import kotlinx.coroutines.flow.filter
+import kotlinx.coroutines.flow.first
+import kotlin.coroutines.coroutineContext
 import kotlinx.serialization.json.JsonObject
-import org.koin.core.context.startKoin
-import org.koin.core.context.stopKoin
+import org.koin.dsl.koinApplication
 import org.koin.dsl.module
 import org.w3c.dom.HTMLBaseElement
 import kotlin.test.Test
@@ -43,6 +50,10 @@ private fun ConfigHolder<ViewConfig>.allConfigs(): List<ViewConfig> = when (this
     is ConfigHolder.Chain -> firstNodeConfig?.allConfigs().orEmpty()
     is ConfigHolder.Node -> listOf(config) + subnode?.allConfigs().orEmpty() + subchains.flatMap { it.allConfigs() }
 }
+
+/** Waits until the started chain has processed queued restoration pushes. */
+private suspend fun NavigationChain<ViewConfig>.awaitRestoredStack(): List<NavigationNode<out ViewConfig, ViewConfig>> =
+    stackFlow.filter { it.isNotEmpty() }.first()
 
 /** Runs URL persistence against the actual browser adapter under the Mocha/Node JSDOM host. */
 class PasswordChangeNavigationBrowserTest {
@@ -90,29 +101,55 @@ class PasswordChangeNavigationBrowserTest {
                     .allConfigs().filterIsInstance<PasswordChangeViewConfig.Pending>().single(),
             )
 
-            val application = startKoin { modules(module { with(ClientPlugin) { setupDI(JsonObject(emptyMap())) } }) }
+            val urlRepo = WishlistsAppUrlNavigationConfigsRepo()
+            val completedSave = CompletableDeferred<ConfigHolder<ViewConfig>>()
+            val persistenceRepo = object : NavigationConfigsRepo<ViewConfig> {
+                override fun save(holder: ConfigHolder<ViewConfig>) {
+                    urlRepo.save(holder)
+                    if (holder.allConfigs().any { it is PasswordChangeViewConfig.Completed }) {
+                        completedSave.complete(holder)
+                    }
+                }
+
+                override fun get(): ConfigHolder<ViewConfig>? = urlRepo.get()
+            }
+            val liveFactory = NavigationNodeFactory<ViewConfig> { chain, config ->
+                NavigationNode.Empty(chain, config)
+            }
+            val rootChain = NavigationChain<ViewConfig>(null, liveFactory)
+            val navigationJob = SupervisorJob()
+            val navigationScope = CoroutineScope(coroutineContext + navigationJob)
+            val savingJob = persistenceRepo.enableSavingHierarchy(rootChain, navigationScope)
+            val application = koinApplication {
+                modules(module {
+                    with(ClientPlugin) { setupDI(JsonObject(emptyMap())) }
+                    single<NavigationConfigsRepo<ViewConfig>> { persistenceRepo }
+                })
+            }
             val liveChain = checkNotNull(restoreHierarchy(
                 restored,
-                NavigationNodeFactory<ViewConfig> { chain, config -> NavigationNode.Empty(chain, config) },
+                liveFactory,
+                rootChain,
             ))
-            val liveJob = liveChain.start(this)
-            val savingJob = WishlistsAppUrlNavigationConfigsRepo().enableSavingHierarchy(liveChain, this)
+            assertTrue(liveChain === rootChain)
+            val rootJob = rootChain.start(navigationScope)
             try {
-                yield()
-                val scaffoldNode = checkNotNull(liveChain.stackFlow.value.single().subnode)
+                val restoredRootNode = rootChain.awaitRestoredStack().single()
+                val scaffoldNode = restoredRootNode.subchains.single().awaitRestoredStack().single()
                 val mainChain = checkNotNull(scaffoldNode.subchains.firstOrNull { it.id == MainNavigationChainId })
-                val pendingNode = mainChain.stackFlow.value.last() as NavigationNode<PasswordChangeViewConfig, ViewConfig>
+                val pendingNode = mainChain.awaitRestoredStack().last() as NavigationNode<PasswordChangeViewConfig, ViewConfig>
                 application.koin.get<dev.inmo.wishlist.features.ui.users.ui.PasswordChangeViewInteractor>()
                     .onChanged(pendingNode)
-                yield()
-                yield()
-                assertTrue(mainChain.stackFlow.value.last().config is PasswordChangeViewConfig.Completed)
+                assertTrue(mainChain.stackFlow.filter { it.lastOrNull()?.config is PasswordChangeViewConfig.Completed }.first().isNotEmpty())
+                val persistedCompletion = completedSave.await()
                 assertEquals("/ui/password-changed", window.location.pathname)
-                assertFalse(liveChain.stackFlow.value.any { it.config.toString().contains(approval.string) })
+                assertTrue(persistedCompletion.allConfigs().any { it is PasswordChangeViewConfig.Completed })
+                assertFalse(persistedCompletion.allConfigs().any { it is PasswordChangeViewConfig.Pending })
             } finally {
-                savingJob.cancel()
-                liveJob.cancel()
-                stopKoin()
+                savingJob.cancelAndJoin()
+                rootJob.cancelAndJoin()
+                navigationJob.cancelAndJoin()
+                application.close()
             }
 
             val completed = ConfigHolder.Chain<ViewConfig>(
@@ -134,7 +171,7 @@ class PasswordChangeNavigationBrowserTest {
             val notifications = mutableListOf<String>()
             assertTrue(
                 consumeEmailApprovalNotification(
-                    "https://wishlist.test/ui/?email-approved=true#marker",
+                    "https://wishlist.test/ui/?emailApproval=approved#marker",
                     notifications::add,
                     { window.history.replaceState(null, "", it) },
                 ),

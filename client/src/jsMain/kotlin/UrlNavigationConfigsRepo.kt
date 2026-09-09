@@ -5,7 +5,6 @@ package dev.inmo.wishlist.client
 import dev.inmo.micro_utils.common.Warning
 import dev.inmo.navigation.core.repo.ConfigHolder
 import dev.inmo.navigation.core.repo.NavigationConfigsRepo
-import dev.inmo.navigation.core.urls.UrlParametersNavigationConfigsRepo
 import dev.inmo.navigation.core.urls.UrlParametersNavigationConfigsRepo.LocationData
 import dev.inmo.wishlist.features.common.client.models.LeftNavigationChainId
 import dev.inmo.wishlist.features.common.client.models.MainNavigationChainId
@@ -27,6 +26,7 @@ import dev.inmo.wishlist.features.auth.common.utils.isCanonicalPasswordChangeApp
 import dev.inmo.wishlist.features.wishlist.common.models.WishlistId
 import dev.inmo.wishlist.features.wishlist.common.models.WishlistItemId
 import kotlinx.browser.document
+import kotlinx.browser.window
 import org.w3c.dom.url.URL
 
 /** Default browser-tab/site title; always resolved regardless of the current navigation state. */
@@ -340,9 +340,16 @@ private fun parsePath(data: LocationData): ConfigHolder.Chain<ViewConfig>? {
  * Builds the JS [NavigationConfigsRepo] that stores the navigation hierarchy in the page URL path, so
  * deep links to the content screens are shareable and survive a reload.
  */
-fun WishlistsAppUrlNavigationConfigsRepo(): NavigationConfigsRepo<ViewConfig> =
-    UrlParametersNavigationConfigsRepo(
-        buildSearchParams = { holder -> buildPath(holder) },
-        parseSearchParams = ::parsePath,
-        titleResolver = { SITE_TITLE }
+fun WishlistsAppUrlNavigationConfigsRepo(): NavigationConfigsRepo<ViewConfig> = object : NavigationConfigsRepo<ViewConfig> {
+    override fun save(holder: ConfigHolder<ViewConfig>) {
+        val locationData = LocationData.build { buildPath(holder) }
+        window.history.pushState(null, SITE_TITLE, locationData.buildUrl())
+    }
+
+    override fun get(): ConfigHolder<ViewConfig>? = parsePath(
+        LocationData(
+            document.location?.pathname ?: "",
+            document.location?.search ?: "",
+        )
     )
+}

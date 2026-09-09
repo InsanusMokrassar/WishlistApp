@@ -17,6 +17,9 @@ import dev.inmo.navigation.core.NavigationNodeState
 import dev.inmo.navigation.core.extensions.changesInSubtreeFlow
 import dev.inmo.navigation.core.extensions.dropNodesInSubTree
 import dev.inmo.navigation.core.extensions.findInSubTree
+import dev.inmo.navigation.core.extensions.rootChain
+import dev.inmo.navigation.core.repo.NavigationConfigsRepo
+import dev.inmo.navigation.core.repo.storeHierarchy
 import dev.inmo.wishlist.features.common.client.models.EmptyConfig
 import dev.inmo.wishlist.features.common.client.models.MainNavigationChainId
 import dev.inmo.wishlist.features.common.client.models.RootNodeFactoryGetter
@@ -75,7 +78,11 @@ import dev.inmo.wishlist.features.ui.wishlist.ui.UserWishlistsViewInteractor
 import dev.inmo.wishlist.features.users.common.models.UserId
 import dev.inmo.wishlist.features.wishlist.common.models.WishlistId
 import dev.inmo.wishlist.features.wishlist.common.models.WishlistItemId
+import kotlinx.coroutines.CoroutineStart
+import kotlinx.coroutines.async
+import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.flow.conflate
+import kotlinx.coroutines.flow.first
 import kotlinx.serialization.json.JsonObject
 import org.koin.core.Koin
 import org.koin.core.module.Module
@@ -172,9 +179,20 @@ object ClientPlugin : StartPlugin {
         }
 
         single<PasswordChangeViewInteractor> {
+            val navigationConfigsRepo = get<NavigationConfigsRepo<ViewConfig>>()
             object : PasswordChangeViewInteractor {
                 override suspend fun onChanged(node: NavigationNode<PasswordChangeViewConfig, ViewConfig>) {
-                    node.chain.replaceLastOrBackUntil(PasswordChangeViewConfig.Completed)
+                    val completedHierarchy = coroutineScope {
+                        val hierarchy = async(start = CoroutineStart.UNDISPATCHED) {
+                            node.chain.stackFlow.first { stack ->
+                                stack.lastOrNull()?.config is PasswordChangeViewConfig.Completed
+                            }
+                            checkNotNull(node.chain.rootChain().storeHierarchy())
+                        }
+                        node.chain.replaceLastOrBackUntil(PasswordChangeViewConfig.Completed)
+                        hierarchy.await()
+                    }
+                    navigationConfigsRepo.save(completedHierarchy)
                 }
 
                 override suspend fun onContinue(node: NavigationNode<PasswordChangeViewConfig, ViewConfig>) {
@@ -607,10 +625,11 @@ object ClientPlugin : StartPlugin {
     override suspend fun startPlugin(koin: Koin) {
         super.startPlugin(koin)
         val rootChain = koin.get<NavigationChain<ViewConfig>>()
+        val navigationConfigsRepo = koin.get<NavigationConfigsRepo<ViewConfig>>()
         koin.get<(@Composable () -> Unit) -> Unit>().invoke {
             initNavigation<ViewConfig>(
                 EmptyConfig(),
-                configsRepo = koin.get(),
+                configsRepo = navigationConfigsRepo,
                 nodesFactory = koin.get<RootNodeFactoryGetter>().invoke(),
                 dropRedundantChainsOnRestore = true,
                 rootChain = rootChain
