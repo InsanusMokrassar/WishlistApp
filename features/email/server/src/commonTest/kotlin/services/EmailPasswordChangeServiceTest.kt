@@ -198,6 +198,25 @@ class EmailPasswordChangeServiceTest {
             cancelledDelivery.service.requestPasswordChangeEmail(cancelledDelivery.user.id, cancelledDelivery.user.email!!)
         }
         assertTrue(cancelledDelivery.linksRepo.getAll().isEmpty())
+
+        val thrownDelivery = fixture(emails = FakeEmailsService(failure = IllegalStateException("smtp failed")))
+        assertEquals(
+            PasswordChangeEmailRequestResult.DeliveryFailed,
+            thrownDelivery.service.requestPasswordChangeEmail(thrownDelivery.user.id, thrownDelivery.user.email!!),
+        )
+        assertTrue(thrownDelivery.linksRepo.getAll().isEmpty())
+    }
+
+    /** SMTP receives the approved address and one fixed URL containing the persisted approval id. */
+    @Test
+    fun sentApprovalUsesExactApprovedRecipientAndPersistedLink() = runTest {
+        val emails = FakeEmailsService()
+        val fixture = fixture(emails)
+        assertEquals(PasswordChangeEmailRequestResult.Sent, fixture.service.requestPasswordChangeEmail(fixture.user.id, fixture.user.email!!))
+        val approvalId = fixture.linksRepo.getAll().keys.single()
+        assertEquals(fixture.user.email, emails.sendHtmlCalls.single().recipient)
+        assertTrue(emails.sendHtmlCalls.single().html.contains("https://wishlist.example/api/links/${approvalId.string}"))
+        assertTrue(fixture.linksRepo.get(approvalId) != null)
     }
 
     /** Credential replacement during SMTP causes post-delivery validation to remove the new approval. */
