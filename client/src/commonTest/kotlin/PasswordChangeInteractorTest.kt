@@ -3,6 +3,7 @@ package dev.inmo.wishlist.client
 import dev.inmo.navigation.core.NavigationChain
 import dev.inmo.navigation.core.NavigationNode
 import dev.inmo.navigation.core.NavigationNodeFactory
+import dev.inmo.navigation.core.extensions.rootChain
 import dev.inmo.navigation.core.repo.ConfigHolder
 import dev.inmo.navigation.core.repo.NavigationConfigsRepo
 import dev.inmo.micro_utils.common.MPPFile
@@ -27,6 +28,7 @@ import dev.inmo.wishlist.features.users.common.models.UsersFeatureUser
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.cancel
 import kotlinx.coroutines.cancelAndJoin
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.CancellationException
@@ -34,6 +36,7 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.test.StandardTestDispatcher
+import kotlinx.coroutines.test.TestCoroutineScheduler
 import kotlinx.coroutines.test.advanceTimeBy
 import kotlinx.coroutines.test.advanceUntilIdle
 import kotlinx.coroutines.test.runCurrent
@@ -50,6 +53,7 @@ import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
 import kotlin.test.assertNotNull
+import kotlin.test.assertSame
 import kotlin.test.assertTrue
 
 /** Minimal production-interface model that holds completion until the lifecycle test releases it. */
@@ -123,6 +127,100 @@ internal class HeldPasswordChangeUsersModel : UsersModel {
 class PasswordChangeInteractorTest {
     /** Canonical approval reused by all navigation fixtures. */
     private val approvalId = DeepLinkId("123e4567-e89b-42d3-a456-426614174000")
+
+    /** Rejects both stale callbacks when immutable ancestry still points at a detached former root. */
+    @Test
+    fun detachedPendingAtEntryStartsNoTransition() = runTest {
+        val repo = RecordingPasswordNavigationRepo()
+        val owner = PasswordChangeNavigationOwner(repo)
+        var completedFactoryCalls = 0
+        val root = NavigationChain<ViewConfig>(null, NavigationNodeFactory { parent, config ->
+            NavigationNode.Empty(parent, config).also {
+                if (config == PasswordChangeViewConfig.Completed) completedFactoryCalls += 1
+            }
+        })
+        val rootJob = root.start(this)
+        val unbind = owner.bind(root, this)
+        try {
+            val ancestor = checkNotNull(root.push(UsersListViewConfig()))
+            val leaf = ancestor.createEmptySubChain()
+            val pending = checkNotNull(leaf.push(PasswordChangeViewConfig.Pending(UserId(7), approvalId)))
+                as NavigationNode<PasswordChangeViewConfig, ViewConfig>
+            advanceUntilIdle()
+
+            assertSame(root, pending.chain.rootChain())
+            assertSame(ancestor, pending.chain.parentNode)
+            val replacement = checkNotNull(root.replace(ancestor, UsersListViewConfig())).second
+            advanceUntilIdle()
+            assertSame(root, pending.chain.rootChain())
+            assertSame(ancestor, pending.chain.parentNode)
+
+            owner.onChanged(pending)
+            owner.onContinue(pending)
+            runCurrent()
+
+            assertEquals(0, owner.activeTransitionCount)
+            assertEquals(0, completedFactoryCalls)
+            assertEquals(0, repo.saveAttempts)
+            assertSame(replacement, root.stackFlow.value.single())
+            assertTrue(leaf.stackFlow.value.single() === pending)
+        } finally {
+            unbind()
+            rootJob.cancelAndJoin()
+        }
+    }
+
+    /** Stops a queued leaf transition after an outer ancestor replacement without leaf stack delivery. */
+    @Test
+    fun detachedWhileQueuedStopsWithoutLeafEmission() = runTest {
+        val repo = RecordingPasswordNavigationRepo()
+        val owner = PasswordChangeNavigationOwner(repo)
+        val root = NavigationChain<ViewConfig>(null, NavigationNodeFactory { parent, config ->
+            NavigationNode.Empty(parent, config)
+        })
+        val rootJob = root.start(this)
+        val rootScopeJob = SupervisorJob(coroutineContext[Job])
+        val rootScope = CoroutineScope(coroutineContext + rootScopeJob)
+        val unbind = owner.bind(root, rootScope)
+        val timerScheduler = TestCoroutineScheduler()
+        val heldDispatcher = HeldNavigationDispatcher(StandardTestDispatcher(timerScheduler))
+        val heldScopeJob = SupervisorJob(coroutineContext[Job])
+        val heldScope = CoroutineScope(heldScopeJob + heldDispatcher)
+        var leafStartJob: Job? = null
+        try {
+            val ancestor = checkNotNull(root.push(UsersListViewConfig()))
+            val leaf = ancestor.createEmptySubChain()
+            val pending = checkNotNull(leaf.push(PasswordChangeViewConfig.Pending(UserId(7), approvalId)))
+                as NavigationNode<PasswordChangeViewConfig, ViewConfig>
+            advanceUntilIdle()
+
+            leafStartJob = leaf.start(heldScope)
+            heldDispatcher.drain()
+            owner.onChanged(pending)
+            runCurrent()
+            assertEquals(1, owner.activeTransitionCount)
+            assertTrue(heldDispatcher.queuedTaskCount > 0)
+            val leafStackBeforeOuterReplacement = leaf.stackFlow.value
+
+            val outerReplacement = checkNotNull(root.replace(ancestor, UsersListViewConfig())).second
+            runCurrent()
+
+            assertTrue(rootScopeJob.children.all { it.isCompleted })
+            assertEquals(0, owner.activeTransitionCount)
+            assertEquals(0, repo.saveAttempts)
+            assertSame(outerReplacement, root.stackFlow.value.single())
+            assertEquals(leafStackBeforeOuterReplacement, leaf.stackFlow.value)
+        } finally {
+            unbind()
+            rootScopeJob.cancelAndJoin()
+            leafStartJob?.cancel()
+            heldScopeJob.cancel()
+            heldDispatcher.drain()
+            leafStartJob?.join()
+            heldScopeJob.join()
+            rootJob.cancelAndJoin()
+        }
+    }
 
     /** Proves replacement destroys the submitting ViewModel before the root-owned save completes. */
     @Test
