@@ -147,6 +147,61 @@ object UsersListStrings {
         IetfLang.Russian("Этот email-адрес подтверждён.")
     }
 
+    /** Requests an email-authorized password-change link for the verified owner address. */
+    val requestPasswordChangeButton = buildStringResource("Email me a password-change link") {
+        IetfLang.Russian("Отправить ссылку для смены пароля")
+    }
+
+    /** Successful delivery feedback for a password-change approval message. */
+    val passwordChangeEmailSent = buildStringResource("Password-change email sent.") {
+        IetfLang.Russian("Письмо для смены пароля отправлено.")
+    }
+
+    /** Generic feedback when an approval request cannot be completed safely. */
+    val passwordChangeEmailUnavailable = buildStringResource("Password-change email is unavailable. Refresh and try again.") {
+        IetfLang.Russian("Письмо для смены пароля недоступно. Обновите данные и повторите попытку.")
+    }
+
+    /** Feedback for an ordinary SMTP delivery failure. */
+    val passwordChangeEmailDeliveryFailed = buildStringResource("Could not send the password-change email. Try again.") {
+        IetfLang.Russian("Не удалось отправить письмо для смены пароля. Повторите попытку.")
+    }
+
+    /** Title of the token-authorized password-change screen. */
+    val passwordChangeTitle = buildStringResource("Choose a new password") {
+        IetfLang.Russian("Выберите новый пароль")
+    }
+
+    /** Action label for submitting a token-authorized password replacement. */
+    val changePasswordButton = buildStringResource("Change password") {
+        IetfLang.Russian("Изменить пароль")
+    }
+
+    /** Explains the password-change policy without modifying entered text. */
+    val passwordChangePolicy = buildStringResource("Use at least 8 characters and no more than 72 UTF-8 bytes.") {
+        IetfLang.Russian("Используйте не менее 8 символов и не более 72 байт UTF-8.")
+    }
+
+    /** Feedback for a consumed, expired, or otherwise invalid approval. */
+    val passwordChangeInvalidApproval = buildStringResource("This password-change link is no longer valid. Request a new email.") {
+        IetfLang.Russian("Эта ссылка для смены пароля больше недействительна. Запросите новое письмо.")
+    }
+
+    /** Feedback for a server-side password-policy rejection. */
+    val passwordChangeInvalidPassword = buildStringResource("Choose a password that meets the policy.") {
+        IetfLang.Russian("Выберите пароль, соответствующий требованиям.")
+    }
+
+    /** Feedback when completion outcome cannot be safely confirmed. */
+    val passwordChangeUnconfirmed = buildStringResource("Password change could not be confirmed. Do not retry this link; request a new email.") {
+        IetfLang.Russian("Не удалось подтвердить смену пароля. Не повторяйте эту ссылку; запросите новое письмо.")
+    }
+
+    /** Credential-free completed-state message after a confirmed password replacement. */
+    val passwordChanged = buildStringResource("Password changed. You can now sign in with the new password.") {
+        IetfLang.Russian("Пароль изменён. Теперь можно войти с новым паролем.")
+    }
+
     /** Saves a new owner email and immediately requests verification. */
     val saveEmailAndVerifyButton = buildStringResource("Save and send verification") {
         IetfLang.Russian("Сохранить и отправить подтверждение")

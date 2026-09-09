@@ -9,4 +9,8 @@ object Constants {
     const val registerPathPart = "register"
     const val configPathPart = "config"
     const val isRegistrationAvailablePathPart = "is_registration_available"
+    const val requestPasswordChangeEmailPathPart = "requestPasswordChangeEmail"
+    const val completePasswordChangePathPart = "completePasswordChange"
+    const val passwordChangePagePathPart = "password-change"
+    const val passwordChangedPagePathPart = "password-changed"
 }

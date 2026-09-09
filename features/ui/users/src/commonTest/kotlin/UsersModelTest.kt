@@ -11,11 +11,15 @@ import dev.inmo.wishlist.features.admin.common.models.AdminWishlistItem
 import dev.inmo.wishlist.features.admin.common.models.NewUserWithPassword
 import dev.inmo.wishlist.features.auth.client.AuthCredentialsStorage
 import dev.inmo.wishlist.features.auth.client.ClientAuthFeature
+import dev.inmo.wishlist.features.auth.client.PasswordChangeFeature
 import dev.inmo.wishlist.features.auth.client.meQualifier
 import dev.inmo.wishlist.features.auth.common.models.AuthConfig
 import dev.inmo.wishlist.features.auth.common.models.AuthCredentials
 import dev.inmo.wishlist.features.auth.common.models.AuthFeatureUser
+import dev.inmo.wishlist.features.auth.common.models.CompletePasswordChangeRequest
 import dev.inmo.wishlist.features.auth.common.models.Password
+import dev.inmo.wishlist.features.auth.common.models.PasswordChangeEmailRequestResult
+import dev.inmo.wishlist.features.auth.common.models.PasswordChangeResult
 import dev.inmo.wishlist.features.auth.common.models.RefreshToken
 import dev.inmo.wishlist.features.auth.common.models.RegistrationResult
 import dev.inmo.wishlist.features.email.client.EmailFeature
@@ -63,10 +67,11 @@ class UsersModelTest {
         val profile = AuthFeatureUser(UserId(7L), Username("owner"), Email("owner@example.com"), emailApproved = false)
         val auth = RecordingAuthFeature(profile)
         val email = RecordingEmailFeature()
+        val passwordChange = RecordingPasswordChangeFeature()
         val usersManagement = RecordingUsersManagementFeature()
         val scope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
         val filesClient = HttpClient()
-        val koin = startModelKoin(auth, email, usersManagement, scope, filesClient)
+        val koin = startModelKoin(auth, email, passwordChange, usersManagement, scope, filesClient)
         try {
             val model = koin.koin.get<UsersModel>()
             val replacement = Email("replacement@example.com")
@@ -79,9 +84,18 @@ class UsersModelTest {
                 EmailVerificationRequestResult.Sent,
                 model.requestMyEmailVerification(replacement),
             )
+            assertEquals(PasswordChangeEmailRequestResult.Sent, model.requestPasswordChangeEmail(replacement))
+            assertEquals(
+                PasswordChangeResult.Changed,
+                model.completePasswordChange(
+                    CompletePasswordChangeRequest(profile.id, dev.inmo.wishlist.features.deeplinks.common.models.DeepLinkId("approval"), Password("new-password")),
+                ),
+            )
             assertTrue(model.updateUsername(profile.id, username))
             assertEquals(listOf<Email?>(replacement), email.setCalls)
             assertEquals(listOf(replacement), email.requestCalls)
+            assertEquals(listOf(replacement), passwordChange.requestedEmails)
+            assertEquals(profile.id, passwordChange.completedRequests.single().userId)
             assertEquals(listOf(profile.id to username), usersManagement.usernameCalls)
         } finally {
             stopKoin()
@@ -93,6 +107,7 @@ class UsersModelTest {
     private fun startModelKoin(
         auth: RecordingAuthFeature,
         email: RecordingEmailFeature,
+        passwordChange: RecordingPasswordChangeFeature,
         usersManagement: RecordingUsersManagementFeature,
         scope: CoroutineScope,
         client: HttpClient,
@@ -103,6 +118,7 @@ class UsersModelTest {
                 single<UsersFeature> { EmptyUsersFeature }
                 single<ClientAuthFeature> { auth }
                 single<EmailFeature> { email }
+                single<PasswordChangeFeature> { passwordChange }
                 single<AdminFeature> {
                     object : AdminFeature {
                         override val usersManagement: UsersManagementFeature = usersManagement
@@ -141,6 +157,27 @@ class UsersModelTest {
         override suspend fun requestMyEmailVerification(expectedEmail: Email): EmailVerificationRequestResult {
             requestCalls += expectedEmail
             return EmailVerificationRequestResult.Sent
+        }
+    }
+
+    /** Records password-change transport calls delegated through the production users model. */
+    private class RecordingPasswordChangeFeature : PasswordChangeFeature {
+        /** Exact expected addresses sent by the owner-editor operation. */
+        val requestedEmails = mutableListOf<Email>()
+
+        /** Exact completion payloads sent by the token-authorized page. */
+        val completedRequests = mutableListOf<CompletePasswordChangeRequest>()
+
+        /** Records one expected email and reports a confirmed message delivery. */
+        override suspend fun requestPasswordChangeEmail(expectedEmail: Email): PasswordChangeEmailRequestResult {
+            requestedEmails += expectedEmail
+            return PasswordChangeEmailRequestResult.Sent
+        }
+
+        /** Records one immutable completion payload and reports a changed password. */
+        override suspend fun completePasswordChange(request: CompletePasswordChangeRequest): PasswordChangeResult {
+            completedRequests += request
+            return PasswordChangeResult.Changed
         }
     }
 

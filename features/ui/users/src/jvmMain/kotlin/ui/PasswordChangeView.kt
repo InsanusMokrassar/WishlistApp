@@ -1,0 +1,98 @@
+package dev.inmo.wishlist.features.ui.users.ui
+
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.padding
+import androidx.compose.material.Button
+import androidx.compose.material.MaterialTheme
+import androidx.compose.material.OutlinedTextField
+import androidx.compose.material.Text
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.text.input.PasswordVisualTransformation
+import androidx.compose.ui.unit.dp
+import dev.inmo.micro_utils.strings.translation
+import dev.inmo.navigation.core.NavigationChain
+import dev.inmo.navigation.mvvm.compose.ComposeView
+import dev.inmo.wishlist.features.common.client.models.ViewConfig
+import dev.inmo.wishlist.features.common.client.ui.components.BackButton
+import dev.inmo.wishlist.features.ui.topBar.ui.TopBarTitleProvider
+import dev.inmo.wishlist.features.ui.users.UsersListStrings
+import org.koin.core.component.inject
+import org.koin.core.parameter.parametersOf
+
+/** JVM Material screen for a pending or completed email-authorized password change. */
+class PasswordChangeView(
+    chain: NavigationChain<ViewConfig>,
+    config: PasswordChangeViewConfig,
+) : ComposeView<PasswordChangeViewConfig, ViewConfig, PasswordChangeViewModel>(config, chain), TopBarTitleProvider {
+    override val viewModel: PasswordChangeViewModel by inject(mode = LazyThreadSafetyMode.SYNCHRONIZED) {
+        parametersOf(this@PasswordChangeView)
+    }
+
+    override val title: String
+        @Composable get() = UsersListStrings.passwordChangeTitle.translation()
+
+    @Composable
+    override fun onDraw() {
+        super.onDraw()
+        val password by viewModel.passwordState.collectAsState()
+        val confirmation by viewModel.confirmationState.collectAsState()
+        val loading by viewModel.loadingState.collectAsState()
+        val canSubmit by viewModel.canSubmitState.collectAsState()
+        val result by viewModel.resultState.collectAsState()
+        Column(
+            modifier = Modifier.fillMaxSize().padding(16.dp),
+            verticalArrangement = Arrangement.spacedBy(8.dp),
+        ) {
+            BackButton(UsersListStrings.backButton.translation()) { viewModel.onContinue() }
+            Text(UsersListStrings.passwordChangeTitle.translation(), style = MaterialTheme.typography.h5)
+            if (viewModel.completedState) {
+                Text(UsersListStrings.passwordChanged.translation())
+                Button(onClick = viewModel::onContinue, modifier = Modifier.fillMaxWidth()) {
+                    Text(UsersListStrings.continueButton.translation())
+                }
+                return@Column
+            }
+            OutlinedTextField(
+                value = password,
+                onValueChange = viewModel::onPasswordChanged,
+                label = { Text(UsersListStrings.newPasswordLabel.translation()) },
+                visualTransformation = PasswordVisualTransformation(),
+                enabled = !loading,
+                modifier = Modifier.fillMaxWidth(),
+            )
+            OutlinedTextField(
+                value = confirmation,
+                onValueChange = viewModel::onConfirmationChanged,
+                label = { Text(UsersListStrings.confirmPasswordLabel.translation()) },
+                visualTransformation = PasswordVisualTransformation(),
+                enabled = !loading,
+                modifier = Modifier.fillMaxWidth(),
+            )
+            Text(UsersListStrings.passwordChangePolicy.translation())
+            passwordChangeMessage(result)?.let { message ->
+                Text(message, color = MaterialTheme.colors.error)
+            }
+            Button(
+                onClick = viewModel::onSubmitPasswordChange,
+                enabled = canSubmit,
+                modifier = Modifier.fillMaxWidth(),
+            ) { Text(UsersListStrings.changePasswordButton.translation()) }
+        }
+    }
+
+    /** Returns translated feedback for a non-null submission state. */
+    @Composable
+    private fun passwordChangeMessage(state: PasswordChangeSubmissionState?): String? = when (state) {
+        PasswordChangeSubmissionState.Mismatch -> UsersListStrings.passwordMismatch.translation()
+        PasswordChangeSubmissionState.InvalidPassword -> UsersListStrings.passwordChangeInvalidPassword.translation()
+        PasswordChangeSubmissionState.InvalidApproval -> UsersListStrings.passwordChangeInvalidApproval.translation()
+        PasswordChangeSubmissionState.Unconfirmed -> UsersListStrings.passwordChangeUnconfirmed.translation()
+        null -> null
+    }
+}

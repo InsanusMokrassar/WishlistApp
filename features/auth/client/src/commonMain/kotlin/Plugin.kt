@@ -15,6 +15,7 @@ import org.koin.core.module.Module
 import dev.inmo.wishlist.features.auth.client.configurators.BearerAuthHttpClientConfigurator
 import dev.inmo.wishlist.features.auth.client.configurators.DefaultUrlHttpClientConfigurator
 import dev.inmo.wishlist.features.auth.common.AuthFeature
+import dev.inmo.wishlist.features.auth.client.utils.PasswordChangeCompletionUrl
 import dev.inmo.wishlist.features.common.client.configurators.HttpClientConfigurator
 import dev.inmo.wishlist.features.auth.common.models.AuthFeatureUser
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -33,9 +34,11 @@ object Plugin : StartPlugin {
         }
 
         single { KtorAuthFeature(get()) }
+        single { KtorPasswordChangeFeature(get(), getOrNull<PasswordChangeCompletionUrl>()) }
         single { AuthFeatureService(get(), get<KtorAuthFeature>()) }
         single<ClientAuthFeature> { get<AuthFeatureService>() }
         single<AuthFeature> { get<AuthFeatureService>() }
+        single<PasswordChangeFeature> { get<KtorPasswordChangeFeature>() }
 
         singleSecretMeMutableStateFlow { MutableRedeliverStateFlow<AuthFeatureUser?>(null) }
         singleMeStateFlow {

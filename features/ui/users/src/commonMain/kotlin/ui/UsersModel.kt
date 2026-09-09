@@ -5,6 +5,9 @@ import dev.inmo.wishlist.features.auth.common.models.AuthFeatureUser
 import dev.inmo.wishlist.features.email.common.models.Email
 import dev.inmo.wishlist.features.email.common.models.EmailVerificationRequestResult
 import dev.inmo.wishlist.features.auth.common.models.Password
+import dev.inmo.wishlist.features.auth.common.models.CompletePasswordChangeRequest
+import dev.inmo.wishlist.features.auth.common.models.PasswordChangeEmailRequestResult
+import dev.inmo.wishlist.features.auth.common.models.PasswordChangeResult
 import dev.inmo.wishlist.features.files.common.models.FileId
 import dev.inmo.wishlist.features.users.common.models.UserId
 import dev.inmo.wishlist.features.users.common.models.Username
@@ -101,6 +104,22 @@ interface UsersModel {
      * @return Server result describing delivery or the current account state.
      */
     suspend fun requestMyEmailVerification(expectedEmail: Email): EmailVerificationRequestResult
+
+    /**
+     * Requests an email-authorized password-change approval for the displayed approved address.
+     *
+     * @param expectedEmail Exact current approved owner email.
+     * @return Typed result, or `null` when the client cannot confirm the outcome.
+     */
+    suspend fun requestPasswordChangeEmail(expectedEmail: Email): PasswordChangeEmailRequestResult?
+
+    /**
+     * Redeems an exact persisted approval independently of current browser login state.
+     *
+     * @param request Immutable approval subject, UUID, and newly entered password.
+     * @return Typed result, or `null` when the client cannot confirm the outcome.
+     */
+    suspend fun completePasswordChange(request: CompletePasswordChangeRequest): PasswordChangeResult?
 
     /**
      * Updates the username of user [id] (root-only on the server).

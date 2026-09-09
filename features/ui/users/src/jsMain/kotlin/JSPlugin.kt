@@ -6,6 +6,8 @@ import dev.inmo.navigation.core.NavigationNodeFactory
 import dev.inmo.wishlist.features.common.client.models.ViewConfig
 import dev.inmo.wishlist.features.ui.users.ui.UserEditView
 import dev.inmo.wishlist.features.ui.users.ui.UserEditViewConfig
+import dev.inmo.wishlist.features.ui.users.ui.PasswordChangeView
+import dev.inmo.wishlist.features.ui.users.ui.PasswordChangeViewConfig
 import dev.inmo.wishlist.features.ui.users.ui.UserView
 import dev.inmo.wishlist.features.ui.users.ui.UserViewConfig
 import dev.inmo.wishlist.features.ui.users.ui.UsersListView
@@ -32,6 +34,11 @@ object JSPlugin : StartPlugin {
         singleWithRandomQualifier<NavigationNodeFactory<ViewConfig>> {
             NavigationNodeFactory.Typed<UserEditViewConfig, ViewConfig> { chain, cfg ->
                 UserEditView(chain, cfg)
+            }
+        }
+        singleWithRandomQualifier<NavigationNodeFactory<ViewConfig>> {
+            NavigationNodeFactory.Typed<PasswordChangeViewConfig, ViewConfig> { chain, cfg ->
+                PasswordChangeView(chain, cfg)
             }
         }
     }

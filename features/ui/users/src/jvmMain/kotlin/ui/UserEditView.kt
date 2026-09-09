@@ -30,6 +30,7 @@ import dev.inmo.navigation.mvvm.compose.ComposeView
 import dev.inmo.wishlist.features.common.client.models.ViewConfig
 import dev.inmo.wishlist.features.common.client.ui.components.BackButton
 import dev.inmo.wishlist.features.email.common.models.EmailVerificationRequestResult
+import dev.inmo.wishlist.features.auth.common.models.PasswordChangeEmailRequestResult
 import dev.inmo.wishlist.features.ui.topBar.ui.TopBarTitleProvider
 import dev.inmo.wishlist.features.ui.users.UsersListStrings
 import dev.inmo.wishlist.features.ui.users.utils.pickImageFile
@@ -65,6 +66,7 @@ class UserEditView(
         val canUploadAvatar by viewModel.canUploadAvatarState.collectAsState()
         val canManageOwnEmail by viewModel.canManageOwnEmailState.collectAsState()
         val canMutateOwnEmail by viewModel.canMutateOwnEmailState.collectAsState()
+        val canRequestPasswordChangeEmail by viewModel.canRequestPasswordChangeEmailState.collectAsState()
         val ownEmailProfile by viewModel.ownEmailProfileState.collectAsState()
         val emailInput by viewModel.emailInputState.collectAsState()
         val emailLoading by viewModel.emailLoadingState.collectAsState()
@@ -72,6 +74,7 @@ class UserEditView(
         val emailError by viewModel.emailErrorState.collectAsState()
         val emailLoadFailed by viewModel.emailLoadFailedState.collectAsState()
         val emailVerificationResult by viewModel.emailVerificationResultState.collectAsState()
+        val passwordChangeEmailResult by viewModel.passwordChangeEmailResultState.collectAsState()
         val profileSaveError by viewModel.profileSaveErrorState.collectAsState()
         val showDiscard by viewModel.showConfirmDialogState.collectAsState()
         val showDelete by viewModel.showDeleteDialogState.collectAsState()
@@ -200,6 +203,11 @@ class UserEditView(
                             modifier = Modifier.fillMaxWidth(),
                         )
                         Text(UsersListStrings.emailApproved.translation())
+                        Button(
+                            onClick = { viewModel.onRequestPasswordChangeEmail() },
+                            enabled = canRequestPasswordChangeEmail,
+                            modifier = Modifier.fillMaxWidth(),
+                        ) { Text(UsersListStrings.requestPasswordChangeButton.translation()) }
                     }
                     else -> {
                         OutlinedTextField(
@@ -228,6 +236,10 @@ class UserEditView(
                     )
                     EmailEditorError.SaveFailed -> Text(
                         UsersListStrings.emailSaveFailed.translation(),
+                        color = MaterialTheme.colors.error,
+                    )
+                    EmailEditorError.PasswordChangeRequestFailed -> Text(
+                        UsersListStrings.passwordChangeEmailDeliveryFailed.translation(),
                         color = MaterialTheme.colors.error,
                     )
                     EmailEditorError.LoadFailed, null -> Unit
@@ -264,6 +276,19 @@ class UserEditView(
                     )
                     EmailVerificationRequestResult.DeliveryFailed -> Text(
                         UsersListStrings.emailVerificationDeliveryFailed.translation(),
+                        color = MaterialTheme.colors.error,
+                    )
+                    null -> Unit
+                }
+                when (passwordChangeEmailResult) {
+                    PasswordChangeEmailRequestResult.Sent -> Text(UsersListStrings.passwordChangeEmailSent.translation())
+                    PasswordChangeEmailRequestResult.Unavailable,
+                    PasswordChangeEmailRequestResult.Ineligible -> Text(
+                        UsersListStrings.passwordChangeEmailUnavailable.translation(),
+                        color = MaterialTheme.colors.error,
+                    )
+                    PasswordChangeEmailRequestResult.DeliveryFailed -> Text(
+                        UsersListStrings.passwordChangeEmailDeliveryFailed.translation(),
                         color = MaterialTheme.colors.error,
                     )
                     null -> Unit

@@ -21,6 +21,8 @@ End-to-end bearer-token authentication. Handles login (BCrypt password check), o
 | POST | `/auth/refresh` | None | `RefreshRequest → AuthCredentials \| 401` | Exchanges refreshToken for new credentials |
 | POST | `/auth/logout` | Bearer | `→ 200` | Invalidates the bearer token |
 | GET | `/auth/getMe` | Bearer | `→ AuthFeatureUser \| 401` | Returns the caller's own record for the current token |
+| POST | `/auth/requestPasswordChangeEmail` | Bearer | `PasswordChangeEmailRequest → PasswordChangeEmailRequestResult` | Requests one approval message for the caller's exact approved current email; ordinary outcomes remain `200` and the response is `Cache-Control: no-store` |
+| POST | `/auth/completePasswordChange` | None | `CompletePasswordChangeRequest → PasswordChangeResult` | Anonymous redemption of the delivered approval; the supplied user id is an equality assertion against persisted approval state, and the response is `Cache-Control: no-store` plus `Referrer-Policy: no-referrer` |
 
 ## Models
 
@@ -46,6 +48,10 @@ End-to-end bearer-token authentication. Handles login (BCrypt password check), o
 | `ServerAuthFeature` | Server-only extension: `logout`, `getUser(token): AuthFeatureUser?` |
 | `ServerUrlStorage` | Client-side interface: `getServerUrl / saveServerUrl` (platform-specific impls) |
 | `AuthCredentialsStorage` | Client-side interface: `get / save AuthCredentials` (platform-specific impls) |
+| `PasswordChangeEmailRequest` / `PasswordChangeEmailRequestResult` | Common request containing the expected approved `Email`; results are `Sent`, `Unavailable`, `Ineligible`, or `DeliveryFailed` without credentials or approvals. |
+| `CompletePasswordChangeRequest` / `PasswordChangeResult` | Common anonymous completion DTO containing only `userId`, the existing `DeepLinkId`, and a plaintext `Password`; results are `Changed`, `InvalidApproval`, or `InvalidPassword`. Its diagnostic representation redacts the UUID and plaintext. |
+| `PasswordChangeFeature` / `KtorPasswordChangeFeature` | Client-only HTTP capability for issuance and completion. Completion requires successful typed HTTP JSON and never performs a retry. |
+| `ServerPasswordChangeFeature` | Auth-owned server port implemented by Email; makes Auth routes fail closed when Email/deeplinks infrastructure is absent without introducing an Auth-to-Email dependency. |
 
 ## Architecture Notes
 
@@ -65,6 +71,10 @@ End-to-end bearer-token authentication. Handles login (BCrypt password check), o
 - `GET /auth/config` returns the common `AuthConfig` DTO, allowing JS/JVM/Android registration forms to show and validate the email field consistently. A new client falls back to `GET /auth/is_registration_available` when the config request/status/body fails and treats the legacy server as optional-email; a successful config response does not make the fallback request.
 - `AuthFeatureService` (server) requires `WriteUsersRepo` in addition to `ReadUsersRepo` to create accounts during registration.
 - `AuthFeatureService.purgeUser(userId)` (server-only) removes the stored password hash and every active access/refresh session for a user; used by the admin user-delete cascade (`features/admin`).
+- **Email-authorized password change:** an authenticated owner can request an approval only for the exact currently approved email. Email owns the persisted `DeepLinkId`; Auth's anonymous completion route treats its `userId` as an assertion, not a target selector. The approval must retain the same password-purpose payload, subject, approved email, credential-state fingerprint, and unexpired timestamp through final submission. Missing Email/deeplinks bindings yield `Unavailable` for issuance and `InvalidApproval` for completion.
+- **Credential-state and commit boundary:** Auth derives a server-private SHA-256 fingerprint from a domain tag, user id, and current BCrypt record. Email's account coordinator is always acquired before Auth's write lock. Auth rechecks direct User membership, account, hash, and fingerprint; a bounded non-cancellable commit rereads/removes the exact approval before persisting the already-generated BCrypt hash. Cancellation then propagates instead of claiming success. Password completion creates no credentials and does not revoke, clear, refresh, or otherwise change existing sessions or roles.
+- **Password-change policy:** only this new flow requires at least eight Kotlin characters and at most 72 UTF-8 bytes, without trimming or normalization. Existing registration still uses its documented Kotlin string-length check and root-only admin password behavior is unchanged.
+- **Browser completion transport:** ordinary Auth requests still use the saved server URL. JS constructs `PasswordChangeCompletionUrl` only from `window.location.origin` and the fixed completion path; that request carries `AuthCircuitBreaker` and a request-local default-URL opt-out so it cannot refresh bearer credentials or be rewritten to a saved host/path/query. Native completion keeps normal configured-server selection.
 - **Feature Interface Return Model Rule:** `getMe`/`getUser` and the "me" state flow now return `AuthFeatureUser` (a `common/models/` feature model) instead of the persistence entity `RegisteredUser` directly, per `agents/CODING.md`'s Feature Interface Return Model Rule. `AuthFeatureUser` deliberately keeps the current email and its approval flag for the authenticated owner; contrast with `features/users`' `UsersFeatureUser`, which drops both on the public listing.
 - Role assignment for newly created/bootstrapped users (issue #68 and #73) is handled separately by `features/roles` — see `roles/README.md`.
 - `SerializationConfigurator` sets `defaultRequest { contentType(ContentType.Application.Json) }` so individual request builders need not repeat it.

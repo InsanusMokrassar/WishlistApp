@@ -2,6 +2,7 @@ package dev.inmo.wishlist.features.deeplinks.server.services
 
 import dev.inmo.micro_utils.repos.MapKeyValueRepo
 import dev.inmo.micro_utils.repos.set
+import dev.inmo.micro_utils.repos.unset
 import dev.inmo.wishlist.features.deeplinks.common.DeepLinkHandler
 import dev.inmo.wishlist.features.deeplinks.common.models.DeepLinkHandlerId
 import dev.inmo.wishlist.features.deeplinks.common.models.DeepLinkHandlerInfo
@@ -18,6 +19,29 @@ class DeepLinksServiceTest {
     /** In-memory deeplink persistence for dispatcher tests. */
     private class FakeDeepLinksRepo : DeepLinksRepo,
         dev.inmo.micro_utils.repos.KeyValueRepo<DeepLinkId, DeepLinkHandlerInfo> by MapKeyValueRepo()
+
+    /** Persistence double that commits one record, then loses its response to exercise exact cleanup. */
+    private class CommitThenThrowDeepLinksRepo(
+        private val delegate: MapKeyValueRepo<DeepLinkId, DeepLinkHandlerInfo> = MapKeyValueRepo(),
+    ) : DeepLinksRepo,
+        dev.inmo.micro_utils.repos.KeyValueRepo<DeepLinkId, DeepLinkHandlerInfo> by delegate {
+
+        /** Identifiers passed through the service's cleanup boundary. */
+        val unsetIds = mutableListOf<DeepLinkId>()
+
+        /** Commits first, then throws as if persistence accepted the write but the caller lost confirmation. */
+        override suspend fun set(toSet: Map<DeepLinkId, DeepLinkHandlerInfo>) {
+            delegate.set(toSet)
+            throw IllegalStateException("persistence response lost")
+        }
+
+        /** Records and performs only the exact service-requested cleanup. */
+        override suspend fun unset(toUnset: List<DeepLinkId>) {
+            unsetIds += toUnset
+            delegate.unset(toUnset)
+        }
+
+    }
 
     /** Configurable handler fixture whose result is returned unchanged. */
     private class FakeHandler(
@@ -83,5 +107,20 @@ class DeepLinksServiceTest {
         assertFailsWith<IllegalArgumentException> {
             DeepLinksService(FakeDeepLinksRepo(), listOf(FakeHandler(id, null), FakeHandler(id, null)))
         }
+    }
+
+    /** A persistence exception after commit triggers non-cancellable removal of only the minted UUID. */
+    @Test
+    fun mintFailureCleansExactlyTheAllocatedLink() = runTest {
+        val repo = CommitThenThrowDeepLinksRepo()
+        val service = DeepLinksService(repo, emptyList())
+
+        assertFailsWith<IllegalStateException> {
+            service.createDeepLink(DeepLinkHandlerId("password-change"), "value")
+        }
+
+        assertEquals(1, repo.unsetIds.size)
+        assertEquals(repo.unsetIds.single(), repo.unsetIds.distinct().single())
+        assertEquals(emptyMap(), repo.getAll())
     }
 }

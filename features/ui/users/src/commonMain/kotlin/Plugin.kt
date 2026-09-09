@@ -7,8 +7,12 @@ import dev.inmo.wishlist.features.admin.client.AdminFeature
 import dev.inmo.wishlist.features.admin.common.Constants as AdminConstants
 import dev.inmo.wishlist.features.auth.client.AuthCredentialsStorage
 import dev.inmo.wishlist.features.auth.client.ClientAuthFeature
+import dev.inmo.wishlist.features.auth.client.PasswordChangeFeature
 import dev.inmo.wishlist.features.auth.client.meStateFlow
 import dev.inmo.wishlist.features.auth.common.models.Password
+import dev.inmo.wishlist.features.auth.common.models.CompletePasswordChangeRequest
+import dev.inmo.wishlist.features.auth.common.models.PasswordChangeEmailRequestResult
+import dev.inmo.wishlist.features.auth.common.models.PasswordChangeResult
 import dev.inmo.wishlist.features.common.client.models.ViewConfig
 import dev.inmo.wishlist.features.email.client.EmailFeature
 import dev.inmo.wishlist.features.email.common.models.Email
@@ -23,6 +27,8 @@ import dev.inmo.wishlist.features.users.common.models.Username
 import dev.inmo.wishlist.features.users.common.models.UsersFeatureUser
 import dev.inmo.wishlist.features.ui.users.ui.UserEditViewConfig
 import dev.inmo.wishlist.features.ui.users.ui.UserEditViewModel
+import dev.inmo.wishlist.features.ui.users.ui.PasswordChangeViewConfig
+import dev.inmo.wishlist.features.ui.users.ui.PasswordChangeViewModel
 import dev.inmo.wishlist.features.ui.users.ui.UserViewConfig
 import dev.inmo.wishlist.features.ui.users.ui.UserViewModel
 import dev.inmo.wishlist.features.ui.users.ui.UsersListViewConfig
@@ -59,14 +65,18 @@ object Plugin : StartPlugin {
                 polymorphic(ViewConfig::class, UserViewConfig::class, UserViewConfig.serializer())
                 polymorphic(Any::class, UserEditViewConfig::class, UserEditViewConfig.serializer())
                 polymorphic(ViewConfig::class, UserEditViewConfig::class, UserEditViewConfig.serializer())
+                polymorphic(Any::class, PasswordChangeViewConfig::class, PasswordChangeViewConfig.serializer())
+                polymorphic(ViewConfig::class, PasswordChangeViewConfig::class, PasswordChangeViewConfig.serializer())
             }
         }
         factory { UsersListViewModel(node = it.get(), model = get(), interactor = get()) }
         factory { UserViewModel(node = it.get(), model = get(), interactor = get()) }
         factory { UserEditViewModel(node = it.get(), model = get(), interactor = get()) }
+        factory { PasswordChangeViewModel(node = it.get(), model = get(), interactor = get()) }
         single<UsersModel> {
             val feature = get<UsersFeature>()
             val authFeature = get<ClientAuthFeature>()
+            val passwordChangeFeature = get<PasswordChangeFeature>()
             val emailFeature = get<EmailFeature>()
             val meState = meStateFlow
             val adminFeature = get<AdminFeature>()
@@ -108,6 +118,15 @@ object Plugin : StartPlugin {
                 override suspend fun requestMyEmailVerification(
                     expectedEmail: Email
                 ): EmailVerificationRequestResult = emailFeature.requestMyEmailVerification(expectedEmail)
+
+                override suspend fun requestPasswordChangeEmail(
+                    expectedEmail: Email,
+                ): PasswordChangeEmailRequestResult? =
+                    passwordChangeFeature.requestPasswordChangeEmail(expectedEmail)
+
+                override suspend fun completePasswordChange(
+                    request: CompletePasswordChangeRequest,
+                ): PasswordChangeResult? = passwordChangeFeature.completePasswordChange(request)
 
                 override suspend fun updateUsername(id: UserId, username: Username): Boolean =
                     adminFeature.usersManagement.updateUsername(id, username)

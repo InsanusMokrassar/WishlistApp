@@ -52,6 +52,8 @@ import dev.inmo.wishlist.features.ui.topBar.ui.TopBarViewConfig
 import dev.inmo.wishlist.features.ui.topBar.ui.TopBarViewInteractor
 import dev.inmo.wishlist.features.ui.users.ui.UserEditViewConfig
 import dev.inmo.wishlist.features.ui.users.ui.UserEditViewInteractor
+import dev.inmo.wishlist.features.ui.users.ui.PasswordChangeViewConfig
+import dev.inmo.wishlist.features.ui.users.ui.PasswordChangeViewInteractor
 import dev.inmo.wishlist.features.ui.users.ui.UserViewConfig
 import dev.inmo.wishlist.features.ui.users.ui.UserViewInteractor
 import dev.inmo.wishlist.features.ui.users.ui.UsersListViewConfig
@@ -165,6 +167,18 @@ object ClientPlugin : StartPlugin {
                 }
                 override suspend fun onDeleted(node: NavigationNode<UserEditViewConfig, ViewConfig>) {
                     node.chain.pop()
+                }
+            }
+        }
+
+        single<PasswordChangeViewInteractor> {
+            object : PasswordChangeViewInteractor {
+                override suspend fun onChanged(node: NavigationNode<PasswordChangeViewConfig, ViewConfig>) {
+                    node.chain.replaceLastOrBackUntil(PasswordChangeViewConfig.Completed)
+                }
+
+                override suspend fun onContinue(node: NavigationNode<PasswordChangeViewConfig, ViewConfig>) {
+                    node.chain.replaceLastOrBackUntil(UsersListViewConfig())
                 }
             }
         }

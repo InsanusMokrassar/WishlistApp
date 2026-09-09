@@ -6,6 +6,7 @@ import dev.inmo.wishlist.features.deeplinks.common.models.DeepLinkId
 import dev.inmo.wishlist.features.deeplinks.common.models.HandleResult
 import dev.inmo.wishlist.features.deeplinks.server.services.DeepLinksService
 import io.ktor.http.HttpStatusCode
+import io.ktor.http.HttpHeaders
 import io.ktor.server.response.respond
 import io.ktor.server.response.respondRedirect
 import io.ktor.server.routing.Route
@@ -29,6 +30,8 @@ class DeepLinksRoutingConfigurator(
     override fun Route.invoke() {
         route(DeepLinksConstants.linksPrefixPathPart) {
             get("{${DeepLinksConstants.deeplinkIdParameter}}") {
+                call.response.headers.append(HttpHeaders.CacheControl, "no-store")
+                call.response.headers.append("Referrer-Policy", "no-referrer")
                 val deeplinkId = call.parameters[DeepLinksConstants.deeplinkIdParameter]
                     ?.takeIf { it.isNotBlank() }
                     ?.let(::DeepLinkId)

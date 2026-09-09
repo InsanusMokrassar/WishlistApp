@@ -53,6 +53,7 @@ import dev.inmo.wishlist.features.common.server.configurators.ContentNegotiation
 import dev.inmo.wishlist.features.common.server.configurators.InternalApplicationRoutingConfigurator
 import dev.inmo.wishlist.features.common.server.models.Config
 import dev.inmo.wishlist.features.common.server.models.KtorConfig
+import dev.inmo.wishlist.features.common.server.utils.safeCallLogLine
 import io.ktor.http.HttpStatusCode
 import java.io.File
 
@@ -142,6 +143,7 @@ object JVMPlugin : StartPlugin {
                                 Level.WARN
                             }
                             this.logger = LoggerFactory.getLogger("Ktor")
+                            format { call -> safeCallLogLine(call) }
                         }
                     }
                 )

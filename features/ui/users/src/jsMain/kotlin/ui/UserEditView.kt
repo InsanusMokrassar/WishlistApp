@@ -20,6 +20,7 @@ import dev.inmo.wishlist.features.common.client.ui.components.FieldSet
 import dev.inmo.wishlist.features.common.client.ui.components.FormHint
 import dev.inmo.wishlist.features.common.client.ui.components.PageHead
 import dev.inmo.wishlist.features.email.common.models.EmailVerificationRequestResult
+import dev.inmo.wishlist.features.auth.common.models.PasswordChangeEmailRequestResult
 import dev.inmo.wishlist.features.ui.topBar.ui.TopBarTitleProvider
 import dev.inmo.wishlist.features.ui.users.UsersListStrings
 import dev.inmo.wishlist.features.ui.users.utils.pickImageFile
@@ -77,6 +78,7 @@ class UserEditView(
         val canUploadAvatar by viewModel.canUploadAvatarState.collectAsState()
         val canManageOwnEmail by viewModel.canManageOwnEmailState.collectAsState()
         val canMutateOwnEmail by viewModel.canMutateOwnEmailState.collectAsState()
+        val canRequestPasswordChangeEmail by viewModel.canRequestPasswordChangeEmailState.collectAsState()
         val ownEmailProfile by viewModel.ownEmailProfileState.collectAsState()
         val emailInput by viewModel.emailInputState.collectAsState()
         val emailLoading by viewModel.emailLoadingState.collectAsState()
@@ -84,6 +86,7 @@ class UserEditView(
         val emailError by viewModel.emailErrorState.collectAsState()
         val emailLoadFailed by viewModel.emailLoadFailedState.collectAsState()
         val emailVerificationResult by viewModel.emailVerificationResultState.collectAsState()
+        val passwordChangeEmailResult by viewModel.passwordChangeEmailResultState.collectAsState()
         val profileSaveError by viewModel.profileSaveErrorState.collectAsState()
         val showDiscard by viewModel.showConfirmDialogState.collectAsState()
         val showDelete by viewModel.showDeleteDialogState.collectAsState()
@@ -183,6 +186,12 @@ class UserEditView(
                                     hint = UsersListStrings.emailApproved.translation(),
                                     id = "settings-email",
                                 )
+                                CalmButton(
+                                    text = UsersListStrings.requestPasswordChangeButton.translation(),
+                                    onClick = { viewModel.onRequestPasswordChangeEmail() },
+                                    variant = CalmButtonVariant.Primary,
+                                    disabled = !canRequestPasswordChangeEmail,
+                                )
                             }
                             else -> {
                                 CalmTextField(
@@ -209,6 +218,10 @@ class UserEditView(
                             )
                             EmailEditorError.SaveFailed -> FormHint(
                                 UsersListStrings.emailSaveFailed.translation(),
+                                error = true,
+                            )
+                            EmailEditorError.PasswordChangeRequestFailed -> FormHint(
+                                UsersListStrings.passwordChangeEmailDeliveryFailed.translation(),
                                 error = true,
                             )
                             EmailEditorError.LoadFailed, null -> Unit
@@ -243,6 +256,21 @@ class UserEditView(
                             )
                             EmailVerificationRequestResult.DeliveryFailed -> FormHint(
                                 UsersListStrings.emailVerificationDeliveryFailed.translation(),
+                                error = true,
+                            )
+                            null -> Unit
+                        }
+                        when (passwordChangeEmailResult) {
+                            PasswordChangeEmailRequestResult.Sent -> FormHint(
+                                UsersListStrings.passwordChangeEmailSent.translation()
+                            )
+                            PasswordChangeEmailRequestResult.Unavailable,
+                            PasswordChangeEmailRequestResult.Ineligible -> FormHint(
+                                UsersListStrings.passwordChangeEmailUnavailable.translation(),
+                                error = true,
+                            )
+                            PasswordChangeEmailRequestResult.DeliveryFailed -> FormHint(
+                                UsersListStrings.passwordChangeEmailDeliveryFailed.translation(),
                                 error = true,
                             )
                             null -> Unit

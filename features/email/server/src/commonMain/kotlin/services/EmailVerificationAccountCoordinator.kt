@@ -86,6 +86,27 @@ class EmailVerificationAccountCoordinator(
     }
 
     /**
+     * Runs [action] while an account still has [expectedEmail] as its approved current address.
+     *
+     * This is the shared outer lock for password approvals: callers may acquire Auth's credential
+     * write lock inside [action], but SMTP work must happen after the callback returns.
+     *
+     * @param userId Account to re-read under the coordinator mutex.
+     * @param expectedEmail Exact approved address required by the operation.
+     * @param action Authorized action executed while email mutation is excluded.
+     * @return Action result, or `null` when the current address is absent, unapproved, or mismatched.
+     */
+    suspend fun <T> withApprovedEmail(
+        userId: UserId,
+        expectedEmail: Email,
+        action: suspend () -> T,
+    ): T? = mutex.withLock {
+        val user = usersRepo.getById(userId) ?: return@withLock null
+        if (user.email != expectedEmail || !user.emailApproved) return@withLock null
+        action()
+    }
+
+    /**
      * Promotes a pending account only while its current stored email equals the invited address.
      *
      * The full nullable-address check, user lookup, equality check, and role transition execute

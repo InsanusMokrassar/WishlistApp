@@ -5,6 +5,8 @@ import dev.inmo.micro_utils.startup.plugin.StartPlugin
 import dev.inmo.micro_utils.koin.singleWithRandomQualifier
 import dev.inmo.kroles.repos.RolesRepo
 import dev.inmo.wishlist.features.auth.server.RegistrationEmailSender
+import dev.inmo.wishlist.features.auth.server.ServerPasswordChangeFeature
+import dev.inmo.wishlist.features.auth.server.services.AuthFeatureService
 import dev.inmo.wishlist.features.common.server.models.Config as ServerConfig
 import dev.inmo.wishlist.features.deeplinks.common.DeepLinkHandler
 import dev.inmo.wishlist.features.deeplinks.server.services.DeepLinksService
@@ -16,7 +18,10 @@ import dev.inmo.wishlist.features.email.server.services.EmailVerificationAccount
 import dev.inmo.wishlist.features.email.server.services.SmtpEmailService
 import dev.inmo.wishlist.features.email.server.services.EmailRegistrationInviteSender
 import dev.inmo.wishlist.features.email.server.services.EmailVerificationDeepLinkHandler
+import dev.inmo.wishlist.features.email.server.services.EmailPasswordChangeDeepLinkHandler
+import dev.inmo.wishlist.features.email.server.services.EmailPasswordChangeService
 import dev.inmo.wishlist.features.email.server.models.EmailVerificationPayload
+import dev.inmo.wishlist.features.email.server.models.EmailPasswordChangePayload
 import dev.inmo.wishlist.features.roles.common.FeatureRolesRegistry
 import dev.inmo.wishlist.features.roles.common.models.SuperAdminRole
 import dev.inmo.wishlist.features.roles.common.utils.singleRequirement
@@ -81,6 +86,7 @@ object Plugin : StartPlugin {
         singleWithRandomQualifier {
             SerializersModule {
                 polymorphic(Any::class, EmailVerificationPayload::class, EmailVerificationPayload.serializer())
+                polymorphic(Any::class, EmailPasswordChangePayload::class, EmailPasswordChangePayload.serializer())
             }
         }
         singleWithRandomQualifier<DeepLinkHandler> {
@@ -88,6 +94,9 @@ object Plugin : StartPlugin {
                 accountCoordinator = get<EmailVerificationAccountCoordinator>(),
                 emailsService = getOrNull<EmailsService>(),
             )
+        }
+        singleWithRandomQualifier<DeepLinkHandler> {
+            EmailPasswordChangeDeepLinkHandler { get<EmailPasswordChangeService>() }
         }
         single {
             EmailRegistrationInviteSender(
@@ -97,6 +106,16 @@ object Plugin : StartPlugin {
             )
         }
         single<RegistrationEmailSender> { get<EmailRegistrationInviteSender>() }
+        single {
+            EmailPasswordChangeService(
+                emailsService = getOrNull(),
+                deepLinksService = getOrNull(),
+                accountCoordinator = get(),
+                authFeatureService = get<AuthFeatureService>(),
+                publicHttpOrigin = serverConfig.publicHttpOrigin,
+            )
+        }
+        single<ServerPasswordChangeFeature> { get<EmailPasswordChangeService>() }
         singleRequirement {
             FeatureRolesRegistry.Requirement(EmailConstants.sendTestFunctionalityId, SuperAdminRole)
         }
