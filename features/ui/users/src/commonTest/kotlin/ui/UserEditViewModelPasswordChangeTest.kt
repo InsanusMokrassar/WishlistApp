@@ -7,13 +7,17 @@ import dev.inmo.wishlist.features.users.common.models.UserId
 import dev.inmo.wishlist.features.users.common.models.Username
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.NonCancellable
-import kotlinx.coroutines.cancel
+import kotlinx.coroutines.cancelAndJoin
 import kotlinx.coroutines.test.UnconfinedTestDispatcher
+import kotlinx.coroutines.test.StandardTestDispatcher
 import kotlinx.coroutines.test.advanceUntilIdle
 import kotlinx.coroutines.test.runCurrent
 import kotlinx.coroutines.test.runTest
 import kotlinx.coroutines.withContext
+import kotlinx.coroutines.flow.collect
+import kotlinx.coroutines.launch
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
@@ -43,12 +47,18 @@ class UserEditViewModelPasswordChangeTest {
     private suspend fun createViewModel(
         model: UserEditTestUsersModel,
         owner: UserId = ownerId,
+        dispatcher: kotlinx.coroutines.CoroutineDispatcher = UnconfinedTestDispatcher(),
     ): UserEditViewModel = UserEditViewModel(
         userEditTestNode(owner),
         model,
         RecordingUserEditInteractor(),
-        UnconfinedTestDispatcher(),
+        dispatcher,
     )
+
+    /** Cancels and joins every lifecycle child started by the isolated ViewModel. */
+    private suspend fun close(viewModel: UserEditViewModel) {
+        viewModel.scope.coroutineContext[Job]?.cancelAndJoin()
+    }
 
     /** Confirms ordinary owners and root editing their own profile issue exactly the displayed address. */
     @Test
@@ -58,6 +68,7 @@ class UserEditViewModelPasswordChangeTest {
             val viewModel = createViewModel(model)
             try {
                 advanceUntilIdle()
+                assertTrue(viewModel.canRequestPasswordChangeEmailState.value)
                 viewModel.onRequestPasswordChangeEmail()
                 advanceUntilIdle()
                 assertEquals(listOf(approvedEmail), model.passwordChangeRequestedEmails)
@@ -66,7 +77,7 @@ class UserEditViewModelPasswordChangeTest {
                 assertTrue(model.passwordUpdates.isEmpty())
                 assertTrue(model.usernameUpdates.isEmpty())
             } finally {
-                viewModel.scope.cancel()
+                close(viewModel)
             }
         }
     }
@@ -83,11 +94,13 @@ class UserEditViewModelPasswordChangeTest {
             UserEditTestUsersModel(ownerId, profile(id = otherId)),
             UserEditTestUsersModel(ownerId, profile()).apply { emailFeatureEnabled = false },
             UserEditTestUsersModel(ownerId, profile()).apply { probeHandler = { throw IllegalStateException("probe") } },
+            UserEditTestUsersModel(ownerId, profile()).apply { profileHandler = { throw IllegalStateException("profile") } },
         )
         cases.forEach { model ->
             val viewModel = createViewModel(model)
             try {
                 advanceUntilIdle()
+                assertFalse(viewModel.canRequestPasswordChangeEmailState.value)
                 viewModel.onRequestPasswordChangeEmail()
                 advanceUntilIdle()
                 assertTrue(model.passwordChangeRequestedEmails.isEmpty())
@@ -95,7 +108,7 @@ class UserEditViewModelPasswordChangeTest {
                 assertTrue(model.passwordUpdates.isEmpty())
                 assertTrue(model.usernameUpdates.isEmpty())
             } finally {
-                viewModel.scope.cancel()
+                close(viewModel)
             }
         }
     }
@@ -121,12 +134,13 @@ class UserEditViewModelPasswordChangeTest {
             assertTrue(entered.isCompleted)
             assertEquals(listOf(approvedEmail), model.passwordChangeRequestedEmails)
             assertTrue(viewModel.emailBusyState.value)
+            assertFalse(viewModel.canRequestPasswordChangeEmailState.value)
             release.complete(Unit)
             advanceUntilIdle()
             assertFalse(viewModel.emailBusyState.value)
         } finally {
             release.complete(Unit)
-            viewModel.scope.cancel()
+            close(viewModel)
         }
     }
 
@@ -137,6 +151,7 @@ class UserEditViewModelPasswordChangeTest {
             PasswordChangeEmailRequestResult.Sent,
             PasswordChangeEmailRequestResult.Ineligible,
             PasswordChangeEmailRequestResult.DeliveryFailed,
+            PasswordChangeEmailRequestResult.Unavailable,
             null,
         )
         outcomes.forEach { outcome ->
@@ -156,65 +171,198 @@ class UserEditViewModelPasswordChangeTest {
                 advanceUntilIdle()
                 assertEquals(2, model.passwordChangeRequestedEmails.size)
             } finally {
-                viewModel.scope.cancel()
+                close(viewModel)
             }
         }
     }
 
-    /** Rejects stale derived eligibility and admits an immediately reconciled valid raw profile. */
+    /** Keeps password-email admission closed until every cold, held, and failed owner refresh settles. */
     @Test
-    fun rawAdmissionOverridesStaleDerivedEligibilityInBothDirections() = runTest {
-        val model = UserEditTestUsersModel(ownerId, profile())
-        val viewModel = createViewModel(model)
+    fun unknownLoadingAndRefreshKeepPasswordRequestIneligible() = runTest {
+        val dispatcher = StandardTestDispatcher(testScheduler)
+        val probeRelease = CompletableDeferred<Boolean>()
+        val profileRelease = CompletableDeferred<AuthFeatureUser?>()
+        var holdProfile = true
+        val model = UserEditTestUsersModel(ownerId, profile()).apply {
+            probeHandler = { probeRelease.await() }
+            profileHandler = {
+                if (holdProfile) profileRelease.await() else profile()
+            }
+        }
+        val viewModel = createViewModel(model, dispatcher = dispatcher)
         try {
-            advanceUntilIdle()
-            model.authorisedState.value = false
+            assertEquals(EmailCapabilityState.Unknown, viewModel.emailCapabilityState.value)
+            assertFalse(viewModel.canRequestPasswordChangeEmailState.value)
             viewModel.onRequestPasswordChangeEmail()
-            runCurrent()
             assertTrue(model.passwordChangeRequestedEmails.isEmpty())
 
-            model.authorisedState.value = true
-            model.currentUserIdState.value = ownerId
+            runCurrent()
+            assertEquals(EmailCapabilityState.Loading, viewModel.emailCapabilityState.value)
+            assertFalse(viewModel.canRequestPasswordChangeEmailState.value)
+            viewModel.onRequestPasswordChangeEmail()
+            assertTrue(model.passwordChangeRequestedEmails.isEmpty())
+
+            probeRelease.complete(true)
+            runCurrent()
+            assertEquals(EmailCapabilityState.Enabled, viewModel.emailCapabilityState.value)
+            assertTrue(viewModel.emailLoadingState.value)
+            assertNull(viewModel.ownEmailProfileState.value)
+            assertFalse(viewModel.canRequestPasswordChangeEmailState.value)
+            viewModel.onRequestPasswordChangeEmail()
+            assertTrue(model.passwordChangeRequestedEmails.isEmpty())
+
+            profileRelease.complete(profile())
+            advanceUntilIdle()
+            assertTrue(viewModel.canRequestPasswordChangeEmailState.value)
+
+            val heldRefresh = CompletableDeferred<AuthFeatureUser?>()
+            holdProfile = false
+            model.profileHandler = { heldRefresh.await() }
+            viewModel.onRefreshEmail()
+            runCurrent()
+            assertTrue(viewModel.emailLoadingState.value)
+            assertNull(viewModel.ownEmailProfileState.value)
+            assertFalse(viewModel.canRequestPasswordChangeEmailState.value)
+            viewModel.onRequestPasswordChangeEmail()
+            assertTrue(model.passwordChangeRequestedEmails.isEmpty())
+
+            heldRefresh.complete(profile())
+            advanceUntilIdle()
+            assertTrue(viewModel.canRequestPasswordChangeEmailState.value)
+
+            model.profileHandler = { throw IllegalStateException("profile") }
             viewModel.onRefreshEmail()
             advanceUntilIdle()
-            viewModel.onRequestPasswordChangeEmail()
+            assertEquals(EmailCapabilityState.Failed, viewModel.emailCapabilityState.value)
+            assertNull(viewModel.ownEmailProfileState.value)
+            assertFalse(viewModel.canRequestPasswordChangeEmailState.value)
+
+            model.probeHandler = { throw IllegalStateException("probe") }
+            viewModel.onRefreshEmail()
             advanceUntilIdle()
-            assertEquals(listOf(approvedEmail), model.passwordChangeRequestedEmails)
+            assertEquals(EmailCapabilityState.Failed, viewModel.emailCapabilityState.value)
+            assertNull(viewModel.ownEmailProfileState.value)
+            assertFalse(viewModel.canRequestPasswordChangeEmailState.value)
         } finally {
-            viewModel.scope.cancel()
+            if (!probeRelease.isCompleted) probeRelease.complete(true)
+            if (!profileRelease.isCompleted) profileRelease.complete(profile())
+            close(viewModel)
         }
     }
 
-    /** Suppresses a suspended request after identity loss without feedback or a reconciliation read. */
+    /** Rejects an action when a queued derived state is stale true but raw authorization is already false. */
+    @Test
+    fun staleTrueCannotAuthorizePasswordEmail() = runTest {
+        val dispatcher = StandardTestDispatcher(testScheduler)
+        val model = UserEditTestUsersModel(ownerId, profile())
+        val viewModel = createViewModel(model, dispatcher = dispatcher)
+        try {
+            advanceUntilIdle()
+            assertTrue(viewModel.canRequestPasswordChangeEmailState.value)
+            model.authorisedState.value = false
+            assertTrue(viewModel.canRequestPasswordChangeEmailState.value)
+            viewModel.onRequestPasswordChangeEmail()
+            assertTrue(model.passwordChangeRequestedEmails.isEmpty())
+        } finally {
+            close(viewModel)
+        }
+    }
+
+    /** Admits a raw-valid request when queued derived eligibility is still stale false during refresh completion. */
+    @Test
+    fun staleFalseDoesNotBlockValidRawAdmission() = runTest {
+        val dispatcher = StandardTestDispatcher(testScheduler)
+        val profileRelease = CompletableDeferred<AuthFeatureUser?>()
+        val model = UserEditTestUsersModel(ownerId, profile()).apply {
+            profileHandler = { profileRelease.await() }
+        }
+        val viewModel = createViewModel(model, dispatcher = dispatcher)
+        var invoked = false
+        val collector = backgroundScope.launch(UnconfinedTestDispatcher(testScheduler)) {
+            viewModel.emailLoadingState.collect { loading ->
+                if (
+                    !invoked &&
+                    !loading &&
+                    viewModel.emailCapabilityState.value == EmailCapabilityState.Enabled &&
+                    viewModel.ownEmailProfileState.value == profile()
+                ) {
+                    invoked = true
+                    assertFalse(viewModel.canRequestPasswordChangeEmailState.value)
+                    viewModel.onRequestPasswordChangeEmail()
+                }
+            }
+        }
+        try {
+            runCurrent()
+            assertFalse(viewModel.canRequestPasswordChangeEmailState.value)
+            profileRelease.complete(profile())
+            advanceUntilIdle()
+            assertTrue(invoked)
+            assertEquals(listOf(approvedEmail), model.passwordChangeRequestedEmails)
+            assertEquals(PasswordChangeEmailRequestResult.Sent, viewModel.passwordChangeEmailResultState.value)
+        } finally {
+            if (!profileRelease.isCompleted) profileRelease.complete(profile())
+            collector.cancelAndJoin()
+            close(viewModel)
+        }
+    }
+
+    /** Prevents an obsolete completion from publishing or clearing a distinct later owner mutation. */
     @Test
     fun stalePasswordChangeCompletionCannotPublishOrClearLaterMutation() = runTest {
-        val entered = CompletableDeferred<Unit>()
-        val release = CompletableDeferred<Unit>()
+        val firstEntered = CompletableDeferred<Unit>()
+        val firstRelease = CompletableDeferred<Unit>()
+        val secondEntered = CompletableDeferred<Unit>()
+        val secondRelease = CompletableDeferred<Unit>()
+        var requestNumber = 0
         val model = UserEditTestUsersModel(ownerId, profile()).apply {
             passwordChangeRequestHandler = {
-                entered.complete(Unit)
-                withContext(NonCancellable) { release.await() }
-                PasswordChangeEmailRequestResult.Sent
+                requestNumber += 1
+                when (requestNumber) {
+                    1 -> {
+                        firstEntered.complete(Unit)
+                        withContext(NonCancellable) { firstRelease.await() }
+                        PasswordChangeEmailRequestResult.Sent
+                    }
+                    else -> {
+                        secondEntered.complete(Unit)
+                        withContext(NonCancellable) { secondRelease.await() }
+                        PasswordChangeEmailRequestResult.DeliveryFailed
+                    }
+                }
             }
         }
         val viewModel = createViewModel(model)
         try {
             advanceUntilIdle()
-            val readsBefore = model.profileReads
             viewModel.onRequestPasswordChangeEmail()
             runCurrent()
-            assertTrue(entered.isCompleted)
+            assertTrue(firstEntered.isCompleted)
             model.currentUserIdState.value = otherId
             runCurrent()
-            release.complete(Unit)
+            model.currentUserIdState.value = ownerId
+            advanceUntilIdle()
+            assertTrue(viewModel.canRequestPasswordChangeEmailState.value)
+            viewModel.onRequestPasswordChangeEmail()
+            runCurrent()
+            assertTrue(secondEntered.isCompleted)
+            assertTrue(viewModel.emailBusyState.value)
+            val readsBeforeOldRelease = model.profileReads
+
+            firstRelease.complete(Unit)
             advanceUntilIdle()
             assertNull(viewModel.passwordChangeEmailResultState.value)
-            assertNull(viewModel.ownEmailProfileState.value)
-            assertEquals(readsBefore, model.profileReads)
+            assertEquals(readsBeforeOldRelease, model.profileReads)
+            assertTrue(viewModel.emailBusyState.value)
+
+            secondRelease.complete(Unit)
+            advanceUntilIdle()
+            assertEquals(PasswordChangeEmailRequestResult.DeliveryFailed, viewModel.passwordChangeEmailResultState.value)
             assertFalse(viewModel.emailBusyState.value)
         } finally {
-            release.complete(Unit)
-            viewModel.scope.cancel()
+            if (!firstRelease.isCompleted) firstRelease.complete(Unit)
+            if (!secondRelease.isCompleted) secondRelease.complete(Unit)
+            close(viewModel)
         }
     }
 }
