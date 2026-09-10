@@ -128,8 +128,10 @@ object UsersListStrings {
     }
 
     /** Status shown when the owner has not stored an email yet. */
-    val emailMissing = buildStringResource("Add an email address to receive a verification link.") {
-        IetfLang.Russian("Добавьте email-адрес, чтобы получить ссылку для подтверждения.")
+    val emailMissing = buildStringResource(
+        "Add an email address to save it; verification is available when email delivery is enabled."
+    ) {
+        IetfLang.Russian("Добавьте email-адрес, чтобы сохранить его; подтверждение доступно при включённой отправке email.")
     }
 
     /** Status shown for an email that still awaits verification. */
@@ -145,6 +147,35 @@ object UsersListStrings {
     /** Saves a new owner email and immediately requests verification. */
     val saveEmailAndVerifyButton = buildStringResource("Save and send verification") {
         IetfLang.Russian("Сохранить и отправить подтверждение")
+    }
+
+    /** Saves the owner email without promising verification delivery. */
+    val saveEmailButton = buildStringResource("Save email") {
+        IetfLang.Russian("Сохранить email")
+    }
+
+    /** Confirmation shown only after storage and the authoritative private refresh agree. */
+    val emailSaved = buildStringResource("Email saved.") {
+        IetfLang.Russian("Email сохранён.")
+    }
+
+    /** Label separating the authoritative stored address from an editable replacement draft. */
+    val savedEmailLabel = buildStringResource("Saved email") {
+        IetfLang.Russian("Сохранённый email")
+    }
+
+    /** Explains that replacing an existing address resets its approval state. */
+    val emailReplacementNeedsVerification = buildStringResource(
+        "Replacing the address requires verification again."
+    ) {
+        IetfLang.Russian("После смены адреса потребуется повторное подтверждение.")
+    }
+
+    /** Explains why an active owner-email operation stopped before publication. */
+    val emailOperationInterrupted = buildStringResource(
+        "The email operation was interrupted because the account or profile changed."
+    ) {
+        IetfLang.Russian("Операция с email прервана из-за смены аккаунта или профиля.")
     }
 
     /** Requests another verification message for the saved pending email. */

@@ -146,7 +146,7 @@ class UserEditViewModel(
     /** Current owner-email capability probe state, including recoverable loading and failure states. */
     val emailCapabilityState: StateFlow<EmailCapabilityState> = _emailCapabilityState.asStateFlow()
 
-    /** Whether the server has positively confirmed SMTP-backed self-service email verification. */
+    /** Whether the server has positively confirmed SMTP-backed owner-email verification delivery. */
     val emailFeatureEnabledState: StateFlow<Boolean> = _emailCapabilityState
         .map { it == EmailCapabilityState.Enabled }
         .stateIn(workScope, SharingStarted.Eagerly, false)

@@ -80,14 +80,15 @@ interface UsersModel {
     suspend fun getMyProfile(): AuthFeatureUser?
 
     /**
-     * Returns whether self-service email verification delivery is configured.
+     * Returns whether SMTP-backed verification delivery is configured for the owner email editor.
+     * Storage remains available when the capability is disabled; the flag controls delivery only.
      *
-     * @return `true` when SMTP-backed email operations are available.
+     * @return `true` when verification delivery is available.
      */
     suspend fun isEmailFeatureEnabled(): Boolean
 
     /**
-     * Replaces the authenticated caller's stored email address.
+     * Stores or replaces the authenticated caller's email address independently of SMTP delivery.
      *
      * @param email Validated address to persist, or `null` to clear the caller's address.
      * @return `true` when the server persisted the requested value.
@@ -95,7 +96,8 @@ interface UsersModel {
     suspend fun setMyEmail(email: Email?): Boolean
 
     /**
-     * Requests a verification message for the caller's displayed current email address.
+     * Requests a verification message for the caller's displayed current email address when SMTP
+     * delivery is enabled.
      *
      * @param expectedEmail Current private-profile email snapshot.
      * @return Server result describing delivery or the current account state.
