@@ -15,6 +15,9 @@ import io.ktor.http.content.OutgoingContent
 import io.ktor.http.headersOf
 import io.ktor.serialization.kotlinx.json.json
 import kotlinx.coroutines.test.runTest
+import kotlinx.serialization.json.Json
+import kotlinx.serialization.json.JsonPrimitive
+import kotlinx.serialization.json.jsonObject
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertTrue
@@ -63,6 +66,46 @@ class KtorEmailFeatureTest {
             } finally {
                 client.close()
             }
+        }
+    }
+
+    @Test
+    fun setMyEmailPutsOnlyEmailAndReturnsStatusSuccess() = runTest {
+        val replacement = Email("replacement@example.com")
+        listOf(
+            HttpStatusCode.OK to true,
+            HttpStatusCode.NoContent to true,
+            HttpStatusCode.Conflict to false,
+            HttpStatusCode.InternalServerError to false,
+        ).forEach { (status, expected) ->
+            var requestCount = 0
+            val client = jsonClient { request ->
+                requestCount += 1
+                assertEquals(HttpMethod.Put, request.method)
+                assertEquals("/email/myEmail", request.url.encodedPath)
+                assertEquals(ContentType.Application.Json, request.body.contentType)
+                val requestBody = (request.body as OutgoingContent.ByteArrayContent).bytes().decodeToString()
+                val requestObject = Json.parseToJsonElement(requestBody).jsonObject
+                assertEquals(setOf("email"), requestObject.keys)
+                assertEquals(JsonPrimitive(replacement.string), requestObject["email"])
+                respondJson("", status)
+            }
+            try {
+                assertEquals(expected, KtorEmailFeature(client).setMyEmail(replacement))
+                assertEquals(1, requestCount)
+            } finally {
+                client.close()
+            }
+        }
+    }
+
+    @Test
+    fun setMyEmailNetworkFailurePropagates() = runTest {
+        val client = jsonClient { throw IllegalStateException("network unavailable") }
+        try {
+            assertThrows { KtorEmailFeature(client).setMyEmail(Email("replacement@example.com")) }
+        } finally {
+            client.close()
         }
     }
 
