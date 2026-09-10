@@ -168,7 +168,7 @@ class UserEditView(
                                 )
                                 CalmButton(
                                     text = UsersListStrings.saveEmailAndVerifyButton.translation(),
-                                    onClick = { viewModel.onSaveEmailAndRequestVerification() },
+                                    onClick = { viewModel.onSaveEmail() },
                                     variant = CalmButtonVariant.Primary,
                                     disabled = !canMutateOwnEmail,
                                 )
@@ -209,6 +209,10 @@ class UserEditView(
                             )
                             EmailEditorError.SaveFailed -> FormHint(
                                 UsersListStrings.emailSaveFailed.translation(),
+                                error = true,
+                            )
+                            EmailEditorError.EmailChanged -> FormHint(
+                                UsersListStrings.emailVerificationChanged.translation(),
                                 error = true,
                             )
                             EmailEditorError.LoadFailed, null -> Unit

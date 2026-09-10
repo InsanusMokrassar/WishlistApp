@@ -181,7 +181,7 @@ class UserEditView(
                         )
                         Text(UsersListStrings.emailMissing.translation())
                         Button(
-                            onClick = { viewModel.onSaveEmailAndRequestVerification() },
+                            onClick = { viewModel.onSaveEmail() },
                             enabled = canMutateOwnEmail,
                             modifier = Modifier.fillMaxWidth(),
                         ) {
@@ -227,6 +227,10 @@ class UserEditView(
                     )
                     EmailEditorError.SaveFailed -> Text(
                         UsersListStrings.emailSaveFailed.translation(),
+                        color = MaterialTheme.colors.error,
+                    )
+                    EmailEditorError.EmailChanged -> Text(
+                        UsersListStrings.emailVerificationChanged.translation(),
                         color = MaterialTheme.colors.error,
                     )
                     EmailEditorError.LoadFailed, null -> Unit
