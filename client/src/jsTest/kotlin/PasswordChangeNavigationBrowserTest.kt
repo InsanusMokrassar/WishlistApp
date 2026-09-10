@@ -1,13 +1,17 @@
 package dev.inmo.wishlist.client
 
 import androidx.compose.runtime.Composition
+import androidx.compose.runtime.SideEffect
 import dev.inmo.navigation.compose.initNavigation
 import dev.inmo.navigation.core.NavigationChain
+import dev.inmo.navigation.core.NavigationChainId
 import dev.inmo.navigation.core.NavigationNode
 import dev.inmo.navigation.core.NavigationNodeFactory
+import dev.inmo.navigation.core.findNodeInSubTree
 import dev.inmo.navigation.core.onDestroyFlow
 import dev.inmo.navigation.core.repo.ConfigHolder
 import dev.inmo.navigation.core.repo.NavigationConfigsRepo
+import dev.inmo.navigation.core.repo.storeHierarchy
 import dev.inmo.wishlist.client.utils.WithPasswordChangeNavigationBinding
 import dev.inmo.wishlist.features.common.client.models.EmptyConfig
 import dev.inmo.wishlist.features.common.client.models.LeftNavigationChainId
@@ -34,13 +38,19 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.CoroutineStart
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancelAndJoin
+import kotlinx.coroutines.children
 import kotlinx.coroutines.flow.filter
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.promise
+import kotlinx.coroutines.test.StandardTestDispatcher
+import kotlinx.coroutines.test.TestCoroutineScheduler
+import kotlinx.coroutines.withContext
 import kotlinx.coroutines.withTimeout
 import kotlinx.coroutines.withTimeoutOrNull
+import kotlinx.coroutines.yield
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonObject
 import org.jetbrains.compose.web.renderComposable
@@ -53,6 +63,7 @@ import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
 import kotlin.test.assertNotNull
+import kotlin.test.assertSame
 import kotlin.test.assertTrue
 
 /** Returns the browser global object used by the JSDOM harness. */
@@ -142,17 +153,18 @@ private fun mountPasswordNavigation(
     root: NavigationChain<ViewConfig>,
     configsRepo: NavigationConfigsRepo<ViewConfig>,
     scopeCaptured: CompletableDeferred<CoroutineScope>,
+    nodesFactory: NavigationNodeFactory<ViewConfig>,
 ): Composition = renderComposable(host) {
     WithPasswordChangeNavigationBinding(owner, root) { rootScope ->
-        scopeCaptured.complete(rootScope)
         initNavigation(
             rootNodeConfig = EmptyConfig(),
             configsRepo = configsRepo,
-            nodesFactory = NavigationNodeFactory { chain, config -> NavigationNode.Empty(chain, config) },
+            nodesFactory = nodesFactory,
             scope = rootScope,
             dropRedundantChainsOnRestore = true,
             rootChain = root,
         ) {}
+        SideEffect { scopeCaptured.complete(rootScope) }
     }
 }
 
@@ -169,6 +181,18 @@ class PasswordChangeNavigationBrowserTest {
         var compositionB: Composition? = null
         var scopeAJob: Job? = null
         var scopeBJob: Job? = null
+        var transitionAJob: Job? = null
+        var transitionBJob: Job? = null
+        var leafStartAJob: Job? = null
+        var leafStartBJob: Job? = null
+        var heldScopeAJob: Job? = null
+        var heldScopeBJob: Job? = null
+        var heldDispatcherA: HeldNavigationDispatcher? = null
+        var heldDispatcherB: HeldNavigationDispatcher? = null
+        var pendingViewModelJob: Job? = null
+        var completedViewModelJob: Job? = null
+        var pendingDestroyObserver: Job? = null
+        var completedDestroyObserver: Job? = null
         var application: org.koin.core.KoinApplication? = null
         var transport: HeldPasswordChangeTransport? = null
         var hostA: HTMLDivElement? = null
@@ -197,15 +221,46 @@ class PasswordChangeNavigationBrowserTest {
             urlRepo.save(restored)
             assertEquals("/ui/password-change/7/123e4567-e89b-42d3-a456-426614174000", window.location.pathname)
 
+            val rootAId = NavigationChainId("password-change-browser-root-A")
+            val rootBId = NavigationChainId("password-change-browser-root-B")
             val completedSave = CompletableDeferred<ConfigHolder<ViewConfig>>()
             val usersListSave = CompletableDeferred<ConfigHolder<ViewConfig>>()
+            val completedSaveB = CompletableDeferred<ConfigHolder<ViewConfig>>()
+            val recordedSavesA = RecordingPasswordNavigationRepo()
+            val recordedSavesB = RecordingPasswordNavigationRepo()
+            var ownerSaveAttemptsA = 0
+            var ownerSaveAttemptsB = 0
             val persistenceRepo = object : NavigationConfigsRepo<ViewConfig> {
-                /** Delegates production snapshots to URL persistence and signals typed route milestones. */
+                /** Delegates owner snapshots by exact root id while preserving real URL persistence. */
                 override fun save(holder: ConfigHolder<ViewConfig>) {
-                    urlRepo.save(holder)
-                    when {
-                        holder.allConfigs().any { it is PasswordChangeViewConfig.Completed } && holder.allConfigs().none { it is PasswordChangeViewConfig.Pending } && !completedSave.isCompleted -> completedSave.complete(holder)
-                        holder.allConfigs().any { it is UsersListViewConfig } && holder.allConfigs().none { it is PasswordChangeViewConfig } && !usersListSave.isCompleted -> usersListSave.complete(holder)
+                    val rootHolder = holder as? ConfigHolder.Chain<ViewConfig>
+                    when (rootHolder?.id) {
+                        rootAId -> {
+                            ownerSaveAttemptsA += 1
+                            urlRepo.save(holder)
+                            recordedSavesA.save(holder)
+                            when {
+                                holder.allConfigs().any { it is PasswordChangeViewConfig.Completed } &&
+                                    holder.allConfigs().none { it is PasswordChangeViewConfig.Pending } &&
+                                    !completedSave.isCompleted -> completedSave.complete(recordedSavesA.holders.last())
+                                holder.allConfigs().any { it is UsersListViewConfig } &&
+                                    holder.allConfigs().none { it is PasswordChangeViewConfig } &&
+                                    !usersListSave.isCompleted -> usersListSave.complete(recordedSavesA.holders.last())
+                            }
+                        }
+                        rootBId -> {
+                            ownerSaveAttemptsB += 1
+                            urlRepo.save(holder)
+                            recordedSavesB.save(holder)
+                            if (
+                                holder.allConfigs().any { it is PasswordChangeViewConfig.Completed } &&
+                                holder.allConfigs().none { it is PasswordChangeViewConfig.Pending } &&
+                                !completedSaveB.isCompleted
+                            ) {
+                                completedSaveB.complete(recordedSavesB.holders.last())
+                            }
+                        }
+                        else -> error("Unexpected password-navigation owner root id: ${rootHolder?.id}")
                     }
                 }
 
@@ -230,9 +285,35 @@ class PasswordChangeNavigationBrowserTest {
             val model = HeldPasswordChangeUsersModel(transport.feature)
             val owner = application.koin.get<PasswordChangeNavigationOwner>()
             val interactor = application.koin.get<PasswordChangeViewInteractor>()
-            val rootA = NavigationChain<ViewConfig>(null, NavigationNodeFactory { chain, config -> NavigationNode.Empty(chain, config) })
+            val replacementCreatedA = CompletableDeferred<NavigationNode<out ViewConfig, ViewConfig>>()
+            val replacementCreatedB = CompletableDeferred<NavigationNode<out ViewConfig, ViewConfig>>()
+            var replacementAArmed = false
+            var replacementBArmed = false
+            val nodesFactoryA = NavigationNodeFactory<ViewConfig> { chain, config ->
+                NavigationNode.Empty(chain, config).also { node ->
+                    if (
+                        replacementAArmed &&
+                        config == PasswordChangeViewConfig.Completed &&
+                        !replacementCreatedA.isCompleted
+                    ) {
+                        replacementCreatedA.complete(node)
+                    }
+                }
+            }
+            val nodesFactoryB = NavigationNodeFactory<ViewConfig> { chain, config ->
+                NavigationNode.Empty(chain, config).also { node ->
+                    if (
+                        replacementBArmed &&
+                        config == PasswordChangeViewConfig.Completed &&
+                        !replacementCreatedB.isCompleted
+                    ) {
+                        replacementCreatedB.complete(node)
+                    }
+                }
+            }
+            val rootA = NavigationChain<ViewConfig>(rootAId, nodesFactoryA)
             val scopeA = CompletableDeferred<CoroutineScope>()
-            compositionA = mountPasswordNavigation(hostA, owner, rootA, persistenceRepo, scopeA)
+            compositionA = mountPasswordNavigation(hostA, owner, rootA, urlRepo, scopeA, nodesFactoryA)
             awaitBrowserPhase("composition-A scope") { scopeA.await() }
             scopeAJob = checkNotNull(scopeA.await().coroutineContext[Job])
             lateinit var mainA: NavigationChain<ViewConfig>
@@ -244,7 +325,7 @@ class PasswordChangeNavigationBrowserTest {
                 }.first().last() as NavigationNode<PasswordChangeViewConfig, ViewConfig>
             }
             val pendingViewModel = PasswordChangeViewModel(pendingNode, model, interactor, Dispatchers.Unconfined)
-            val pendingViewModelJob = checkNotNull(pendingViewModel.scope.coroutineContext[Job])
+            pendingViewModelJob = checkNotNull(pendingViewModel.scope.coroutineContext[Job])
             assertEquals(PasswordChangeViewConfig.Pending(UserId(7), approval), pendingViewModel.config)
             assertFalse(pendingViewModel.completedState)
             assertFalse(pendingViewModel.loadingState.value)
@@ -253,7 +334,7 @@ class PasswordChangeNavigationBrowserTest {
             pendingViewModel.scope.launch { pendingViewModelLifecycleSubscribed.complete(Unit) }
             awaitBrowserPhase("pending ViewModel lifecycle subscription") { pendingViewModelLifecycleSubscribed.await() }
             val pendingDestroyed = CompletableDeferred<Unit>()
-            val pendingDestroyObserver = launch(start = CoroutineStart.UNDISPATCHED) {
+            pendingDestroyObserver = launch(start = CoroutineStart.UNDISPATCHED) {
                 pendingNode.onDestroyFlow.first()
                 pendingDestroyed.complete(Unit)
             }
@@ -272,7 +353,7 @@ class PasswordChangeNavigationBrowserTest {
             transport.releaseChanged()
             withTimeout(5_000L) {
                 pendingDestroyed.await()
-                pendingViewModelJob.join()
+                checkNotNull(pendingViewModelJob).join()
             }
             val persistedCompletion = withTimeout(5_000L) { completedSave.await() }
             assertEquals("/ui/password-changed", window.location.pathname)
@@ -285,7 +366,7 @@ class PasswordChangeNavigationBrowserTest {
             assertTrue(pendingViewModel.passwordState.value.isEmpty())
             assertTrue(pendingViewModel.confirmationState.value.isEmpty())
             assertEquals(dev.inmo.navigation.core.NavigationNodeState.NEW, pendingNode.state)
-            pendingDestroyObserver.cancelAndJoin()
+            checkNotNull(pendingDestroyObserver).cancelAndJoin()
 
             val completedReload = assertNotNull(WishlistsAppUrlNavigationConfigsRepo().get())
             assertTrue(completedReload.allConfigs().any { it is PasswordChangeViewConfig.Completed })
@@ -297,7 +378,7 @@ class PasswordChangeNavigationBrowserTest {
                 }.first().last() as NavigationNode<PasswordChangeViewConfig, ViewConfig>
             }
             val completedViewModel = PasswordChangeViewModel(completedNode, model, interactor, Dispatchers.Unconfined)
-            val completedViewModelJob = checkNotNull(completedViewModel.scope.coroutineContext[Job])
+            completedViewModelJob = checkNotNull(completedViewModel.scope.coroutineContext[Job])
             val completedViewModelLifecycleSubscribed = CompletableDeferred<Unit>()
             completedViewModel.scope.launch { completedViewModelLifecycleSubscribed.complete(Unit) }
             awaitBrowserPhase("completed ViewModel lifecycle subscription") { completedViewModelLifecycleSubscribed.await() }
@@ -305,16 +386,18 @@ class PasswordChangeNavigationBrowserTest {
             assertEquals(1, model.requests.size)
             assertEquals(1, transport.requests.size)
             val completedDestroyed = CompletableDeferred<Unit>()
-            val completedDestroyObserver = launch(start = CoroutineStart.UNDISPATCHED) {
+            completedDestroyObserver = launch(start = CoroutineStart.UNDISPATCHED) {
                 completedNode.onDestroyFlow.first()
                 completedDestroyed.complete(Unit)
             }
             completedViewModel.onContinue()
             withTimeout(5_000L) {
                 completedDestroyed.await()
-                completedViewModelJob.join()
+                checkNotNull(completedViewModelJob).join()
             }
-            val persistedUsersList = withTimeout(5_000L) { usersListSave.await() }
+            val persistedUsersList = withContext(Dispatchers.Default) {
+                withTimeout(5_000L) { usersListSave.await() }
+            }
             assertTrue(persistedUsersList.allConfigs().any { it is UsersListViewConfig })
             assertFalse(persistedUsersList.allConfigs().any { it is PasswordChangeViewConfig })
             assertEquals("/ui", window.location.pathname)
@@ -322,35 +405,208 @@ class PasswordChangeNavigationBrowserTest {
             assertEquals(null, window.history.state)
             assertEquals(1, model.requests.size)
             assertEquals(1, transport.requests.size)
-            completedDestroyObserver.cancelAndJoin()
+            checkNotNull(completedDestroyObserver).cancelAndJoin()
+
+            scopeA.await().launch {}.join()
+            assertEquals(0, owner.activeTransitionCount)
+            ownerSaveAttemptsA = 0
+            recordedSavesA.resetObservations()
 
             val stalePending = mainA.push(PasswordChangeViewConfig.Pending(UserId(7), approval)) as NavigationNode<PasswordChangeViewConfig, ViewConfig>
+            awaitBrowserPhase("composition-A stale pending publication") {
+                mainA.stackFlow.filter { stack -> stack.lastOrNull() === stalePending }.first()
+            }
+            assertSame(stalePending, rootA.findNodeInSubTree { candidate -> candidate === stalePending })
+            awaitBrowserPhase("composition-A stale pending URL") {
+                withContext(Dispatchers.Default) {
+                    while (window.location.pathname != "/ui/password-change/7/${approval.string}") yield()
+                }
+            }
+
+            val timerA = TestCoroutineScheduler()
+            heldDispatcherA = HeldNavigationDispatcher(StandardTestDispatcher(timerA))
+            heldScopeAJob = SupervisorJob(checkNotNull(scopeAJob))
+            val heldScopeA = CoroutineScope(checkNotNull(heldScopeAJob) + checkNotNull(heldDispatcherA))
+            leafStartAJob = mainA.start(heldScopeA)
+            checkNotNull(heldDispatcherA).drain()
+            assertTrue(checkNotNull(leafStartAJob).isActive)
+            assertEquals(0, checkNotNull(heldDispatcherA).queuedTaskCount)
+            assertSame(stalePending, mainA.stackFlow.value.lastOrNull())
+
+            replacementAArmed = true
+            val scopeAChildrenBefore = checkNotNull(scopeAJob).children.toSet()
             interactor.onChanged(stalePending)
+            val scopeANewChildren = checkNotNull(scopeAJob).children.filter { child -> child !in scopeAChildrenBefore }.toList()
+            assertEquals(1, scopeANewChildren.size)
+            transitionAJob = scopeANewChildren.single()
+            assertTrue(checkNotNull(transitionAJob).isActive)
+            assertEquals(1, owner.activeTransitionCount)
+
+            lateinit var replacementA: NavigationNode<out ViewConfig, ViewConfig>
+            awaitBrowserPhase("composition-A replacement creation") {
+                replacementA = withContext(Dispatchers.Default) { replacementCreatedA.await() }
+            }
+            assertSame(mainA, replacementA.chain)
+            assertSame(stalePending, mainA.stackFlow.value.lastOrNull())
+            assertEquals(null, rootA.findNodeInSubTree { candidate -> candidate === replacementA })
+            assertTrue(checkNotNull(heldDispatcherA).queuedTaskCount > 0)
+            assertTrue(checkNotNull(transitionAJob).isActive)
+            assertEquals(1, owner.activeTransitionCount)
+            assertEquals(0, ownerSaveAttemptsA)
+            assertTrue(recordedSavesA.holders.isEmpty())
+
             hostB = document.createElement("div") as HTMLDivElement
             document.body!!.appendChild(hostB)
-            val rootB = NavigationChain<ViewConfig>(null, NavigationNodeFactory { chain, config -> NavigationNode.Empty(chain, config) })
+            val rootB = NavigationChain<ViewConfig>(rootBId, nodesFactoryB)
             val scopeB = CompletableDeferred<CoroutineScope>()
-            compositionB = mountPasswordNavigation(hostB, owner, rootB, persistenceRepo, scopeB)
+            compositionB = mountPasswordNavigation(hostB, owner, rootB, urlRepo, scopeB, nodesFactoryB)
             awaitBrowserPhase("composition-B scope") { scopeB.await() }
             scopeBJob = checkNotNull(scopeB.await().coroutineContext[Job])
-            compositionA.dispose()
-            compositionA = null
-            withTimeout(5_000L) { scopeAJob.join() }
-            interactor.onContinue(stalePending)
-            awaitBrowserPhase("composition-B navigation start") { rootB.awaitStack() }
-            val pendingB = rootB.push(PasswordChangeViewConfig.Pending(UserId(8), approval)) as NavigationNode<PasswordChangeViewConfig, ViewConfig>
-            awaitBrowserPhase("composition-B pending root node") {
-                rootB.stackFlow.filter { stack -> stack.lastOrNull() === pendingB }.first()
+            lateinit var mainB: NavigationChain<ViewConfig>
+            awaitBrowserPhase("composition-B restored main chain") { mainB = restoredMainChain(rootB) }
+            lateinit var pendingB: NavigationNode<PasswordChangeViewConfig, ViewConfig>
+            awaitBrowserPhase("composition-B restored pending node") {
+                pendingB = mainB.stackFlow.filter { stack ->
+                    stack.lastOrNull()?.config is PasswordChangeViewConfig.Pending
+                }.first().last() as NavigationNode<PasswordChangeViewConfig, ViewConfig>
             }
+            assertFalse(pendingB === stalePending)
+            assertSame(pendingB, rootB.findNodeInSubTree { candidate -> candidate === pendingB })
+            assertSame(pendingB, mainB.stackFlow.value.lastOrNull())
+            assertEquals("/ui/password-change/7/${approval.string}", window.location.pathname)
+
+            checkNotNull(compositionA).dispose()
+            compositionA = null
+            checkNotNull(leafStartAJob).cancel()
+            checkNotNull(heldScopeAJob).cancel()
+            checkNotNull(heldDispatcherA).drain()
+            withTimeout(5_000L) {
+                checkNotNull(transitionAJob).join()
+                checkNotNull(leafStartAJob).join()
+                checkNotNull(heldScopeAJob).join()
+                checkNotNull(scopeAJob).join()
+            }
+            assertTrue(checkNotNull(transitionAJob).isCancelled)
+            assertTrue(checkNotNull(transitionAJob).isCompleted)
+            assertTrue(checkNotNull(scopeAJob).isCancelled)
+            assertTrue(checkNotNull(scopeAJob).isCompleted)
+            assertEquals(0, ownerSaveAttemptsA)
+            assertTrue(recordedSavesA.holders.isEmpty())
+            assertTrue(checkNotNull(scopeAJob).children.none())
+            assertTrue(checkNotNull(scopeBJob).isActive)
+            assertSame(pendingB, mainB.stackFlow.value.lastOrNull())
+
+            val attemptsABeforeStaleCallbacks = ownerSaveAttemptsA
+            val attemptsBBeforeStaleCallbacks = ownerSaveAttemptsB
+            interactor.onChanged(stalePending)
+            interactor.onContinue(stalePending)
+            assertEquals(attemptsABeforeStaleCallbacks, ownerSaveAttemptsA)
+            assertEquals(attemptsBBeforeStaleCallbacks, ownerSaveAttemptsB)
+            assertEquals(0, owner.activeTransitionCount)
+            assertSame(pendingB, mainB.stackFlow.value.lastOrNull())
+
+            val timerB = TestCoroutineScheduler()
+            heldDispatcherB = HeldNavigationDispatcher(StandardTestDispatcher(timerB))
+            heldScopeBJob = SupervisorJob(checkNotNull(scopeBJob))
+            val heldScopeB = CoroutineScope(checkNotNull(heldScopeBJob) + checkNotNull(heldDispatcherB))
+            leafStartBJob = mainB.start(heldScopeB)
+            checkNotNull(heldDispatcherB).drain()
+            assertTrue(checkNotNull(leafStartBJob).isActive)
+            assertEquals(0, checkNotNull(heldDispatcherB).queuedTaskCount)
+            val scopeBChildrenBefore = checkNotNull(scopeBJob).children.toSet()
+            replacementBArmed = true
             interactor.onChanged(pendingB)
-            awaitBrowserPhase("composition-B completed transition") {
-                rootB.stackFlow.filter { stack ->
-                    stack.any { it.config == PasswordChangeViewConfig.Completed }
+            val scopeBNewChildren = checkNotNull(scopeBJob).children.filter { child -> child !in scopeBChildrenBefore }.toList()
+            assertEquals(1, scopeBNewChildren.size)
+            transitionBJob = scopeBNewChildren.single()
+            assertTrue(checkNotNull(transitionBJob).isActive)
+            assertEquals(1, owner.activeTransitionCount)
+
+            lateinit var replacementB: NavigationNode<out ViewConfig, ViewConfig>
+            awaitBrowserPhase("composition-B replacement creation") {
+                replacementB = withContext(Dispatchers.Default) { replacementCreatedB.await() }
+            }
+            assertSame(mainB, replacementB.chain)
+            assertSame(pendingB, mainB.stackFlow.value.lastOrNull())
+            assertEquals(null, rootB.findNodeInSubTree { candidate -> candidate === replacementB })
+            assertTrue(checkNotNull(heldDispatcherB).queuedTaskCount > 0)
+            assertEquals(0, ownerSaveAttemptsB)
+            assertEquals(0, ownerSaveAttemptsA)
+            assertTrue(recordedSavesA.holders.isEmpty())
+
+            checkNotNull(heldDispatcherB).drain()
+            awaitBrowserPhase("composition-B exact completed replacement") {
+                mainB.stackFlow.filter { stack ->
+                    stack.lastOrNull() === replacementB &&
+                        stack.none { node -> node.config is PasswordChangeViewConfig.Pending }
                 }.first()
             }
-            compositionB.dispose()
+            val persistedCompletionB = withContext(Dispatchers.Default) { completedSaveB.await() }
+            withTimeout(5_000L) { checkNotNull(transitionBJob).join() }
+            assertTrue(checkNotNull(transitionBJob).isCompleted)
+            assertFalse(checkNotNull(transitionBJob).isCancelled)
+            assertEquals(1, ownerSaveAttemptsB)
+            assertEquals(1, recordedSavesB.holders.size)
+            assertEquals(0, owner.activeTransitionCount)
+            assertTrue(checkNotNull(scopeBJob).isActive)
+            assertEquals(0, ownerSaveAttemptsA)
+            assertTrue(recordedSavesA.holders.isEmpty())
+            assertSame(replacementB, mainB.stackFlow.value.lastOrNull())
+
+            val liveB = checkNotNull(rootB.storeHierarchy())
+            assertEquals(
+                serializedPasswordNavigationHolder(json, persistedCompletionB),
+                serializedPasswordNavigationHolder(json, liveB),
+            )
+            val savedRootB = persistedCompletionB as ConfigHolder.Chain<ViewConfig>
+            assertEquals(rootBId, savedRootB.id)
+            val savedRootNode = savedRootB.firstNodeConfig as ConfigHolder.Node<ViewConfig>
+            assertTrue(savedRootNode.config is EmptyConfig)
+            assertEquals(null, savedRootNode.subnode)
+            val savedScaffold = savedRootNode.subchains.single().firstNodeConfig as ConfigHolder.Node<ViewConfig>
+            assertEquals(
+                ScaffoldViewConfig(
+                    TopBarViewConfig(),
+                    SidebarViewConfig(),
+                    dev.inmo.wishlist.features.ui.wishlist.ui.WishlistsListViewConfig(),
+                ),
+                savedScaffold.config,
+            )
+            val savedTop = savedScaffold.subchains.single { chain -> chain.id == TopNavigationChainId }
+            val savedSidebar = savedScaffold.subchains.single { chain -> chain.id == LeftNavigationChainId }
+            val savedMain = savedScaffold.subchains.single { chain -> chain.id == MainNavigationChainId }
+            assertEquals(TopBarViewConfig(), (savedTop.firstNodeConfig as ConfigHolder.Node<ViewConfig>).config)
+            assertEquals(SidebarViewConfig(), (savedSidebar.firstNodeConfig as ConfigHolder.Node<ViewConfig>).config)
+            val savedUsersList = savedMain.firstNodeConfig as ConfigHolder.Node<ViewConfig>
+            assertTrue(savedUsersList.config is UsersListViewConfig)
+            val savedCompleted = checkNotNull(savedUsersList.subnode)
+            assertEquals(PasswordChangeViewConfig.Completed, savedCompleted.config)
+            assertEquals(null, savedCompleted.subnode)
+            assertTrue(savedCompleted.subchains.isEmpty())
+            assertFalse(persistedCompletionB.passwordNavigationConfigs().any { it is PasswordChangeViewConfig.Pending })
+            val serializedB = serializedPasswordNavigationHolder(json, persistedCompletionB)
+            assertFalse(serializedB.contains(approval.string))
+            assertFalse(serializedB.contains("browser-password"))
+            assertEquals("/ui/password-changed", window.location.pathname)
+            assertEquals("", window.location.search)
+            assertEquals(null, window.history.state)
+            assertFalse("${window.location.pathname}${window.location.search}${JSON.stringify(window.history.state)}".contains(approval.string))
+            assertFalse("${window.location.pathname}${window.location.search}${JSON.stringify(window.history.state)}".contains("browser-password"))
+            assertEquals(1, model.requests.size)
+            assertEquals(1, transport.requests.size)
+
+            checkNotNull(compositionB).dispose()
             compositionB = null
-            withTimeout(5_000L) { scopeBJob.join() }
+            checkNotNull(leafStartBJob).cancel()
+            checkNotNull(heldScopeBJob).cancel()
+            checkNotNull(heldDispatcherB).drain()
+            withTimeout(5_000L) {
+                checkNotNull(leafStartBJob).join()
+                checkNotNull(heldScopeBJob).join()
+                checkNotNull(scopeBJob).join()
+            }
+            assertTrue(checkNotNull(scopeBJob).isCancelled)
+            assertTrue(checkNotNull(scopeBJob).isCompleted)
             assertEquals(0, owner.activeTransitionCount)
 
             window.history.replaceState(null, "", "/ui/wishlist/9/item/11")
@@ -366,8 +622,24 @@ class PasswordChangeNavigationBrowserTest {
         } finally {
             compositionA?.dispose()
             compositionB?.dispose()
+            leafStartAJob?.cancel()
+            heldScopeAJob?.cancel()
+            leafStartBJob?.cancel()
+            heldScopeBJob?.cancel()
+            heldDispatcherA?.drain()
+            heldDispatcherB?.drain()
+            transitionAJob?.cancelAndJoin()
+            transitionBJob?.cancelAndJoin()
+            leafStartAJob?.cancelAndJoin()
+            heldScopeAJob?.cancelAndJoin()
             scopeAJob?.cancelAndJoin()
+            leafStartBJob?.cancelAndJoin()
+            heldScopeBJob?.cancelAndJoin()
             scopeBJob?.cancelAndJoin()
+            pendingDestroyObserver?.cancelAndJoin()
+            completedDestroyObserver?.cancelAndJoin()
+            pendingViewModelJob?.cancelAndJoin()
+            completedViewModelJob?.cancelAndJoin()
             hostA?.remove()
             hostB?.remove()
             transport?.close()
