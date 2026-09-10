@@ -1,5 +1,6 @@
 package dev.inmo.wishlist.features.ui.users.ui
 
+import dev.inmo.navigation.core.NavigationNodeState
 import dev.inmo.wishlist.features.auth.common.models.AuthFeatureUser
 import dev.inmo.wishlist.features.email.common.models.Email
 import dev.inmo.wishlist.features.email.common.models.EmailVerificationRequestResult
@@ -9,7 +10,6 @@ import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.ExperimentalCoroutinesApi
-import kotlinx.coroutines.Job
 import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.test.resetMain
 import kotlinx.coroutines.test.setMain
@@ -18,7 +18,6 @@ import kotlinx.coroutines.test.advanceUntilIdle
 import kotlinx.coroutines.test.runCurrent
 import kotlinx.coroutines.test.runTest
 import kotlinx.coroutines.withContext
-import kotlinx.coroutines.yield
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
@@ -1860,7 +1859,7 @@ class UserEditViewModelEmailTest {
     }
 
     @Test
-    fun nodeDestroyCancelsEmailWork() = runTest {
+    fun nodeDestroySuppressesNonCooperativeEmailContinuation() = runTest {
         val putEntered = CompletableDeferred<Unit>()
         val releasePut = CompletableDeferred<Unit>()
         val node = userEditTestNode(ownerId)
@@ -1892,10 +1891,7 @@ class UserEditViewModelEmailTest {
             assertTrue(putEntered.isCompleted)
 
             node.destroy()
-            val lifecycleJob = viewModel.scope.coroutineContext[Job]
-            while (lifecycleJob?.isCancelled != true) {
-                yield()
-            }
+            assertEquals(NavigationNodeState.NEW, node.state)
             releasePut.complete(Unit)
             advanceUntilIdle()
 
