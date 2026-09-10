@@ -122,11 +122,13 @@ object Plugin : StartPlugin {
                     expectedEmail: Email
                 ): EmailVerificationRequestResult = emailFeature.requestMyEmailVerification(expectedEmail)
 
+                /** Delegates the owning user's password-change email request while preserving the exact expected approved email [expectedEmail]. */
                 override suspend fun requestPasswordChangeEmail(
                     expectedEmail: Email,
                 ): PasswordChangeEmailRequestResult? =
                     passwordChangeFeature.requestPasswordChangeEmail(expectedEmail)
 
+                /** Delegates the exact approval-bound [request] without substituting an account or retrying the request. */
                 override suspend fun completePasswordChange(
                     request: CompletePasswordChangeRequest,
                 ): PasswordChangeResult? = passwordChangeFeature.completePasswordChange(request)

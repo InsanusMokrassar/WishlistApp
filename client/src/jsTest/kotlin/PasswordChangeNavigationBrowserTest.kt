@@ -170,6 +170,12 @@ private fun mountPasswordNavigation(
 
 /** Exercises production browser URL restoration, completion transport, persistence, and rebinding. */
 class PasswordChangeNavigationBrowserTest {
+    /**
+     * Verifies production navigation composition with the actual password-change ViewModel and Ktor
+     * transport, immediate reload of the successful URL, and the actual Completed Continue action.
+     * Verifies admitted root-A cancellation with zero saves and successful root-B persistence after
+     * root-A disposal.
+     */
     @Test
     fun canonicalApprovalReloadsAndCompletionPersistsWithoutCredential() = CoroutineScope(Dispatchers.Unconfined).promise(
         start = CoroutineStart.UNDISPATCHED,
