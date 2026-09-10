@@ -3,6 +3,7 @@ package dev.inmo.wishlist.client
 import dev.inmo.navigation.core.NavigationChain
 import dev.inmo.navigation.core.NavigationNode
 import dev.inmo.navigation.core.NavigationNodeFactory
+import dev.inmo.navigation.core.onDestroyFlow
 import dev.inmo.navigation.core.extensions.rootChain
 import dev.inmo.navigation.core.repo.ConfigHolder
 import dev.inmo.navigation.core.repo.NavigationConfigsRepo
@@ -12,6 +13,7 @@ import dev.inmo.wishlist.features.auth.common.models.CompletePasswordChangeReque
 import dev.inmo.wishlist.features.auth.common.models.Password
 import dev.inmo.wishlist.features.auth.common.models.PasswordChangeEmailRequestResult
 import dev.inmo.wishlist.features.auth.common.models.PasswordChangeResult
+import dev.inmo.wishlist.features.auth.client.PasswordChangeFeature
 import dev.inmo.wishlist.features.common.client.models.ViewConfig
 import dev.inmo.wishlist.features.deeplinks.common.models.DeepLinkId
 import dev.inmo.wishlist.features.email.common.models.Email
@@ -28,14 +30,20 @@ import dev.inmo.wishlist.features.users.common.models.Username
 import dev.inmo.wishlist.features.users.common.models.UsersFeatureUser
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.cancelAndJoin
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
+import kotlinx.coroutines.withTimeout
+import kotlinx.coroutines.yield
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.test.StandardTestDispatcher
 import kotlinx.coroutines.test.TestCoroutineScheduler
 import kotlinx.coroutines.test.advanceTimeBy
@@ -58,7 +66,9 @@ import kotlin.test.assertSame
 import kotlin.test.assertTrue
 
 /** Minimal production-interface model that holds completion until the lifecycle test releases it. */
-internal class HeldPasswordChangeUsersModel : UsersModel {
+internal class HeldPasswordChangeUsersModel(
+    private val completionFeature: PasswordChangeFeature? = null,
+) : UsersModel {
     /** Completion gate controlled by the enclosing test. */
     val completion = CompletableDeferred<PasswordChangeResult?>()
 
@@ -67,6 +77,10 @@ internal class HeldPasswordChangeUsersModel : UsersModel {
 
     /** Signals that the submitting ViewModel reached the held completion boundary. */
     val requestReceived = CompletableDeferred<Unit>()
+
+    val returnedAfterCancellation = CompletableDeferred<Unit>()
+
+    val completionReturned = CompletableDeferred<PasswordChangeResult?>()
 
     /** Makes the test double return a result after cancellation to exercise the ViewModel guard. */
     var returnsChangedAfterCancellation = false
@@ -99,12 +113,23 @@ internal class HeldPasswordChangeUsersModel : UsersModel {
     override suspend fun requestPasswordChangeEmail(expectedEmail: Email): PasswordChangeEmailRequestResult? = null
     /** Holds completion until the test-controlled deferred result is released. */
     override suspend fun completePasswordChange(request: CompletePasswordChangeRequest): PasswordChangeResult? {
-        requests += request
+        requests += request.copy(password = Password(request.password.string))
         requestReceived.complete(Unit)
         return try {
-            completion.await()
+            val result = if (completionFeature != null) {
+                completionFeature.completePasswordChange(request)
+            } else {
+                completion.await()
+            }
+            completionReturned.complete(result)
+            result
         } catch (cause: CancellationException) {
-            if (returnsChangedAfterCancellation) PasswordChangeResult.Changed else throw cause
+            if (returnsChangedAfterCancellation) {
+                returnedAfterCancellation.complete(Unit)
+                PasswordChangeResult.Changed
+            } else {
+                throw cause
+            }
         }
     }
     /** Returns no administrator username mutation. */
@@ -406,11 +431,7 @@ class PasswordChangeInteractorTest {
     /** Proves replacement destroys the submitting ViewModel before the root-owned save completes. */
     @Test
     fun actualSubmittingViewModelDestructionPrecedesCompletedPersistence() = runTest {
-        val navigationConfigsRepo = object : NavigationConfigsRepo<ViewConfig> {
-            var saved: ConfigHolder<ViewConfig>? = null
-            override fun save(holder: ConfigHolder<ViewConfig>) { saved = holder }
-            override fun get(): ConfigHolder<ViewConfig>? = null
-        }
+        val navigationConfigsRepo = RecordingPasswordNavigationRepo()
         val application = startKoin {
             modules(module {
                 with(dev.inmo.wishlist.features.common.common.Plugin) { setupDI(JsonObject(emptyMap())) }
@@ -426,32 +447,77 @@ class PasswordChangeInteractorTest {
                 NavigationNode.Empty(parent, config)
             })
             val chainJob = chain.start(this)
-            val unbind = owner.bind(chain, this)
+            val rootTimerScheduler = TestCoroutineScheduler()
+            val heldRootDispatcher = HeldNavigationDispatcher(StandardTestDispatcher(rootTimerScheduler))
+            val rootScopeJob = SupervisorJob(coroutineContext[Job])
+            val rootScope = CoroutineScope(rootScopeJob + heldRootDispatcher)
+            val unbind = owner.bind(chain, rootScope)
+            var destroyObserver: Job? = null
             try {
                 val model = HeldPasswordChangeUsersModel()
                 chain.push(UsersListViewConfig())
                 val pending = PasswordChangeViewConfig.Pending(UserId(7), approvalId)
                 val node = checkNotNull(chain.push(pending)) as NavigationNode<PasswordChangeViewConfig, ViewConfig>
                 val viewModel = PasswordChangeViewModel(node, model, interactor, StandardTestDispatcher(testScheduler))
+                val viewModelJob = checkNotNull(viewModel.scope.coroutineContext[Job])
+                val viewModelLifecycleSubscribed = CompletableDeferred<Unit>()
+                viewModel.scope.launch { viewModelLifecycleSubscribed.complete(Unit) }
+                withContext(Dispatchers.Default) {
+                    withTimeout(5_000L) { viewModelLifecycleSubscribed.await() }
+                }
+                val destroyObserved = CompletableDeferred<Unit>()
+                destroyObserver = launch(start = kotlinx.coroutines.CoroutineStart.UNDISPATCHED) {
+                    node.onDestroyFlow.first()
+                    destroyObserved.complete(Unit)
+                }
                 runCurrent()
                 viewModel.onPasswordChanged("replacement-password")
                 viewModel.onConfirmationChanged("replacement-password")
                 viewModel.onSubmitPasswordChange()
                 runCurrent()
-                assertEquals(listOf(CompletePasswordChangeRequest(UserId(7), approvalId, Password("replacement-password"))), model.requests)
+                model.requestReceived.await()
+                val request = model.requests.single()
+                assertEquals(UserId(7), request.userId)
+                assertEquals(approvalId, request.approvalId)
+                assertEquals("replacement-password", request.password.string)
                 model.completion.complete(PasswordChangeResult.Changed)
+                runCurrent()
+                assertTrue(heldRootDispatcher.runNext())
                 advanceUntilIdle()
                 assertEquals(PasswordChangeViewConfig.Completed, chain.stackFlow.value.last().config)
+                withContext(Dispatchers.Default) {
+                    withTimeout(5_000L) {
+                        while (!destroyObserved.isCompleted || !viewModelJob.isCompleted) {
+                            testScheduler.runCurrent()
+                            yield()
+                        }
+                        destroyObserved.await()
+                        viewModelJob.join()
+                    }
+                }
+                assertTrue(viewModelJob.isCancelled)
+                assertTrue(viewModelJob.isCompleted)
                 assertTrue(viewModel.passwordState.value.isEmpty())
                 assertTrue(viewModel.confirmationState.value.isEmpty())
                 assertEquals(dev.inmo.navigation.core.NavigationNodeState.NEW, node.state)
-                val saved = assertNotNull(navigationConfigsRepo.saved) as ConfigHolder.Chain<ViewConfig>
-                assertEquals(
-                    PasswordChangeViewConfig.Completed,
-                    (saved.firstNodeConfig as ConfigHolder.Node<ViewConfig>).subnode?.config,
-                )
-                assertFalse(saved.toString().contains(approvalId.string))
-                assertFalse(saved.toString().contains("replacement-password"))
+                assertEquals(0, navigationConfigsRepo.saveAttempts)
+                val transitionJob = rootScopeJob.children.single()
+                heldRootDispatcher.drain()
+                runCurrent()
+                transitionJob.join()
+                assertEquals(1, navigationConfigsRepo.saveAttempts)
+                val saved = navigationConfigsRepo.holders.single() as ConfigHolder.Chain<ViewConfig>
+                val users = assertNotNull(saved.firstNodeConfig)
+                val completed = assertNotNull(users.subnode)
+                assertTrue(users.config is UsersListViewConfig)
+                assertEquals(PasswordChangeViewConfig.Completed, completed.config)
+                assertEquals(null, completed.subnode)
+                assertTrue(users.subchains.isEmpty())
+                assertTrue(completed.subchains.isEmpty())
+                assertFalse(saved.passwordNavigationConfigs().any { it is PasswordChangeViewConfig.Pending })
+                val serialized = serializedPasswordNavigationHolder(application.koin.get(), saved)
+                assertFalse(serialized.contains(approvalId.string))
+                assertFalse(serialized.contains("replacement-password"))
 
                 val completedNode = chain.stackFlow.value.last() as NavigationNode<PasswordChangeViewConfig, ViewConfig>
                 val completedViewModel = PasswordChangeViewModel(
@@ -460,17 +526,43 @@ class PasswordChangeInteractorTest {
                     interactor,
                     StandardTestDispatcher(testScheduler),
                 )
+                val completedViewModelJob = checkNotNull(completedViewModel.scope.coroutineContext[Job])
+                val completedViewModelLifecycleSubscribed = CompletableDeferred<Unit>()
+                completedViewModel.scope.launch { completedViewModelLifecycleSubscribed.complete(Unit) }
+                withContext(Dispatchers.Default) {
+                    withTimeout(5_000L) { completedViewModelLifecycleSubscribed.await() }
+                }
                 completedViewModel.onSubmitPasswordChange()
-                advanceUntilIdle()
+                runCurrent()
                 assertEquals(1, model.requests.size)
-                interactor.onContinue(completedNode)
+                completedViewModel.onContinue()
+                runCurrent()
+                assertTrue(heldRootDispatcher.runNext())
                 advanceUntilIdle()
+                withContext(Dispatchers.Default) {
+                    withTimeout(5_000L) {
+                        while (!completedViewModelJob.isCompleted) {
+                            testScheduler.runCurrent()
+                            yield()
+                        }
+                        completedViewModelJob.join()
+                    }
+                }
+                heldRootDispatcher.drain()
+                runCurrent()
                 assertTrue(chain.stackFlow.value.last().config is UsersListViewConfig)
-                assertNotNull(navigationConfigsRepo.saved)
+                assertEquals(2, navigationConfigsRepo.saveAttempts)
+                val usersListSaved = navigationConfigsRepo.holders.last()
+                assertTrue(usersListSaved.passwordNavigationConfigs().any { it is UsersListViewConfig })
+                assertFalse(usersListSaved.passwordNavigationConfigs().any { it is PasswordChangeViewConfig })
                 assertEquals(0, owner.activeTransitionCount)
             } finally {
                 unbind()
-                chainJob.cancel()
+                destroyObserver?.cancelAndJoin()
+                rootScopeJob.cancel()
+                heldRootDispatcher.drain()
+                rootScopeJob.join()
+                chainJob.cancelAndJoin()
             }
         } finally {
             stopKoin()
@@ -594,15 +686,17 @@ class PasswordChangeInteractorTest {
     /** Proves cancellation during submission cannot start a changed handoff. */
     @Test
     fun cancelledSubmittingViewModelCannotStartChangedHandoff() = runTest {
-        var saves = 0
-        val repo = object : NavigationConfigsRepo<ViewConfig> {
-            override fun save(holder: ConfigHolder<ViewConfig>) { saves += 1 }
-            override fun get(): ConfigHolder<ViewConfig>? = null
-        }
+        val repo = RecordingPasswordNavigationRepo()
         val owner = PasswordChangeNavigationOwner(repo)
-        val chain = NavigationChain<ViewConfig>(null, NavigationNodeFactory { parent, config -> NavigationNode.Empty(parent, config) })
+        val completedNodes = mutableListOf<NavigationNode<out ViewConfig, ViewConfig>>()
+        val chain = NavigationChain<ViewConfig>(null, NavigationNodeFactory { parent, config ->
+            NavigationNode.Empty(parent, config).also {
+                if (config == PasswordChangeViewConfig.Completed) completedNodes += it
+            }
+        })
         val chainJob = chain.start(this)
         val unbind = owner.bind(chain, this)
+        var destroyObserver: Job? = null
         try {
             val model = HeldPasswordChangeUsersModel().apply { returnsChangedAfterCancellation = true }
             chain.push(UsersListViewConfig())
@@ -610,20 +704,46 @@ class PasswordChangeInteractorTest {
                 as NavigationNode<PasswordChangeViewConfig, ViewConfig>
             advanceUntilIdle()
             val viewModel = PasswordChangeViewModel(pending, model, owner, StandardTestDispatcher(testScheduler))
+            val viewModelJob = checkNotNull(viewModel.scope.coroutineContext[Job])
+            val viewModelLifecycleSubscribed = CompletableDeferred<Unit>()
+            viewModel.scope.launch { viewModelLifecycleSubscribed.complete(Unit) }
+            withContext(Dispatchers.Default) {
+                withTimeout(5_000L) { viewModelLifecycleSubscribed.await() }
+            }
+            val destroyObserved = CompletableDeferred<Unit>()
+            destroyObserver = launch(start = kotlinx.coroutines.CoroutineStart.UNDISPATCHED) {
+                pending.onDestroyFlow.first()
+                destroyObserved.complete(Unit)
+            }
             viewModel.onPasswordChanged("cancellation-resistant")
             viewModel.onConfirmationChanged("cancellation-resistant")
             viewModel.onSubmitPasswordChange()
+            runCurrent()
+            model.requestReceived.await()
+            val competing = checkNotNull(chain.replace(pending, UsersListViewConfig())).second
             advanceUntilIdle()
-            chain.replace(pending, UsersListViewConfig())
-            advanceUntilIdle()
+            withContext(Dispatchers.Default) {
+                withTimeout(5_000L) {
+                    while (!destroyObserved.isCompleted || !model.returnedAfterCancellation.isCompleted || !viewModelJob.isCompleted) {
+                        testScheduler.runCurrent()
+                        yield()
+                    }
+                    destroyObserved.await()
+                    model.returnedAfterCancellation.await()
+                    viewModelJob.join()
+                }
+            }
             assertEquals(dev.inmo.navigation.core.NavigationNodeState.NEW, pending.state)
-            advanceUntilIdle()
             assertEquals(1, model.requests.size)
-            assertEquals(0, saves)
-            assertTrue(chain.stackFlow.value.last().config is UsersListViewConfig)
+            assertTrue(viewModel.passwordState.value.isEmpty())
+            assertTrue(viewModel.confirmationState.value.isEmpty())
+            assertEquals(0, completedNodes.size)
+            assertEquals(0, repo.saveAttempts)
+            assertSame(competing, chain.stackFlow.value.last())
             assertEquals(0, owner.activeTransitionCount)
         } finally {
             unbind()
+            destroyObserver?.cancelAndJoin()
             chainJob.cancelAndJoin()
         }
     }
@@ -695,38 +815,97 @@ class PasswordChangeInteractorTest {
     /** Proves save failure is not replayed and later Continue remains usable. */
     @Test
     fun saveFailureDoesNotReplayAndLaterContinuePersistsUsersList() = runTest {
-        var saves = 0
-        val repo = object : NavigationConfigsRepo<ViewConfig> {
-            var persisted: ConfigHolder<ViewConfig>? = null
-            override fun save(holder: ConfigHolder<ViewConfig>) {
-                saves += 1
-                if (saves == 1) error("first save fails")
-                persisted = holder
-            }
-            override fun get(): ConfigHolder<ViewConfig>? = null
+        val application = startKoin {
+            modules(module {
+                with(dev.inmo.wishlist.features.common.common.Plugin) { setupDI(JsonObject(emptyMap())) }
+                with(dev.inmo.wishlist.features.ui.users.Plugin) { setupDI(JsonObject(emptyMap())) }
+            })
         }
+        val json = application.koin.get<Json>()
+        val transport = HeldPasswordChangeTransport(json)
+        val repo = RecordingPasswordNavigationRepo(failFirstSave = true)
         val owner = PasswordChangeNavigationOwner(repo)
         val chain = NavigationChain<ViewConfig>(null, NavigationNodeFactory { parent, config -> NavigationNode.Empty(parent, config) })
         val chainJob = chain.start(this)
         val unbind = owner.bind(chain, this)
+        var pendingDestroyObserver: Job? = null
+        var completedDestroyObserver: Job? = null
         try {
+            val model = HeldPasswordChangeUsersModel(transport.feature)
             chain.push(UsersListViewConfig())
             val pending = checkNotNull(chain.push(PasswordChangeViewConfig.Pending(UserId(7), approvalId)))
                 as NavigationNode<PasswordChangeViewConfig, ViewConfig>
+            runCurrent()
+            val pendingViewModel = PasswordChangeViewModel(pending, model, owner, Dispatchers.Default)
+            val pendingViewModelJob = checkNotNull(pendingViewModel.scope.coroutineContext[Job])
+            val pendingDestroyed = CompletableDeferred<Unit>()
+            pendingDestroyObserver = launch(start = kotlinx.coroutines.CoroutineStart.UNDISPATCHED) {
+                pending.onDestroyFlow.first()
+                pendingDestroyed.complete(Unit)
+            }
+            pendingViewModel.onPasswordChanged("transport-password")
+            pendingViewModel.onConfirmationChanged("transport-password")
+            pendingViewModel.onSubmitPasswordChange()
+            runCurrent()
+            model.requestReceived.await()
+            transport.requestReceived.await()
+            assertEquals(1, model.requests.size)
+            assertEquals(1, transport.requests.size)
+            assertEquals(model.requests.single(), transport.requests.single())
+            assertEquals("https://wishlist.test/api/auth/completePasswordChange", transport.httpRequest?.url.toString())
+            transport.releaseChanged()
+            withContext(Dispatchers.Default) {
+                withTimeout(5_000L) { model.completionReturned.await() }
+            }
             advanceUntilIdle()
-            owner.onChanged(pending)
-            advanceUntilIdle()
-            assertEquals(1, saves)
+            withContext(Dispatchers.Default) {
+                withTimeout(5_000L) {
+                    pendingDestroyed.await()
+                    pendingViewModelJob.join()
+                }
+            }
+            runCurrent()
+            assertEquals(1, repo.saveAttempts)
             val completed = chain.stackFlow.value.last() as NavigationNode<PasswordChangeViewConfig, ViewConfig>
-            owner.onContinue(completed)
+            assertEquals(PasswordChangeViewConfig.Completed, completed.config)
+            assertTrue(pendingViewModel.passwordState.value.isEmpty())
+            assertTrue(pendingViewModel.confirmationState.value.isEmpty())
+            assertEquals(0, repo.holders.size)
+            assertEquals(0, owner.activeTransitionCount)
+            pendingViewModel.onSubmitPasswordChange()
+            runCurrent()
+            val completedViewModel = PasswordChangeViewModel(completed, model, owner, Dispatchers.Default)
+            val completedViewModelJob = checkNotNull(completedViewModel.scope.coroutineContext[Job])
+            val completedDestroyed = CompletableDeferred<Unit>()
+            completedDestroyObserver = launch(start = kotlinx.coroutines.CoroutineStart.UNDISPATCHED) {
+                completed.onDestroyFlow.first()
+                completedDestroyed.complete(Unit)
+            }
+            completedViewModel.onSubmitPasswordChange()
+            runCurrent()
+            completedViewModel.onContinue()
             advanceUntilIdle()
-            assertEquals(2, saves)
-            assertNotNull(repo.persisted)
+            withContext(Dispatchers.Default) {
+                withTimeout(5_000L) {
+                    completedDestroyed.await()
+                    completedViewModelJob.join()
+                }
+            }
+            runCurrent()
+            assertEquals(2, repo.saveAttempts)
+            assertEquals(1, repo.holders.size)
+            assertTrue(repo.holders.single().passwordNavigationConfigs().any { it is UsersListViewConfig })
             assertTrue(chain.stackFlow.value.last().config is UsersListViewConfig)
+            assertEquals(1, model.requests.size)
+            assertEquals(1, transport.requests.size)
             assertEquals(0, owner.activeTransitionCount)
         } finally {
             unbind()
+            pendingDestroyObserver?.cancelAndJoin()
+            completedDestroyObserver?.cancelAndJoin()
             chainJob.cancelAndJoin()
+            transport.close()
+            stopKoin()
         }
     }
 }

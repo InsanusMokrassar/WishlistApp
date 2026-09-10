@@ -47,6 +47,11 @@ kotlin {
                 api project(":wishlist.features.ui.sidebar")
             }
         }
+        commonTest {
+            dependencies {
+                implementation libs.ktor.client.mock
+            }
+        }
         jsTest {
             dependencies {
                 implementation devNpm("jsdom", "26.1.0")
