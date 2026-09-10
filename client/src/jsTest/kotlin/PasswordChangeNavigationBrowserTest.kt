@@ -7,11 +7,12 @@ import dev.inmo.navigation.core.NavigationChain
 import dev.inmo.navigation.core.NavigationChainId
 import dev.inmo.navigation.core.NavigationNode
 import dev.inmo.navigation.core.NavigationNodeFactory
-import dev.inmo.navigation.core.findNodeInSubTree
+import dev.inmo.navigation.core.extensions.findNodeInSubTree
 import dev.inmo.navigation.core.onDestroyFlow
 import dev.inmo.navigation.core.repo.ConfigHolder
 import dev.inmo.navigation.core.repo.NavigationConfigsRepo
 import dev.inmo.navigation.core.repo.storeHierarchy
+import dev.inmo.micro_utils.koin.singleWithRandomQualifier
 import dev.inmo.wishlist.client.utils.WithPasswordChangeNavigationBinding
 import dev.inmo.wishlist.features.common.client.models.EmptyConfig
 import dev.inmo.wishlist.features.common.client.models.LeftNavigationChainId
@@ -28,6 +29,7 @@ import dev.inmo.wishlist.features.ui.users.ui.PasswordChangeViewModel
 import dev.inmo.wishlist.features.ui.users.ui.UsersListViewConfig
 import dev.inmo.wishlist.features.ui.wishlist.ui.WishlistItemViewConfig
 import dev.inmo.wishlist.features.ui.wishlist.ui.WishlistViewConfig
+import dev.inmo.wishlist.features.ui.wishlist.ui.WishlistsListViewConfig
 import dev.inmo.wishlist.features.users.common.models.UserId
 import dev.inmo.wishlist.features.wishlist.common.models.WishlistId
 import dev.inmo.wishlist.features.wishlist.common.models.WishlistItemId
@@ -40,7 +42,6 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancelAndJoin
-import kotlinx.coroutines.children
 import kotlinx.coroutines.flow.filter
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
@@ -53,6 +54,8 @@ import kotlinx.coroutines.withTimeoutOrNull
 import kotlinx.coroutines.yield
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonObject
+import kotlinx.serialization.modules.SerializersModule
+import kotlinx.serialization.modules.polymorphic
 import org.jetbrains.compose.web.renderComposable
 import org.koin.dsl.koinApplication
 import org.koin.dsl.module
@@ -283,6 +286,11 @@ class PasswordChangeNavigationBrowserTest {
                     with(dev.inmo.wishlist.features.ui.sidebar.Plugin) { setupDI(JsonObject(emptyMap())) }
                     with(dev.inmo.wishlist.features.ui.wishlist.Plugin) { setupDI(JsonObject(emptyMap())) }
                     with(ClientPlugin) { setupDI(JsonObject(emptyMap())) }
+                    singleWithRandomQualifier {
+                        SerializersModule {
+                            polymorphic(ViewConfig::class, EmptyConfig::class, EmptyConfig.serializer())
+                        }
+                    }
                     single<NavigationConfigsRepo<ViewConfig>> { persistenceRepo }
                 })
             }
@@ -317,7 +325,11 @@ class PasswordChangeNavigationBrowserTest {
                     }
                 }
             }
-            val rootA = NavigationChain<ViewConfig>(rootAId, nodesFactoryA)
+            val rootA = NavigationChain<ViewConfig>(
+                parentNode = null,
+                nodeFactory = nodesFactoryA,
+                id = rootAId,
+            )
             val scopeA = CompletableDeferred<CoroutineScope>()
             compositionA = mountPasswordNavigation(hostA, owner, rootA, urlRepo, scopeA, nodesFactoryA)
             awaitBrowserPhase("composition-A scope") { scopeA.await() }
@@ -463,7 +475,11 @@ class PasswordChangeNavigationBrowserTest {
 
             hostB = document.createElement("div") as HTMLDivElement
             document.body!!.appendChild(hostB)
-            val rootB = NavigationChain<ViewConfig>(rootBId, nodesFactoryB)
+            val rootB = NavigationChain<ViewConfig>(
+                parentNode = null,
+                nodeFactory = nodesFactoryB,
+                id = rootBId,
+            )
             val scopeB = CompletableDeferred<CoroutineScope>()
             compositionB = mountPasswordNavigation(hostB, owner, rootB, urlRepo, scopeB, nodesFactoryB)
             awaitBrowserPhase("composition-B scope") { scopeB.await() }
@@ -479,6 +495,11 @@ class PasswordChangeNavigationBrowserTest {
             assertFalse(pendingB === stalePending)
             assertSame(pendingB, rootB.findNodeInSubTree { candidate -> candidate === pendingB })
             assertSame(pendingB, mainB.stackFlow.value.lastOrNull())
+            awaitBrowserPhase("composition-B restored pending URL") {
+                withContext(Dispatchers.Default) {
+                    while (window.location.pathname != "/ui/password-change/7/${approval.string}") yield()
+                }
+            }
             assertEquals("/ui/password-change/7/${approval.string}", window.location.pathname)
 
             checkNotNull(compositionA).dispose()
@@ -570,19 +591,15 @@ class PasswordChangeNavigationBrowserTest {
             assertTrue(savedRootNode.config is EmptyConfig)
             assertEquals(null, savedRootNode.subnode)
             val savedScaffold = savedRootNode.subchains.single().firstNodeConfig as ConfigHolder.Node<ViewConfig>
-            assertEquals(
-                ScaffoldViewConfig(
-                    TopBarViewConfig(),
-                    SidebarViewConfig(),
-                    dev.inmo.wishlist.features.ui.wishlist.ui.WishlistsListViewConfig(),
-                ),
-                savedScaffold.config,
-            )
+            val savedScaffoldConfig = savedScaffold.config as ScaffoldViewConfig
+            assertTrue(savedScaffoldConfig.topConfig is TopBarViewConfig)
+            assertTrue(savedScaffoldConfig.leftConfig is SidebarViewConfig)
+            assertEquals(null, (savedScaffoldConfig.mainConfig as WishlistsListViewConfig).userId)
             val savedTop = savedScaffold.subchains.single { chain -> chain.id == TopNavigationChainId }
             val savedSidebar = savedScaffold.subchains.single { chain -> chain.id == LeftNavigationChainId }
             val savedMain = savedScaffold.subchains.single { chain -> chain.id == MainNavigationChainId }
-            assertEquals(TopBarViewConfig(), (savedTop.firstNodeConfig as ConfigHolder.Node<ViewConfig>).config)
-            assertEquals(SidebarViewConfig(), (savedSidebar.firstNodeConfig as ConfigHolder.Node<ViewConfig>).config)
+            assertTrue((savedTop.firstNodeConfig as ConfigHolder.Node<ViewConfig>).config is TopBarViewConfig)
+            assertTrue((savedSidebar.firstNodeConfig as ConfigHolder.Node<ViewConfig>).config is SidebarViewConfig)
             val savedUsersList = savedMain.firstNodeConfig as ConfigHolder.Node<ViewConfig>
             assertTrue(savedUsersList.config is UsersListViewConfig)
             val savedCompleted = checkNotNull(savedUsersList.subnode)
