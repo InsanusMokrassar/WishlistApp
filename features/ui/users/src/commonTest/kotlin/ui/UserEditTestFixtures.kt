@@ -38,7 +38,12 @@ internal class UserEditTestUsersModel(
     var profileHandler: suspend () -> AuthFeatureUser? = { profileState.value }
     var saveEmailHandler: suspend (Email?) -> Boolean = { email ->
         if (saveEmailResult) {
-            profileState.value = profileState.value?.copy(email = email, emailApproved = false)
+            profileState.value = profileState.value?.let { profile ->
+                profile.copy(
+                    email = email,
+                    emailApproved = email != null && email == profile.email && profile.emailApproved,
+                )
+            }
         }
         saveEmailResult
     }

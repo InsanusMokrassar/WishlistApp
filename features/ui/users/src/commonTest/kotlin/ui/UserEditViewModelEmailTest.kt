@@ -58,6 +58,74 @@ class UserEditViewModelEmailTest {
     }
 
     @Test
+    fun approvedOwnerEmailCanBeReplacedAndVerified() = runTest {
+        val approvedEmail = Email("approved@example.com")
+        val replacementEmail = Email("replacement@example.com")
+        val model = UserEditTestUsersModel(
+            ownerId,
+            owner.copy(email = approvedEmail, emailApproved = true),
+        )
+        val interactor = RecordingUserEditInteractor()
+        val viewModel = UserEditViewModel(
+            userEditTestNode(ownerId),
+            model,
+            interactor,
+            StandardTestDispatcher(testScheduler),
+        )
+        try {
+            advanceUntilIdle()
+            assertTrue(viewModel.canManageOwnEmailState.value)
+            assertTrue(viewModel.canMutateOwnEmailState.value)
+
+            viewModel.onEmailChanged(replacementEmail.string)
+            viewModel.onSaveEmailAndRequestVerification()
+            advanceUntilIdle()
+
+            assertEquals(listOf<Email?>(replacementEmail), model.savedEmails)
+            assertEquals(listOf(replacementEmail), model.requestedEmails)
+            assertEquals(replacementEmail, viewModel.ownEmailProfileState.value?.email)
+            assertFalse(viewModel.ownEmailProfileState.value?.emailApproved ?: true)
+            assertEquals(0, interactor.savedCalls)
+        } finally {
+            viewModel.scope.cancel()
+        }
+    }
+
+    @Test
+    fun pendingOwnerEmailCanBeReplacedAndVerified() = runTest {
+        val pendingEmail = Email("pending@example.com")
+        val replacementEmail = Email("replacement@example.com")
+        val model = UserEditTestUsersModel(
+            ownerId,
+            owner.copy(email = pendingEmail, emailApproved = false),
+        )
+        val interactor = RecordingUserEditInteractor()
+        val viewModel = UserEditViewModel(
+            userEditTestNode(ownerId),
+            model,
+            interactor,
+            StandardTestDispatcher(testScheduler),
+        )
+        try {
+            advanceUntilIdle()
+            assertTrue(viewModel.canManageOwnEmailState.value)
+            assertTrue(viewModel.canMutateOwnEmailState.value)
+
+            viewModel.onEmailChanged(replacementEmail.string)
+            viewModel.onSaveEmailAndRequestVerification()
+            advanceUntilIdle()
+
+            assertEquals(listOf<Email?>(replacementEmail), model.savedEmails)
+            assertEquals(listOf(replacementEmail), model.requestedEmails)
+            assertEquals(replacementEmail, viewModel.ownEmailProfileState.value?.email)
+            assertFalse(viewModel.ownEmailProfileState.value?.emailApproved ?: true)
+            assertEquals(0, interactor.savedCalls)
+        } finally {
+            viewModel.scope.cancel()
+        }
+    }
+
+    @Test
     fun failedEmailSaveDoesNotRequestVerification() = runTest {
         val model = UserEditTestUsersModel(ownerId, owner).apply { saveEmailResult = false }
         val viewModel = UserEditViewModel(
@@ -610,8 +678,13 @@ class UserEditViewModelEmailTest {
     }
 
     @Test
-    fun disabledProbeHidesSectionAndRejectsWrites() = runTest {
-        val model = UserEditTestUsersModel(ownerId, owner).apply { emailFeatureEnabled = false }
+    fun disabledSmtpOwnerCanReplaceApprovedEmailWithoutSending() = runTest {
+        val approvedEmail = Email("approved@example.com")
+        val replacementEmail = Email("replacement@example.com")
+        val model = UserEditTestUsersModel(
+            ownerId,
+            owner.copy(email = approvedEmail, emailApproved = true),
+        ).apply { emailFeatureEnabled = false }
         val viewModel = UserEditViewModel(
             userEditTestNode(ownerId),
             model,
@@ -621,14 +694,16 @@ class UserEditViewModelEmailTest {
         try {
             advanceUntilIdle()
             assertEquals(EmailCapabilityState.Disabled, viewModel.emailCapabilityState.value)
-            assertFalse(viewModel.canManageOwnEmailState.value)
-            assertFalse(viewModel.canMutateOwnEmailState.value)
 
-            viewModel.onEmailChanged("owner@example.com")
+            viewModel.onEmailChanged(replacementEmail.string)
             viewModel.onSaveEmailAndRequestVerification()
             advanceUntilIdle()
-            assertTrue(model.savedEmails.isEmpty())
+
+            assertEquals(listOf<Email?>(replacementEmail), model.savedEmails)
             assertTrue(model.requestedEmails.isEmpty())
+            assertTrue(viewModel.canManageOwnEmailState.value)
+            assertEquals(replacementEmail, viewModel.ownEmailProfileState.value?.email)
+            assertFalse(viewModel.ownEmailProfileState.value?.emailApproved ?: true)
         } finally {
             viewModel.scope.cancel()
         }
