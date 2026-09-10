@@ -24,12 +24,16 @@ import dev.inmo.wishlist.features.auth.common.models.AuthConfig
 import dev.inmo.wishlist.features.auth.common.models.AuthCredentials
 import dev.inmo.wishlist.features.auth.common.models.AuthFeatureUser
 import dev.inmo.wishlist.features.auth.common.models.Password
+import dev.inmo.wishlist.features.auth.common.models.PasswordChangeResult
 import dev.inmo.wishlist.features.auth.common.models.RefreshToken
 import dev.inmo.wishlist.features.auth.common.models.RegistrationResult
 import dev.inmo.wishlist.features.auth.common.models.Token
 import dev.inmo.wishlist.features.email.common.models.Email
 import dev.inmo.wishlist.features.auth.server.repo.PasswordsRepo
 import dev.inmo.wishlist.features.auth.common.models.asAuthFeatureUser
+import dev.inmo.wishlist.features.auth.common.utils.isAcceptablePasswordChangePassword
+import dev.inmo.wishlist.features.auth.server.utils.matchesPasswordChangeCredentialState
+import dev.inmo.wishlist.features.auth.server.utils.passwordChangeCredentialState
 import dev.inmo.wishlist.features.users.common.models.NewUser
 import dev.inmo.wishlist.features.users.common.models.UserId
 import dev.inmo.wishlist.features.users.common.models.Username
@@ -306,10 +310,85 @@ class AuthFeatureService(
 
     override suspend fun isRegistrationAvailable(): Boolean = enableRegistration
 
+    /**
+     * Returns a server-private fingerprint of the current password only while the account remains
+     * directly authorized and has a stored credential.
+     *
+     * @param userId Account whose current password state is requested.
+     * @return Opaque credential fingerprint, or `null` when the account cannot be authorized.
+     */
+    suspend fun passwordChangeState(userId: UserId): String? = withPasswordWriteLock {
+        passwordChangeStateWhileLocked(userId)
+    }
+
+    /**
+     * Replaces a password only after a caller consumes the exact approval under this Auth write lock.
+     *
+     * @param userId Approval-bound account.
+     * @param expectedCredentialState Fingerprint captured when the approval was issued.
+     * @param rawPassword Proposed plaintext password.
+     * @param authorizeAndConsume Callback that rereads and removes the exact approval.
+     * @return Domain result without exposing account or credential details.
+     */
+    suspend fun setPasswordIfAuthorized(
+        userId: UserId,
+        expectedCredentialState: String,
+        rawPassword: Password,
+        authorizeAndConsume: suspend () -> Boolean,
+    ): PasswordChangeResult {
+        if (!isAcceptablePasswordChangePassword(rawPassword)) return PasswordChangeResult.InvalidPassword
+        val hashed = Password(BCrypt.hashpw(rawPassword.string, BCrypt.gensalt()))
+        val result = withPasswordWriteLock {
+            val currentState = passwordChangeStateWhileLocked(userId)
+                ?: return@withPasswordWriteLock PasswordChangeResult.InvalidApproval
+            if (!matchesPasswordChangeCredentialState(expectedCredentialState, currentState)) {
+                return@withPasswordWriteLock PasswordChangeResult.InvalidApproval
+            }
+            currentCoroutineContext().ensureActive()
+            val changed = withContext(NonCancellable) {
+                if (!authorizeAndConsume()) {
+                    false
+                } else {
+                    passwordsRepo.set(userId to hashed)
+                    true
+                }
+            }
+            if (!changed) return@withPasswordWriteLock PasswordChangeResult.InvalidApproval
+            currentCoroutineContext().ensureActive()
+            PasswordChangeResult.Changed
+        }
+        return result
+    }
+
     suspend fun setPassword(userId: UserId, rawPassword: Password) {
         locker.withWriteLock {
             val hashed = BCrypt.hashpw(rawPassword.string, BCrypt.gensalt())
             passwordsRepo.set(userId to Password(hashed))
+        }
+    }
+
+    /** Returns the password approval state while the caller owns [locker]'s write lock. */
+    private suspend fun passwordChangeStateWhileLocked(userId: UserId): String? {
+        if (usersRepo.getById(userId) == null) return null
+        if (!hasUserRole(userId)) return null
+        val storedHash = passwordsRepo.get(userId)?.string ?: return null
+        return passwordChangeCredentialState(userId, storedHash)
+    }
+
+    /**
+     * Runs [action] while holding the Auth write lock and releases it non-cancellably.
+     *
+     * The explicit release prevents a cancellation observed after a bounded password-change commit
+     * from leaving the shared credential lock held.
+     */
+    private suspend fun <T> withPasswordWriteLock(action: suspend () -> T): T {
+        locker.lockWrite()
+        try {
+            return action()
+        } finally {
+            withContext(NonCancellable) {
+                locker.unlockWrite()
+            }
         }
     }
 

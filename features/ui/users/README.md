@@ -6,11 +6,9 @@
 
 ## Overview
 
-User-facing screens for browsing and managing user profiles. Three screens share one navigation
-chain (the scaffold main slot). On JS the list + profile views render **Calm Studio** markup (the
-Discover people grid `.people`/`.person`, the profile `.pagehead` header; class names mirror the
-design skill's `ui_kits/calm-studio` reference so the phase-1 shell CSS styles them); the profile
-**edit** screen and JVM/Android remain Material/Bootstrap for now.
+User-facing screens for browsing and managing user profiles. Four screen families share one navigation
+chain (the scaffold main slot). JS list, profile, editor/owner-email controls, and password form use
+Calm Studio Compose HTML; JVM uses Compose Material; Android uses Compose Material3.
 
 - **Users list** (Discover) — main page content; the global list of registered users from the public
   `UsersFeature.getAll()`, shown as a Calm Studio `.people` grid of `.person` cards (avatar circle —
@@ -22,10 +20,13 @@ design skill's `ui_kits/calm-studio` reference so the phase-1 shell CSS styles t
   owner and a SuperAdmin.
 - **User profile edit** (`UserEditViewConfig(userId)`) — reachable by the owner and a SuperAdmin. A
   non-root owner cannot edit administrator-managed username/password fields but may upload an avatar
-  and, when SMTP email verification is enabled, add a missing private email and request or retry its
-  verification. A SuperAdmin may edit the username, set a new password (with a confirmation field
+  and, when SMTP email verification is enabled, add a missing private email, request or retry its
+  verification, and request a password-change email for an approved current address. A SuperAdmin may edit the username, set a new password (with a confirmation field
   that must match), upload an avatar, and **delete** the user. The user id is never editable. User
   *creation* is not done here (admin panel).
+- **Password change** (`PasswordChangeViewConfig.Pending` / `Completed`) — an email deeplink opens
+  the pending form with its immutable approval UUID; successful completion replaces it with a
+  credential-free completed screen.
 
 No auth required to view the users list or a profile.
 
@@ -43,20 +44,22 @@ verification request), `features/admin/client` (root-only username/password/dele
 | `UsersListViewConfig` | Empty `@Serializable class` — main slot root identifier |
 | `UserViewConfig` | `data class(userId: UserId)` — public profile detail |
 | `UserEditViewConfig` | `data class(userId: UserId)` — profile edit (owner/root) |
-| `UsersModel` | Single feature model (renamed from `UsersListModel`). Wraps `UsersFeature.getAll()` (returns `UsersFeatureUser` — no email, see `features/users/README.md`), auth's private `ClientAuthFeature.getMe()` for the owner record, `EmailFeature` (`isEmailFeatureEnabled`, `setMyEmail`, `requestMyEmailVerification`), admin `AdminFeature.usersManagement` (`updateUsername`, `setPassword`, `deleteUser`), and `FilesClientService` (`getAvatar`, `uploadAvatar`, `imageUrl`, `loadImageBytes`). The public list is never used to read email or approval state. |
+| `UsersModel` | Single feature model (renamed from `UsersListModel`). Wraps `UsersFeature.getAll()` (returns `UsersFeatureUser` — no email, see `features/users/README.md`), auth's private `ClientAuthFeature.getMe()` for the owner record, `EmailFeature` (`isEmailFeatureEnabled`, `setMyEmail`, `requestMyEmailVerification`), `PasswordChangeFeature` (`requestPasswordChangeEmail`, `completePasswordChange`), admin `AdminFeature.usersManagement` (`updateUsername`, `setPassword`, `deleteUser`), and `FilesClientService` (`getAvatar`, `uploadAvatar`, `imageUrl`, `loadImageBytes`). The public list is never used to read email or approval state. |
 | `UsersListViewInteractor` | `onUserSelected(node, userId)` (→ user's all-items view), `onOpenProfile(node, userId)` (→ profile view) |
 | `UserViewInteractor` | `onBack(node)`, `onEditUser(node)` (→ edit) |
 | `UserEditViewInteractor` | `onNavigateBack(node)`, `onSaved(node)`, `onDeleted(node)` |
 | `UsersListViewModel` | `usersState`, `avatarsState` (`Map<UserId, FileId>`), `loadingState`, `currentUserIdState`; `onUserSelected`, `onMyProfile`, `imageUrl`/`loadImageBytes` |
 | `UserViewModel` | `userState`, `avatarIdState`, `canEditState`, `loadingState`; auto-`onBack` when the user is gone after reload |
 | `UserEditViewModel` | Existing profile/avatar/admin-edit state plus owner-only `canManageOwnEmailState`, private profile/email input, loading/busy/error state, and explicit verification result state |
+| `PasswordChangeViewConfig` | Immutable serialized route state: `Pending(userId, approvalId)` redacts its approval id in diagnostics; `Completed` contains no approval or entered password. |
+| `PasswordChangeViewModel` / `PasswordChangeViewInteractor` | Shared token-authorized form state and client navigation delegate. Pending owns fields and HTTP; the root-owned interactor acknowledges confirmed success and replaces the node with `Completed`, then leaves through the users-list route. |
 
 ## Architecture Notes
 
 - All views use the shared `ScreenTitle` / `BackButton` / `ListRow` components from `features/common/client` (`ui.components`).
-- All three screens' interactors are implemented in `client/ClientPlugin` (intra-feature push/pop). `onOpenProfile`/`UserViewInteractor.onEditUser` push `UserViewConfig`/`UserEditViewConfig` onto `node.chain`.
+- All four screen families' interactors are implemented in `client/ClientPlugin` (intra-feature push/pop). `onOpenProfile`/`UserViewInteractor.onEditUser` push `UserViewConfig`/`UserEditViewConfig` onto `node.chain`.
 - `build.gradle` deps: `features/auth/client` (`ClientAuthFeature`), `features/admin/client` (`AdminFeature`), `features/files/client` (`FilesClientService`).
-- **Single model**: `UsersListModel` was renamed to `UsersModel` and expanded to back all three screens (matching the one-model-per-UI-feature convention used by `wishlist`/`adminPanel`).
+- **Single model**: `UsersListModel` was renamed to `UsersModel` and expanded to back all four screen families (matching the one-model-per-UI-feature convention used by `wishlist`/`adminPanel`).
 - **Superadmin/functionality detection is client-side**, via `roles/client` (issue #68) — replaces the
   previous `me.value?.username?.string == "root"` comparison. `UsersModel.isCurrentUserRootFlow` is
   backed by `roles/client` `RolesFeature.isFunctionalityAvailable(adminPanelFunctionalityId)` over
@@ -73,6 +76,10 @@ verification request), `features/admin/client` (root-only username/password/dele
   - `canSaveState` = root && username non-blank && not loading && (password blank or password == confirm). `passwordMismatchState` drives the inline error. `onSave` requires a confirmed username result before it attempts an optional password change and navigates only after every requested mutation succeeds. Username and password failures render separate feedback; a password failure after a successful username is intentionally a visible partial commit rather than a rollback.
   - **Avatar upload** (owner or root): shown only when `canUploadAvatarState` is true (owner OR has `avatarChangeForOthers` functionality). The image picker is the feature's own `utils/pickImageFile` (`expect`/`actual`; JS hidden input, JVM `JFileChooser`, Android `AvatarImagePicker` registered by `MainActivity`). `onAvatarPicked` → `model.uploadAvatar(userId, file)` (finalize + associate) → refresh `avatarIdState`. Avatar changes persist immediately and do not set the dirty flag.
   - **Owner email verification:** the editor derives owner-only visibility from the current authorized caller and a local `Unknown`/`Loading`/`Enabled`/`Disabled`/`Failed` capability state. Only a matching private profile under `Enabled` permits writes; probe/profile failure leaves a visible Refresh action but keeps mutations fail-closed, and root editing someone else never sees private feedback. Each owner operation captures caller identity and an owner generation, is cancelled on identity/session loss, and rechecks ownership after every suspension so an obsolete PUT/POST/reconciliation cannot publish or issue a later request. With no stored email, save first calls `setMyEmail` and only requests verification after a confirmed success. A false or uncertain PUT is shown as a storage-confirmation failure and never posts; a later private reconciliation may reveal a pending address without automatically sending. POST failures become the distinct `DeliveryFailed` result. A saved unapproved address is read-only and offers resend; an approved address has no resend. Every current save/retry reconciles the private profile so a deeplink approval is reflected, while an unsaved draft survives retry. The JS, JVM, and Android implementations use the same state and controls.
+- **Owner password-email request:** the approved-email branch adds a request control only when the caller is the matching authenticated owner, SMTP capability is positively `Enabled`, the private profile matches, and its non-null email is approved. It uses the existing owner mutation/lifecycle guard and reports sent, unavailable/ineligible, delivery, or unconfirmed transport feedback without using the root-only direct-password form.
+- **Password-change transition ownership:** after confirmed success, a root-owned composition acknowledges the exact Pending node and owns observation and hierarchy save, so Pending destruction cannot cancel completion persistence. The root composition survives Pending replacement and root disposal cancels outstanding navigation work. Exact-node guards ignore stale callbacks; `Completed` and `UsersList` destinations are persisted. Cancellation before confirmed success performs no handoff, and persistence failure or process death makes no HTTP replay or durability promise.
+  - **Password approval page:** all JS/JVM/Android typed factories render one shared pending/completed configuration. Pending routes retain the exact immutable id and subject, offer two memory-only password fields with the 8-character/72-UTF-8-byte policy, and submit independently of current login state. Invalid approvals become terminal; uncertain transport responses are not retried automatically. A confirmed change clears fields and replaces navigation with credential-free `Completed`; Back/Continue replaces the page with the users-list destination. JS maps pending state to `/password-change/{userId}/{approvalId}` and completion to `/password-changed`, preserving the pending id across reload but removing it after success.
+  - Password-change polymorphism registers `Pending` and `Completed` as concrete subtypes under both `Any` and `ViewConfig`; the sealed base is not registered as a subtype. Derived submit state is presentation-only: raw password, confirmation, loading, and terminal state are synchronously checked before a request claims the busy slot. All platforms render live mismatch/policy feedback; JVM and Android password fields use password keyboards, single-line input, and guarded IME Done submission.
   - **Owner lifecycle confinement:** owner generations, refresh versions, mutation tokens/jobs, authorization checks, and private-state publications run in a `Dispatchers.Main.immediate` child scope that retains the navigation ViewModel lifecycle job. UI callbacks enter on that same UI dispatcher; tests inject one shared serial dispatcher. This prevents a worker that passed an old ownership check from publishing after invalidation while retaining node-destruction cancellation.
   - **Delete** (root only) was **moved here from the users list** (per the requirement). A single confirmation dialog → `model.deleteUser(id)` → `interactor.onDeleted(node)` pops the edit screen; `UserViewModel` then reloads, finds the user gone, and auto-`onBack`s.
 - Avatar rendering: JS uses `<img src=imageUrl>`; JVM/Android use a feature-local `RemoteImage` composable (Skia / `BitmapFactory`), mirroring the wishlist feature. The **users list** loads each user's avatar id via `UsersModel.getAvatar` into `avatarsState` during `loadUsers` and renders it as the `ListRow` `leading` slot (circular 48dp thumbnail, neutral placeholder box when none), mirroring the `UserWishlistsView` item-avatar pattern.

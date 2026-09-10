@@ -11,11 +11,15 @@ import dev.inmo.wishlist.features.admin.common.models.AdminWishlistItem
 import dev.inmo.wishlist.features.admin.common.models.NewUserWithPassword
 import dev.inmo.wishlist.features.auth.client.AuthCredentialsStorage
 import dev.inmo.wishlist.features.auth.client.ClientAuthFeature
+import dev.inmo.wishlist.features.auth.client.PasswordChangeFeature
 import dev.inmo.wishlist.features.auth.client.meQualifier
 import dev.inmo.wishlist.features.auth.common.models.AuthConfig
 import dev.inmo.wishlist.features.auth.common.models.AuthCredentials
 import dev.inmo.wishlist.features.auth.common.models.AuthFeatureUser
+import dev.inmo.wishlist.features.auth.common.models.CompletePasswordChangeRequest
 import dev.inmo.wishlist.features.auth.common.models.Password
+import dev.inmo.wishlist.features.auth.common.models.PasswordChangeEmailRequestResult
+import dev.inmo.wishlist.features.auth.common.models.PasswordChangeResult
 import dev.inmo.wishlist.features.auth.common.models.RefreshToken
 import dev.inmo.wishlist.features.auth.common.models.RegistrationResult
 import dev.inmo.wishlist.features.email.client.EmailFeature
@@ -58,15 +62,17 @@ import kotlin.test.assertTrue
 
 /** Resolves the production users model and proves private email calls stay on their owning features. */
 class UsersModelTest {
+    /** Verifies password-email and completion calls retain arguments through UsersModel. */
     @Test
     fun pluginModelDelegatesPrivateEmailAndUsernameOperationsWithoutChangingArguments() = runTest {
         val profile = AuthFeatureUser(UserId(7L), Username("owner"), Email("owner@example.com"), emailApproved = false)
         val auth = RecordingAuthFeature(profile)
         val email = RecordingEmailFeature()
+        val passwordChange = RecordingPasswordChangeFeature()
         val usersManagement = RecordingUsersManagementFeature()
         val scope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
         val filesClient = HttpClient()
-        val koin = startModelKoin(auth, email, usersManagement, scope, filesClient)
+        val koin = startModelKoin(auth, email, passwordChange, usersManagement, scope, filesClient)
         try {
             val model = koin.koin.get<UsersModel>()
             val replacement = Email("replacement@example.com")
@@ -79,9 +85,18 @@ class UsersModelTest {
                 EmailVerificationRequestResult.Sent,
                 model.requestMyEmailVerification(replacement),
             )
+            assertEquals(PasswordChangeEmailRequestResult.Sent, model.requestPasswordChangeEmail(replacement))
+            assertEquals(
+                PasswordChangeResult.Changed,
+                model.completePasswordChange(
+                    CompletePasswordChangeRequest(profile.id, dev.inmo.wishlist.features.deeplinks.common.models.DeepLinkId("approval"), Password("new-password")),
+                ),
+            )
             assertTrue(model.updateUsername(profile.id, username))
             assertEquals(listOf<Email?>(replacement), email.setCalls)
             assertEquals(listOf(replacement), email.requestCalls)
+            assertEquals(listOf(replacement), passwordChange.requestedEmails)
+            assertEquals(profile.id, passwordChange.completedRequests.single().userId)
             assertEquals(listOf(profile.id to username), usersManagement.usernameCalls)
         } finally {
             stopKoin()
@@ -90,9 +105,11 @@ class UsersModelTest {
         }
     }
 
+    /** Builds a production users-model graph around recording feature doubles. */
     private fun startModelKoin(
         auth: RecordingAuthFeature,
         email: RecordingEmailFeature,
+        passwordChange: RecordingPasswordChangeFeature,
         usersManagement: RecordingUsersManagementFeature,
         scope: CoroutineScope,
         client: HttpClient,
@@ -103,6 +120,7 @@ class UsersModelTest {
                 single<UsersFeature> { EmptyUsersFeature }
                 single<ClientAuthFeature> { auth }
                 single<EmailFeature> { email }
+                single<PasswordChangeFeature> { passwordChange }
                 single<AdminFeature> {
                     object : AdminFeature {
                         override val usersManagement: UsersManagementFeature = usersManagement
@@ -119,6 +137,7 @@ class UsersModelTest {
         )
     }
 
+    /** Auth client double returning the configured profile. */
     private class RecordingAuthFeature(val profile: AuthFeatureUser) : ClientAuthFeature {
         override suspend fun logout() = Unit
         override suspend fun getMe(): AuthFeatureUser = profile
@@ -129,6 +148,7 @@ class UsersModelTest {
         override suspend fun isRegistrationAvailable(): Boolean = error("unused")
     }
 
+    /** Email client double recording private-email operations. */
     private class RecordingEmailFeature : EmailFeature {
         val setCalls = mutableListOf<Email?>()
         val requestCalls = mutableListOf<Email>()
@@ -144,6 +164,28 @@ class UsersModelTest {
         }
     }
 
+    /** Records password-change transport calls delegated through the production users model. */
+    private class RecordingPasswordChangeFeature : PasswordChangeFeature {
+        /** Exact expected addresses sent by the owner-editor operation. */
+        val requestedEmails = mutableListOf<Email>()
+
+        /** Exact completion payloads sent by the token-authorized page. */
+        val completedRequests = mutableListOf<CompletePasswordChangeRequest>()
+
+        /** Records one expected email and reports a confirmed message delivery. */
+        override suspend fun requestPasswordChangeEmail(expectedEmail: Email): PasswordChangeEmailRequestResult {
+            requestedEmails += expectedEmail
+            return PasswordChangeEmailRequestResult.Sent
+        }
+
+        /** Records one immutable completion payload and reports a changed password. */
+        override suspend fun completePasswordChange(request: CompletePasswordChangeRequest): PasswordChangeResult {
+            completedRequests += request
+            return PasswordChangeResult.Changed
+        }
+    }
+
+    /** Admin client double recording username operations. */
     private class RecordingUsersManagementFeature : UsersManagementFeature {
         val usernameCalls = mutableListOf<Pair<UserId, Username>>()
         override suspend fun getAll(): List<AdminUser> = error("unused")
@@ -158,20 +200,24 @@ class UsersModelTest {
         override suspend fun delete(id: UserId): Boolean = error("unused")
     }
 
+    /** Credentials storage double with an authenticated state and no stored token. */
     private object TestCredentialsStorage : AuthCredentialsStorage {
         override val userAuthorised = MutableStateFlow(true)
         override suspend fun get(): AuthCredentials? = null
         override suspend fun save(credentials: AuthCredentials?) = Unit
     }
 
+    /** Public users feature double returning an empty list. */
     private object EmptyUsersFeature : UsersFeature {
         override suspend fun getAll(): List<UsersFeatureUser> = emptyList()
     }
 
+    /** Roles feature double denying unrelated functionality probes. */
     private object NoRolesFeature : RolesFeature {
         override suspend fun isFunctionalityAvailable(functionalityId: FunctionalityId): Boolean = false
     }
 
+    /** Files feature double for dependencies outside the tested model methods. */
     private object UnusedFilesFeature : FilesFeature {
         override suspend fun finalize(request: FinalizeFileRequest): FilesFeatureMetaInfo? = error("unused")
         override suspend fun getMeta(id: FileId): FilesFeatureMetaInfo? = error("unused")
@@ -179,6 +225,7 @@ class UsersModelTest {
         override suspend fun setAvatar(userId: UserId, fileId: FileId): Boolean = error("unused")
     }
 
+    /** Admin wishlist double for dependencies outside the tested model methods. */
     private object UnusedWishlistsFeature : AdminWishlistsFeature {
         override suspend fun getAll(): List<AdminWishlist> = error("unused")
         override suspend fun getByUserId(userId: UserId): List<AdminWishlist> = error("unused")
@@ -188,6 +235,7 @@ class UsersModelTest {
         override suspend fun delete(id: WishlistId): Boolean = error("unused")
     }
 
+    /** Admin wishlist-item double for dependencies outside the tested model methods. */
     private object UnusedWishlistItemsFeature : AdminWishlistItemsFeature {
         override suspend fun getByWishlistId(wishlistId: WishlistId): List<AdminWishlistItem> = error("unused")
         override suspend fun create(item: NewWishlistItem): AdminWishlistItem? = error("unused")

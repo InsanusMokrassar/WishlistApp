@@ -9,6 +9,7 @@ import dev.inmo.navigation.core.onResumeFlow
 import dev.inmo.navigation.mvvm.ViewModel
 import dev.inmo.wishlist.features.auth.common.models.AuthFeatureUser
 import dev.inmo.wishlist.features.auth.common.models.Password
+import dev.inmo.wishlist.features.auth.common.models.PasswordChangeEmailRequestResult
 import dev.inmo.wishlist.features.common.client.models.ViewConfig
 import dev.inmo.wishlist.features.email.common.models.Email
 import dev.inmo.wishlist.features.email.common.models.EmailVerificationRequestResult
@@ -186,6 +187,13 @@ class UserEditViewModel(
     val emailVerificationResultState: StateFlow<EmailVerificationRequestResult?> =
         _emailVerificationResultState.asStateFlow()
 
+    /** Backing state for password-change email outcomes shown in the owner section. */
+    private val _passwordChangeEmailResultState = MutableRedeliverStateFlow<PasswordChangeEmailRequestResult?>(null)
+
+    /** Most recent request outcome for an email-authorized password change. */
+    val passwordChangeEmailResultState: StateFlow<PasswordChangeEmailRequestResult?> =
+        _passwordChangeEmailResultState.asStateFlow()
+
     /** `true` only for the current authenticated profile owner. */
     private val isCurrentAuthenticatedOwnerFlow =
         combine(model.currentUserIdFlow, model.userAuthorisedState) { currentUserId, authorised ->
@@ -218,18 +226,31 @@ class UserEditViewModel(
                 !busy
         }.stateIn(workScope, SharingStarted.Eagerly, false)
 
+    /** `true` only for an owner with a currently approved email and positively enabled SMTP. */
+    val canRequestPasswordChangeEmailState: StateFlow<Boolean> =
+        combine(canMutateOwnEmailState, _ownEmailProfileState) { canMutate, profile ->
+            canMutate && profile?.email != null && profile.emailApproved
+        }.stateIn(workScope, SharingStarted.Eagerly, false)
+
+    /** Monotonic private-email refresh version used to reject stale responses. */
     private var emailRefreshVersion = 0L
 
+    /** Monotonic owner-session generation used to invalidate identity-bound work. */
     private var ownerGeneration = 0L
 
+    /** Last owner session observed by the lifecycle reconciler. */
     private var observedOwnerSession: OwnerSession? = null
 
+    /** Sequence source for owner-email mutation tokens. */
     private var nextEmailMutationId = 0L
 
+    /** Currently admitted owner-email mutation, if any. */
     private var activeEmailMutation: OwnerEmailMutation? = null
 
+    /** Job for the latest private-email capability/profile refresh. */
     private var emailRefreshJob: Job? = null
 
+    /** Indicates that refresh was requested while an owner mutation was active. */
     private var pendingEmailRefresh = false
 
     /**
@@ -304,6 +325,7 @@ class UserEditViewModel(
         _emailErrorState.value = null
         _emailLoadFailedState.value = false
         _emailVerificationResultState.value = null
+        _passwordChangeEmailResultState.value = null
     }
 
     /** Invalidates all private email work when the observed caller or authorization state changes. */
@@ -432,6 +454,7 @@ class UserEditViewModel(
         _emailBusyState.value = true
         _emailErrorState.value = null
         _emailVerificationResultState.value = null
+        _passwordChangeEmailResultState.value = null
         return mutation
     }
 
@@ -698,6 +721,43 @@ class UserEditViewModel(
         }
     }
 
+    /**
+     * Requests one password-change approval email for the exact displayed approved owner address.
+     *
+     * The same owner-generation and mutation token used for email verification prevent an obsolete
+     * caller from publishing feedback or issuing a follow-up private request after identity changes.
+     */
+    fun onRequestPasswordChangeEmail() {
+        val profile = _ownEmailProfileState.value ?: return
+        val email = profile.email ?: return
+        if (
+            _emailCapabilityState.value != EmailCapabilityState.Enabled ||
+            _emailLoadingState.value ||
+            _emailBusyState.value ||
+            model.currentUserIdFlow.value != userId ||
+            profile.id != userId ||
+            !profile.emailApproved
+        ) return
+        val mutation = beginEmailMutation() ?: return
+        launchEmailMutation(mutation) {
+            if (!canContinueEmailMutation(mutation)) return@launchEmailMutation
+            val result = try {
+                model.requestPasswordChangeEmail(email)
+            } catch (error: CancellationException) {
+                throw error
+            } catch (_: Throwable) {
+                null
+            }
+            if (!canContinueEmailMutation(mutation)) return@launchEmailMutation
+            if (result == null) {
+                _emailErrorState.value = EmailEditorError.PasswordChangeRequestFailed
+            } else {
+                _passwordChangeEmailResultState.value = result
+            }
+            reconcileOwnedEmailProfile(mutation)
+        }
+    }
+
     /** Refreshes the private owner-email state after an external verification deeplink returns. */
     fun onRefreshEmail() {
         requestOwnedEmailRefresh()
@@ -774,14 +834,19 @@ enum class EmailCapabilityState {
 
 /** Observed authenticated-caller state used to invalidate owner-private work across identity changes. */
 private data class OwnerSession(
+    /** Authenticated caller identity observed at reconciliation time. */
     val callerId: UserId?,
+    /** Authorization status observed with [callerId]. */
     val authorised: Boolean,
 )
 
 /** One active owner-bound mutation with an explicit cancellation handle. */
 private class OwnerEmailMutation(
+    /** Authenticated owner identity captured for this mutation. */
     val callerId: UserId,
+    /** Owner-session generation captured for stale-result rejection. */
     val generation: Long,
+    /** Mutation sequence number used for exact active-operation checks. */
     val mutationId: Long,
 ) {
     /** Job launched after this token becomes the active mutation. */
@@ -798,4 +863,7 @@ enum class EmailEditorError {
 
     /** The server did not persist the requested owner email. */
     SaveFailed,
+
+    /** Password-approval request had no confirmed transport or typed server outcome. */
+    PasswordChangeRequestFailed,
 }

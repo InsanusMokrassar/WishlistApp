@@ -14,5 +14,10 @@ kotlin {
                 api libs.bcrypt
             }
         }
+        commonTest {
+            dependencies {
+                implementation libs.ktor.server.test.host
+            }
+        }
     }
 }

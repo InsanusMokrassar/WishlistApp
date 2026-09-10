@@ -6,6 +6,7 @@ import dev.inmo.wishlist.features.users.common.models.Username
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.cancel
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.test.StandardTestDispatcher
 import kotlinx.coroutines.test.advanceUntilIdle
 import kotlinx.coroutines.test.runCurrent
@@ -16,11 +17,15 @@ import kotlin.test.assertFalse
 import kotlin.test.assertNull
 import kotlin.test.assertTrue
 
+/** Regression tests for editor save ordering, cancellation, and navigation callbacks. */
 @OptIn(ExperimentalCoroutinesApi::class)
 class UserEditViewModelSaveTest {
+    /** Edited account identity shared by save scenarios. */
     private val userId = UserId(7L)
+    /** Initial owner profile shared by save scenarios. */
     private val user = AuthFeatureUser(userId, Username("owner"), email = null)
 
+    /** Verifies failed username persistence skips password mutation and navigation. */
     @Test
     fun usernameFalseSkipsPasswordAndNavigation() = runTest {
         val model = UserEditTestUsersModel(userId, user).apply {
@@ -52,6 +57,7 @@ class UserEditViewModelSaveTest {
         }
     }
 
+    /** Verifies username exceptions skip password mutation and navigation. */
     @Test
     fun usernameThrowSkipsPasswordAndNavigation() = runTest {
         val model = UserEditTestUsersModel(userId, user).apply {
@@ -81,6 +87,7 @@ class UserEditViewModelSaveTest {
         }
     }
 
+    /** Verifies failed password persistence keeps the editor open after username success. */
     @Test
     fun passwordFalseAfterUsernameSuccessKeepsEditorOpen() = runTest {
         val model = UserEditTestUsersModel(userId, user).apply {
@@ -113,6 +120,7 @@ class UserEditViewModelSaveTest {
         }
     }
 
+    /** Verifies successful username-only and password saves navigate once each. */
     @Test
     fun successfulUsernameOnlyAndPasswordSavesNavigateOnceEach() = runTest {
         val usernameOnlyModel = UserEditTestUsersModel(userId, user).apply { rootState.value = true }
@@ -154,6 +162,7 @@ class UserEditViewModelSaveTest {
         }
     }
 
+    /** Verifies cancellation clears loading without publishing profile failure. */
     @Test
     fun cancellationClearsLoadingWithoutProfileFailure() = runTest {
         val usernameEntered = CompletableDeferred<Unit>()
@@ -178,7 +187,9 @@ class UserEditViewModelSaveTest {
             runCurrent()
             assertTrue(usernameEntered.isCompleted)
 
+            val lifecycleJob = checkNotNull(viewModel.scope.coroutineContext[Job])
             viewModel.scope.cancel()
+            lifecycleJob.join()
             runCurrent()
 
             assertFalse(viewModel.loadingState.value)

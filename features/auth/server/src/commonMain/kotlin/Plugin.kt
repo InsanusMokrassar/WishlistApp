@@ -11,10 +11,14 @@ import dev.inmo.wishlist.features.auth.common.AuthFeature
 import dev.inmo.wishlist.features.auth.server.ServerAuthFeature
 import dev.inmo.wishlist.features.auth.server.configurators.AuthRoutingsConfigurator
 import dev.inmo.wishlist.features.auth.server.configurators.BearerAuthenticationConfigurator
+import dev.inmo.wishlist.features.auth.server.configurators.PasswordChangeRoutingsConfigurator
 import dev.inmo.wishlist.features.auth.server.services.AuthFeatureService
 import dev.inmo.wishlist.features.common.server.configurators.ApplicationAuthenticationConfigurator
 
+/** Auth server startup plugin wiring routes and the optional Email password-change port. */
+/** Auth server startup plugin wiring routes and the optional Email password-change port. */
 object Plugin : StartPlugin {
+    /** Registers Auth services, routes, serializers, and the optional password-change port. */
     override fun Module.setupDI(config: JsonObject) {
         single { get<Json>().decodeFromJsonElement(Config.serializer(), config) }
         single {
@@ -38,11 +42,15 @@ object Plugin : StartPlugin {
         singleWithRandomQualifier<ApplicationRoutingConfigurator.Element> {
             AuthRoutingsConfigurator(get())
         }
+        singleWithRandomQualifier<ApplicationRoutingConfigurator.Element> {
+            PasswordChangeRoutingsConfigurator(getOrNull())
+        }
         singleWithRandomQualifier<ApplicationAuthenticationConfigurator.Element> {
             BearerAuthenticationConfigurator(get())
         }
     }
 
+    /** Starts Auth server state after service bindings are installed. */
     override suspend fun startPlugin(koin: Koin) {
         super.startPlugin(koin)
     }
