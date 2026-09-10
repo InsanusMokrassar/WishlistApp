@@ -5,7 +5,14 @@ import dev.inmo.wishlist.features.users.common.models.UserId
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.SerialName
 
-/** Server-only deeplink payload binding password approval to current protected account state. */
+/**
+ * Server-only deeplink payload binding password approval to current protected account state.
+ *
+ * @param userId Subject whose password may be changed after completion.
+ * @param approvedEmail Exact current approved address that received the approval link.
+ * @param expiresAtEpochMillis Absolute expiry in epoch milliseconds.
+ * @param credentialState Opaque Auth-owned fingerprint of the stored credential state.
+ */
 @Serializable
 @SerialName("email.password_change.v1")
 data class EmailPasswordChangePayload(

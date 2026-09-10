@@ -32,8 +32,10 @@ class DeepLinksRoutingConfiguratorTest {
             repo,
             listOf(
                 object : DeepLinkHandler {
+                    /** Handler identifier selected by the successful-resolution test. */
                     override val id: DeepLinkHandlerId = handlerId
 
+                    /** Returns a redirect result so response headers can be inspected. */
                     override suspend fun tryHandle(deeplinkId: DeepLinkId, value: Any): HandleResult.Handled =
                         HandleResult.Handled.Redirect("/password-change/7/approval-id")
                 },
@@ -67,7 +69,9 @@ class DeepLinksRoutingConfiguratorTest {
         val approvalId = DeepLinkId("approval-id")
         repo.set(approvalId, DeepLinkHandlerInfo(handlerId, "value"))
         val service = DeepLinksService(repo, listOf(object : DeepLinkHandler {
+            /** Handler identifier selected by the sanitizer test. */
             override val id = handlerId
+            /** Throws a sensitive storage detail to verify sanitized HTTP failure output. */
             override suspend fun tryHandle(deeplinkId: DeepLinkId, value: Any): HandleResult.Handled? = error("storage detail")
         }))
         application { routing { route("/api") { with(DeepLinksRoutingConfigurator(service)) { invoke() } } } }

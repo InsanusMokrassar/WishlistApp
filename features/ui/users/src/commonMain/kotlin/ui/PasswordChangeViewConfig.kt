@@ -8,7 +8,12 @@ import kotlinx.serialization.Serializable
 /** Credential-free navigation states for the email-authorized password-change screen. */
 @Serializable
 sealed interface PasswordChangeViewConfig : ViewConfig {
-    /** Pending screen carrying immutable approval identity but never any entered password. */
+    /**
+     * Pending screen carrying immutable approval identity but never any entered password.
+     *
+     * @param userId Approval-bound account identity.
+     * @param approvalId Exact approval UUID from the opened deeplink.
+     */
     @Serializable
     data class Pending(
         /** Approval-bound account identity. */

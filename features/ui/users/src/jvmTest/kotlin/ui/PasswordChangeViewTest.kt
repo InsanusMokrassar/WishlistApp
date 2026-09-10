@@ -159,7 +159,16 @@ class PasswordChangeViewTest {
         UserId(7L), DeepLinkId("123e4567-e89b-42d3-a456-426614174000"),
     )
 
-    /** Owns all host, Koin, and navigation resources created for one JVM view test. */
+    /**
+     * Owns all host, Koin, and navigation resources created for one JVM view test.
+     *
+     * @param application Test-scoped Koin application providing the real platform factory.
+     * @param chainScope Parent job scope for the started navigation chain.
+     * @param chain Started chain whose node lifecycle owns the injected ViewModel.
+     * @param chainJob Started chain lifecycle job.
+     * @param config Exact configuration passed through the actual typed factory.
+     * @param view Concrete production view returned by the factory.
+     */
     private class PasswordChangeViewFixture(
         /** Test-scoped Koin application providing the real platform factory. */
         private val application: KoinApplication,

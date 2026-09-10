@@ -71,7 +71,14 @@ import kotlin.test.assertNull
 import kotlin.test.assertSame
 import kotlin.test.assertTrue
 
-/** Controlled external dependencies supplied to one otherwise production password-change Koin graph. */
+/**
+ * Controlled external dependencies supplied to one otherwise production password-change Koin graph.
+ *
+ * @param application Isolated Koin application hosting actual feature plugin definitions.
+ * @param users External users persistence double consumed by production Auth and Email services.
+ * @param passwords External password persistence double consumed by production Auth service.
+ * @param linksRepo External deeplink persistence double consumed by production deeplink service.
+ */
 private class PasswordChangePluginGraph(
     /** Isolated Koin application hosting actual feature plugin definitions. */
     val application: KoinApplication,

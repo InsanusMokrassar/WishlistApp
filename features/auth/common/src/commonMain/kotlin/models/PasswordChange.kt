@@ -5,7 +5,11 @@ import dev.inmo.wishlist.features.email.common.models.Email
 import dev.inmo.wishlist.features.users.common.models.UserId
 import kotlinx.serialization.Serializable
 
-/** Request from an authenticated owner for a password-change approval email. */
+/**
+ * Request from an authenticated owner for a password-change approval email.
+ *
+ * @param expectedEmail Current approved address displayed to the owner and checked by the server.
+ */
 @Serializable
 data class PasswordChangeEmailRequest(
     /** Current approved address displayed to the owner. */
@@ -28,7 +32,13 @@ enum class PasswordChangeEmailRequestResult {
     DeliveryFailed,
 }
 
-/** Token-authorized submission that replaces one approval-bound account password. */
+/**
+ * Token-authorized submission that replaces one approval-bound account password.
+ *
+ * @param userId Subject assertion that must equal the persisted approval subject.
+ * @param approvalId Persisted deeplink UUID used as the single-use approval identifier.
+ * @param password New plaintext password sent only in this request body.
+ */
 @Serializable
 data class CompletePasswordChangeRequest(
     /** Subject assertion that must equal the persisted approval subject. */

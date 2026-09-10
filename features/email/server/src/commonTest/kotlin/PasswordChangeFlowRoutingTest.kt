@@ -101,7 +101,22 @@ import kotlin.test.assertNotNull
 import kotlin.test.assertSame
 import kotlin.test.assertTrue
 
-/** Isolated production-service graph used by the HTTP password-change flow assertions. */
+/**
+ * Isolated production-service graph used by the HTTP password-change flow assertions.
+ *
+ * @param application Koin application containing the actual feature plugin registrations.
+ * @param json Production aggregated serializer used by both HTTP routes and request bodies.
+ * @param auth Real Auth service issuing and validating bearer credentials.
+ * @param passwordChange Real Email-owned password-change service exposed through Auth's optional port.
+ * @param links Real deeplink dispatcher used by the public route.
+ * @param emails Controlled external delivery capture attached to the real Email service.
+ * @param linksRepo Controlled persistence store behind real deeplink service calls.
+ * @param passwords Controlled persistence store behind real Auth password writes.
+ * @param rolesRepo Real role repository with observable seeded memberships and mutation attempts.
+ * @param roleAuthorization Auth direct-role bridge backed by [rolesRepo].
+ * @param ownerCredentials Complete owner credentials minted before password-approval actions.
+ * @param unrelatedCredentials Complete account-8 credentials minted before password-approval actions.
+ */
 private class PasswordChangeFlowGraph(
     /** Koin application containing the actual feature plugin registrations. */
     val application: KoinApplication,
@@ -134,7 +149,11 @@ private class PasswordChangeFlowGraph(
     }
 }
 
-/** Owns isolated Logback appenders and level overrides for production application and Ktor loggers. */
+/**
+ * Owns isolated Logback appenders and level overrides for production application and Ktor loggers.
+ *
+ * @param loggers Actual application and Ktor logger instances whose levels and appenders are restored.
+ */
 private class KtorLogCapture(
     /** Production logger instances whose emitted events are asserted by the test. */
     private val loggers: List<LogbackLogger>,
@@ -170,8 +189,7 @@ private class KtorLogCapture(
     }
 }
 
-/** Exercises the production Auth, Email, and deeplink HTTP boundary for password approvals. */
-/** Production-route matrix for email-authorized password change and global error handling. */
+/** Exercises production Auth, Email, and deeplink HTTP boundaries for approvals and global error handling. */
 class PasswordChangeFlowRoutingTest {
     /** Approved account that is the only permitted password-change subject in these flows. */
     private val owner = RegisteredUser(
@@ -648,8 +666,7 @@ class PasswordChangeFlowRoutingTest {
         }
     }
 
-    /** Proves live approval invalidation, session preservation, and zero role mutation across two real accounts. */
-    /** Verifies sibling invalidation preserves sessions and roles across two accounts. */
+    /** Verifies live approval invalidation, session preservation, seeded roles, and zero role mutation across two accounts. */
     @Test
     fun siblingInvalidationPreservesExistingSessionsAndAccountEightApprovalWithoutRoleMutation() = testApplication {
         val graph = graph()
@@ -740,7 +757,7 @@ class PasswordChangeFlowRoutingTest {
         }
     }
 
-    /** Verifies repository-backed authorization checks only requested direct User membership. */
+    /** Verifies repository-backed authorization checks only the requested direct User membership and preserves NewUser roles. */
     @Test
     fun repositoryBackedRoleBridgeChecksTheRequestedSubject() = kotlinx.coroutines.test.runTest {
         val rolesRepo = FakeRolesRepo()

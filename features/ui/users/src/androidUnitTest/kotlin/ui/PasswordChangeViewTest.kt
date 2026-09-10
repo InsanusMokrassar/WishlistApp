@@ -170,7 +170,17 @@ class PasswordChangeViewTest {
         UserId(7L), DeepLinkId("123e4567-e89b-42d3-a456-426614174000"),
     )
 
-    /** Owns Koin, navigation, and direct ComponentActivity resources for one Android host test. */
+    /**
+     * Owns Koin, navigation, and direct ComponentActivity resources for one Android host test.
+     *
+     * @param application Test-scoped Koin application supplying the production Android factory.
+     * @param chainScope Parent scope for the explicitly started navigation chain.
+     * @param chain Started chain owning the production view lifecycle.
+     * @param chainJob Started chain job joined during cleanup.
+     * @param activity Robolectric host owning the Compose composition.
+     * @param config Exact configuration passed through the real typed factory.
+     * @param view Concrete Android production view returned by the factory.
+     */
     private class PasswordChangeViewFixture(
         /** Test-scoped Koin application supplying the production Android factory. */
         private val application: KoinApplication,

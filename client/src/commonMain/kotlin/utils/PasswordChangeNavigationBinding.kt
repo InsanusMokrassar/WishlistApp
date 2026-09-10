@@ -10,6 +10,7 @@ import kotlinx.coroutines.CoroutineScope
 
 /**
  * Binds password-change transitions to the composition scope that owns the live root hierarchy.
+ * The disposable effect unbinds the exact root binding, cancelling owned transitions during disposal.
  *
  * @param owner Root-owned password navigation transition coordinator.
  * @param root Current root hierarchy exposed by the composition.

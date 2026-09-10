@@ -55,11 +55,18 @@ private fun installDomConstructors(global: dynamic, browserWindow: dynamic) {
     copy(global, browserWindow)
 }
 
-/** Installs one standards DOM for the Compose HTML test process.
+/**
+ * Installs one standards DOM for the Compose HTML test process.
  *
  * Compose caches element builders by JavaScript document identity. Reusing the
  * same JSDOM window keeps those cached builders valid while each fixture still
  * owns and removes an independent temporary host.
+ *
+ * @param global JavaScript global object whose browser properties are restored during cleanup.
+ * @param previousWindow Window value captured before installation.
+ * @param previousDocument Document value captured before installation.
+ * @param previousConstructors DOM constructor values captured before installation.
+ * @param dom Created DOM window closed after Compose releases the fixture.
  */
 private class BrowserDomEnvironment private constructor(
     /** JavaScript global object whose browser properties are restored during cleanup. */
@@ -75,6 +82,7 @@ private class BrowserDomEnvironment private constructor(
 ) {
     /** Installs a temporary document before Compose and Koin initialize. */
     companion object {
+        /** Process-shared DOM environment required by Compose's cached element builders. */
         private var installed: BrowserDomEnvironment? = null
 
         /** Installs or returns the process-shared JSDOM environment. */
@@ -154,7 +162,12 @@ internal fun dispatchBrowserInput(target: HTMLInputElement) {
     dispatch(target)
 }
 
-/** Owns a temporary browser DOM host and all test-scoped platform resources. */
+/**
+ * Owns a temporary browser DOM host and all test-scoped platform resources.
+ *
+ * @param host Per-test mount attached to the shared browser document body.
+ * @param environment Shared DOM retained for Compose element-cache identity.
+ */
 internal class BrowserViewTestFixture private constructor(
     /** Temporary element mounted below the real browser document body. */
     val host: HTMLDivElement,

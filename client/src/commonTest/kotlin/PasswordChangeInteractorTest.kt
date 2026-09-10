@@ -65,8 +65,13 @@ import kotlin.test.assertNotNull
 import kotlin.test.assertSame
 import kotlin.test.assertTrue
 
-/** Minimal production-interface model that holds completion until the lifecycle test releases it. */
+/**
+ * Minimal production-interface model that holds completion until a lifecycle test releases it.
+ *
+ * @param completionFeature Optional real transport capability used when lifecycle tests need an HTTP boundary.
+ */
 internal class HeldPasswordChangeUsersModel(
+    /** Optional completion capability delegated for MockEngine-backed tests. */
     private val completionFeature: PasswordChangeFeature? = null,
 ) : UsersModel {
     /** Completion gate controlled by the enclosing test. */
@@ -78,8 +83,10 @@ internal class HeldPasswordChangeUsersModel(
     /** Signals that the submitting ViewModel reached the held completion boundary. */
     val requestReceived = CompletableDeferred<Unit>()
 
+    /** Signals a cancellation-resistant completion result returned after the caller was cancelled. */
     val returnedAfterCancellation = CompletableDeferred<Unit>()
 
+    /** Signals that completion returned to the ViewModel, including a cancellation-resistant result. */
     val completionReturned = CompletableDeferred<PasswordChangeResult?>()
 
     /** Makes the test double return a result after cancellation to exercise the ViewModel guard. */
@@ -111,7 +118,12 @@ internal class HeldPasswordChangeUsersModel(
     override suspend fun requestMyEmailVerification(expectedEmail: Email): EmailVerificationRequestResult = EmailVerificationRequestResult.Unavailable
     /** Does not issue password-change email approvals. */
     override suspend fun requestPasswordChangeEmail(expectedEmail: Email): PasswordChangeEmailRequestResult? = null
-    /** Holds completion until the test-controlled deferred result is released. */
+    /**
+     * Copies the request, delegates to the optional transport, or waits for the test gate, preserving null results.
+     *
+     * Cancellation-resistant fixtures record the return boundary before yielding `Changed` so lifecycle joins can
+     * prove the ViewModel guard prevents a destroyed page from handing off to the root owner.
+     */
     override suspend fun completePasswordChange(request: CompletePasswordChangeRequest): PasswordChangeResult? {
         requests += request.copy(password = Password(request.password.string))
         requestReceived.complete(Unit)
@@ -573,12 +585,15 @@ class PasswordChangeInteractorTest {
     @Test
     fun changedPendingReplacesCredentialRouteAndContinueAlwaysReachesUsersList() = runTest {
         val navigationConfigsRepo = object : NavigationConfigsRepo<ViewConfig> {
+            /** Most recent hierarchy snapshot supplied by the owner for Continue assertions. */
             var saved: ConfigHolder<ViewConfig>? = null
 
+            /** Retains the hierarchy produced by an accepted replacement. */
             override fun save(holder: ConfigHolder<ViewConfig>) {
                 saved = holder
             }
 
+            /** Returns no restored hierarchy so the test starts from its constructed chain. */
             override fun get(): ConfigHolder<ViewConfig>? = null
         }
         val application = startKoin {
@@ -637,13 +652,14 @@ class PasswordChangeInteractorTest {
         }
     }
 
-    /** Rejects a stale pending callback after another destination has become the active last node. */
-    /** Proves a stale Pending node cannot replace a newer destination. */
+    /** Rejects a stale Pending callback after another destination becomes the active last node, without saving. */
     @Test
     fun stalePendingCannotReplaceNewerDestination() = runTest {
         var saves = 0
         val navigationConfigsRepo = object : NavigationConfigsRepo<ViewConfig> {
+            /** Counts persistence attempts stale-node admission must prevent. */
             override fun save(holder: ConfigHolder<ViewConfig>) { saves += 1 }
+            /** Returns no restored hierarchy for the stale-node scenario. */
             override fun get(): ConfigHolder<ViewConfig>? = null
         }
         val application = startKoin {
@@ -682,8 +698,7 @@ class PasswordChangeInteractorTest {
         }
     }
 
-    /** Cancellation-resistant model output cannot hand a destroyed pending page to the root owner. */
-    /** Proves cancellation during submission cannot start a changed handoff. */
+    /** Proves cancellation-resistant completion cannot hand a destroyed Pending page to the root owner. */
     @Test
     fun cancelledSubmittingViewModelCannotStartChangedHandoff() = runTest {
         val repo = RecordingPasswordNavigationRepo()
@@ -748,13 +763,14 @@ class PasswordChangeInteractorTest {
         }
     }
 
-    /** A root binding disposal cancels a queued replacement before a stopped chain can publish it. */
-    /** Proves root binding disposal cancels and removes owned transitions. */
+    /** Proves root binding disposal cancels a queued replacement before a stopped chain can publish it. */
     @Test
     fun rootBindingDisposalCancelsPendingTransitionAndCleansOwnerJobs() = runTest {
         var saves = 0
         val repo = object : NavigationConfigsRepo<ViewConfig> {
+            /** Counts persistence attempts that root disposal must cancel before execution. */
             override fun save(holder: ConfigHolder<ViewConfig>) { saves += 1 }
+            /** Returns no restored hierarchy for the disposed-root scenario. */
             override fun get(): ConfigHolder<ViewConfig>? = null
         }
         val chain = NavigationChain<ViewConfig>(null, NavigationNodeFactory { parent, config -> NavigationNode.Empty(parent, config) })
@@ -780,13 +796,14 @@ class PasswordChangeInteractorTest {
         }
     }
 
-    /** A stopped chain reaches the finite five-second observer timeout without a stale save. */
-    /** Proves unobserved replacement times out and cleans owner jobs. */
+    /** Proves an unobserved replacement reaches the finite five-second timeout and cleans owner jobs without saving. */
     @Test
     fun unprocessedReplacementTimesOutAndCleansOwnerJobs() = runTest {
         var saves = 0
         val repo = object : NavigationConfigsRepo<ViewConfig> {
+            /** Counts persistence attempts that the unprocessed replacement must never make. */
             override fun save(holder: ConfigHolder<ViewConfig>) { saves += 1 }
+            /** Returns no restored hierarchy for the timeout scenario. */
             override fun get(): ConfigHolder<ViewConfig>? = null
         }
         val chain = NavigationChain<ViewConfig>(null, NavigationNodeFactory { parent, config -> NavigationNode.Empty(parent, config) })
@@ -811,8 +828,7 @@ class PasswordChangeInteractorTest {
         }
     }
 
-    /** A synchronous save failure never replays HTTP and a later completed-page exit remains usable. */
-    /** Proves save failure is not replayed and later Continue remains usable. */
+    /** Proves synchronous save failure never replays HTTP and a later completed-page Continue remains usable. */
     @Test
     fun saveFailureDoesNotReplayAndLaterContinuePersistsUsersList() = runTest {
         val application = startKoin {

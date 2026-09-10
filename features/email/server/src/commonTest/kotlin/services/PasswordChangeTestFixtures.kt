@@ -25,7 +25,12 @@ import dev.inmo.wishlist.features.users.common.repo.UsersRepo
 /** Suspendable interception point executed around one delegated repository operation. */
 internal typealias PasswordChangeRepositoryHook = suspend () -> Unit
 
-/** Mutable direct User-role decision used by the real Auth service in password-approval tests. */
+/**
+ * Mutable direct User-role decision used by the real Auth service in password-approval tests.
+ *
+ * @param directRolePresent Fallback authorization result when no role repository is supplied.
+ * @param rolesRepo Optional subject-specific repository; supplied memberships take precedence over the fallback.
+ */
 internal class PasswordChangeRoleAuthorization(
     /** Current direct authorization result. */
     var directRolePresent: Boolean = true,
@@ -40,7 +45,7 @@ internal class PasswordChangeRoleAuthorization(
     var hasAttempts: Int = 0
         private set
 
-    /** Ensures direct User membership through repository backing or returns the controlled fallback. */
+    /** Ensures direct User membership through repository backing, counting attempted mutation, or returns fallback. */
     override suspend fun ensureUserRole(userId: UserId): Boolean {
         ensureAttempts++
         val repository = rolesRepo
@@ -52,7 +57,7 @@ internal class PasswordChangeRoleAuthorization(
         return directRolePresent
     }
 
-    /** Returns the current direct authorization result. */
+    /** Checks only the requested subject's direct User membership or returns the controlled fallback. */
     override suspend fun hasUserRole(userId: UserId): Boolean {
         hasAttempts++
         val repository = rolesRepo
@@ -69,7 +74,11 @@ internal class PasswordChangeRoleAuthorization(
     }
 }
 
-/** Map-backed password store with suspendable read/write hooks and isolated write counters. */
+/**
+ * Map-backed password store with suspendable read/write hooks and isolated write counters.
+ *
+ * @param delegate Actual salted-credential map used beneath read and write interception.
+ */
 internal class PasswordChangePasswordsRepo(
     /** Underlying in-memory password storage. */
     private val delegate: MapKeyValueRepo<UserId, Password> = MapKeyValueRepo(),
@@ -123,7 +132,11 @@ internal class PasswordChangePasswordsRepo(
     }
 }
 
-/** Map-backed deeplink store with suspendable read/write hooks and exact-id operation records. */
+/**
+ * Map-backed deeplink store with suspendable read/write hooks and exact-id operation records.
+ *
+ * @param delegate Actual approval map used beneath exact-id hooks and operation records.
+ */
 internal class PasswordChangeDeepLinksRepo(
     /** Underlying in-memory deeplink storage. */
     private val delegate: MapKeyValueRepo<DeepLinkId, DeepLinkHandlerInfo> = MapKeyValueRepo(),
@@ -191,7 +204,11 @@ internal class PasswordChangeDeepLinksRepo(
     }
 }
 
-/** Delegating user repository whose current-user reads can fail before or after persistence access. */
+/**
+ * Delegating user repository whose current-user reads can fail before or after persistence access.
+ *
+ * @param delegate Actual fixture users repository used for unmodified operations.
+ */
 internal class PasswordChangeUsersRepo(
     /** Actual in-memory users implementation used for all unmodified operations. */
     private val delegate: UsersRepo,
@@ -209,7 +226,20 @@ internal class PasswordChangeUsersRepo(
     }
 }
 
-/** Fully wired real Email/Auth/deeplink fixture for one approved password-change account. */
+/**
+ * Fully wired real Email/Auth/deeplink fixture for one approved password-change account.
+ *
+ * @param user Approved account requesting password-change emails.
+ * @param users Mutable users storage behind coordinator and Auth services.
+ * @param trackedUsers Hooking users facade shared by coordinator and Auth services.
+ * @param roles Mutable direct-role authorization exposed to Auth.
+ * @param passwords Hooking password storage used by Auth.
+ * @param auth Real Auth password and credential-state service.
+ * @param coordinator Real email-account coordinator.
+ * @param linksRepo Hooking persistence store behind the deeplink service.
+ * @param links Real deeplink mint/read/remove service.
+ * @param service Real Email password-change orchestration service.
+ */
 internal class PasswordChangeFixture(
     /** Approved account that requests password-change emails. */
     val user: RegisteredUser,

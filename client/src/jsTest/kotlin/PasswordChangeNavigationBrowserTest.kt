@@ -62,11 +62,13 @@ private fun browserGlobal(): dynamic = js("globalThis")
 private fun browserDom(url: String): dynamic =
     js("new (require('jsdom').JSDOM)('<!doctype html><html><head></head><body></body></html>', { url: url, pretendToBeVisual: true })")
 
+/** Global browser properties captured and restored around the Compose/JSDOM production mount. */
 private val passwordNavigationGlobalKeys = listOf(
     "window", "document", "Node", "Element", "HTMLElement", "HTMLDivElement", "HTMLBaseElement",
     "Text", "Comment", "DocumentFragment", "Event", "requestAnimationFrame", "cancelAnimationFrame",
 )
 
+/** Captures property descriptors before installing the isolated JSDOM window. */
 private fun capturePasswordNavigationGlobals(): dynamic {
     val objectApi: dynamic = js("Object")
     val global = browserGlobal()
@@ -75,6 +77,7 @@ private fun capturePasswordNavigationGlobals(): dynamic {
     return snapshot
 }
 
+/** Installs JSDOM window, document, constructors, and animation APIs for Compose HTML. */
 private fun installPasswordNavigationGlobals(dom: dynamic) {
     val global = browserGlobal()
     global.window = dom.window
@@ -92,6 +95,7 @@ private fun installPasswordNavigationGlobals(dom: dynamic) {
     global.cancelAnimationFrame = dom.window.cancelAnimationFrame
 }
 
+/** Restores every captured global descriptor after production composition cleanup. */
 private fun restorePasswordNavigationGlobals(snapshot: dynamic) {
     val objectApi: dynamic = js("Object")
     val reflectApi: dynamic = js("Reflect")
@@ -106,14 +110,17 @@ private fun restorePasswordNavigationGlobals(snapshot: dynamic) {
     }
 }
 
+/** Traverses persisted navigation holders for typed password-route assertions. */
 private fun ConfigHolder<ViewConfig>.allConfigs(): List<ViewConfig> = when (this) {
     is ConfigHolder.Chain -> firstNodeConfig?.allConfigs().orEmpty()
     is ConfigHolder.Node -> listOf(config) + subnode?.allConfigs().orEmpty() + subchains.flatMap { it.allConfigs() }
 }
 
+/** Waits for the first non-empty navigation stack without sleeping. */
 private suspend fun NavigationChain<ViewConfig>.awaitStack(): List<NavigationNode<out ViewConfig, ViewConfig>> =
     stackFlow.value.takeIf { it.isNotEmpty() } ?: stackFlow.filter { it.isNotEmpty() }.first()
 
+/** Runs one bounded asynchronous browser phase and reports the phase label on timeout. */
 private suspend fun awaitBrowserPhase(name: String, block: suspend () -> Unit) {
     check(withTimeoutOrNull(5_000L) {
         block()
@@ -121,12 +128,14 @@ private suspend fun awaitBrowserPhase(name: String, block: suspend () -> Unit) {
     } == true) { "Browser password-change phase did not complete: $name" }
 }
 
+/** Locates the restored main chain beneath the production root and scaffold chains. */
 private suspend fun restoredMainChain(root: NavigationChain<ViewConfig>): NavigationChain<ViewConfig> {
     val rootNode = root.awaitStack().single()
     val scaffold = rootNode.subchains.single().awaitStack().single()
     return checkNotNull(scaffold.subchains.firstOrNull { it.id == MainNavigationChainId })
 }
 
+/** Mounts production root binding and initNavigation into the supplied Compose HTML host. */
 private fun mountPasswordNavigation(
     host: HTMLDivElement,
     owner: PasswordChangeNavigationOwner,
@@ -147,6 +156,7 @@ private fun mountPasswordNavigation(
     }
 }
 
+/** Exercises production browser URL restoration, completion transport, persistence, and rebinding. */
 class PasswordChangeNavigationBrowserTest {
     @Test
     fun canonicalApprovalReloadsAndCompletionPersistsWithoutCredential() = CoroutineScope(Dispatchers.Unconfined).promise(
@@ -190,6 +200,7 @@ class PasswordChangeNavigationBrowserTest {
             val completedSave = CompletableDeferred<ConfigHolder<ViewConfig>>()
             val usersListSave = CompletableDeferred<ConfigHolder<ViewConfig>>()
             val persistenceRepo = object : NavigationConfigsRepo<ViewConfig> {
+                /** Delegates production snapshots to URL persistence and signals typed route milestones. */
                 override fun save(holder: ConfigHolder<ViewConfig>) {
                     urlRepo.save(holder)
                     when {
@@ -198,6 +209,7 @@ class PasswordChangeNavigationBrowserTest {
                     }
                 }
 
+                /** Restores navigation from the current browser URL through the production adapter. */
                 override fun get(): ConfigHolder<ViewConfig>? = urlRepo.get()
             }
             application = koinApplication {

@@ -20,8 +20,13 @@ class DeepLinksServiceTest {
     private class FakeDeepLinksRepo : DeepLinksRepo,
         dev.inmo.micro_utils.repos.KeyValueRepo<DeepLinkId, DeepLinkHandlerInfo> by MapKeyValueRepo()
 
-    /** Persistence double that commits one record, then loses its response to exercise exact cleanup. */
+    /**
+     * Persistence double that commits one record, then loses its response to exercise exact cleanup.
+     *
+     * @param delegate Actual map persistence retaining records before the simulated lost response.
+     */
     private class CommitThenThrowDeepLinksRepo(
+        /** Actual map persistence retaining records before the simulated lost response. */
         private val delegate: MapKeyValueRepo<DeepLinkId, DeepLinkHandlerInfo> = MapKeyValueRepo(),
     ) : DeepLinksRepo,
         dev.inmo.micro_utils.repos.KeyValueRepo<DeepLinkId, DeepLinkHandlerInfo> by delegate {

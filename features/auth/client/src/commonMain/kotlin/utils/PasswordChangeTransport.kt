@@ -5,7 +5,11 @@ import io.ktor.util.AttributeKey
 /** Ktor request marker that prevents configured-server URL merging for browser approval completion. */
 val skipDefaultServerUrl: AttributeKey<Unit> = AttributeKey("skipDefaultServerUrl")
 
-/** Trusted optional absolute completion endpoint supplied only by the JS platform plugin. */
+/**
+ * Trusted optional absolute completion endpoint supplied only by the JS platform plugin.
+ *
+ * @param string Fixed origin-plus-path endpoint used for approval completion requests.
+ */
 data class PasswordChangeCompletionUrl(
     /** Fixed origin-plus-path URL constructed from the current browser origin. */
     val string: String,

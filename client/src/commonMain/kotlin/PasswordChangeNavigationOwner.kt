@@ -91,7 +91,16 @@ internal class PasswordChangeNavigationOwner(
         startTransition(node, UsersListViewConfig())
     }
 
-    /** Starts one deduplicated root-owned exact-node replacement and subsequent synchronous save. */
+    /**
+     * Starts one deduplicated root-owned exact-node replacement and subsequent synchronous save.
+     *
+     * The lazy job is registered before launch, observes root and chain identity changes, and removes only its
+     * own map entry on completion. A replacement must remain reachable through the current binding before the
+     * root-scoped synchronous hierarchy snapshot is persisted.
+     *
+     * @param node Exact password-page node accepted for replacement.
+     * @param destination Configuration replacing [node] after the server or user action completes.
+     */
     private fun startTransition(
         node: NavigationNode<PasswordChangeViewConfig, ViewConfig>,
         destination: ViewConfig,
@@ -105,6 +114,12 @@ internal class PasswordChangeNavigationOwner(
                 val observedReplacement = CompletableDeferred<Boolean>()
                 val acceptedChain = node.chain
                 coroutineScope {
+                    /**
+                     * Samples live root and stack identity to resolve or reject the accepted replacement.
+                     *
+                     * A root or chain wakeup is only a scheduling signal; immutable ancestry alone cannot
+                     * prove current reachability, so every decision uses the bound root's identity walk.
+                     */
                     fun sampleTransition() {
                         when {
                             binding !== acceptedBinding || !acceptedBinding.scopeIsActive() -> {
@@ -167,7 +182,7 @@ internal class PasswordChangeNavigationOwner(
         transition.start()
     }
 
-    /** Returns the only binding allowed to replace the supplied current last node. */
+    /** Returns the only active binding whose current root contains the supplied node as its last stack entry. */
     private fun activeBindingFor(
         node: NavigationNode<PasswordChangeViewConfig, ViewConfig>,
     ): Binding? {
@@ -178,14 +193,19 @@ internal class PasswordChangeNavigationOwner(
         return candidate
     }
 
-    /** Root-scoped transition ownership and exact-node deduplication state. */
+    /**
+     * Root-scoped transition ownership and exact-node deduplication state.
+     *
+     * @param root Root hierarchy whose live identity membership gates transitions and persistence.
+     * @param scope Composition-owned scope that owns every accepted transition job.
+     */
     private class Binding(
         /** Root chain tied to the active composition. */
         val root: NavigationChain<ViewConfig>,
         /** Scope cancelled by root-composition disposal. */
         val scope: CoroutineScope,
     ) {
-        /** Pending root jobs keyed by the exact page node accepted for replacement. */
+        /** Pending root jobs keyed by exact page identity; completion removes only the matching job. */
         val transitions = mutableMapOf<NavigationNode<PasswordChangeViewConfig, ViewConfig>, Job>()
 
         /** Reports whether the composition scope can still own a navigation transition. */

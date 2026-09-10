@@ -28,8 +28,11 @@ import kotlin.test.assertNotNull
 import kotlin.test.assertNull
 import kotlin.test.assertTrue
 
-/** Email transport that changes credentials during delivery to exercise post-delivery revalidation. */
-/** Email transport test double that mutates credentials immediately before success. */
+/**
+ * Email transport test double that mutates credentials immediately before success.
+ *
+ * @param beforeSuccess Controlled credential mutation executed before successful delivery returns.
+ */
 private class CredentialReplacingEmailsService(
     /** Concurrent mutation invoked before a successful SMTP result. */
     private val beforeSuccess: suspend () -> Unit,
@@ -202,12 +205,14 @@ class EmailPasswordChangeServiceTest {
     /** Verifies invalid authorization and policy states produce no password writes. */
     @Test
     fun invalidApprovalMatrixFailsClosedWithoutPasswordWrites() = runTest {
+        /** Issues one real approval and clears bootstrap write observations for a negative case. */
         suspend fun issued(): Pair<PasswordChangeFixture, DeepLinkId> {
             val fixture = fixture()
             assertEquals(PasswordChangeEmailRequestResult.Sent, fixture.service.requestPasswordChangeEmail(fixture.user.id, fixture.user.email!!))
             fixture.passwords.resetIssuedPasswordWriteCount()
             return fixture to fixture.linksRepo.getAll().keys.single()
         }
+        /** Completes one invalid request and proves the password repository remains untouched. */
         suspend fun invalid(fixture: PasswordChangeFixture, request: CompletePasswordChangeRequest) {
             assertEquals(PasswordChangeResult.InvalidApproval, fixture.service.completePasswordChange(request))
             assertEquals(0, fixture.passwords.issuedPasswordWriteCount)
@@ -228,12 +233,14 @@ class EmailPasswordChangeServiceTest {
     /** Verifies valid credential state with a missing role bridge fails closed. */
     @Test
     fun authorizationAndPolicyMatrixFailsClosedWithoutPasswordWrites() = runTest {
+        /** Issues one approval with an explicit clock and optional role bridge for matrix controls. */
         suspend fun issued(now: () -> Long = { 1_000L }, roleBridgePresent: Boolean = true): Pair<PasswordChangeFixture, DeepLinkId> {
             val fixture = fixture(nowEpochMillis = now, roleBridgePresent = roleBridgePresent)
             assertEquals(PasswordChangeEmailRequestResult.Sent, fixture.service.requestPasswordChangeEmail(fixture.user.id, fixture.user.email!!))
             fixture.passwords.resetIssuedPasswordWriteCount()
             return fixture to fixture.linksRepo.getAll().keys.single()
         }
+        /** Completes one matrix case and proves the password repository remains untouched. */
         suspend fun invalid(fixture: PasswordChangeFixture, id: DeepLinkId) {
             assertEquals(PasswordChangeResult.InvalidApproval, fixture.service.completePasswordChange(CompletePasswordChangeRequest(fixture.user.id, id, Password("new-password"))))
             assertEquals(0, fixture.passwords.issuedPasswordWriteCount)

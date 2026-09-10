@@ -600,7 +600,12 @@ object ClientPlugin : StartPlugin {
         return "$spacers[Chain ${id?.string ?: "Anonymous"}] State ${parentNode ?.state ?: NavigationNodeState.RESUMED}\n${stack.joinToString("\n") { it.makeNodeString("$spacers  ") }}"
     }
 
-    /** Starts the root composition and binds password transitions to its surviving scope. */
+    /**
+     * Starts the root composition and binds password transitions to the composition-owned root scope.
+     *
+     * The binding survives child ViewModel replacement, persists only live root hierarchies, and unbinds
+     * when the root composition is disposed.
+     */
     override suspend fun startPlugin(koin: Koin) {
         super.startPlugin(koin)
         val rootChain = koin.get<NavigationChain<ViewConfig>>()

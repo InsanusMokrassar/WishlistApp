@@ -39,6 +39,7 @@ import kotlin.coroutines.CoroutineContext
  */
 @OptIn(InternalCoroutinesApi::class)
 internal class HeldNavigationDispatcher(
+    /** Test dispatcher supplying deterministic virtual-time delay and timeout callbacks. */
     private val schedulerDispatcher: TestDispatcher,
 ) : CoroutineDispatcher(), Delay by schedulerDispatcher {
     /** FIFO work queue withheld from the owning navigation chain until a test releases work. */
@@ -73,9 +74,12 @@ internal class HeldNavigationDispatcher(
  * Records synchronous password-navigation persistence attempts without adding production test hooks.
  *
  * @param initialHolder Initial hierarchy returned before any test persistence.
+ * @param failFirstSave Causes the first save attempt to fail before retaining a snapshot.
  */
 internal class RecordingPasswordNavigationRepo(
+    /** Initial hierarchy returned before any test persistence. */
     private val initialHolder: ConfigHolder<ViewConfig>? = null,
+    /** Causes the first synchronous save attempt to fail before retaining a snapshot. */
     private val failFirstSave: Boolean = false,
 ) : NavigationConfigsRepo<ViewConfig> {
     /** Immutable sequence of holders supplied to synchronous save calls. */
@@ -98,45 +102,64 @@ internal class RecordingPasswordNavigationRepo(
     /** Returns the configured initial hierarchy without treating reads as persistence. */
     override fun get(): ConfigHolder<ViewConfig>? = initialHolder
 
+    /** Clears retained hierarchy snapshots and save-attempt counters between assertions. */
     fun resetObservations() {
         holders.clear()
         saveAttempts = 0
     }
 }
 
+/** Traverses every node, nested subnode, and subchain configuration in navigation order. */
 internal fun ConfigHolder<ViewConfig>.passwordNavigationConfigs(): List<ViewConfig> = when (this) {
     is ConfigHolder.Chain -> firstNodeConfig?.passwordNavigationConfigs().orEmpty()
     is ConfigHolder.Node -> listOf(config) + subnode?.passwordNavigationConfigs().orEmpty() + subchains.flatMap { it.passwordNavigationConfigs() }
 }
 
+/** Serializes a polymorphic navigation holder to inspect credential-free persistence output. */
 internal fun serializedPasswordNavigationHolder(
     json: Json,
     holder: ConfigHolder<ViewConfig>,
 ): String = json.encodeToString(ConfigHolder.serializer(PolymorphicSerializer(ViewConfig::class)), holder)
 
+/** Copies a chain holder while retaining immutable config identity for later assertions. */
 private fun ConfigHolder.Chain<ViewConfig>.snapshot(): ConfigHolder.Chain<ViewConfig> =
     ConfigHolder.Chain(firstNodeConfig?.snapshot(), id)
 
+/** Copies a node holder recursively without mutating the live navigation hierarchy. */
 private fun ConfigHolder.Node<ViewConfig>.snapshot(): ConfigHolder.Node<ViewConfig> =
     ConfigHolder.Node(config, subnode?.snapshot(), subchains.map { it.snapshot() })
 
+/**
+ * Holds one MockEngine completion response while recording the exact transport request.
+ *
+ * @param json JSON instance used to decode captured request bodies and encode held responses.
+ * @param completionUrl Trusted absolute endpoint passed to the Ktor feature under test.
+ */
 internal class HeldPasswordChangeTransport(
+    /** JSON instance used to decode captured request bodies and encode held responses. */
     private val json: Json,
+    /** Trusted absolute completion endpoint passed to the Ktor feature under test. */
     val completionUrl: PasswordChangeCompletionUrl = PasswordChangeCompletionUrl(
         "https://wishlist.test/api/auth/completePasswordChange",
     ),
 ) {
+    /** Exact decoded completion requests received by the MockEngine. */
     val requests = mutableListOf<CompletePasswordChangeRequest>()
 
+    /** Signals that the MockEngine has accepted a completion request. */
     val requestReceived = CompletableDeferred<Unit>()
 
+    /** Deferred typed result released by the enclosing test. */
     val response = CompletableDeferred<PasswordChangeResult>()
 
+    /** Last raw HTTP request accepted by the MockEngine. */
     var httpRequest: HttpRequestData? = null
         private set
 
+    /** Ktor feature bound to the held MockEngine client. */
     val feature: PasswordChangeFeature
 
+    /** MockEngine client whose lifecycle ends in [close]. */
     private val client: HttpClient
 
     init {
@@ -157,10 +180,12 @@ internal class HeldPasswordChangeTransport(
         feature = KtorPasswordChangeFeature(client, completionUrl)
     }
 
+    /** Releases the held HTTP response as a successful password change. */
     fun releaseChanged() {
         response.complete(PasswordChangeResult.Changed)
     }
 
+    /** Closes the MockEngine client and releases transport resources. */
     fun close() {
         client.close()
     }

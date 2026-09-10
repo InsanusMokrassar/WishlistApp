@@ -44,7 +44,11 @@ import kotlin.test.assertFailsWith
 import kotlin.test.assertNull
 import kotlin.test.assertTrue
 
-/** Recording credentials storage that exposes every Auth-plugin storage interaction to assertions. */
+/**
+ * Recording credentials storage that exposes every Auth-plugin storage interaction to assertions.
+ *
+ * @param initialCredentials Browser credentials present before the request under test.
+ */
 private class RecordingCredentialsStorage(
     /** Initial browser credentials, when the test models an unrelated signed-in account. */
     initialCredentials: AuthCredentials? = null,
@@ -80,7 +84,11 @@ private class RecordingCredentialsStorage(
     }
 }
 
-/** Recording saved-server URL storage used by the production default-URL configurator. */
+/**
+ * Recording saved-server URL storage used by the production default-URL configurator.
+ *
+ * @param initialUrl Saved server URL presented to unmarked requests before test writes.
+ */
 private class RecordingServerUrlStorage(
     /** Initial saved server URL, including hostile user-info/path/query/fragment test values. */
     initialUrl: String?,
