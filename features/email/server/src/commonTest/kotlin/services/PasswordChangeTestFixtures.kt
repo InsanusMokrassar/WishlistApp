@@ -1,5 +1,7 @@
 package dev.inmo.wishlist.features.email.server.services
 
+import dev.inmo.kroles.repos.BaseRoleSubject
+import dev.inmo.kroles.repos.RolesRepo
 import dev.inmo.micro_utils.repos.KeyValueRepo
 import dev.inmo.micro_utils.repos.MapKeyValueRepo
 import dev.inmo.micro_utils.repos.set
@@ -13,6 +15,7 @@ import dev.inmo.wishlist.features.deeplinks.common.repo.DeepLinksRepo
 import dev.inmo.wishlist.features.deeplinks.server.services.DeepLinksService
 import dev.inmo.wishlist.features.email.common.models.Email
 import dev.inmo.wishlist.features.email.server.EmailsService
+import dev.inmo.wishlist.features.roles.common.models.UserRole
 import dev.inmo.wishlist.features.email.server.models.EmailPasswordChange
 import dev.inmo.wishlist.features.users.common.models.RegisteredUser
 import dev.inmo.wishlist.features.users.common.models.UserId
@@ -26,6 +29,8 @@ internal typealias PasswordChangeRepositoryHook = suspend () -> Unit
 internal class PasswordChangeRoleAuthorization(
     /** Current direct authorization result. */
     var directRolePresent: Boolean = true,
+    /** Optional direct-role persistence used by subject-specific integration fixtures. */
+    private val rolesRepo: RolesRepo? = null,
 ) : UserRoleAuthorization {
     /** Number of direct-role creation attempts observed after fixture bootstrap. */
     var ensureAttempts: Int = 0
@@ -35,15 +40,25 @@ internal class PasswordChangeRoleAuthorization(
     var hasAttempts: Int = 0
         private set
 
-    /** Registration is outside this fixture and never creates a role. */
+    /** Ensures direct User membership through repository backing or returns the controlled fallback. */
     override suspend fun ensureUserRole(userId: UserId): Boolean {
         ensureAttempts++
+        val repository = rolesRepo
+        if (repository != null) {
+            val subject = BaseRoleSubject.Direct(userId.long.toString())
+            repository.includeDirect(subject, UserRole)
+            return UserRole in repository.getDirectRoles(subject)
+        }
         return directRolePresent
     }
 
     /** Returns the current direct authorization result. */
     override suspend fun hasUserRole(userId: UserId): Boolean {
         hasAttempts++
+        val repository = rolesRepo
+        if (repository != null) {
+            return UserRole in repository.getDirectRoles(BaseRoleSubject.Direct(userId.long.toString()))
+        }
         return directRolePresent
     }
 

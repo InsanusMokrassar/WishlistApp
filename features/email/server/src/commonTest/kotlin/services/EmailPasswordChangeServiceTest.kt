@@ -24,6 +24,7 @@ import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFailsWith
 import kotlin.test.assertFalse
+import kotlin.test.assertNotNull
 import kotlin.test.assertNull
 import kotlin.test.assertTrue
 
@@ -243,37 +244,111 @@ class EmailPasswordChangeServiceTest {
         run { val (fixture, id) = issued(); fixture.coordinator.updateStoredEmail(fixture.user.id, null); invalid(fixture, id) }
         run { val (fixture, id) = issued(); fixture.coordinator.updateStoredEmail(fixture.user.id, Email("other@example.com")); fixture.coordinator.updateStoredEmail(fixture.user.id, fixture.user.email!!); invalid(fixture, id) }
         run { val (fixture, id) = issued(); fixture.roles.directRolePresent = false; invalid(fixture, id) }
-        run {
-            val fixture = fixture()
-            assertEquals(
-                PasswordChangeEmailRequestResult.Sent,
-                fixture.service.requestPasswordChangeEmail(fixture.user.id, fixture.user.email!!),
-            )
-            val id = fixture.linksRepo.getAll().keys.single()
-            val bridgeAbsentAuth = AuthFeatureService(
-                usersRepo = fixture.trackedUsers,
-                writeUsersRepo = fixture.trackedUsers,
-                passwordsRepo = fixture.passwords,
-                userRoleAuthorization = null,
-            )
-            val bridgeAbsentService = EmailPasswordChangeService(
-                emailsService = null,
-                deepLinksService = fixture.links,
-                accountCoordinator = fixture.coordinator,
-                authFeatureService = bridgeAbsentAuth,
-                publicHttpOrigin = "https://wishlist.example",
-            )
-            fixture.passwords.resetIssuedPasswordWriteCount()
-            val request = CompletePasswordChangeRequest(fixture.user.id, id, Password("new-password"))
-            assertEquals(PasswordChangeResult.InvalidApproval, bridgeAbsentService.completePasswordChange(request))
-            assertEquals(0, fixture.passwords.issuedPasswordWriteCount)
-            assertTrue(fixture.linksRepo.get(id) != null)
-            assertEquals(PasswordChangeResult.Changed, fixture.service.completePasswordChange(request))
-            assertEquals(1, fixture.passwords.issuedPasswordWriteCount)
-        }
         run { val (fixture, id) = issued(); fixture.passwords.unset(listOf(fixture.user.id)); invalid(fixture, id) }
         run { val (fixture, id) = issued(); fixture.users.deleteById(fixture.user.id); invalid(fixture, id) }
         run { val (fixture, id) = issued(); fixture.auth.setPassword(fixture.user.id, oldPassword); fixture.passwords.resetIssuedPasswordWriteCount(); invalid(fixture, id) }
         run { val (fixture, id) = issued(); assertEquals(PasswordChangeResult.InvalidPassword, fixture.service.completePasswordChange(CompletePasswordChangeRequest(fixture.user.id, id, Password("short")))); assertTrue(fixture.linksRepo.get(id) != null); assertEquals(PasswordChangeResult.Changed, fixture.service.completePasswordChange(CompletePasswordChangeRequest(fixture.user.id, id, Password("new-password")))) }
+    }
+
+    /** Verifies an absent Auth role bridge alone rejects an otherwise identical unexpired approval. */
+    @Test
+    fun missingAuthRoleBridgeRejectsAfterAuthUserReadThenSharedControlChangesPassword() = runTest {
+        val nowEpochMillis = { 1_000L }
+        val fixture = fixture(nowEpochMillis = nowEpochMillis)
+        assertEquals(
+            PasswordChangeEmailRequestResult.Sent,
+            fixture.service.requestPasswordChangeEmail(fixture.user.id, fixture.user.email!!),
+        )
+        val approvalId = fixture.linksRepo.getAll().keys.single()
+        val storedApproval = assertNotNull(fixture.linksRepo.get(approvalId))
+        val payload = assertNotNull(storedApproval.value as? EmailPasswordChangePayload)
+        val request = CompletePasswordChangeRequest(fixture.user.id, approvalId, Password("new-password"))
+        assertEquals(EmailPasswordChange.handlerId, storedApproval.handlerId)
+        assertEquals(fixture.user.id, payload.userId)
+        assertEquals(fixture.user.email, payload.approvedEmail)
+        assertEquals(901_000L, payload.expiresAtEpochMillis)
+        assertEquals(fixture.auth.passwordChangeState(fixture.user.id), payload.credentialState)
+        assertTrue(nowEpochMillis() < payload.expiresAtEpochMillis)
+        assertEquals("/password-change/${fixture.user.id.long}/${approvalId.string}", fixture.service.pendingPasswordChangePath(approvalId))
+
+        val bridgeAbsentAuth = AuthFeatureService(
+            usersRepo = fixture.trackedUsers,
+            writeUsersRepo = fixture.trackedUsers,
+            passwordsRepo = fixture.passwords,
+            userRoleAuthorization = null,
+        )
+        val bridgeAbsentService = EmailPasswordChangeService(
+            emailsService = null,
+            deepLinksService = fixture.links,
+            accountCoordinator = fixture.coordinator,
+            authFeatureService = bridgeAbsentAuth,
+            publicHttpOrigin = "https://wishlist.example",
+            nowEpochMillis = nowEpochMillis,
+        )
+        val userReads = mutableListOf<UserId>()
+        val passwordOperations = mutableListOf<String>()
+        val operationSequence = mutableListOf<String>()
+        val previousLinkGetHook = fixture.linksRepo.beforeGet
+        val previousLinkUnsetHook = fixture.linksRepo.beforeUnset
+        val previousUserHook = fixture.trackedUsers.beforeGetById
+        val previousPasswordGetHook = fixture.passwords.beforeGet
+        val previousPasswordUnsetHook = fixture.passwords.beforeUnset
+        val previousPasswordSetHook = fixture.passwords.beforeSet
+        fixture.linksRepo.resetOperationRecords()
+        fixture.passwords.resetIssuedPasswordWriteCount()
+        fixture.linksRepo.beforeGet = { operationSequence += "link-read" }
+        fixture.linksRepo.beforeUnset = { operationSequence += "link-unset" }
+        fixture.trackedUsers.beforeGetById = {
+            userReads += fixture.user.id
+            operationSequence += "user-read"
+        }
+        fixture.passwords.beforeGet = {
+            passwordOperations += "password-read"
+            operationSequence += "password-read"
+        }
+        fixture.passwords.beforeUnset = {
+            passwordOperations += "password-removal"
+            operationSequence += "password-removal"
+        }
+        fixture.passwords.beforeSet = {
+            passwordOperations += "password-write"
+            operationSequence += "password-set"
+        }
+        try {
+            assertEquals(PasswordChangeResult.InvalidApproval, bridgeAbsentService.completePasswordChange(request))
+            assertEquals(listOf(approvalId), fixture.linksRepo.getIds)
+            assertEquals(listOf(fixture.user.id, fixture.user.id), userReads)
+            assertEquals(listOf("link-read", "user-read", "user-read"), operationSequence)
+            assertTrue(passwordOperations.isEmpty())
+            assertTrue(fixture.linksRepo.unsetIds.isEmpty())
+            assertEquals(0, fixture.passwords.issuedPasswordWriteCount)
+            assertNotNull(fixture.linksRepo.get(approvalId))
+
+            fixture.linksRepo.resetOperationRecords()
+            fixture.passwords.resetIssuedPasswordWriteCount()
+            userReads.clear()
+            passwordOperations.clear()
+            operationSequence.clear()
+            assertEquals(PasswordChangeResult.Changed, fixture.service.completePasswordChange(request))
+            assertEquals(listOf(approvalId, approvalId), fixture.linksRepo.getIds)
+            assertEquals(listOf(fixture.user.id, fixture.user.id), userReads)
+            assertEquals(listOf("password-read", "password-write"), passwordOperations)
+            assertEquals(
+                listOf("link-read", "user-read", "user-read", "password-read", "link-read", "link-unset", "password-set"),
+                operationSequence,
+            )
+            assertEquals(listOf(approvalId), fixture.linksRepo.unsetIds)
+            assertEquals(1, fixture.passwords.issuedPasswordWriteCount)
+            assertNull(fixture.linksRepo.get(approvalId))
+            assertNull(fixture.auth.login(fixture.user.username, oldPassword))
+            assertNotNull(fixture.auth.login(fixture.user.username, Password("new-password")))
+        } finally {
+            fixture.linksRepo.beforeGet = previousLinkGetHook
+            fixture.linksRepo.beforeUnset = previousLinkUnsetHook
+            fixture.trackedUsers.beforeGetById = previousUserHook
+            fixture.passwords.beforeGet = previousPasswordGetHook
+            fixture.passwords.beforeUnset = previousPasswordUnsetHook
+            fixture.passwords.beforeSet = previousPasswordSetHook
+        }
     }
 }

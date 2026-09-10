@@ -6,6 +6,7 @@ import ch.qos.logback.classic.spi.ILoggingEvent
 import ch.qos.logback.core.read.ListAppender
 import dev.inmo.kroles.repos.BaseRoleSubject
 import dev.inmo.kroles.repos.RolesRepo
+import dev.inmo.kroles.roles.BaseRole
 import dev.inmo.wishlist.features.auth.common.models.AuthCredentials
 import dev.inmo.wishlist.features.auth.common.models.AuthFeatureUser
 import dev.inmo.wishlist.features.auth.common.models.CompletePasswordChangeRequest
@@ -39,6 +40,8 @@ import dev.inmo.wishlist.features.email.server.services.FakeUsersRepo
 import dev.inmo.wishlist.features.email.server.services.PasswordChangeDeepLinksRepo
 import dev.inmo.wishlist.features.email.server.services.PasswordChangePasswordsRepo
 import dev.inmo.wishlist.features.email.server.services.PasswordChangeRoleAuthorization
+import dev.inmo.wishlist.features.roles.common.models.NewUserRole
+import dev.inmo.wishlist.features.roles.common.models.UserRole
 import dev.inmo.wishlist.features.roles.server.RolesFeature
 import dev.inmo.wishlist.features.users.common.models.RegisteredUser
 import dev.inmo.wishlist.features.users.common.models.UserId
@@ -204,7 +207,12 @@ class PasswordChangeFlowRoutingTest {
         val linksRepo = PasswordChangeDeepLinksRepo()
         val emails = FakeEmailsService()
         val rolesRepo = FakeRolesRepo()
-        val roleAuthorization = PasswordChangeRoleAuthorization()
+        rolesRepo.includeDirect(BaseRoleSubject.Direct(owner.id.long.toString()), UserRole)
+        rolesRepo.includeDirect(BaseRoleSubject.Direct(unrelated.id.long.toString()), UserRole)
+        val roleAuthorization = PasswordChangeRoleAuthorization(
+            directRolePresent = false,
+            rolesRepo = rolesRepo,
+        )
         val application = KoinApplication.init()
         application.modules(module {
             single<UsersRepo> { users }
@@ -228,6 +236,8 @@ class PasswordChangeFlowRoutingTest {
         passwords.resetIssuedPasswordWriteCount()
         val ownerCredentials = requireNotNull(auth.login(owner.username, ownerPassword))
         val unrelatedCredentials = requireNotNull(auth.login(unrelated.username, unrelatedPassword))
+        rolesRepo.resetMutationAttempts()
+        roleAuthorization.resetAttemptCounts()
         return PasswordChangeFlowGraph(
             application = application,
             json = application.koin.get(),
@@ -653,8 +663,17 @@ class PasswordChangeFlowRoutingTest {
                 ownerSubject to graph.rolesRepo.getDirectRoles(ownerSubject),
                 unrelatedSubject to graph.rolesRepo.getDirectRoles(unrelatedSubject),
             )
-            graph.rolesRepo.resetMutationAttempts()
-            graph.roleAuthorization.resetAttemptCounts()
+            val grantsBefore = graph.rolesRepo.getAll()
+            val expectedRoles = mapOf(
+                ownerSubject to listOf(UserRole),
+                unrelatedSubject to listOf(UserRole),
+            )
+            val expectedGrants: Map<BaseRoleSubject, List<BaseRole>> = mapOf(
+                ownerSubject to listOf(UserRole),
+                unrelatedSubject to listOf(UserRole),
+            )
+            assertEquals(expectedRoles, rolesBefore)
+            assertEquals(expectedGrants, grantsBefore)
 
             val ownerApprovalA = issueApproval(graph, owner, graph.ownerCredentials)
             val ownerApprovalB = issueApproval(graph, owner, graph.ownerCredentials)
@@ -669,11 +688,21 @@ class PasswordChangeFlowRoutingTest {
                 completeApproval(graph, owner, approvalId(ownerApprovalA), ownerReplacement),
             )
             assertEquals(1, graph.passwords.issuedPasswordWriteCount)
+            assertEquals(rolesBefore, mapOf(
+                ownerSubject to graph.rolesRepo.getDirectRoles(ownerSubject),
+                unrelatedSubject to graph.rolesRepo.getDirectRoles(unrelatedSubject),
+            ))
+            assertEquals(grantsBefore, graph.rolesRepo.getAll())
             assertEquals(
                 PasswordChangeResult.InvalidApproval,
                 completeApproval(graph, owner, approvalId(ownerApprovalB), Password("owner-sibling-password")),
             )
             assertEquals(1, graph.passwords.issuedPasswordWriteCount)
+            assertEquals(rolesBefore, mapOf(
+                ownerSubject to graph.rolesRepo.getDirectRoles(ownerSubject),
+                unrelatedSubject to graph.rolesRepo.getDirectRoles(unrelatedSubject),
+            ))
+            assertEquals(grantsBefore, graph.rolesRepo.getAll())
 
             assertAccessTokenSubject(graph, graph.ownerCredentials.token, owner)
             assertAccessTokenSubject(graph, graph.unrelatedCredentials.token, unrelated)
@@ -698,6 +727,9 @@ class PasswordChangeFlowRoutingTest {
                 unrelatedSubject to graph.rolesRepo.getDirectRoles(unrelatedSubject),
             )
             assertEquals(rolesBefore, rolesAfter)
+            assertEquals(grantsBefore, graph.rolesRepo.getAll())
+            assertEquals(setOf(UserRole), rolesAfter.getValue(ownerSubject).toSet())
+            assertEquals(setOf(UserRole), rolesAfter.getValue(unrelatedSubject).toSet())
             assertEquals(0, graph.rolesRepo.includeAttempts)
             assertEquals(0, graph.rolesRepo.excludeAttempts)
             assertEquals(0, graph.rolesRepo.createAttempts)
@@ -706,6 +738,32 @@ class PasswordChangeFlowRoutingTest {
         } finally {
             graph.close()
         }
+    }
+
+    /** Verifies repository-backed authorization checks only requested direct User membership. */
+    @Test
+    fun repositoryBackedRoleBridgeChecksTheRequestedSubject() = kotlinx.coroutines.test.runTest {
+        val rolesRepo = FakeRolesRepo()
+        val userSubject = BaseRoleSubject.Direct("7")
+        val newUserSubject = BaseRoleSubject.Direct("8")
+        rolesRepo.includeDirect(userSubject, UserRole)
+        rolesRepo.includeDirect(newUserSubject, NewUserRole)
+        val authorization = PasswordChangeRoleAuthorization(
+            directRolePresent = true,
+            rolesRepo = rolesRepo,
+        )
+        rolesRepo.resetMutationAttempts()
+        authorization.resetAttemptCounts()
+
+        assertTrue(authorization.hasUserRole(UserId(7L)))
+        assertFalse(authorization.hasUserRole(UserId(8L)))
+        assertFalse(authorization.hasUserRole(UserId(9L)))
+        assertTrue(authorization.ensureUserRole(UserId(7L)))
+        assertEquals(3, authorization.hasAttempts)
+        assertEquals(1, authorization.ensureAttempts)
+        assertEquals(1, rolesRepo.includeAttempts)
+        assertEquals(setOf(UserRole), rolesRepo.getDirectRoles(userSubject).toSet())
+        assertEquals(setOf(NewUserRole), rolesRepo.getDirectRoles(newUserSubject).toSet())
     }
 
     /** Verifies known response status and unset status use the production status-only format. */
