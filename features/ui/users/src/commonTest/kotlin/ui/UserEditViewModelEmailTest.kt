@@ -1905,4 +1905,151 @@ class UserEditViewModelEmailTest {
             viewModel.scope.cancel()
         }
     }
+
+    @Test
+    fun laterPendingRefreshClearsAlreadyApprovedFeedback() = runTest {
+        val savedEmail = Email("saved@example.com")
+        val model = UserEditTestUsersModel(
+            ownerId,
+            owner.copy(email = savedEmail, emailApproved = false),
+        ).apply {
+            requestHandler = {
+                profileState.value = profileState.value?.copy(emailApproved = true)
+                EmailVerificationRequestResult.AlreadyApproved
+            }
+        }
+        val viewModel = UserEditViewModel(
+            userEditTestNode(ownerId),
+            model,
+            RecordingUserEditInteractor(),
+            StandardTestDispatcher(testScheduler),
+        )
+        try {
+            advanceUntilIdle()
+            viewModel.onResendEmailVerification()
+            advanceUntilIdle()
+            assertEquals(EmailVerificationRequestResult.AlreadyApproved, viewModel.emailVerificationResultState.value)
+
+            model.profileState.value = model.profileState.value?.copy(emailApproved = false)
+            model.emailEvents.clear()
+            viewModel.onRefreshEmail()
+            advanceUntilIdle()
+
+            assertFalse(viewModel.ownEmailProfileState.value?.emailApproved ?: true)
+            assertNull(viewModel.emailVerificationResultState.value)
+            assertEquals(listOf("PROBE", "GET"), model.emailEvents)
+        } finally {
+            viewModel.scope.cancel()
+        }
+    }
+
+    @Test
+    fun approvalSnapshotChangesRetireCompletedFeedback() = runTest {
+        val savedEmail = Email("saved@example.com")
+        val model = UserEditTestUsersModel(
+            ownerId,
+            owner.copy(email = savedEmail, emailApproved = false),
+        ).apply {
+            requestHandler = {
+                profileState.value = profileState.value?.copy(emailApproved = true)
+                EmailVerificationRequestResult.Sent
+            }
+        }
+        val viewModel = UserEditViewModel(
+            userEditTestNode(ownerId),
+            model,
+            RecordingUserEditInteractor(),
+            StandardTestDispatcher(testScheduler),
+        )
+        try {
+            advanceUntilIdle()
+            viewModel.onResendEmailVerification()
+            advanceUntilIdle()
+            assertEquals(EmailVerificationRequestResult.Sent, viewModel.emailVerificationResultState.value)
+
+            viewModel.onRefreshEmail()
+            advanceUntilIdle()
+            assertEquals(EmailVerificationRequestResult.Sent, viewModel.emailVerificationResultState.value)
+
+            model.profileState.value = model.profileState.value?.copy(emailApproved = false)
+            viewModel.onRefreshEmail()
+            advanceUntilIdle()
+            assertNull(viewModel.emailVerificationResultState.value)
+        } finally {
+            viewModel.scope.cancel()
+        }
+    }
+
+    @Test
+    fun invalidDraftPublishesFeedbackDuringTyping() = runTest {
+        val model = UserEditTestUsersModel(ownerId, owner)
+        val viewModel = UserEditViewModel(
+            userEditTestNode(ownerId),
+            model,
+            RecordingUserEditInteractor(),
+            StandardTestDispatcher(testScheduler),
+        )
+        try {
+            advanceUntilIdle()
+            viewModel.onEmailChanged("partial-address")
+
+            assertEquals("partial-address", viewModel.emailInputState.value)
+            assertEquals(EmailEditorError.InvalidEmail, viewModel.emailErrorState.value)
+            runCurrent()
+            assertTrue(viewModel.isDirtyState.value)
+            assertFalse(viewModel.canSaveEmailState.value)
+            assertTrue(model.savedEmails.isEmpty())
+            assertTrue(model.requestedEmails.isEmpty())
+        } finally {
+            viewModel.scope.cancel()
+        }
+    }
+
+    @Test
+    fun missingEmailPartialDraftSurvivesRefreshAndResume() = runTest {
+        val node = userEditTestNode(ownerId)
+        val model = UserEditTestUsersModel(ownerId, owner)
+        val viewModel = UserEditViewModel(
+            node,
+            model,
+            RecordingUserEditInteractor(),
+            StandardTestDispatcher(testScheduler),
+        )
+        try {
+            advanceUntilIdle()
+            viewModel.onEmailChanged("partial-address")
+            viewModel.onRefreshEmail()
+            advanceUntilIdle()
+            assertEquals("partial-address", viewModel.emailInputState.value)
+            assertTrue(viewModel.isDirtyState.value)
+
+            node.resume()
+            advanceUntilIdle()
+            assertEquals("partial-address", viewModel.emailInputState.value)
+            assertTrue(viewModel.isDirtyState.value)
+        } finally {
+            viewModel.scope.cancel()
+        }
+    }
+
+    @Test
+    fun rawDraftDirtinessControlsBackConfirmation() = runTest {
+        val interactor = RecordingUserEditInteractor()
+        val viewModel = UserEditViewModel(
+            userEditTestNode(ownerId),
+            UserEditTestUsersModel(ownerId, owner),
+            interactor,
+            StandardTestDispatcher(testScheduler),
+        )
+        try {
+            advanceUntilIdle()
+            viewModel.onEmailChanged("partial-address")
+            viewModel.onBack()
+
+            assertTrue(viewModel.showConfirmDialogState.value)
+            assertEquals(0, interactor.navigateBackCalls)
+        } finally {
+            viewModel.scope.cancel()
+        }
+    }
 }

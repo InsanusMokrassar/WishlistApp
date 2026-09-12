@@ -69,11 +69,12 @@ class UserEditView(
         val mismatch by viewModel.passwordMismatchState.collectAsState()
         val canSave by viewModel.canSaveState.collectAsState()
         val canUploadAvatar by viewModel.canUploadAvatarState.collectAsState()
+        val currentConfig by this@UserEditView.configState.collectAsState()
         val canManageOwnEmail by viewModel.canManageOwnEmailState.collectAsState()
         val canMutateOwnEmail by viewModel.canMutateOwnEmailState.collectAsState()
         val canSaveEmail by viewModel.canSaveEmailState.collectAsState()
         val canResendEmail by viewModel.canResendEmailVerificationState.collectAsState()
-        val emailFeatureEnabled by viewModel.emailFeatureEnabledState.collectAsState()
+        val emailCapability by viewModel.emailCapabilityState.collectAsState()
         val ownEmailProfile by viewModel.ownEmailProfileState.collectAsState()
         val emailInput by viewModel.emailInputState.collectAsState()
         val emailLoading by viewModel.emailLoadingState.collectAsState()
@@ -87,6 +88,10 @@ class UserEditView(
         val showDiscard by viewModel.showConfirmDialogState.collectAsState()
         val showDelete by viewModel.showDeleteDialogState.collectAsState()
         val scope = rememberCoroutineScope()
+        val canRenderOwnEmail =
+            canManageOwnEmail &&
+                currentConfig.userId == viewModel.userId &&
+                this@UserEditView.config.userId == viewModel.userId
 
         if (showDiscard) {
             AlertDialog(
@@ -168,7 +173,7 @@ class UserEditView(
                 }
             }
 
-            if (canManageOwnEmail) {
+            if (canRenderOwnEmail) {
                 when {
                     emailLoading -> Text(UsersListStrings.emailLoading.translation(resources))
                     ownEmailProfile == null -> {
@@ -222,14 +227,18 @@ class UserEditView(
                             modifier = Modifier.fillMaxWidth(),
                         ) {
                             Text(
-                                if (emailFeatureEnabled) {
+                                if (emailCapability == EmailCapabilityState.Enabled) {
                                     UsersListStrings.saveEmailAndVerifyButton.translation(resources)
                                 } else {
                                     UsersListStrings.saveEmailButton.translation(resources)
                                 }
                             )
                         }
-                        if (savedEmail != null && !ownEmailProfile!!.emailApproved && emailFeatureEnabled) {
+                        if (
+                            savedEmail != null &&
+                            !ownEmailProfile!!.emailApproved &&
+                            emailCapability == EmailCapabilityState.Enabled
+                        ) {
                             OutlinedButton(
                                 onClick = { viewModel.onResendEmailVerification() },
                                 enabled = canResendEmail,
@@ -271,15 +280,21 @@ class UserEditView(
                 ) {
                     Text(UsersListStrings.refreshEmailButton.translation(resources))
                 }
+                if (
+                    emailVerificationResult == EmailVerificationRequestResult.Unavailable ||
+                    (ownEmailProfile != null && emailCapability == EmailCapabilityState.Disabled)
+                ) {
+                    Text(
+                        UsersListStrings.emailVerificationUnavailable.translation(resources),
+                        color = MaterialTheme.colorScheme.error,
+                    )
+                }
                 when (emailVerificationResult) {
                     EmailVerificationRequestResult.Sent -> Text(UsersListStrings.emailVerificationSent.translation(resources))
                     EmailVerificationRequestResult.AlreadyApproved -> Text(
                         UsersListStrings.emailVerificationAlreadyApproved.translation(resources)
                     )
-                    EmailVerificationRequestResult.Unavailable -> Text(
-                        UsersListStrings.emailVerificationUnavailable.translation(resources),
-                        color = MaterialTheme.colorScheme.error,
-                    )
+                    EmailVerificationRequestResult.Unavailable -> Unit
                     EmailVerificationRequestResult.NoEmail -> Text(
                         UsersListStrings.emailVerificationNoEmail.translation(resources),
                         color = MaterialTheme.colorScheme.error,
@@ -295,7 +310,7 @@ class UserEditView(
                     null -> Unit
                 }
             }
-            if (emailOperationInterrupted && canManageOwnEmail) {
+            if (emailOperationInterrupted && canRenderOwnEmail) {
                 Text(
                     UsersListStrings.emailOperationInterrupted.translation(resources),
                     color = MaterialTheme.colorScheme.error,

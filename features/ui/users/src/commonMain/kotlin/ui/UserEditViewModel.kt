@@ -198,8 +198,11 @@ class UserEditViewModel(
     val emailOperationInterruptedState: StateFlow<Boolean> =
         _emailOperationInterruptedState.asStateFlow()
 
-    /** Recipient binding for [emailVerificationResultState], cleared by a different private record. */
-    private var emailVerificationRecipient: Email? = null
+    /** Checked email-and-approval snapshot supporting [emailSavedState], or `null` without a saved marker. */
+    private var emailSavedSnapshot: EmailFeedbackSnapshot? = null
+
+    /** Checked email-and-approval snapshot supporting [emailVerificationResultState], or `null` without a result. */
+    private var emailVerificationSnapshot: EmailFeedbackSnapshot? = null
 
     /** `true` only for the current authenticated profile owner. */
     private val isCurrentAuthenticatedOwnerFlow =
@@ -343,9 +346,8 @@ class UserEditViewModel(
         _emailDraftDirtyState.value = false
         _emailErrorState.value = null
         _emailLoadFailedState.value = false
-        _emailVerificationResultState.value = null
-        emailVerificationRecipient = null
-        _emailSavedState.value = null
+        clearEmailSavedFeedback()
+        clearEmailVerificationFeedback()
     }
 
     /** Invalidates all private email work when the caller, authorization, or selected target changes. */
@@ -452,6 +454,7 @@ class UserEditViewModel(
                 if (!isCurrentOwnerRequest(requestVersion, generation, callerId)) return@launch
                 if (profile?.id != userId) {
                     _ownEmailProfileState.value = null
+                    clearCompletedEmailFeedback()
                     _emailCapabilityState.value = EmailCapabilityState.Failed
                     _emailLoadFailedState.value = true
                     if (_emailErrorState.value == null || _emailErrorState.value == EmailEditorError.LoadFailed) {
@@ -470,6 +473,7 @@ class UserEditViewModel(
             } catch (_: Throwable) {
                 if (isCurrentOwnerRequest(requestVersion, generation, callerId)) {
                     _ownEmailProfileState.value = null
+                    clearCompletedEmailFeedback()
                     _emailCapabilityState.value = EmailCapabilityState.Failed
                     _emailLoadFailedState.value = true
                     if (_emailErrorState.value == null || _emailErrorState.value == EmailEditorError.LoadFailed) {
@@ -484,18 +488,35 @@ class UserEditViewModel(
         }
     }
 
-    /** Returns whether [input] differs from [savedEmail] after the one canonical email parse. */
-    private fun isEmailDraftDirty(input: String, savedEmail: Email?): Boolean {
-        if (savedEmail == null && input.isBlank()) return false
-        return Email.parse(input).getOrNull() != savedEmail
+    /** Returns whether trimmed raw [input] differs from the authoritative saved address without parsing. */
+    private fun isEmailDraftDirty(input: String, savedEmail: Email?): Boolean =
+        input.trim() != savedEmail?.string.orEmpty()
+
+    /** Clears the completed-storage marker and its exact checked snapshot together. */
+    private fun clearEmailSavedFeedback() {
+        _emailSavedState.value = null
+        emailSavedSnapshot = null
+    }
+
+    /** Clears the delivery result and its exact checked snapshot together. */
+    private fun clearEmailVerificationFeedback() {
+        _emailVerificationResultState.value = null
+        emailVerificationSnapshot = null
+    }
+
+    /** Clears claims of completed storage or delivery while retaining a current local or negative failure. */
+    private fun clearCompletedEmailFeedback() {
+        clearEmailSavedFeedback()
+        if (_emailVerificationResultState.value?.isSuccessResult() == true) {
+            clearEmailVerificationFeedback()
+        }
     }
 
     /** Clears address-bound feedback before an eligible edit or newly admitted operation. */
     private fun clearEmailOperationFeedback() {
         _emailErrorState.value = null
-        _emailVerificationResultState.value = null
-        emailVerificationRecipient = null
-        _emailSavedState.value = null
+        clearEmailVerificationFeedback()
+        clearEmailSavedFeedback()
         _emailOperationInterruptedState.value = false
     }
 
@@ -504,18 +525,18 @@ class UserEditViewModel(
         profile: AuthFeatureUser,
         preserveDraft: Boolean,
     ) {
+        val snapshot = profile.email?.let { EmailFeedbackSnapshot(it, profile.emailApproved) }
+        if (emailSavedSnapshot != snapshot) {
+            clearEmailSavedFeedback()
+        }
+        if (emailVerificationSnapshot != snapshot) {
+            clearEmailVerificationFeedback()
+        }
         _ownEmailProfileState.value = profile
         if (!preserveDraft && !_emailDraftDirtyState.value) {
             _emailInputState.value = profile.email?.string.orEmpty()
         }
         _emailDraftDirtyState.value = isEmailDraftDirty(_emailInputState.value, profile.email)
-        if (_emailSavedState.value != profile.email) {
-            _emailSavedState.value = null
-        }
-        if (emailVerificationRecipient != profile.email) {
-            _emailVerificationResultState.value = null
-            emailVerificationRecipient = null
-        }
     }
 
     /** Returns the checked private profile accepted by an imperative owner-email callback. */
@@ -598,6 +619,7 @@ class UserEditViewModel(
             if (!canContinueEmailMutation(mutation)) return null
             if (profile?.id != userId) {
                 _ownEmailProfileState.value = null
+                clearCompletedEmailFeedback()
                 _emailLoadFailedState.value = true
                 if (_emailErrorState.value == null || _emailErrorState.value == EmailEditorError.LoadFailed) {
                     _emailErrorState.value = EmailEditorError.LoadFailed
@@ -615,6 +637,7 @@ class UserEditViewModel(
             throw error
         } catch (_: Throwable) {
             if (isCurrentEmailMutation(mutation)) {
+                clearCompletedEmailFeedback()
                 _emailLoadFailedState.value = true
                 if (_emailErrorState.value == null || _emailErrorState.value == EmailEditorError.LoadFailed) {
                     _emailErrorState.value = EmailEditorError.LoadFailed
@@ -624,15 +647,30 @@ class UserEditViewModel(
         }
     }
 
-    /** Publishes a verification result only for its captured recipient. */
+    /** Publishes [result] only with the exact checked [profile] that still owns [recipient]. */
     private fun publishVerificationResult(
         mutation: OwnerEmailMutation,
         recipient: Email,
+        profile: AuthFeatureUser,
         result: EmailVerificationRequestResult,
     ) {
+        val snapshot = profile.email?.takeIf { it == recipient }
+            ?.let { EmailFeedbackSnapshot(it, profile.emailApproved) }
+            ?: return
         if (!isCurrentEmailMutation(mutation)) return
-        emailVerificationRecipient = recipient
+        emailVerificationSnapshot = snapshot
         _emailVerificationResultState.value = result
+    }
+
+    /** Publishes the completed-storage marker only from an exact checked private [profile]. */
+    private fun publishEmailSaved(
+        mutation: OwnerEmailMutation,
+        profile: AuthFeatureUser,
+    ) {
+        val email = profile.email ?: return
+        if (!isCurrentEmailMutation(mutation)) return
+        emailSavedSnapshot = EmailFeedbackSnapshot(email, profile.emailApproved)
+        _emailSavedState.value = email
     }
 
     /** Returns whether a verification result could falsely imply completed delivery or approval. */
@@ -695,11 +733,9 @@ class UserEditViewModel(
         }
     }
 
-    /**
-     * Attempts to navigate back. Shows the discard dialog when the form is dirty, otherwise pops.
-     */
+    /** Attempts to navigate back using immediate admin and raw-email dirtiness, otherwise pops. */
     fun onBack() {
-        if (isDirtyState.value) {
+        if (_profileDirtyState.value || _emailDraftDirtyState.value) {
             _showConfirmDialogState.value = true
         } else {
             workScope.launchLoggingDropExceptions { interactor.onNavigateBack(node) }
@@ -760,12 +796,26 @@ class UserEditViewModel(
         }
     }
 
-    /** Updates the private owner-email draft after repeating raw owner, target, and mutation checks. */
+    /**
+     * Updates an admitted private owner-email draft, validating malformed nonblank input immediately.
+     * A materially changed trimmed draft begins a new edit; redundant draft events retain operation
+     * failures except for obsolete validation feedback.
+     */
     fun onEmailChanged(email: String) {
         val profile = currentProfileForEmailMutation(requireEnabledSmtp = false) ?: return
+        val materiallyChanged = _emailInputState.value.trim() != email.trim()
         _emailInputState.value = email
         _emailDraftDirtyState.value = isEmailDraftDirty(email, profile.email)
-        clearEmailOperationFeedback()
+        if (materiallyChanged) {
+            clearEmailOperationFeedback()
+        } else if (_emailErrorState.value == EmailEditorError.InvalidEmail) {
+            _emailErrorState.value = null
+        }
+        if (email.isNotBlank() && Email.parse(email).isFailure) {
+            _emailErrorState.value = EmailEditorError.InvalidEmail
+        } else if (_emailErrorState.value == EmailEditorError.InvalidEmail) {
+            _emailErrorState.value = null
+        }
     }
 
     /**
@@ -821,7 +871,7 @@ class UserEditViewModel(
                 return@launchEmailMutation
             }
 
-            when (capability) {
+            val completedProfile = when (capability) {
                 EmailCapabilityState.Enabled -> {
                     val result = if (firstProfile.emailApproved) {
                         null
@@ -840,7 +890,7 @@ class UserEditViewModel(
                     if (!canContinueEmailMutation(mutation)) return@launchEmailMutation
                     if (finalProfile == null) {
                         if (result != null && !result.isSuccessResult()) {
-                            publishVerificationResult(mutation, email, result)
+                            publishVerificationResult(mutation, email, firstProfile, result)
                         }
                         return@launchEmailMutation
                     }
@@ -853,10 +903,11 @@ class UserEditViewModel(
                         return@launchEmailMutation
                     }
                     if (result != null) {
-                        publishVerificationResult(mutation, email, result)
+                        publishVerificationResult(mutation, email, finalProfile, result)
                     }
+                    finalProfile
                 }
-                EmailCapabilityState.Disabled -> Unit
+                EmailCapabilityState.Disabled -> firstProfile
                 EmailCapabilityState.Unknown,
                 EmailCapabilityState.Loading,
                 EmailCapabilityState.Failed -> return@launchEmailMutation
@@ -864,7 +915,7 @@ class UserEditViewModel(
             if (!canContinueEmailMutation(mutation)) return@launchEmailMutation
             _emailInputState.value = email.string
             _emailDraftDirtyState.value = false
-            _emailSavedState.value = email
+            publishEmailSaved(mutation, completedProfile)
         }
     }
 
@@ -889,7 +940,7 @@ class UserEditViewModel(
             if (!canContinueEmailMutation(mutation)) return@launchEmailMutation
             if (finalProfile == null) {
                 if (!result.isSuccessResult()) {
-                    publishVerificationResult(mutation, email, result)
+                    publishVerificationResult(mutation, email, profile, result)
                 }
                 return@launchEmailMutation
             }
@@ -899,7 +950,7 @@ class UserEditViewModel(
                 _emailErrorState.value = EmailEditorError.EmailChanged
                 return@launchEmailMutation
             }
-            publishVerificationResult(mutation, email, result)
+            publishVerificationResult(mutation, email, finalProfile, result)
         }
     }
 
@@ -985,6 +1036,17 @@ enum class EmailCapabilityState {
     val allowsStorage: Boolean
         get() = this == Enabled || this == Disabled
 }
+
+/**
+ * Exact checked private-email state supporting one completed storage or delivery publication.
+ *
+ * @property email Non-null recipient read from the matching private owner record.
+ * @property emailApproved Approval value read with [email] from the same private owner record.
+ */
+private data class EmailFeedbackSnapshot(
+    val email: Email,
+    val emailApproved: Boolean,
+)
 
 /**
  * Observed caller, authorization, and selected-target snapshot used to invalidate private work.

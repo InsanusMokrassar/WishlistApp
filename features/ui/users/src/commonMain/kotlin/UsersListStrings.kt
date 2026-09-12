@@ -229,7 +229,7 @@ object UsersListStrings {
         IetfLang.Russian("Этот email-адрес уже подтверждён.")
     }
 
-    /** Server result: SMTP delivery is unavailable. */
+    /** Confirmed Disabled delivery capability or server result: SMTP delivery is unavailable. */
     val emailVerificationUnavailable = buildStringResource("Email delivery is unavailable.") {
         IetfLang.Russian("Отправка email недоступна.")
     }
