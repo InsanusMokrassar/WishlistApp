@@ -19,7 +19,7 @@ Client-only UI scenario for gift booking, extracted from `features/ui/wishlist` 
 
 | Type | Description |
 |------|-------------|
-| `BookingModel` | Interface wrapping `features/booking/client` `BookingFeature`; methods `getBookingState(itemId)`, `bookItem(itemId)` → `BookingFeature.tryBook`, `cancelBooking(itemId)` → `BookingFeature.cancelBooking`, `myPresentsBooks(): List<BookingFeatureItem>`. Single anonymous impl in the feature's common `Plugin.kt`. |
+| `BookingModel` | Interface wrapping `features/booking/client` `BookingFeature`; methods `getBookingState(itemId)`, `bookItem(itemId)` → `BookingFeature.tryBook`, `cancelBooking(itemId)` → `BookingFeature.cancelBooking`, `myPresentsBooks(): List<BookingFeatureItem>`. `DefaultBookingModel` receives `BookingFeature` privately and is registered as an interface `single` in the feature's common `Plugin.kt`. |
 | `MyPresentsBooksViewInteractor` | `suspend fun onSelectReserved(config)` wires view B to sidebar "Reserved" entry; impl in `client/ClientPlugin`. |
 
 > `BookingViewInteractor` was REMOVED: view A is embedded inline with no back navigation, so `BookingViewModel` takes only `(node, model)` and the `client/ClientPlugin` binding is gone.
