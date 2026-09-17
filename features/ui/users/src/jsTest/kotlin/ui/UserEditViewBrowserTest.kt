@@ -120,7 +120,7 @@ class UserEditViewBrowserTest {
             fixture.awaitRender()
             fixture.awaitRender()
             val requestButton = requireNotNull(fixture.passwordChangeRequestButton())
-            assertNotNull(fixture.host.querySelector("#settings-email"))
+            assertNotNull(fixture.host.querySelector(".fieldset #settings-email"))
             fixture.awaitRenderedState("enabled owner password-change action") { !requestButton.disabled }
             assertFalse(requestButton.disabled)
 
