@@ -2,7 +2,10 @@ package dev.inmo.wishlist.features.ui.sidebar.ui
 
 import dev.inmo.micro_utils.common.MPPFile
 import dev.inmo.wishlist.features.auth.common.models.AuthFeatureUser
+import dev.inmo.wishlist.features.auth.common.models.CompletePasswordChangeRequest
 import dev.inmo.wishlist.features.auth.common.models.Password
+import dev.inmo.wishlist.features.auth.common.models.PasswordChangeEmailRequestResult
+import dev.inmo.wishlist.features.auth.common.models.PasswordChangeResult
 import dev.inmo.wishlist.features.booking.common.models.BookingFeatureItem
 import dev.inmo.wishlist.features.booking.common.models.BookingState
 import dev.inmo.wishlist.features.currency.common.models.CurrencyCode
@@ -146,6 +149,8 @@ class SidebarModelTest {
         override suspend fun isEmailFeatureEnabled(): Boolean = error("unused")
         override suspend fun setMyEmail(email: Email?): Boolean = error("unused")
         override suspend fun requestMyEmailVerification(expectedEmail: Email): EmailVerificationRequestResult = error("unused")
+        override suspend fun requestPasswordChangeEmail(expectedEmail: Email): PasswordChangeEmailRequestResult? = error("unused")
+        override suspend fun completePasswordChange(request: CompletePasswordChangeRequest): PasswordChangeResult? = error("unused")
         override suspend fun updateUsername(id: UserId, username: Username): Boolean = error("unused")
         override suspend fun setPassword(id: UserId, password: Password): Boolean = error("unused")
         override suspend fun deleteUser(id: UserId): Boolean = error("unused")

@@ -53,10 +53,13 @@ import dev.inmo.wishlist.features.common.server.configurators.ContentNegotiation
 import dev.inmo.wishlist.features.common.server.configurators.InternalApplicationRoutingConfigurator
 import dev.inmo.wishlist.features.common.server.models.Config
 import dev.inmo.wishlist.features.common.server.models.KtorConfig
+import dev.inmo.wishlist.features.common.server.utils.installSanitizedUnhandledErrorBoundary
+import dev.inmo.wishlist.features.common.server.utils.safeCallLogLine
 import io.ktor.http.HttpStatusCode
 import java.io.File
 
 object JVMPlugin : StartPlugin {
+    /** Registers JVM Ktor infrastructure including the sanitized global StatusPages boundary. */
     override fun Module.setupDI(config: JsonObject) {
         with(JVMPlugin) { setupDI(config) }
         with(Plugin) { setupDI(config) }
@@ -94,6 +97,11 @@ object JVMPlugin : StartPlugin {
             )
         }
         single { InternalApplicationRoutingConfigurator(getAllDistinct()) }
+        singleWithRandomQualifier<StatusPagesConfigurator.Element> {
+            StatusPagesConfigurator.Element {
+                installSanitizedUnhandledErrorBoundary()
+            }
+        }
         singleWithRandomQualifier<KtorApplicationConfigurator> { StatusPagesConfigurator(getAllDistinct()) }
         singleWithRandomQualifier<KtorApplicationConfigurator> { ApplicationCachingHeadersConfigurator(getAllDistinct()) }
         singleWithRandomQualifier<KtorApplicationConfigurator> { ApplicationSessionsConfigurator(getAllDistinct()) }
@@ -142,6 +150,7 @@ object JVMPlugin : StartPlugin {
                                 Level.WARN
                             }
                             this.logger = LoggerFactory.getLogger("Ktor")
+                            format { call -> safeCallLogLine(call) }
                         }
                     }
                 )
@@ -176,6 +185,7 @@ object JVMPlugin : StartPlugin {
         }
     }
 
+    /** Starts the common JVM server plugin after all Ktor bindings are installed. */
     override suspend fun startPlugin(koin: Koin) {
         super.startPlugin(koin)
         JVMPlugin.startPlugin(koin)

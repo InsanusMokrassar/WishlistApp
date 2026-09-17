@@ -6,6 +6,8 @@ import dev.inmo.navigation.core.NavigationNodeFactory
 import dev.inmo.wishlist.features.common.client.models.ViewConfig
 import dev.inmo.wishlist.features.ui.users.ui.UserEditView
 import dev.inmo.wishlist.features.ui.users.ui.UserEditViewConfig
+import dev.inmo.wishlist.features.ui.users.ui.PasswordChangeView
+import dev.inmo.wishlist.features.ui.users.ui.PasswordChangeViewConfig
 import dev.inmo.wishlist.features.ui.users.ui.UserView
 import dev.inmo.wishlist.features.ui.users.ui.UserViewConfig
 import dev.inmo.wishlist.features.ui.users.ui.UsersListView
@@ -14,8 +16,9 @@ import kotlinx.serialization.json.JsonObject
 import org.koin.core.Koin
 import org.koin.core.module.Module
 
-/** JVM startup plugin — registers the users list, profile view and profile edit node factories. */
+/** JVM startup plugin registering list, profile, editor, and pending/completed password factories. */
 object JVMPlugin : StartPlugin {
+    /** Delegates shared users bindings and registers all four Compose Material node factories. */
     override fun Module.setupDI(config: JsonObject) {
         with(Plugin) { setupDI(config) }
 
@@ -34,8 +37,14 @@ object JVMPlugin : StartPlugin {
                 UserEditView(chain, cfg)
             }
         }
+        singleWithRandomQualifier<NavigationNodeFactory<ViewConfig>> {
+            NavigationNodeFactory.Typed<PasswordChangeViewConfig, ViewConfig> { chain, cfg ->
+                PasswordChangeView(chain, cfg)
+            }
+        }
     }
 
+    /** Starts shared users feature initialization after platform registrations are available. */
     override suspend fun startPlugin(koin: Koin) {
         super.startPlugin(koin)
         Plugin.startPlugin(koin)

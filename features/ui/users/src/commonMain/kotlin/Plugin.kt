@@ -3,11 +3,14 @@ package dev.inmo.wishlist.features.ui.users
 import dev.inmo.micro_utils.koin.singleWithRandomQualifier
 import dev.inmo.micro_utils.startup.plugin.StartPlugin
 import dev.inmo.wishlist.features.admin.client.AdminFeature
+import dev.inmo.wishlist.features.auth.client.PasswordChangeFeature
 import dev.inmo.wishlist.features.auth.client.meStateFlow
 import dev.inmo.wishlist.features.common.client.models.ViewConfig
 import dev.inmo.wishlist.features.files.client.FilesClientService
 import dev.inmo.wishlist.features.users.client.UsersFeature
 import dev.inmo.wishlist.features.ui.users.ui.DefaultUsersModel
+import dev.inmo.wishlist.features.ui.users.ui.PasswordChangeViewConfig
+import dev.inmo.wishlist.features.ui.users.ui.PasswordChangeViewModel
 import dev.inmo.wishlist.features.ui.users.ui.UserEditViewConfig
 import dev.inmo.wishlist.features.ui.users.ui.UserEditViewModel
 import dev.inmo.wishlist.features.ui.users.ui.UserViewConfig
@@ -38,16 +41,22 @@ object Plugin : StartPlugin {
                 polymorphic(ViewConfig::class, UserViewConfig::class, UserViewConfig.serializer())
                 polymorphic(Any::class, UserEditViewConfig::class, UserEditViewConfig.serializer())
                 polymorphic(ViewConfig::class, UserEditViewConfig::class, UserEditViewConfig.serializer())
+                polymorphic(Any::class, PasswordChangeViewConfig.Pending::class, PasswordChangeViewConfig.Pending.serializer())
+                polymorphic(Any::class, PasswordChangeViewConfig.Completed::class, PasswordChangeViewConfig.Completed.serializer())
+                polymorphic(ViewConfig::class, PasswordChangeViewConfig.Pending::class, PasswordChangeViewConfig.Pending.serializer())
+                polymorphic(ViewConfig::class, PasswordChangeViewConfig.Completed::class, PasswordChangeViewConfig.Completed.serializer())
             }
         }
         factory { UsersListViewModel(node = it.get(), model = get(), interactor = get()) }
         factory { UserViewModel(node = it.get(), model = get(), interactor = get()) }
         factory { UserEditViewModel(node = it.get(), model = get(), interactor = get()) }
+        factory { PasswordChangeViewModel(node = it.get(), model = get(), interactor = get()) }
         single<UsersModel> {
             DefaultUsersModel(
                 feature = get(),
                 authFeature = get(),
                 emailFeature = get(),
+                passwordChangeFeature = get(),
                 meState = meStateFlow,
                 adminFeature = get(),
                 filesService = get(),

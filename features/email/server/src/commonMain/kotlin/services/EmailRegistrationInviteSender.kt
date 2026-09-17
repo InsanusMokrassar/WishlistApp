@@ -7,11 +7,12 @@ import dev.inmo.wishlist.features.deeplinks.server.services.DeepLinksService
 import dev.inmo.wishlist.features.email.server.EmailsService
 import dev.inmo.wishlist.features.email.server.models.EmailVerification
 import dev.inmo.wishlist.features.email.server.models.EmailVerificationPayload
+import dev.inmo.wishlist.features.email.server.utils.buildPublicDeepLinkUrl
+import dev.inmo.wishlist.features.email.server.utils.normalizePublicHttpOrigin
 import dev.inmo.wishlist.features.users.common.models.RegisteredUser
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.withContext
-import java.net.URI
 
 /**
  * Creates an email-verification deeplink and delivers its absolute URL through SMTP.
@@ -97,32 +98,4 @@ class EmailRegistrationInviteSender(
 internal fun buildEmailVerificationUrl(
     publicHttpOrigin: String,
     deeplinkId: DeepLinkId,
-): String = "${normalizePublicHttpOrigin(publicHttpOrigin)}/api/links/${deeplinkId.string}"
-
-/**
- * Validates and normalizes the public origin used in verification messages.
- *
- * @param publicHttpOrigin Candidate absolute origin.
- * @return Origin normalized without a trailing slash.
- * @throws IllegalArgumentException When the value is not a plain absolute HTTP(S) origin.
- */
-internal fun normalizePublicHttpOrigin(publicHttpOrigin: String): String {
-    require(publicHttpOrigin.isNotBlank()) { "publicHttpOrigin must not be blank" }
-    val uri = try {
-        URI(publicHttpOrigin)
-    } catch (error: Exception) {
-        throw IllegalArgumentException("publicHttpOrigin must be a valid absolute URI", error)
-    }
-    val scheme = uri.scheme?.lowercase()
-    require(scheme == "http" || scheme == "https") {
-        "publicHttpOrigin must use http or https"
-    }
-    require(!uri.host.isNullOrBlank()) { "publicHttpOrigin must contain a host" }
-    require(uri.rawUserInfo == null) { "publicHttpOrigin must not contain credentials" }
-    require(uri.rawQuery == null) { "publicHttpOrigin must not contain a query" }
-    require(uri.rawFragment == null) { "publicHttpOrigin must not contain a fragment" }
-    require(uri.rawPath.isNullOrEmpty() || uri.rawPath == "/") {
-        "publicHttpOrigin must not contain a path"
-    }
-    return "$scheme://${uri.rawAuthority}"
-}
+): String = buildPublicDeepLinkUrl(publicHttpOrigin, deeplinkId)
