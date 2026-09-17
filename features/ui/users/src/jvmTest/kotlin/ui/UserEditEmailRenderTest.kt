@@ -40,8 +40,9 @@ class UserEditEmailRenderTest {
         val owner = AuthFeatureUser(
             ownerId,
             Username("owner"),
-            email = Email("saved@example.com"),
-            emailApproved = false,
+            email = Email("approved@example.com"),
+            emailApproved = true,
+            pendingEmail = Email("pending@example.com"),
         )
         val compositionScheduler = TestCoroutineScheduler()
         val testBodyScheduler = TestCoroutineScheduler()
@@ -70,6 +71,7 @@ class UserEditEmailRenderTest {
                 awaitIdle()
 
                 onNodeWithTag("settings-email-saved").assertExists().assertIsDisplayed()
+                onNodeWithTag("settings-email-pending").assertExists().assertIsDisplayed()
                 onNodeWithTag("settings-email").assertExists().assertIsDisplayed()
                 onNodeWithText(UsersListStrings.emailPendingApproval.translation()).assertExists()
                 onNodeWithText(UsersListStrings.refreshEmailButton.translation()).assertExists()

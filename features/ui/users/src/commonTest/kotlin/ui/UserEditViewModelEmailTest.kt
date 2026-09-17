@@ -3,6 +3,8 @@ package dev.inmo.wishlist.features.ui.users.ui
 import dev.inmo.navigation.core.NavigationNodeState
 import dev.inmo.wishlist.features.auth.common.models.AuthFeatureUser
 import dev.inmo.wishlist.features.email.common.models.Email
+import dev.inmo.wishlist.features.email.common.models.EmailChangeCooldown
+import dev.inmo.wishlist.features.email.common.models.EmailChangeCooldownException
 import dev.inmo.wishlist.features.email.common.models.EmailVerificationRequestResult
 import dev.inmo.wishlist.features.users.common.models.UserId
 import dev.inmo.wishlist.features.users.common.models.Username
@@ -2648,6 +2650,109 @@ class UserEditViewModelEmailTest {
             } finally {
                 viewModel.scope.cancel()
             }
+        }
+    }
+
+    /** Keeps the approved current address separate from a pending verification candidate and draft. */
+    @Test
+    fun approvedCurrentPendingCandidateAndDraftRemainDistinct() = runTest {
+        val current = Email("approved@example.com")
+        val pending = Email("pending@example.com")
+        val replacement = Email("replacement@example.com")
+        val model = UserEditTestUsersModel(
+            ownerId,
+            owner.copy(email = current, emailApproved = true, pendingEmail = pending),
+        ).apply {
+            saveEmailHandler = { email ->
+                profileState.value = profileState.value?.copy(pendingEmail = email)
+                true
+            }
+        }
+        val viewModel = UserEditViewModel(
+            userEditTestNode(ownerId),
+            model,
+            RecordingUserEditInteractor(),
+            StandardTestDispatcher(testScheduler),
+        )
+        try {
+            advanceUntilIdle()
+            assertEquals(pending.string, viewModel.emailInputState.value)
+            viewModel.onResendEmailVerification()
+            advanceUntilIdle()
+            assertEquals(listOf(pending), model.requestedEmails)
+
+            model.requestedEmails.clear()
+            viewModel.onEmailChanged(replacement.string)
+            viewModel.onSaveEmail()
+            advanceUntilIdle()
+            assertEquals(current, viewModel.ownEmailProfileState.value?.email)
+            assertEquals(replacement, viewModel.ownEmailProfileState.value?.pendingEmail)
+            assertEquals(replacement.string, viewModel.emailInputState.value)
+            assertEquals(listOf(replacement), model.requestedEmails)
+        } finally {
+            viewModel.scope.cancel()
+        }
+    }
+
+    /** Re-evaluates the deadline on refresh even when the private profile itself is equal. */
+    @Test
+    fun refreshAtDeadlineReenablesEmailChangeForEqualProfile() = runTest {
+        var now = 999L
+        val profile = owner.copy(email = Email("approved@example.com"), emailApproved = true, emailChangeAllowedAt = 1000L)
+        val model = UserEditTestUsersModel(ownerId, profile)
+        val viewModel = UserEditViewModel(
+            userEditTestNode(ownerId),
+            model,
+            RecordingUserEditInteractor(),
+            StandardTestDispatcher(testScheduler),
+            nowMillis = { now },
+        )
+        try {
+            advanceUntilIdle()
+            assertFalse(viewModel.canMutateOwnEmailState.value)
+            assertEquals(1000L, viewModel.emailChangeRestrictionState.value)
+            now = 1000L
+            viewModel.onRefreshEmail()
+            advanceUntilIdle()
+            assertTrue(viewModel.canMutateOwnEmailState.value)
+            assertNull(viewModel.emailChangeRestrictionState.value)
+        } finally {
+            viewModel.scope.cancel()
+        }
+    }
+
+    /** Treats a typed server cooldown as authoritative, preserves the raw draft, and never posts. */
+    @Test
+    fun typedCooldownRejectionPreservesDraftAndNeverSendsVerification() = runTest {
+        val replacement = Email("replacement@example.com")
+        val deadline = 20_000L
+        val model = UserEditTestUsersModel(
+            ownerId,
+            owner.copy(email = Email("approved@example.com"), emailApproved = true),
+        ).apply {
+            saveEmailHandler = {
+                profileState.value = profileState.value?.copy(emailChangeAllowedAt = deadline)
+                throw EmailChangeCooldownException(EmailChangeCooldown(deadline))
+            }
+        }
+        val viewModel = UserEditViewModel(
+            userEditTestNode(ownerId),
+            model,
+            RecordingUserEditInteractor(),
+            StandardTestDispatcher(testScheduler),
+            nowMillis = { 10_000L },
+        )
+        try {
+            advanceUntilIdle()
+            viewModel.onEmailChanged(replacement.string)
+            viewModel.onSaveEmail()
+            advanceUntilIdle()
+            assertEquals(replacement.string, viewModel.emailInputState.value)
+            assertEquals(deadline, viewModel.emailChangeRestrictionState.value)
+            assertTrue(model.requestedEmails.isEmpty())
+            assertEquals(2, model.profileReads)
+        } finally {
+            viewModel.scope.cancel()
         }
     }
 }

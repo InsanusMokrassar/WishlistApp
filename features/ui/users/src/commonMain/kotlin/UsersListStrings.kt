@@ -159,16 +159,28 @@ object UsersListStrings {
         IetfLang.Russian("Email сохранён.")
     }
 
-    /** Label separating the authoritative stored address from an editable replacement draft. */
-    val savedEmailLabel = buildStringResource("Saved email") {
-        IetfLang.Russian("Сохранённый email")
+    /** Label separating the authoritative current address from an editable replacement draft. */
+    val savedEmailLabel = buildStringResource("Current email") {
+        IetfLang.Russian("Текущий email")
     }
 
-    /** Explains that replacing an existing address resets its approval state. */
+    /** Label for a stored replacement address that is not active until approval. */
+    val pendingEmailLabel = buildStringResource("Pending email replacement") {
+        IetfLang.Russian("Новый email ожидает подтверждения")
+    }
+
+    /** Explains that the approved address remains usable during replacement verification. */
     val emailReplacementNeedsVerification = buildStringResource(
-        "Replacing the address requires verification again."
+        "Your current approved address remains active until the replacement is verified."
     ) {
-        IetfLang.Russian("После смены адреса потребуется повторное подтверждение.")
+        IetfLang.Russian("Текущий подтверждённый адрес остаётся активным до подтверждения нового.")
+    }
+
+    /** Explains the durable cooldown and tells the owner how to recheck eligibility. */
+    val emailChangeCooldown = buildStringResource(
+        "You can change your email after %s UTC. Refresh the status after that time."
+    ) {
+        IetfLang.Russian("Вы сможете изменить email после %s UTC. После этого обновите статус.")
     }
 
     /** Explains why an active owner-email operation stopped before publication. */

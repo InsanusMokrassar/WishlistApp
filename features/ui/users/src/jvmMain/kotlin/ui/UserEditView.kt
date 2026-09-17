@@ -38,6 +38,7 @@ import dev.inmo.wishlist.features.common.client.ui.components.BackButton
 import dev.inmo.wishlist.features.email.common.models.EmailVerificationRequestResult
 import dev.inmo.wishlist.features.ui.topBar.ui.TopBarTitleProvider
 import dev.inmo.wishlist.features.ui.users.UsersListStrings
+import dev.inmo.wishlist.features.ui.users.utils.emailChangeDeadlineText
 import dev.inmo.wishlist.features.ui.users.utils.pickImageFile
 import androidx.compose.runtime.rememberCoroutineScope
 import kotlinx.coroutines.launch
@@ -262,6 +263,7 @@ internal fun OwnerEmailEditor(
     val emailVerificationResult by viewModel.emailVerificationResultState.collectAsState()
     val emailSaved by viewModel.emailSavedState.collectAsState()
     val emailOperationInterrupted by viewModel.emailOperationInterruptedState.collectAsState()
+    val emailChangeRestriction by viewModel.emailChangeRestrictionState.collectAsState()
     val canRenderOwnEmail =
         canManageOwnEmail &&
             currentConfig.userId == viewModel.userId &&
@@ -278,12 +280,13 @@ internal fun OwnerEmailEditor(
                 )
             }
             else -> {
-                val savedEmail = ownEmailProfile?.email
-                if (savedEmail == null) {
+                val currentEmail = ownEmailProfile?.email
+                val pendingEmail = ownEmailProfile?.pendingEmail
+                if (currentEmail == null) {
                     Text(UsersListStrings.emailMissing.translation())
                 } else {
                     OutlinedTextField(
-                        value = savedEmail.string,
+                        value = currentEmail.string,
                         onValueChange = {},
                         label = { Text(UsersListStrings.savedEmailLabel.translation()) },
                         singleLine = true,
@@ -298,6 +301,18 @@ internal fun OwnerEmailEditor(
                             UsersListStrings.emailPendingApproval.translation()
                         }
                     )
+                }
+                if (pendingEmail != null) {
+                    OutlinedTextField(
+                        value = pendingEmail.string,
+                        onValueChange = {},
+                        label = { Text(UsersListStrings.pendingEmailLabel.translation()) },
+                        singleLine = true,
+                        enabled = false,
+                        readOnly = true,
+                        modifier = Modifier.fillMaxWidth().testTag("settings-email-pending"),
+                    )
+                    Text(UsersListStrings.emailPendingApproval.translation())
                     Text(UsersListStrings.emailReplacementNeedsVerification.translation())
                 }
                 OutlinedTextField(
@@ -329,8 +344,7 @@ internal fun OwnerEmailEditor(
                     )
                 }
                 if (
-                    savedEmail != null &&
-                    !ownEmailProfile!!.emailApproved &&
+                    (pendingEmail != null || (currentEmail != null && !ownEmailProfile!!.emailApproved)) &&
                     emailCapability == EmailCapabilityState.Enabled
                 ) {
                     OutlinedButton(
@@ -362,6 +376,13 @@ internal fun OwnerEmailEditor(
             Text(
                 UsersListStrings.emailLoadFailed.translation(),
                 color = MaterialTheme.colors.error,
+            )
+        }
+        emailChangeRestriction?.let { deadline ->
+            Text(
+                UsersListStrings.emailChangeCooldown.translation().replace("%s", emailChangeDeadlineText(deadline)),
+                color = MaterialTheme.colors.error,
+                modifier = Modifier.testTag("settings-email-cooldown"),
             )
         }
         emailSaved?.let {

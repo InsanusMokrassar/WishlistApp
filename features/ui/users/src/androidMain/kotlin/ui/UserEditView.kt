@@ -38,6 +38,7 @@ import dev.inmo.wishlist.features.common.client.ui.components.BackButton
 import dev.inmo.wishlist.features.email.common.models.EmailVerificationRequestResult
 import dev.inmo.wishlist.features.ui.topBar.ui.TopBarTitleProvider
 import dev.inmo.wishlist.features.ui.users.UsersListStrings
+import dev.inmo.wishlist.features.ui.users.utils.emailChangeDeadlineText
 import dev.inmo.wishlist.features.ui.users.utils.pickImageFile
 import kotlinx.coroutines.launch
 import org.koin.core.component.inject
@@ -84,6 +85,7 @@ class UserEditView(
         val emailVerificationResult by viewModel.emailVerificationResultState.collectAsState()
         val emailSaved by viewModel.emailSavedState.collectAsState()
         val emailOperationInterrupted by viewModel.emailOperationInterruptedState.collectAsState()
+        val emailChangeRestriction by viewModel.emailChangeRestrictionState.collectAsState()
         val profileSaveError by viewModel.profileSaveErrorState.collectAsState()
         val showDiscard by viewModel.showConfirmDialogState.collectAsState()
         val showDelete by viewModel.showDeleteDialogState.collectAsState()
@@ -184,12 +186,13 @@ class UserEditView(
                         )
                     }
                     else -> {
-                        val savedEmail = ownEmailProfile?.email
-                        if (savedEmail == null) {
+                        val currentEmail = ownEmailProfile?.email
+                        val pendingEmail = ownEmailProfile?.pendingEmail
+                        if (currentEmail == null) {
                             Text(UsersListStrings.emailMissing.translation(resources))
                         } else {
                             OutlinedTextField(
-                                value = savedEmail.string,
+                                value = currentEmail.string,
                                 onValueChange = {},
                                 label = { Text(UsersListStrings.savedEmailLabel.translation(resources)) },
                                 singleLine = true,
@@ -204,6 +207,18 @@ class UserEditView(
                                     UsersListStrings.emailPendingApproval.translation(resources)
                                 }
                             )
+                        }
+                        if (pendingEmail != null) {
+                            OutlinedTextField(
+                                value = pendingEmail.string,
+                                onValueChange = {},
+                                label = { Text(UsersListStrings.pendingEmailLabel.translation(resources)) },
+                                singleLine = true,
+                                enabled = false,
+                                readOnly = true,
+                                modifier = Modifier.fillMaxWidth(),
+                            )
+                            Text(UsersListStrings.emailPendingApproval.translation(resources))
                             Text(UsersListStrings.emailReplacementNeedsVerification.translation(resources))
                         }
                         OutlinedTextField(
@@ -235,8 +250,7 @@ class UserEditView(
                             )
                         }
                         if (
-                            savedEmail != null &&
-                            !ownEmailProfile!!.emailApproved &&
+                            (pendingEmail != null || (currentEmail != null && !ownEmailProfile!!.emailApproved)) &&
                             emailCapability == EmailCapabilityState.Enabled
                         ) {
                             OutlinedButton(
@@ -267,6 +281,13 @@ class UserEditView(
                 if (emailLoadFailed && ownEmailProfile != null) {
                     Text(
                         UsersListStrings.emailLoadFailed.translation(resources),
+                        color = MaterialTheme.colorScheme.error,
+                    )
+                }
+                emailChangeRestriction?.let { deadline ->
+                    Text(
+                        UsersListStrings.emailChangeCooldown.translation(resources)
+                            .replace("%s", emailChangeDeadlineText(deadline)),
                         color = MaterialTheme.colorScheme.error,
                     )
                 }
