@@ -27,6 +27,7 @@ import kotlinx.coroutines.sync.withLock
 class EmailVerificationAccountCoordinator(
     private val usersRepo: UsersRepo,
     private val rolesRepo: RolesRepo,
+    private val cooldownMillis: Long = 0,
 ) {
     /** Process-local serialization boundary shared by mutation and verification. */
     private val mutex = Mutex()
@@ -41,8 +42,7 @@ class EmailVerificationAccountCoordinator(
      * when [email] belongs to another user; the repository exception propagates unchanged.
      */
     suspend fun updateStoredEmail(userId: UserId, email: Email?): Boolean = mutex.withLock {
-        val user = usersRepo.getById(userId) ?: return@withLock false
-        usersRepo.update(userId, NewUser(user.username, email)) != null
+        usersRepo.setEmail(userId, email) != null
     }
 
     /**
@@ -68,8 +68,7 @@ class EmailVerificationAccountCoordinator(
      * @return `true` when persisted, `false` on an unexpected failed update, or `null` when absent.
      */
     suspend fun updateUsername(userId: UserId, username: Username): Boolean? = mutex.withLock {
-        val user = usersRepo.getById(userId) ?: return@withLock null
-        usersRepo.update(userId, NewUser(username, user.email)) != null
+        usersRepo.updateUsername(userId, username) != null
     }
 
     /**
@@ -100,9 +99,7 @@ class EmailVerificationAccountCoordinator(
     suspend fun verifyInvitedEmailAndPromote(userId: UserId, invitedEmail: Email?): Boolean =
         mutex.withLock {
             val expectedEmail = invitedEmail ?: return@withLock false
-            val user = usersRepo.getById(userId) ?: return@withLock false
-            if (user.email != expectedEmail) return@withLock false
-            if (usersRepo.approveEmail(userId, expectedEmail) == null) return@withLock false
+            if (usersRepo.approveEmail(userId, expectedEmail, cooldownMillis) == null) return@withLock false
             promoteNewUserToUser(rolesRepo, userId)
         }
 }

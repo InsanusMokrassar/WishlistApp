@@ -51,6 +51,8 @@ class UsersFeatureUserTest {
         val restored = original.asUsersFeatureUser().asRegisteredUser(
             email = original.email,
             emailApproved = original.emailApproved,
+            pendingEmail = original.pendingEmail,
+            emailChangeAllowedAt = original.emailChangeAllowedAt,
         )
 
         assertEquals(original, restored)
@@ -61,7 +63,12 @@ class UsersFeatureUserTest {
     fun reverseMapperPreservesNullEmailRoundTrip() {
         val original = RegisteredUser(UserId(8L), Username("carol"), null)
 
-        val restored = original.asUsersFeatureUser().asRegisteredUser(email = null, emailApproved = false)
+        val restored = original.asUsersFeatureUser().asRegisteredUser(
+            email = null,
+            emailApproved = false,
+            pendingEmail = null,
+            emailChangeAllowedAt = null,
+        )
 
         assertEquals(original, restored)
     }

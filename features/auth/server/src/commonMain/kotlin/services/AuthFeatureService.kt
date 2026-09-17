@@ -117,7 +117,7 @@ class AuthFeatureService(
             val entry = tokens.get(token) ?: return null
             if (entry.issued + tokenTtl > DateTime.now()) {
                 if (!hasUserRole(entry.id)) return null
-                return usersRepo.getById(entry.id)?.asAuthFeatureUser()
+                return usersRepo.getByIdFresh(entry.id)?.asAuthFeatureUser()
             }
             return null
         }

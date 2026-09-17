@@ -17,6 +17,11 @@ import dev.inmo.wishlist.features.email.common.models.Email
  * KDoc for the full propagation path.
  */
 interface WriteUsersRepo : WriteCRUDRepo<RegisteredUser, UserId, NewUser> {
+    /** Applies the lifecycle-aware email mutation for [id]. */
+    suspend fun setEmail(id: UserId, email: Email?): RegisteredUser?
+
+    /** Changes only the login name, preserving all email lifecycle state. */
+    suspend fun updateUsername(id: UserId, username: dev.inmo.wishlist.features.users.common.models.Username): RegisteredUser?
     /**
      * Marks the current address of [id] approved only when it still exactly equals [expectedEmail].
      *
@@ -28,5 +33,5 @@ interface WriteUsersRepo : WriteCRUDRepo<RegisteredUser, UserId, NewUser> {
      * @param expectedEmail Exact address bound into the verification link.
      * @return The current approved user, or `null` when the user is absent or the address changed.
      */
-    suspend fun approveEmail(id: UserId, expectedEmail: Email): RegisteredUser?
+    suspend fun approveEmail(id: UserId, expectedEmail: Email, cooldownMillis: Long = 0): RegisteredUser?
 }

@@ -51,9 +51,16 @@ fun RegisteredUser.asUsersFeatureUser(): UsersFeatureUser = UsersFeatureUser(
  * @return A [RegisteredUser] carrying this model's [UsersFeatureUser.id] and
  *   [UsersFeatureUser.username] plus the supplied private fields.
  */
-fun UsersFeatureUser.asRegisteredUser(email: Email?, emailApproved: Boolean): RegisteredUser = RegisteredUser(
+fun UsersFeatureUser.asRegisteredUser(
+    email: Email?,
+    emailApproved: Boolean,
+    pendingEmail: Email?,
+    emailChangeAllowedAt: Long?,
+): RegisteredUser = RegisteredUser(
     id = id,
     username = username,
     email = email,
-    emailApproved = emailApproved
+    emailApproved = emailApproved,
+    pendingEmail = pendingEmail,
+    emailChangeAllowedAt = emailChangeAllowedAt,
 )

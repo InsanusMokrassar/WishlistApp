@@ -8,6 +8,7 @@ import dev.inmo.wishlist.features.email.server.EmailsService
 import dev.inmo.wishlist.features.auth.server.RegistrationEmailDeliveryHandle
 import dev.inmo.wishlist.features.roles.server.RolesFeature
 import dev.inmo.wishlist.features.users.common.models.UserId
+import dev.inmo.wishlist.features.users.common.utils.verificationCandidate
 import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.withContext
 
@@ -97,24 +98,24 @@ class EmailFeatureService(
     ): EmailVerificationRequestResult {
         val initial = accountCoordinator.getCurrentUser(callerId)
             ?: return EmailVerificationRequestResult.NoEmail
-        val currentEmail = initial.email ?: return EmailVerificationRequestResult.NoEmail
+        val currentEmail = initial.verificationCandidate()
+        if (currentEmail == null && initial.emailApproved && initial.pendingEmail == null) return EmailVerificationRequestResult.AlreadyApproved
         if (currentEmail != expectedEmail) return EmailVerificationRequestResult.EmailChanged
-        if (initial.emailApproved) return EmailVerificationRequestResult.AlreadyApproved
 
         val sender = inviteSender ?: return EmailVerificationRequestResult.Unavailable
         val delivery = sender.sendRegistrationEmailWithCompensation(initial)
             ?: return EmailVerificationRequestResult.DeliveryFailed
         val current = accountCoordinator.getCurrentUser(callerId)
         return when {
-            current == null || current.email == null -> {
+            current == null || current.verificationCandidate() == null -> {
                 rollbackDelivery(delivery)
                 EmailVerificationRequestResult.NoEmail
             }
-            current.email != expectedEmail -> {
+            current.verificationCandidate() != expectedEmail -> {
                 rollbackDelivery(delivery)
                 EmailVerificationRequestResult.EmailChanged
             }
-            current.emailApproved -> {
+            current.emailApproved && current.pendingEmail == null -> {
                 rollbackDelivery(delivery)
                 EmailVerificationRequestResult.AlreadyApproved
             }

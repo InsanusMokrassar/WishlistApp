@@ -55,6 +55,18 @@ class CacheUsersRepo(
     override suspend fun getUserByUsername(username: Username): RegisteredUser? =
         originalRepo.getUserByUsername(username)
 
+    override suspend fun getByIdFresh(id: UserId): RegisteredUser? = originalRepo.getByIdFresh(id)
+
+    override suspend fun setEmail(id: UserId, email: Email?): RegisteredUser? =
+        originalRepo.setEmail(id, email)?.also { updated ->
+            locker.withWriteLock { kvCache.set(mapOf(updated.id to updated)) }
+        }
+
+    override suspend fun updateUsername(id: UserId, username: Username): RegisteredUser? =
+        originalRepo.updateUsername(id, username)?.also { updated ->
+            locker.withWriteLock { kvCache.set(mapOf(updated.id to updated)) }
+        }
+
     /**
      * Delegates conditional address approval to [originalRepo] and synchronously mirrors a successful
      * result into the id-keyed cache.
@@ -67,8 +79,8 @@ class CacheUsersRepo(
      * @param expectedEmail Exact address required by the backing repository.
      * @return The approved user returned by the backing repository, or `null` on a failed condition.
      */
-    override suspend fun approveEmail(id: UserId, expectedEmail: Email): RegisteredUser? {
-        val approved = originalRepo.approveEmail(id, expectedEmail) ?: return null
+    override suspend fun approveEmail(id: UserId, expectedEmail: Email, cooldownMillis: Long): RegisteredUser? {
+        val approved = originalRepo.approveEmail(id, expectedEmail, cooldownMillis) ?: return null
         locker.withWriteLock {
             kvCache.set(mapOf(approved.id to approved))
         }

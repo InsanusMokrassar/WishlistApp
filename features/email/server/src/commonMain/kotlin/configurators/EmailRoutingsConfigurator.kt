@@ -8,6 +8,8 @@ import dev.inmo.wishlist.features.email.common.models.SetEmailRequest
 import dev.inmo.wishlist.features.email.common.models.TestEmailRequest
 import dev.inmo.wishlist.features.email.common.models.EmailVerificationRequest
 import dev.inmo.wishlist.features.users.common.repo.exceptions.DuplicateUserFieldException
+import dev.inmo.wishlist.features.users.common.repo.exceptions.EmailChangeCooldownException
+import dev.inmo.wishlist.features.email.common.models.EmailChangeCooldown
 import io.ktor.http.HttpStatusCode
 import io.ktor.server.auth.authenticate
 import io.ktor.server.request.receive
@@ -67,6 +69,9 @@ class EmailRoutingsConfigurator(
                     val request = call.receive<SetEmailRequest>()
                     val updated = try {
                         feature.setMyEmail(callerId, request.email)
+                    } catch (e: EmailChangeCooldownException) {
+                        call.respond(HttpStatusCode.TooManyRequests, EmailChangeCooldown(e.emailChangeAllowedAt))
+                        return@put
                     } catch (e: DuplicateUserFieldException) {
                         call.respond(HttpStatusCode.Conflict)
                         return@put

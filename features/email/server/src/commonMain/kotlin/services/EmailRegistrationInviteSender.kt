@@ -8,6 +8,7 @@ import dev.inmo.wishlist.features.email.server.EmailsService
 import dev.inmo.wishlist.features.email.server.models.EmailVerification
 import dev.inmo.wishlist.features.email.server.models.EmailVerificationPayload
 import dev.inmo.wishlist.features.users.common.models.RegisteredUser
+import dev.inmo.wishlist.features.users.common.utils.verificationCandidate
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.withContext
@@ -53,7 +54,7 @@ class EmailRegistrationInviteSender(
     override suspend fun sendRegistrationEmailWithCompensation(
         user: RegisteredUser,
     ): RegistrationEmailDeliveryHandle? {
-        val recipient = user.email ?: return null
+        val recipient = user.verificationCandidate() ?: return null
         val links = deepLinksService ?: return null
         val emails = emailsService ?: return null
         val deeplinkId = links.createDeepLink(

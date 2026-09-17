@@ -54,5 +54,7 @@ data class RegisteredUser(
     val id: UserId,
     override val username: Username,
     override val email: Email? = null,
-    val emailApproved: Boolean = false
+    val emailApproved: Boolean = false,
+    val pendingEmail: Email? = null,
+    val emailChangeAllowedAt: Long? = null,
 ) : User

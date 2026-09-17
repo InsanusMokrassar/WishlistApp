@@ -9,12 +9,15 @@ import dev.inmo.wishlist.features.users.common.models.RegisteredUser
 import dev.inmo.wishlist.features.users.common.models.UserId
 import dev.inmo.wishlist.features.users.common.models.Username
 import dev.inmo.wishlist.features.users.common.repo.exceptions.DuplicateUserFieldException
+import dev.inmo.wishlist.features.users.common.repo.exceptions.EmailChangeCooldownException
 import org.jetbrains.exposed.v1.core.Op
 import org.jetbrains.exposed.v1.core.ResultRow
 import org.jetbrains.exposed.v1.core.and
 import org.jetbrains.exposed.v1.core.booleanLiteral
 import org.jetbrains.exposed.v1.core.case
 import org.jetbrains.exposed.v1.core.eq
+import org.jetbrains.exposed.v1.core.neq
+import org.jetbrains.exposed.v1.core.or
 import org.jetbrains.exposed.v1.core.statements.InsertStatement
 import org.jetbrains.exposed.v1.core.statements.UpdateBuilder
 import org.jetbrains.exposed.v1.exceptions.ExposedSQLException
@@ -38,7 +41,8 @@ import org.jetbrains.exposed.v1.jdbc.update as exposedUpdate
  * @param database Exposed [Database] instance (provided by the common server plugin).
  */
 class ExposedUsersRepo(
-    override val database: Database
+    override val database: Database,
+    private val nowMillis: () -> Long = System::currentTimeMillis,
 ) : UsersRepo, AbstractExposedCRUDRepo<RegisteredUser, UserId, NewUser>(tableName = "users") {
     /** Auto-increment primary key column. */
     private val idColumn = long("id").autoIncrement()
@@ -66,6 +70,12 @@ class ExposedUsersRepo(
      */
     private val emailApprovedColumn = bool("email_approved").default(false)
 
+    /** Replacement candidate retained while the current address remains approved. */
+    private val pendingEmailColumn = text("pending_email").nullable().index()
+
+    /** Nullable UTC epoch-millisecond deadline issued after a new approval. */
+    private val emailChangeAllowedAtColumn = long("email_change_allowed_at").nullable()
+
     override val primaryKey = PrimaryKey(idColumn)
 
     /**
@@ -81,7 +91,9 @@ class ExposedUsersRepo(
                 id = UserId(get(idColumn)),
                 username = Username(get(usernameColumn)),
                 email = email,
-                emailApproved = email != null && get(emailApprovedColumn)
+                emailApproved = email != null && get(emailApprovedColumn),
+                pendingEmail = get(pendingEmailColumn)?.let { Email.parse(it).getOrNull() },
+                emailChangeAllowedAt = get(emailChangeAllowedAtColumn),
             )
         }
 
@@ -135,6 +147,60 @@ class ExposedUsersRepo(
             selectAll().where { usernameColumn eq username.string }.limit(1).firstOrNull()?.asObject
         }
 
+    override suspend fun setEmail(id: UserId, email: Email?): RegisteredUser? {
+        val updated = transaction(db = database) {
+            val current = selectAll().where { idColumn eq id.long }.limit(1).firstOrNull()?.asObject
+                ?: return@transaction null
+            val changing = when {
+                email == current.email || email == current.pendingEmail -> false
+                else -> true
+            }
+            val deadline = current.emailChangeAllowedAt
+            if (changing && deadline != null && nowMillis() < deadline) throw EmailChangeCooldownException(deadline)
+            if (email != null && changing) {
+                val occupied = selectAll().where {
+                    (idColumn neq id.long) and ((emailColumn eq email.string) or (pendingEmailColumn eq email.string))
+                }.limit(1).any()
+                if (occupied) throw DuplicateUserFieldException()
+            }
+            when {
+                !changing -> current
+                email == null -> {
+                    this@ExposedUsersRepo.exposedUpdate({ idColumn eq id.long }) {
+                        it[emailColumn] = null
+                        it[pendingEmailColumn] = null
+                        it[emailApprovedColumn] = false
+                        it[emailChangeAllowedAtColumn] = null
+                    }
+                    selectAll().where { idColumn eq id.long }.limit(1).first().asObject
+                }
+                current.emailApproved && current.email != null -> {
+                    this@ExposedUsersRepo.exposedUpdate({ idColumn eq id.long }) { it[pendingEmailColumn] = email.string }
+                    selectAll().where { idColumn eq id.long }.limit(1).first().asObject
+                }
+                else -> {
+                    this@ExposedUsersRepo.exposedUpdate({ idColumn eq id.long }) {
+                        it[emailColumn] = email.string
+                        it[pendingEmailColumn] = null
+                        it[emailApprovedColumn] = false
+                    }
+                    selectAll().where { idColumn eq id.long }.limit(1).first().asObject
+                }
+            }
+        }
+        updated?.let { _updatedObjectsFlow.emit(it) }
+        return updated
+    }
+
+    override suspend fun updateUsername(id: UserId, username: Username): RegisteredUser? {
+        val updated = transaction(db = database) {
+            this@ExposedUsersRepo.exposedUpdate({ idColumn eq id.long }) { it[usernameColumn] = username.string }
+            selectAll().where { idColumn eq id.long }.limit(1).firstOrNull()?.asObject
+        }
+        updated?.let { _updatedObjectsFlow.emit(it) }
+        return updated
+    }
+
     /**
      * Persists [value] over the row identified by [id].
      *
@@ -186,16 +252,31 @@ class ExposedUsersRepo(
      * @param expectedEmail Address bound to the verification link.
      * @return The approved user, or `null` when the conditional predicate did not match.
      */
-    override suspend fun approveEmail(id: UserId, expectedEmail: Email): RegisteredUser? {
+    override suspend fun approveEmail(id: UserId, expectedEmail: Email, cooldownMillis: Long): RegisteredUser? {
         val approved = transaction(db = database) {
-            val predicate = (idColumn eq id.long) and (emailColumn eq expectedEmail.string)
-            val changed = this@ExposedUsersRepo.exposedUpdate({ predicate }) {
-                it[emailApprovedColumn] = true
-            }
-            if (changed == 0) {
-                null
-            } else {
-                selectAll().where { predicate }.limit(1).firstOrNull()?.asObject
+            val current = selectAll().where { idColumn eq id.long }.limit(1).firstOrNull()?.asObject
+                ?: return@transaction null
+            when {
+                current.pendingEmail == expectedEmail -> {
+                    val deadline = if (cooldownMillis == 0L) null else Math.addExact(nowMillis(), cooldownMillis)
+                    this@ExposedUsersRepo.exposedUpdate({ idColumn eq id.long }) {
+                        it[emailColumn] = expectedEmail.string
+                        it[pendingEmailColumn] = null
+                        it[emailApprovedColumn] = true
+                        it[emailChangeAllowedAtColumn] = deadline
+                    }
+                    selectAll().where { idColumn eq id.long }.limit(1).first().asObject
+                }
+                current.email == expectedEmail && !current.emailApproved && current.pendingEmail == null -> {
+                    val deadline = if (cooldownMillis == 0L) null else Math.addExact(nowMillis(), cooldownMillis)
+                    this@ExposedUsersRepo.exposedUpdate({ idColumn eq id.long }) {
+                        it[emailApprovedColumn] = true
+                        it[emailChangeAllowedAtColumn] = deadline
+                    }
+                    selectAll().where { idColumn eq id.long }.limit(1).first().asObject
+                }
+                current.email == expectedEmail && current.emailApproved && current.pendingEmail == null -> current
+                else -> null
             }
         }
         if (approved != null) {

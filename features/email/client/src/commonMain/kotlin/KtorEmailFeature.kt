@@ -7,6 +7,8 @@ import dev.inmo.wishlist.features.email.common.models.SetEmailRequest
 import dev.inmo.wishlist.features.email.common.models.TestEmailRequest
 import dev.inmo.wishlist.features.email.common.models.EmailVerificationRequest
 import dev.inmo.wishlist.features.email.common.models.EmailVerificationRequestResult
+import dev.inmo.wishlist.features.email.common.models.EmailChangeCooldown
+import dev.inmo.wishlist.features.email.common.models.EmailChangeCooldownException
 import io.ktor.client.HttpClient
 import io.ktor.client.call.body
 import io.ktor.client.plugins.expectSuccess
@@ -17,6 +19,7 @@ import io.ktor.client.request.setBody
 import io.ktor.http.ContentType
 import io.ktor.http.contentType
 import io.ktor.http.isSuccess
+import io.ktor.http.HttpStatusCode
 
 /**
  * HTTP-only [dev.inmo.wishlist.features.email.client.EmailFeature] implementation that forwards
@@ -79,8 +82,12 @@ class KtorEmailFeature(private val client: HttpClient) : EmailFeature {
      */
     override suspend fun setMyEmail(email: Email?): Boolean {
         val response = client.put(myEmailPath) {
+            expectSuccess = false
             contentType(ContentType.Application.Json)
             setBody(SetEmailRequest(email))
+        }
+        if (response.status == HttpStatusCode.TooManyRequests) {
+            throw EmailChangeCooldownException(response.body<EmailChangeCooldown>())
         }
         return response.status.isSuccess()
     }

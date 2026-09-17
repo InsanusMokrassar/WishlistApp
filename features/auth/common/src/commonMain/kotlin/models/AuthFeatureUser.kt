@@ -30,7 +30,9 @@ data class AuthFeatureUser(
     val id: UserId,
     val username: Username,
     val email: Email?,
-    val emailApproved: Boolean = false
+    val emailApproved: Boolean = false,
+    val pendingEmail: Email? = null,
+    val emailChangeAllowedAt: Long? = null,
 )
 
 /**
@@ -44,7 +46,9 @@ fun RegisteredUser.asAuthFeatureUser(): AuthFeatureUser = AuthFeatureUser(
     id = id,
     username = username,
     email = email,
-    emailApproved = emailApproved
+    emailApproved = emailApproved,
+    pendingEmail = pendingEmail,
+    emailChangeAllowedAt = emailChangeAllowedAt,
 )
 
 /**
@@ -59,5 +63,7 @@ fun AuthFeatureUser.asRegisteredUser(): RegisteredUser = RegisteredUser(
     id = id,
     username = username,
     email = email,
-    emailApproved = emailApproved
+    emailApproved = emailApproved,
+    pendingEmail = pendingEmail,
+    emailChangeAllowedAt = emailChangeAllowedAt,
 )

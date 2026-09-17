@@ -61,6 +61,12 @@ object Plugin : StartPlugin {
         val emailConfigElement = emailConfigElementOrNull(config)
         val serverConfig = Json { ignoreUnknownKeys = true }
             .decodeFromJsonElement(ServerConfig.serializer(), config)
+        val policy = Json { ignoreUnknownKeys = true }
+            .decodeFromJsonElement(EmailChangePolicyConfig.serializer(), config)
+        require(!policy.emailChangeCooldown.isNegative() && policy.emailChangeCooldown.isFinite()) {
+            "emailChangeCooldown must be a finite, non-negative duration"
+        }
+        val cooldownMillis = policy.emailChangeCooldown.inWholeMilliseconds
         if (emailConfigElement != null) {
             single { get<Json>().decodeFromJsonElement(EmailConfig.serializer(), emailConfigElement) }
             single { SmtpEmailService(get<EmailConfig>()) }
@@ -70,6 +76,7 @@ object Plugin : StartPlugin {
             EmailVerificationAccountCoordinator(
                 usersRepo = get<UsersRepo>(),
                 rolesRepo = get<RolesRepo>(),
+                cooldownMillis = cooldownMillis,
             )
         }
         single<EmailFeature> {

@@ -26,7 +26,9 @@ data class AdminUser(
     val id: UserId,
     val username: Username,
     val email: Email?,
-    val emailApproved: Boolean = false
+    val emailApproved: Boolean = false,
+    val pendingEmail: Email? = null,
+    val emailChangeAllowedAt: Long? = null,
 )
 
 /**
@@ -39,7 +41,9 @@ fun RegisteredUser.asAdminUser(): AdminUser = AdminUser(
     id = id,
     username = username,
     email = email,
-    emailApproved = emailApproved
+    emailApproved = emailApproved,
+    pendingEmail = pendingEmail,
+    emailChangeAllowedAt = emailChangeAllowedAt,
 )
 
 /**
@@ -54,5 +58,7 @@ fun AdminUser.asRegisteredUser(): RegisteredUser = RegisteredUser(
     id = id,
     username = username,
     email = email,
-    emailApproved = emailApproved
+    emailApproved = emailApproved,
+    pendingEmail = pendingEmail,
+    emailChangeAllowedAt = emailChangeAllowedAt,
 )
