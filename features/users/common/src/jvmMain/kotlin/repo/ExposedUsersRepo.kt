@@ -1,5 +1,6 @@
 package dev.inmo.wishlist.features.users.common.repo
 
+import dev.inmo.micro_utils.repos.UpdatedValuePair
 import dev.inmo.micro_utils.repos.exposed.AbstractExposedCRUDRepo
 import dev.inmo.micro_utils.repos.exposed.initTable
 import dev.inmo.wishlist.features.email.common.models.Email
@@ -18,12 +19,35 @@ import org.jetbrains.exposed.v1.core.case
 import org.jetbrains.exposed.v1.core.eq
 import org.jetbrains.exposed.v1.core.neq
 import org.jetbrains.exposed.v1.core.or
+import org.jetbrains.exposed.v1.core.Table
 import org.jetbrains.exposed.v1.core.statements.InsertStatement
 import org.jetbrains.exposed.v1.core.statements.UpdateBuilder
 import org.jetbrains.exposed.v1.exceptions.ExposedSQLException
 import org.jetbrains.exposed.v1.jdbc.Database
+import org.jetbrains.exposed.v1.jdbc.JdbcTransaction
+import org.jetbrains.exposed.v1.jdbc.SchemaUtils
+import org.jetbrains.exposed.v1.jdbc.deleteWhere
+import org.jetbrains.exposed.v1.jdbc.insert
+import org.jetbrains.exposed.v1.jdbc.insertIgnore
 import org.jetbrains.exposed.v1.jdbc.transactions.transaction
 import org.jetbrains.exposed.v1.jdbc.update as exposedUpdate
+
+/**
+ * Singleton database-owned mutex for all participating users writers.
+ *
+ * The row with [idColumn] equal to one is updated as the first database operation in every users
+ * write transaction. PostgreSQL row locking and SQLite's single-writer reservation then serialize
+ * raw cross-slot uniqueness checks and the matching mutation across repository instances.
+ */
+private object UsersWriteLockTable : Table("users_write_lock") {
+    /** Stable singleton row identifier. */
+    val idColumn = integer("id")
+
+    /** Value rewritten by a lock acquisition without changing persistent state. */
+    val markerColumn = integer("marker")
+
+    override val primaryKey = PrimaryKey(idColumn)
+}
 
 /**
  * Exposed-backed PostgreSQL and SQLite implementation of [UsersRepo].
@@ -34,9 +58,9 @@ import org.jetbrains.exposed.v1.jdbc.update as exposedUpdate
  * `NULL`; `NULL` values are exempt from the uniqueness check, so users without a stored email
  * never collide with each other.
  *
- * [update] and [create] translate an exact PostgreSQL or SQLite unique-violation on either unique
- * column into [DuplicateUserFieldException] (see [isUniqueViolation]) instead of letting the raw
- * [ExposedSQLException] escape. Other constraint and database failures retain their original type.
+ * Every write first updates the singleton [UsersWriteLockTable] row, then performs raw current and
+ * pending-address checks before changing data. Write notifications are emitted only after that
+ * transaction commits. Other constraint and database failures retain their original type.
  *
  * @param database Exposed [Database] instance (provided by the common server plugin).
  */
@@ -147,55 +171,19 @@ class ExposedUsersRepo(
             selectAll().where { usernameColumn eq username.string }.limit(1).firstOrNull()?.asObject
         }
 
-    override suspend fun setEmail(id: UserId, email: Email?): RegisteredUser? {
-        val updated = transaction(db = database) {
-            val current = selectAll().where { idColumn eq id.long }.limit(1).firstOrNull()?.asObject
-                ?: return@transaction null
-            val changing = when {
-                email == current.email || email == current.pendingEmail -> false
-                else -> true
-            }
-            val deadline = current.emailChangeAllowedAt
-            if (changing && deadline != null && nowMillis() < deadline) throw EmailChangeCooldownException(deadline)
-            if (email != null && changing) {
-                val occupied = selectAll().where {
-                    (idColumn neq id.long) and ((emailColumn eq email.string) or (pendingEmailColumn eq email.string))
-                }.limit(1).any()
-                if (occupied) throw DuplicateUserFieldException()
-            }
-            when {
-                !changing -> current
-                email == null -> {
-                    this@ExposedUsersRepo.exposedUpdate({ idColumn eq id.long }) {
-                        it[emailColumn] = null
-                        it[pendingEmailColumn] = null
-                        it[emailApprovedColumn] = false
-                        it[emailChangeAllowedAtColumn] = null
-                    }
-                    selectAll().where { idColumn eq id.long }.limit(1).first().asObject
-                }
-                current.emailApproved && current.email != null -> {
-                    this@ExposedUsersRepo.exposedUpdate({ idColumn eq id.long }) { it[pendingEmailColumn] = email.string }
-                    selectAll().where { idColumn eq id.long }.limit(1).first().asObject
-                }
-                else -> {
-                    this@ExposedUsersRepo.exposedUpdate({ idColumn eq id.long }) {
-                        it[emailColumn] = email.string
-                        it[pendingEmailColumn] = null
-                        it[emailApprovedColumn] = false
-                    }
-                    selectAll().where { idColumn eq id.long }.limit(1).first().asObject
-                }
-            }
-        }
-        updated?.let { _updatedObjectsFlow.emit(it) }
-        return updated
-    }
+    override suspend fun setEmail(id: UserId, email: Email?): RegisteredUser? =
+        mutateEmail(id = id, email = email, username = null)
 
     override suspend fun updateUsername(id: UserId, username: Username): RegisteredUser? {
-        val updated = transaction(db = database) {
-            this@ExposedUsersRepo.exposedUpdate({ idColumn eq id.long }) { it[usernameColumn] = username.string }
-            selectAll().where { idColumn eq id.long }.limit(1).firstOrNull()?.asObject
+        val updated = try {
+            transaction(db = database) {
+                acquireWriteLock()
+                val current = selectUser(id) ?: return@transaction null
+                this@ExposedUsersRepo.exposedUpdate({ idColumn eq id.long }) { it[usernameColumn] = username.string }
+                selectUser(id) ?: current
+            }
+        } catch (error: ExposedSQLException) {
+            if (error.isUniqueViolation()) throw DuplicateUserFieldException(cause = error) else throw error
         }
         updated?.let { _updatedObjectsFlow.emit(it) }
         return updated
@@ -216,11 +204,7 @@ class ExposedUsersRepo(
      *   different user.
      */
     override suspend fun update(id: UserId, value: NewUser): RegisteredUser? =
-        try {
-            super.update(id, value)
-        } catch (e: ExposedSQLException) {
-            if (e.isUniqueViolation()) throw DuplicateUserFieldException(cause = e) else throw e
-        }
+        mutateEmail(id = id, email = value.email, username = value.username)
 
     /**
      * Inserts [values] as new users.
@@ -234,12 +218,57 @@ class ExposedUsersRepo(
      * @throws DuplicateUserFieldException when any of [values]' usernames or emails collides with
      *   an existing user.
      */
-    override suspend fun create(values: List<NewUser>): List<RegisteredUser> =
-        try {
-            super.create(values)
-        } catch (e: ExposedSQLException) {
-            if (e.isUniqueViolation()) throw DuplicateUserFieldException(cause = e) else throw e
+    override suspend fun create(values: List<NewUser>): List<RegisteredUser> {
+        onBeforeCreate(values)
+        val created = try {
+            transaction(db = database) {
+                acquireWriteLock()
+                values.map { value ->
+                    ensureEmailAvailable(email = value.email, excludedId = null)
+                    insert { statement -> update(id = null, value = value, it = statement) }.asObject(value)
+                }
+            }
+        } catch (error: ExposedSQLException) {
+            if (error.isUniqueViolation()) throw DuplicateUserFieldException(cause = error) else throw error
         }
+        val result = onAfterCreate(values.zip(created))
+        result.forEach { _newObjectsFlow.emit(it) }
+        return result
+    }
+
+    /** Executes the inherited bulk-update contract in one locked transaction and publishes after commit. */
+    override suspend fun update(values: List<UpdatedValuePair<UserId, NewUser>>): List<RegisteredUser> {
+        onBeforeUpdate(values)
+        val updated = try {
+            transaction(db = database) {
+                acquireWriteLock()
+                values.mapNotNull { (id, value) ->
+                    mutateEmailInTransaction(id = id, email = value.email, username = value.username)
+                        ?.let { value to it }
+                }
+            }
+        } catch (error: ExposedSQLException) {
+            if (error.isUniqueViolation()) throw DuplicateUserFieldException(cause = error) else throw error
+        }
+        val result = onAfterUpdate(updated)
+        result.forEach { _updatedObjectsFlow.emit(it) }
+        return result
+    }
+
+    /** Deletes existing ids under the singleton lock and publishes only after commit. */
+    override suspend fun deleteById(ids: List<UserId>) {
+        onBeforeDelete(ids)
+        val deleted = transaction(db = database) {
+            acquireWriteLock()
+            val count = deleteWhere { selectByIds(ids) }
+            if (count == ids.size) {
+                ids
+            } else {
+                ids.filter { id -> selectUser(id) == null }
+            }
+        }
+        deleted.forEach { _deletedObjectsIdsFlow.emit(it) }
+    }
 
     /**
      * Conditionally approves [expectedEmail] for [id] and emits exactly one update after commit.
@@ -253,8 +282,9 @@ class ExposedUsersRepo(
      * @return The approved user, or `null` when the conditional predicate did not match.
      */
     override suspend fun approveEmail(id: UserId, expectedEmail: Email, cooldownMillis: Long): RegisteredUser? {
-        val approved = transaction(db = database) {
-            val current = selectAll().where { idColumn eq id.long }.limit(1).firstOrNull()?.asObject
+        val approval = transaction(db = database) {
+            acquireWriteLock()
+            val current = selectUser(id)
                 ?: return@transaction null
             when {
                 current.pendingEmail == expectedEmail -> {
@@ -265,7 +295,7 @@ class ExposedUsersRepo(
                         it[emailApprovedColumn] = true
                         it[emailChangeAllowedAtColumn] = deadline
                     }
-                    selectAll().where { idColumn eq id.long }.limit(1).first().asObject
+                    selectUser(id)?.let { true to it }
                 }
                 current.email == expectedEmail && !current.emailApproved && current.pendingEmail == null -> {
                     val deadline = if (cooldownMillis == 0L) null else Math.addExact(nowMillis(), cooldownMillis)
@@ -273,13 +303,14 @@ class ExposedUsersRepo(
                         it[emailApprovedColumn] = true
                         it[emailChangeAllowedAtColumn] = deadline
                     }
-                    selectAll().where { idColumn eq id.long }.limit(1).first().asObject
+                    selectUser(id)?.let { true to it }
                 }
-                current.email == expectedEmail && current.emailApproved && current.pendingEmail == null -> current
+                current.email == expectedEmail && current.emailApproved && current.pendingEmail == null -> false to current
                 else -> null
             }
         }
-        if (approved != null) {
+        val approved = approval?.second
+        if (approval?.first == true && approved != null) {
             _updatedObjectsFlow.emit(approved)
         }
         return approved
@@ -287,5 +318,104 @@ class ExposedUsersRepo(
 
     init {
         initTable()
+        transaction(db = database) {
+            SchemaUtils.createMissingTablesAndColumns(UsersWriteLockTable)
+            UsersWriteLockTable.insertIgnore {
+                it[UsersWriteLockTable.idColumn] = usersWriteLockRowId
+                it[UsersWriteLockTable.markerColumn] = usersWriteLockMarker
+            }
+        }
+    }
+
+    /** Performs a lifecycle-aware email mutation, optionally applying a username replacement. */
+    private suspend fun mutateEmail(id: UserId, email: Email?, username: Username?): RegisteredUser? {
+        val updated = try {
+            transaction(db = database) {
+                acquireWriteLock()
+                mutateEmailInTransaction(id = id, email = email, username = username)
+            }
+        } catch (error: ExposedSQLException) {
+            if (error.isUniqueViolation()) throw DuplicateUserFieldException(cause = error) else throw error
+        }
+        updated?.let { _updatedObjectsFlow.emit(it) }
+        return updated
+    }
+
+    /** Applies a lifecycle mutation after the caller has acquired [UsersWriteLockTable]'s row. */
+    private fun JdbcTransaction.mutateEmailInTransaction(
+        id: UserId,
+        email: Email?,
+        username: Username?,
+    ): RegisteredUser? {
+        val current = selectUser(id) ?: return null
+        val changingEmail = email != current.email && email != current.pendingEmail
+        val deadline = current.emailChangeAllowedAt
+        if (changingEmail && deadline != null && nowMillis() < deadline) {
+            throw EmailChangeCooldownException(deadline)
+        }
+        if (changingEmail) ensureEmailAvailable(email = email, excludedId = id)
+        when {
+            !changingEmail -> {
+                if (username != null && username != current.username) {
+                    this@ExposedUsersRepo.exposedUpdate({ idColumn eq id.long }) { it[usernameColumn] = username.string }
+                }
+            }
+            email == null -> {
+                this@ExposedUsersRepo.exposedUpdate({ idColumn eq id.long }) {
+                    if (username != null) it[usernameColumn] = username.string
+                    it[emailColumn] = null
+                    it[pendingEmailColumn] = null
+                    it[emailApprovedColumn] = false
+                    it[emailChangeAllowedAtColumn] = null
+                }
+            }
+            current.emailApproved && current.email != null -> {
+                this@ExposedUsersRepo.exposedUpdate({ idColumn eq id.long }) {
+                    if (username != null) it[usernameColumn] = username.string
+                    it[pendingEmailColumn] = email.string
+                }
+            }
+            else -> {
+                this@ExposedUsersRepo.exposedUpdate({ idColumn eq id.long }) {
+                    if (username != null) it[usernameColumn] = username.string
+                    it[emailColumn] = email.string
+                    it[pendingEmailColumn] = null
+                    it[emailApprovedColumn] = false
+                    it[emailChangeAllowedAtColumn] = null
+                }
+            }
+        }
+        return selectUser(id)
+    }
+
+    /** Updates the durable lock row before any users-table query. */
+    private fun JdbcTransaction.acquireWriteLock() {
+        val acquired = UsersWriteLockTable.exposedUpdate({ UsersWriteLockTable.idColumn eq usersWriteLockRowId }) {
+            it[UsersWriteLockTable.markerColumn] = usersWriteLockMarker
+        }
+        check(acquired == 1) { "users_write_lock row id=$usersWriteLockRowId is missing" }
+    }
+
+    /** Finds a users row without routing its raw columns through a cache or another transaction. */
+    private fun JdbcTransaction.selectUser(id: UserId): RegisteredUser? =
+        selectAll().where { idColumn eq id.long }.limit(1).firstOrNull()?.asObject
+
+    /** Rejects addresses occupied in either raw persistent email slot. */
+    private fun JdbcTransaction.ensureEmailAvailable(
+        email: Email?,
+        excludedId: UserId?,
+    ) {
+        if (email == null) return
+        val ownership = (emailColumn eq email.string) or (pendingEmailColumn eq email.string)
+        val predicate = if (excludedId == null) ownership else (idColumn neq excludedId.long) and ownership
+        if (selectAll().where { predicate }.limit(1).any()) throw DuplicateUserFieldException()
+    }
+
+    private companion object {
+        /** Stable lock-row identity. */
+        const val usersWriteLockRowId = 1
+
+        /** Stable lock-row marker. */
+        const val usersWriteLockMarker = 0
     }
 }

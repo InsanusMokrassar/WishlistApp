@@ -5,8 +5,11 @@ import org.jetbrains.exposed.v1.jdbc.transactions.TransactionManager
 import java.sql.DriverManager
 import java.util.UUID
 
-/** Runs [block] against an isolated in-memory SQLite users repository. */
-internal suspend fun withInMemorySqliteUsersRepo(block: suspend (ExposedUsersRepo) -> Unit) {
+/** Runs [block] against an isolated in-memory SQLite users repository using [nowMillis] for lifecycle deadlines. */
+internal suspend fun withInMemorySqliteUsersRepo(
+    nowMillis: () -> Long = System::currentTimeMillis,
+    block: suspend (ExposedUsersRepo) -> Unit,
+) {
     val url = "jdbc:sqlite:file:users-${UUID.randomUUID()}?mode=memory&cache=shared"
     val database = Database.connect(url = url, driver = "org.sqlite.JDBC")
     val keeper = try {
@@ -17,7 +20,7 @@ internal suspend fun withInMemorySqliteUsersRepo(block: suspend (ExposedUsersRep
     }
 
     try {
-        block(ExposedUsersRepo(database))
+        block(ExposedUsersRepo(database, nowMillis))
     } finally {
         try {
             TransactionManager.closeAndUnregister(database)

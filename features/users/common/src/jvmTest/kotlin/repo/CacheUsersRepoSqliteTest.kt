@@ -9,14 +9,13 @@ import kotlinx.coroutines.test.advanceUntilIdle
 import kotlinx.coroutines.test.runTest
 import kotlin.test.Test
 import kotlin.test.assertEquals
-import kotlin.test.assertFalse
 import kotlin.test.assertNull
 import kotlin.test.assertTrue
 
 /** Exercises the production full-cache wrapper over the real SQLite repository. */
 @OptIn(ExperimentalCoroutinesApi::class)
 class CacheUsersRepoSqliteTest {
-    /** A conditional approval immediately mirrors into the cache and later replacements reset it. */
+    /** A conditional approval and pending replacement immediately mirror complete lifecycle state into the cache. */
     @Test
     fun approvalImmediatelyMirrorsAndReplacementResetsCache() = runTest {
         withInMemorySqliteUsersRepo { backing ->
@@ -36,7 +35,9 @@ class CacheUsersRepoSqliteTest {
             assertEquals(approved, cache.getById(created.id))
 
             val changed = checkNotNull(cache.update(created.id, NewUser(approved.username, replacement)))
-            assertFalse(changed.emailApproved)
+            assertEquals(original, changed.email)
+            assertEquals(replacement, changed.pendingEmail)
+            assertTrue(changed.emailApproved)
             assertEquals(changed, cache.getById(created.id))
             assertEquals(changed, backing.getById(created.id))
         }

@@ -7,6 +7,7 @@ import dev.inmo.wishlist.features.users.common.models.RegisteredUser
 import dev.inmo.wishlist.features.users.common.models.UserId
 import dev.inmo.wishlist.features.users.common.models.Username
 import dev.inmo.wishlist.features.users.common.repo.exceptions.DuplicateUserFieldException
+import dev.inmo.wishlist.features.users.common.repo.exceptions.EmailChangeCooldownException
 import kotlinx.coroutines.CoroutineStart
 import kotlinx.coroutines.flow.collect
 import kotlinx.coroutines.launch
@@ -64,7 +65,7 @@ class ExposedUsersRepoSqliteTest {
                 repo.create(NewUser(Username("bob"), Email("shared@example.com")))
             }
 
-            assertSqliteUniqueCause(failure)
+            assertNull(failure.cause)
             assertEquals(mapOf(seeded.id to seeded), before)
             assertEquals(before, repo.getAll())
         }
@@ -107,7 +108,7 @@ class ExposedUsersRepoSqliteTest {
                 repo.update(second.id, NewUser(second.username, first.email))
             }
 
-            assertSqliteUniqueCause(failure)
+            assertNull(failure.cause)
             assertEquals(before, repo.getAll())
         }
     }
@@ -129,7 +130,7 @@ class ExposedUsersRepoSqliteTest {
         }
     }
 
-    /** Approval is false on insert, conditional on the current address, and resets when the address changes. */
+    /** Approval retains the approved address while a replacement remains pending, then clears explicitly. */
     @Test
     fun emailApprovalTracksOnlyTheCurrentStoredAddress() = runTest {
         withInMemorySqliteUsersRepo { repo ->
@@ -147,11 +148,14 @@ class ExposedUsersRepoSqliteTest {
             assertTrue(renamed.emailApproved)
 
             val changed = checkNotNull(repo.update(created.id, NewUser(renamed.username, changedEmail)))
-            assertFalse(changed.emailApproved)
+            assertEquals(originalEmail, changed.email)
+            assertTrue(changed.emailApproved)
+            assertEquals(changedEmail, changed.pendingEmail)
             assertNull(repo.approveEmail(created.id, originalEmail))
 
             val cleared = checkNotNull(repo.update(created.id, NewUser(changed.username, null)))
             assertEquals(null, cleared.email)
+            assertNull(cleared.pendingEmail)
             assertFalse(cleared.emailApproved)
         }
     }
@@ -215,9 +219,9 @@ class ExposedUsersRepoSqliteTest {
         }
     }
 
-    /** Bulk replacements retain approval only for the same current address and reset it otherwise. */
+    /** Bulk updates use the same pending replacement lifecycle as single-row writes. */
     @Test
-    fun bulkUpdatesPreserveOrResetCurrentAddressApproval() = runTest {
+    fun bulkUpdatesRetainApprovalAndStoreReplacementAsPending() = runTest {
         withInMemorySqliteUsersRepo { repo ->
             val original = Email("bulk@example.com")
             val replacement = Email("bulk-replacement@example.com")
@@ -228,7 +232,9 @@ class ExposedUsersRepoSqliteTest {
             assertTrue(sameAddress.emailApproved)
 
             val changedAddress = repo.update(listOf(created.id to NewUser(sameAddress.username, replacement))).single()
-            assertFalse(changedAddress.emailApproved)
+            assertEquals(original, changedAddress.email)
+            assertEquals(replacement, changedAddress.pendingEmail)
+            assertTrue(changedAddress.emailApproved)
 
             val cleared = repo.update(listOf(created.id to NewUser(changedAddress.username, null))).single()
             assertNull(cleared.email)
@@ -236,7 +242,7 @@ class ExposedUsersRepoSqliteTest {
         }
     }
 
-    /** A failed bulk collision leaves both stored rows unchanged under the inherited bulk contract. */
+    /** A failed bulk collision leaves both stored rows unchanged under the direct atomic contract. */
     @Test
     fun failedBulkUpdateLeavesRowsUnchanged() = runTest {
         withInMemorySqliteUsersRepo { repo ->
@@ -244,11 +250,71 @@ class ExposedUsersRepoSqliteTest {
             val second = repo.create(NewUser(Username("second"), Email("second@example.com"))).single()
             val before = repo.getAll()
 
-            assertFailsWith<ExposedSQLException> {
+            assertFailsWith<DuplicateUserFieldException> {
                 repo.update(listOf(second.id to NewUser(first.username, second.email)))
             }
 
             assertEquals(before, repo.getAll())
+        }
+    }
+
+    /** A later cross-slot conflict rolls back earlier batch mutations and emits no speculative update event. */
+    @Test
+    fun failedBulkUpdateRollsBackEarlierMutationAndEvents() = runTest {
+        withInMemorySqliteUsersRepo { repo ->
+            val occupied = repo.create(NewUser(Username("occupied"), Email("occupied@example.com"))).single()
+            val first = repo.create(NewUser(Username("first"), Email("first@example.com"))).single()
+            val second = repo.create(NewUser(Username("second"), Email("second@example.com"))).single()
+            val events = mutableListOf<RegisteredUser>()
+            val collector = backgroundScope.launch(start = CoroutineStart.UNDISPATCHED) {
+                repo.updatedObjectsFlow.collect(events::add)
+            }
+            try {
+                assertFailsWith<DuplicateUserFieldException> {
+                    repo.update(
+                        listOf(
+                            first.id to NewUser(Username("first-renamed"), first.email),
+                            second.id to NewUser(second.username, occupied.email),
+                        )
+                    )
+                }
+                advanceUntilIdle()
+                assertEquals(first, repo.getById(first.id))
+                assertEquals(second, repo.getById(second.id))
+                assertEquals(emptyList(), events)
+            } finally {
+                collector.cancel()
+            }
+        }
+    }
+
+    /** A locked injected clock rejects before duplicate disclosure and approval replay preserves the issued deadline. */
+    @Test
+    fun cooldownIsExactAndApprovalReplaySafe() = runTest {
+        var now = 1_000L
+        withInMemorySqliteUsersRepo(nowMillis = { now }) { repo ->
+            val initial = Email("cooldown-initial@example.com")
+            val replacement = Email("cooldown-replacement@example.com")
+            val occupied = Email("cooldown-occupied@example.com")
+            val user = repo.create(NewUser(Username("cooldown"), initial)).single()
+            repo.create(NewUser(Username("occupied"), occupied))
+            val approved = checkNotNull(repo.approveEmail(user.id, initial, cooldownMillis = 500))
+            assertEquals(1_500L, approved.emailChangeAllowedAt)
+
+            val blocked = assertFailsWith<EmailChangeCooldownException> {
+                repo.setEmail(user.id, occupied)
+            }
+            assertEquals(1_500L, blocked.emailChangeAllowedAt)
+            assertEquals(approved, repo.getById(user.id))
+
+            now = 1_500L
+            val pending = checkNotNull(repo.setEmail(user.id, replacement))
+            assertEquals(replacement, pending.pendingEmail)
+            val promoted = checkNotNull(repo.approveEmail(user.id, replacement, cooldownMillis = 500))
+            assertEquals(2_000L, promoted.emailChangeAllowedAt)
+
+            now = 9_000L
+            assertEquals(promoted, repo.approveEmail(user.id, replacement, cooldownMillis = 999))
         }
     }
 
