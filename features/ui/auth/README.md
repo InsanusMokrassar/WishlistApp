@@ -23,6 +23,7 @@ None. Client-only feature; no server component.
 
 ## Architecture Notes
 
+- **Model implementation:** `DefaultAuthModel` implements `AuthModel` in the common UI package and is registered as an interface `single` in `Plugin.kt`. Its constructor receives `ClientAuthFeature` and `AuthCredentialsStorage` as private dependencies.
 - **View embedding:** `features/ui/topBar` embeds `AuthViewConfig` via `InjectNavigationChain<ViewConfig> { InjectNavigationNode(AuthViewConfig()) }`, replacing the old "auth overlay on root chain" pattern.
 - **Modal dialog behavior:** `AuthView` per platform (JS/JVM/Android) renders log in/register trigger buttons in the navbar. When `formExpandedState` is true, the credentials form renders inside a modal dialog (Bootstrap modal overlay on JS; `androidx.compose.ui.window.Dialog` + Surface on JVM/Android), dismissable via `onCancelForm`. The navbar buttons remain visible while the dialog is open.
 - **Model interface:** `AuthModel.userAuthorisedState: StateFlow<Boolean>` mirrors login state; `logout()` method clears credentials. `getServerAddress()`/`saveServerAddress()` removed — delegated to `features/ui/serverUrl`.

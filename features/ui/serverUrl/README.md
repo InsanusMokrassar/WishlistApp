@@ -31,6 +31,7 @@ None — client-only UI feature, JVM + Android only.
 
 ## Architecture Notes
 
+- `DefaultServerUrlModel` implements `ServerUrlModel` in the common UI package, receives `ServerUrlStorage` as a private constructor dependency, and is registered as an interface `single` in `Plugin.kt`.
 - Inherits the suspend-based storage pattern from
   `features/auth/client/ServerUrlStorage` — no new storage interface needed.
 - View is only available on JVM + Android. No `jsMain` source set.

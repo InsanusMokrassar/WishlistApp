@@ -4,16 +4,11 @@ import dev.inmo.micro_utils.koin.singleWithRandomQualifier
 import dev.inmo.micro_utils.startup.plugin.StartPlugin
 import dev.inmo.wishlist.features.auth.client.AuthCredentialsStorage
 import dev.inmo.wishlist.features.auth.client.ClientAuthFeature
-import dev.inmo.wishlist.features.auth.common.models.AuthConfig
-import dev.inmo.wishlist.features.auth.common.models.Password
-import dev.inmo.wishlist.features.auth.common.models.RegistrationResult
-import dev.inmo.wishlist.features.email.common.models.Email
 import dev.inmo.wishlist.features.common.client.models.ViewConfig
 import dev.inmo.wishlist.features.ui.auth.ui.AuthModel
 import dev.inmo.wishlist.features.ui.auth.ui.AuthViewConfig
 import dev.inmo.wishlist.features.ui.auth.ui.AuthViewModel
-import dev.inmo.wishlist.features.users.common.models.Username
-import dev.inmo.micro_utils.coroutines.runCatchingLogging
+import dev.inmo.wishlist.features.ui.auth.ui.DefaultAuthModel
 import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.modules.SerializersModule
 import org.koin.core.Koin
@@ -39,37 +34,10 @@ object Plugin : StartPlugin {
         }
         factory { AuthViewModel(node = it.get(), model = get(), interactor = get()) }
         single<AuthModel> {
-            val authFeature = get<ClientAuthFeature>()
-            val credentialsStorage = get<AuthCredentialsStorage>()
-            object : AuthModel {
-                override val userAuthorisedState = credentialsStorage.userAuthorised
-
-                override suspend fun isAlreadyLoggedIn(): Boolean {
-                    if (credentialsStorage.userAuthorised.value) {
-                        return authFeature.getMe() != null
-                    }
-                    return false
-                }
-
-                override suspend fun login(username: Username, password: Password): Boolean =
-                    authFeature.login(username, password) != null
-
-                override suspend fun logout() {
-                    authFeature.logout()
-                }
-
-                override suspend fun isRegistrationEnabled(): Boolean =
-                    getConfig().enableRegistration
-
-                override suspend fun getConfig(): AuthConfig =
-                    runCatchingLogging { authFeature.getConfig() }.getOrDefault(AuthConfig())
-
-                override suspend fun register(
-                    username: Username,
-                    password: Password,
-                    email: Email?
-                ): RegistrationResult? = authFeature.register(username, password, email)
-            }
+            DefaultAuthModel(
+                authFeature = get(),
+                credentialsStorage = get(),
+            )
         }
     }
 
