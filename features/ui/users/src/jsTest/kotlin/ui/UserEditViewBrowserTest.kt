@@ -75,7 +75,7 @@ class UserEditViewBrowserTest {
             assertTrue(model.passwordChangeRequestedEmails.isEmpty())
             if (privateEmailMustBeHidden) {
                 assertFalse(fixture.host.textContent.orEmpty().contains("owner@example.com"))
-                assertFalse(fixture.host.textContent.orEmpty().contains("Email verification"))
+                assertEquals(null, fixture.host.querySelector("#settings-email"))
             }
         } finally {
             composition?.let { fixture.dispose(it, view, chain, chainJob, application) }
@@ -120,7 +120,7 @@ class UserEditViewBrowserTest {
             fixture.awaitRender()
             fixture.awaitRender()
             val requestButton = requireNotNull(fixture.passwordChangeRequestButton())
-            assertTrue(fixture.host.textContent.orEmpty().contains("Email verification"))
+            assertNotNull(fixture.host.querySelector("#settings-email"))
             fixture.awaitRenderedState("enabled owner password-change action") { !requestButton.disabled }
             assertFalse(requestButton.disabled)
 

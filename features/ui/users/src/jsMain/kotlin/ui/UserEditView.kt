@@ -150,7 +150,6 @@ class UserEditView(
                 }
 
                 if (canManageOwnEmail) {
-                    FieldSet(label = UsersListStrings.emailSectionTitle.translation()) {
                         when {
                             emailLoading -> FormHint(UsersListStrings.emailLoading.translation())
                             ownEmailProfile == null -> {
@@ -276,7 +275,6 @@ class UserEditView(
                             )
                             null -> Unit
                         }
-                    }
                 }
 
                 if (isRoot) {

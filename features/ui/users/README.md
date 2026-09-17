@@ -64,7 +64,7 @@ verification request), `features/admin/client` (root-only username/password/dele
 - **Superadmin/functionality detection is client-side**, via `roles/client` (issue #68) — replaces the
   previous `me.value?.username?.string == "root"` comparison. `UsersModel.isCurrentUserRootFlow` is
   backed by `roles/client` `RolesFeature.isFunctionalityAvailable(adminPanelFunctionalityId)` over
-  `meStateFlow` (built with `meState.mapLatest { ... }.stateIn(...)` in this feature's `Plugin`),
+  `meStateFlow` (built with `meState.mapLatest { ... }.stateIn(...)` in `DefaultUsersModel`),
   evaluated reactively as the caller identity changes. Similarly, `UsersModel.canChangeAvatarForOthersFlow`
   is backed by `RolesFeature.isFunctionalityAvailable(avatarChangeForOthersFunctionalityId)`.
   `UserEditViewModel.canUploadAvatarState` = (caller is the profile owner) OR `canChangeAvatarForOthersFlow`;
