@@ -13,13 +13,21 @@ import dev.inmo.wishlist.features.email.server.models.EmailAttachment
 import dev.inmo.wishlist.features.email.server.models.EmailVerification
 import dev.inmo.wishlist.features.email.server.models.EmailVerificationPayload
 import dev.inmo.wishlist.features.users.common.models.RegisteredUser
+import dev.inmo.wishlist.features.users.common.models.NewUser
 import dev.inmo.wishlist.features.users.common.models.UserId
 import dev.inmo.wishlist.features.users.common.models.Username
+import dev.inmo.wishlist.features.users.common.repo.ExposedUsersRepo
 import dev.inmo.wishlist.features.users.common.repo.exceptions.DuplicateUserFieldException
+import dev.inmo.wishlist.features.users.common.repo.exceptions.EmailChangeCooldownException
+import dev.inmo.wishlist.features.roles.common.models.NewUserRole
+import dev.inmo.kroles.repos.BaseRoleSubject
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.async
 import kotlinx.coroutines.test.runTest
+import org.jetbrains.exposed.v1.jdbc.Database
+import org.jetbrains.exposed.v1.jdbc.transactions.TransactionManager
+import java.nio.file.Files
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFailsWith
@@ -36,6 +44,24 @@ import kotlin.test.assertTrue
  * for a found user, unaffected by the role check.
  */
 class EmailFeatureServiceTest {
+
+    /** Runs an SMTP service proof over a fixture-owned Exposed SQLite repository. */
+    private suspend fun withSqliteUsersRepo(
+        nowMillis: () -> Long,
+        block: suspend (ExposedUsersRepo) -> Unit,
+    ) {
+        val file = Files.createTempFile("wishlist-email-service", ".sqlite")
+        val database = Database.connect(url = "jdbc:sqlite:${file.toAbsolutePath()}", driver = "org.sqlite.JDBC")
+        try {
+            block(ExposedUsersRepo(database, nowMillis))
+        } finally {
+            try {
+                TransactionManager.closeAndUnregister(database)
+            } finally {
+                Files.deleteIfExists(file)
+            }
+        }
+    }
 
     /** In-memory deep-link storage used by the real registration invite sender. */
     private class FakeDeepLinksRepo : DeepLinksRepo,
@@ -212,6 +238,38 @@ class EmailFeatureServiceTest {
 
         assertFailsWith<DuplicateUserFieldException> {
             service.setMyEmail(plainUser.id, takenEmail)
+        }
+    }
+
+    /** A durable positive-policy rejection happens before this service can mint a link or invoke SMTP. */
+    @Test
+    fun positivePolicyRejectsMutationBeforeAnyDeliveryOrLinkCreation() = runTest {
+        var now = 1_000L
+        withSqliteUsersRepo(nowMillis = { now }) { usersRepo ->
+            val addressA = Email("service-policy-a@example.com")
+            val addressB = Email("service-policy-b@example.com")
+            val user = usersRepo.create(listOf(NewUser(Username("service-policy"), addressA))).single()
+            val rolesRepo = FakeRolesRepo()
+            rolesRepo.includeDirect(BaseRoleSubject.Direct(user.id.long.toString()), NewUserRole)
+            val coordinator = EmailVerificationAccountCoordinator(usersRepo, rolesRepo, cooldownMillis = 10L)
+            assertTrue(coordinator.verifyInvitedEmailAndPromote(user.id, addressA))
+            val emails = ControlledEmailsService()
+            val links = FakeDeepLinksRepo()
+            val service = EmailFeatureService(
+                emailsService = emails,
+                accountCoordinator = coordinator,
+                rolesFeature = FakeRolesFeature(),
+                inviteSender = EmailRegistrationInviteSender(
+                    emailsService = emails,
+                    deepLinksService = DeepLinksService(links, emptyList()),
+                    publicHttpOrigin = "https://wishlist.example",
+                ),
+            )
+
+            assertFailsWith<EmailChangeCooldownException> { service.setMyEmail(user.id, addressB) }
+            assertEquals(addressA, checkNotNull(usersRepo.getById(user.id)).email)
+            assertTrue(emails.sendHtmlCalls.isEmpty())
+            assertTrue(links.getAll().isEmpty())
         }
     }
 

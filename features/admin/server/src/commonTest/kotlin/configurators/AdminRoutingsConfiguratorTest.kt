@@ -17,6 +17,7 @@ import dev.inmo.wishlist.features.users.common.models.RegisteredUser
 import dev.inmo.wishlist.features.users.common.models.UserId
 import dev.inmo.wishlist.features.users.common.models.Username
 import dev.inmo.wishlist.features.users.common.repo.UsersRepo
+import dev.inmo.wishlist.features.users.common.repo.ExposedUsersRepo
 import dev.inmo.wishlist.features.users.common.repo.exceptions.DuplicateUserFieldException
 import dev.inmo.wishlist.features.users.common.repo.exceptions.EmailChangeCooldownException
 import dev.inmo.wishlist.features.wishlist.server.services.WishlistService
@@ -38,8 +39,13 @@ import io.ktor.server.testing.ApplicationTestBuilder
 import io.ktor.server.testing.testApplication
 import io.ktor.serialization.kotlinx.json.json
 import kotlinx.serialization.json.Json
+import kotlinx.coroutines.runBlocking
+import org.jetbrains.exposed.v1.jdbc.Database
+import org.jetbrains.exposed.v1.jdbc.transactions.TransactionManager
+import java.nio.file.Files
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertFalse
 
 /** Verifies authorization and username-only mutation semantics through the installed admin routes. */
 class AdminRoutingsConfiguratorTest {
@@ -131,7 +137,87 @@ class AdminRoutingsConfiguratorTest {
         assertEquals(user, backing.getById(user.id))
     }
 
-    private fun ApplicationTestBuilder.installAdminRoutes(users: UsersRepo) {
+    /** The actual route preserves root-only deadline disclosure and real repository atomicity. */
+    @Test
+    fun realCooldownFullUpdateReturnsTyped429AndKeepsDeniedCallersPrivate() {
+        val file = Files.createTempFile("wishlist-admin-routes", ".sqlite")
+        val database = Database.connect(url = "jdbc:sqlite:${file.toAbsolutePath()}", driver = "org.sqlite.JDBC")
+        try {
+            var now = 1_000L
+            val users = ExposedUsersRepo(database, nowMillis = { now })
+            val addressA = Email("route-real-a@example.com")
+            val addressB = Email("route-real-b@example.com")
+            val duplicate = Email("route-real-duplicate@example.com")
+            val target = runBlocking {
+                users.create(listOf(NewUser(Username("route-real"), addressA))).single().also {
+                    checkNotNull(users.approveEmail(it.id, addressA, cooldownMillis = 10L))
+                }
+            }
+            runBlocking { users.create(listOf(NewUser(Username("route-duplicate"), duplicate))) }
+            val approved = runBlocking { checkNotNull(users.getById(target.id)) }
+
+            testApplication {
+                installAdminRoutes(users, cooldownMillis = 10L)
+                val updateBody = "{\"username\":\"must-not-rename\",\"email\":\"${addressB.string}\"}"
+                val rootRejected = client.put("/api/admin/users/update/${target.id.long}") {
+                    header(HttpHeaders.Authorization, "Bearer root")
+                    contentType(ContentType.Application.Json)
+                    setBody(updateBody)
+                }
+                assertEquals(HttpStatusCode.TooManyRequests, rootRejected.status)
+                assertEquals("{\"emailChangeAllowedAt\":1010}", rootRejected.bodyAsText())
+                assertEquals(approved, users.getById(target.id))
+
+                listOf(null, "Bearer other").forEach { authorization ->
+                    val denied = client.put("/api/admin/users/update/${target.id.long}") {
+                        authorization?.let { header(HttpHeaders.Authorization, it) }
+                        contentType(ContentType.Application.Json)
+                        setBody(updateBody)
+                    }
+                    assertEquals(
+                        if (authorization == null) HttpStatusCode.Unauthorized else HttpStatusCode.Forbidden,
+                        denied.status,
+                    )
+                    assertFalse(denied.bodyAsText().contains("emailChangeAllowedAt"))
+                }
+
+                val rename = client.put("/api/admin/users/setUsername/${target.id.long}") {
+                    header(HttpHeaders.Authorization, "Bearer root")
+                    contentType(ContentType.Application.Json)
+                    setBody("\"route-renamed\"")
+                }
+                assertEquals(HttpStatusCode.OK, rename.status)
+                assertEquals(approved.copy(username = Username("route-renamed")), users.getById(target.id))
+
+                now = 1_010L
+                val replacement = client.put("/api/admin/users/update/${target.id.long}") {
+                    header(HttpHeaders.Authorization, "Bearer root")
+                    contentType(ContentType.Application.Json)
+                    setBody("{\"username\":\"route-expired\",\"email\":\"${addressB.string}\"}")
+                }
+                assertEquals(HttpStatusCode.OK, replacement.status)
+                assertEquals(
+                    approved.copy(username = Username("route-expired"), pendingEmail = addressB),
+                    users.getById(target.id),
+                )
+
+                val duplicateResponse = client.put("/api/admin/users/update/${target.id.long}") {
+                    header(HttpHeaders.Authorization, "Bearer root")
+                    contentType(ContentType.Application.Json)
+                    setBody("{\"username\":\"route-expired\",\"email\":\"${duplicate.string}\"}")
+                }
+                assertEquals(HttpStatusCode.Conflict, duplicateResponse.status)
+            }
+        } finally {
+            try {
+                TransactionManager.closeAndUnregister(database)
+            } finally {
+                Files.deleteIfExists(file)
+            }
+        }
+    }
+
+    private fun ApplicationTestBuilder.installAdminRoutes(users: UsersRepo, cooldownMillis: Long = 0L) {
         val wishlists = FakeWishlistRepo()
         val wishlistItems = FakeWishlistItemRepo()
         val management = UsersManagementFeature(
@@ -139,7 +225,7 @@ class AdminRoutingsConfiguratorTest {
             authService = AuthFeatureService(users, users, FakePasswordsRepo()),
             wishlistRepo = wishlists,
             wishlistItemRepo = wishlistItems,
-            accountCoordinator = EmailVerificationAccountCoordinator(users, NoopRolesRepo),
+            accountCoordinator = EmailVerificationAccountCoordinator(users, NoopRolesRepo, cooldownMillis),
         )
         application {
             install(Authentication) {

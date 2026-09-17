@@ -23,6 +23,8 @@ import dev.inmo.wishlist.features.users.common.models.RegisteredUser
 import dev.inmo.wishlist.features.users.common.models.UserId
 import dev.inmo.wishlist.features.users.common.models.Username
 import dev.inmo.wishlist.features.users.common.repo.UsersRepo
+import dev.inmo.wishlist.features.users.common.repo.ExposedUsersRepo
+import dev.inmo.wishlist.features.users.common.repo.exceptions.EmailChangeCooldownException
 import dev.inmo.wishlist.features.wishlist.common.models.NewWishlist
 import dev.inmo.wishlist.features.wishlist.common.models.NewWishlistItem
 import dev.inmo.wishlist.features.wishlist.common.models.RegisteredWishlist
@@ -36,6 +38,10 @@ import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.emptyFlow
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertFailsWith
+import org.jetbrains.exposed.v1.jdbc.Database
+import org.jetbrains.exposed.v1.jdbc.transactions.TransactionManager
+import java.nio.file.Files
 
 /** In-memory [UsersRepo] test double, seeded via the constructor map. */
 internal class FakeUsersRepo(
@@ -166,15 +172,33 @@ class UsersManagementFeatureTest {
     private val userWithEmail = RegisteredUser(UserId(1L), Username("alice"), Email("alice@example.com"))
     private val userWithoutEmail = RegisteredUser(UserId(2L), Username("bob"))
 
-    private fun buildFeature(usersRepo: FakeUsersRepo): UsersManagementFeature {
+    private fun buildFeature(usersRepo: UsersRepo, cooldownMillis: Long = 0L): UsersManagementFeature {
         val authService = AuthFeatureService(usersRepo, usersRepo, FakePasswordsRepo())
         return UsersManagementFeature(
             usersRepo,
             authService,
             FakeWishlistRepo(),
             FakeWishlistItemRepo(),
-            EmailVerificationAccountCoordinator(usersRepo, NoopRolesRepo),
+            EmailVerificationAccountCoordinator(usersRepo, NoopRolesRepo, cooldownMillis),
         )
+    }
+
+    /** Runs an admin feature test against a fixture-owned Exposed SQLite repository. */
+    private suspend fun withSqliteUsersRepo(
+        nowMillis: () -> Long,
+        block: suspend (ExposedUsersRepo) -> Unit,
+    ) {
+        val file = Files.createTempFile("wishlist-admin-users", ".sqlite")
+        val database = Database.connect(url = "jdbc:sqlite:${file.toAbsolutePath()}", driver = "org.sqlite.JDBC")
+        try {
+            block(ExposedUsersRepo(database, nowMillis))
+        } finally {
+            try {
+                TransactionManager.closeAndUnregister(database)
+            } finally {
+                Files.deleteIfExists(file)
+            }
+        }
     }
 
     /** [UsersManagementFeature.getAll] maps every stored user to [AdminUser], keeping email. */
@@ -217,5 +241,39 @@ class UsersManagementFeatureTest {
             approvedUser.copy(username = Username("alice-renamed")),
             usersRepo.getById(approvedUser.id),
         )
+    }
+
+    /** Full updates share the real lifecycle gate, while the dedicated rename remains independently allowed. */
+    @Test
+    fun realRepositoryRejectsFullUpdateWithoutPartialRename() = runTest {
+        var now = 1_000L
+        withSqliteUsersRepo(nowMillis = { now }) { usersRepo ->
+            val addressA = Email("admin-real-a@example.com")
+            val addressB = Email("admin-real-b@example.com")
+            val created = usersRepo.create(listOf(NewUser(Username("admin-real"), addressA))).single()
+            checkNotNull(usersRepo.approveEmail(created.id, addressA, cooldownMillis = 10L))
+            val feature = buildFeature(usersRepo, cooldownMillis = 10L)
+            val approved = checkNotNull(usersRepo.getById(created.id))
+
+            val rejection = assertFailsWith<EmailChangeCooldownException> {
+                feature.update(created.id, NewUser(Username("must-not-rename"), addressB))
+            }
+            assertEquals(1_010L, rejection.emailChangeAllowedAt)
+            assertEquals(approved, usersRepo.getById(created.id))
+            assertFailsWith<EmailChangeCooldownException> {
+                feature.update(created.id, NewUser(Username("must-not-clear"), null))
+            }
+            assertEquals(approved, usersRepo.getById(created.id))
+
+            assertEquals(true, feature.updateUsername(created.id, Username("admin-real-renamed")))
+            assertEquals(approved.copy(username = Username("admin-real-renamed")), usersRepo.getById(created.id))
+
+            now = 1_010L
+            assertEquals(true, feature.update(created.id, NewUser(Username("admin-real-expired"), addressB)))
+            assertEquals(
+                approved.copy(username = Username("admin-real-expired"), pendingEmail = addressB),
+                usersRepo.getById(created.id),
+            )
+        }
     }
 }

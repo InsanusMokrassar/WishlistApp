@@ -909,6 +909,31 @@ class ExposedUsersRepoSqliteTest {
         }
     }
 
+    /** A non-representable approval deadline rolls back the row and emits no speculative event. */
+    @Test
+    fun approvalDeadlineOverflowRollsBackWithoutPublishingAnEvent() = runTest {
+        withInMemorySqliteUsersRepo(nowMillis = { Long.MAX_VALUE - 5L }) { repo ->
+            val email = Email("approval-overflow@example.com")
+            val user = repo.create(NewUser(Username("approval-overflow"), email)).single()
+            val before = checkNotNull(repo.getById(user.id))
+            val events = mutableListOf<RegisteredUser>()
+            val collector = backgroundScope.launch(start = CoroutineStart.UNDISPATCHED) {
+                repo.updatedObjectsFlow.collect(events::add)
+            }
+            try {
+                assertFailsWith<ArithmeticException> {
+                    repo.approveEmail(user.id, email, cooldownMillis = 10L)
+                }
+
+                advanceUntilIdle()
+                assertEquals(before, repo.getById(user.id))
+                assertTrue(events.isEmpty())
+            } finally {
+                collector.cancel()
+            }
+        }
+    }
+
     /** Verifies the retained Exposed/Xerial cause chain and exact UNIQUE extended result code. */
     private fun assertSqliteUniqueCause(failure: DuplicateUserFieldException) {
         val exposed = assertIs<ExposedSQLException>(failure.cause)

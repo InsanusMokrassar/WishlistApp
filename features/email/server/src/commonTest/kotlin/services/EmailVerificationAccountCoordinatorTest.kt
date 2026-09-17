@@ -15,10 +15,13 @@ import dev.inmo.wishlist.features.roles.common.models.NewUserRole
 import dev.inmo.wishlist.features.roles.common.models.UserRole
 import dev.inmo.wishlist.features.roles.server.RolesFeature
 import dev.inmo.wishlist.features.users.common.models.RegisteredUser
+import dev.inmo.wishlist.features.users.common.models.NewUser
 import dev.inmo.wishlist.features.users.common.models.UserId
 import dev.inmo.wishlist.features.users.common.models.Username
 import dev.inmo.wishlist.features.users.common.repo.UsersRepo
 import dev.inmo.wishlist.features.users.common.repo.exceptions.DuplicateUserFieldException
+import dev.inmo.wishlist.features.users.common.repo.exceptions.EmailChangeCooldownException
+import dev.inmo.wishlist.features.users.common.repo.ExposedUsersRepo
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.async
@@ -32,6 +35,9 @@ import kotlinx.serialization.json.put
 import kotlinx.serialization.json.putJsonObject
 import org.koin.core.KoinApplication
 import org.koin.dsl.module
+import org.jetbrains.exposed.v1.jdbc.Database
+import org.jetbrains.exposed.v1.jdbc.transactions.TransactionManager
+import java.nio.file.Files
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFailsWith
@@ -157,6 +163,37 @@ class EmailVerificationAccountCoordinatorTest {
             putJsonObject("smtp") {
                 put("host", "smtp.example.com")
                 put("from", "noreply@example.com")
+            }
+        }
+    }
+
+    /** Returns a valid graph configuration whose root policy issues a ten-millisecond restriction. */
+    private fun positivePolicyConfig(smtpEnabled: Boolean): JsonObject = buildJsonObject {
+        put("emailChangeCooldown", "PT0.01S")
+        if (smtpEnabled) {
+            putJsonObject("email") {
+                putJsonObject("smtp") {
+                    put("host", "smtp.example.com")
+                    put("from", "noreply@example.com")
+                }
+            }
+        }
+    }
+
+    /** Runs a real repository over a fixture-owned SQLite file and always unregisters its database. */
+    private suspend fun withSqliteUsersRepo(
+        nowMillis: () -> Long,
+        block: suspend (ExposedUsersRepo) -> Unit,
+    ) {
+        val file = Files.createTempFile("wishlist-email-coordinator", ".sqlite")
+        val database = Database.connect(url = "jdbc:sqlite:${file.toAbsolutePath()}", driver = "org.sqlite.JDBC")
+        try {
+            block(ExposedUsersRepo(database, nowMillis))
+        } finally {
+            try {
+                TransactionManager.closeAndUnregister(database)
+            } finally {
+                Files.deleteIfExists(file)
             }
         }
     }
@@ -338,5 +375,45 @@ class EmailVerificationAccountCoordinatorTest {
     @Test
     fun smtpEnabledKoinGraphSharesOneCoordinator() = runTest {
         assertKoinGraphSharesCoordinator(smtpEnabledConfig(), expectEnabled = true)
+    }
+
+    /** Actual Plugin graphs enforce the same positive policy with real durable storage in both SMTP shapes. */
+    @Test
+    fun positivePolicyFromPluginGuardsEnabledAndDisabledRealRepositories() = runTest {
+        listOf(false, true).forEach { smtpEnabled ->
+            var now = 1_000L
+            withSqliteUsersRepo(nowMillis = { now }) { usersRepo ->
+                val addressA = Email("plugin-${smtpEnabled}-a@example.com")
+                val addressB = Email("plugin-${smtpEnabled}-b@example.com")
+                val created = usersRepo.create(listOf(NewUser(Username("plugin-$smtpEnabled"), addressA))).single()
+                val rolesRepo = FakeRolesRepo()
+                rolesRepo.includeDirect(BaseRoleSubject.Direct(created.id.long.toString()), NewUserRole)
+                val application = createKoinApplication(positivePolicyConfig(smtpEnabled), usersRepo, rolesRepo)
+                try {
+                    val coordinator = application.koin.get<EmailVerificationAccountCoordinator>()
+                    val feature = application.koin.get<EmailFeature>()
+                    assertTrue(coordinator.verifyInvitedEmailAndPromote(created.id, addressA))
+                    val approved = checkNotNull(usersRepo.getById(created.id))
+                    assertEquals(1_010L, approved.emailChangeAllowedAt)
+
+                    assertFailsWith<EmailChangeCooldownException> { feature.setMyEmail(created.id, addressB) }
+                    assertFailsWith<EmailChangeCooldownException> { feature.setMyEmail(created.id, null) }
+                    assertEquals(approved, usersRepo.getById(created.id))
+
+                    assertTrue(feature.setMyEmail(created.id, addressA))
+                    assertEquals(true, coordinator.updateUsername(created.id, Username("plugin-renamed-$smtpEnabled")))
+                    assertEquals(approved.copy(username = Username("plugin-renamed-$smtpEnabled")), usersRepo.getById(created.id))
+
+                    now = 1_010L
+                    assertTrue(feature.setMyEmail(created.id, addressB))
+                    assertEquals(
+                        approved.copy(username = Username("plugin-renamed-$smtpEnabled"), pendingEmail = addressB),
+                        usersRepo.getById(created.id),
+                    )
+                } finally {
+                    application.close()
+                }
+            }
+        }
     }
 }
