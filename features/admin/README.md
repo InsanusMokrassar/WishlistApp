@@ -63,7 +63,8 @@ Ownership checks are bypassed on mutating routes — admin can update or delete 
 ### `AdminUser` / `AdminWishlist` / `AdminWishlistItem` (`admin.common.models`)
 
 `@Serializable` feature models returned by the admin surfaces above, per the Feature Interface
-Return Model Rule — root-only, so `AdminUser` deliberately keeps `email` and `emailApproved` (an unprivileged caller
+Return Model Rule — root-only, so `AdminUser` deliberately keeps `email`, `emailApproved`, `pendingEmail`, and
+`emailChangeAllowedAt` (an unprivileged caller
 never reaches this model). `AdminWishlist` has **two** mapper overloads: `RegisteredWishlist.asAdminWishlist()`
 (used by the one route that bypasses `WishlistService`, `wishlistsUpdatePathPart`) and
 `WishlistsFeatureWishlist.asAdminWishlist()` (used by the three routes that go through
@@ -75,7 +76,10 @@ their bases verbatim.
 
 ```kotlin
 @Serializable
-data class AdminUser(val id: UserId, val username: Username, val email: Email?)
+data class AdminUser(
+    val id: UserId, val username: Username, val email: Email?, val emailApproved: Boolean = false,
+    val pendingEmail: Email? = null, val emailChangeAllowedAt: Long? = null
+)
 
 @Serializable
 data class AdminWishlist(val id: WishlistId, val userId: UserId, val title: String, val defaultPriceUnits: String)
@@ -116,7 +120,7 @@ data class NewWishlist(
 
 ### Server side
 
-- `UsersManagementFeature` — service class; wraps `UsersRepo` (CRUD) + `AuthFeatureService` (password hashing via BCrypt) + `WishlistRepo` + `WishlistItemRepo` + the shared `EmailVerificationAccountCoordinator`. No new repo or table. `delete(id)` cascades: for each wishlist owned by the user it deletes all items then the wishlist, then `AuthFeatureService.purgeUser(id)` removes the password hash and all active access/refresh sessions, then the user record is removed. `getAll()`/`create(...)` return `AdminUser`, not `RegisteredUser` (Feature Interface Return Model Rule). `updateUsername` is the safe route for username-only admin edits: it preserves the latest email and approval flag under the same account coordinator used by verification.
+- `UsersManagementFeature` — service class; wraps `UsersRepo` (CRUD) + `AuthFeatureService` (password hashing via BCrypt) + `WishlistRepo` + `WishlistItemRepo` + the shared `EmailVerificationAccountCoordinator`. No new repo or table. `delete(id)` cascades: for each wishlist owned by the user it deletes all items then the wishlist, then `AuthFeatureService.purgeUser(id)` removes the password hash and all active access/refresh sessions, then the user record is removed. `getAll()`/`create(...)` return `AdminUser`, not `RegisteredUser` (Feature Interface Return Model Rule). `updateUsername` is the username-only lifecycle-preserving route: it preserves current/pending email, approval, and cooldown. Full updates apply email cooldown and map a blocked mutation to typed `429`; the root guard remains required and no new profile controls are added.
 - **Feature Interface Return Model Rule:** every admin capability (`UsersManagementFeature`, `AdminWishlistsFeature`, `AdminWishlistItemsFeature`, and `AdminRoutingsConfigurator`'s inline handlers that bypass those services) now returns `AdminUser`/`AdminWishlist`/`AdminWishlistItem` instead of the `users`/`wishlist` features' persistence entities directly. `features/admin/common/build.gradle` gained `api project(":wishlist.features.wishlist.common")` to declare these new models' dependency on `WishlistId`/`RegisteredWishlist`/`WishlistsFeatureWishlist`.
 - `AdminFeature` — thin wrapper holding `UsersManagementFeature`. Injected into `AdminRoutingsConfigurator`.
 - `AdminRoutingsConfigurator` — registers all `/admin/...` routes under `authenticate { }`. Uses `requireAdmin()` helper (private `RoutingContext` extension) to verify caller holds the SuperAdmin role via `rolesFeature.isFunctionalityAvailable(callerId, Constants.adminPanelFunctionalityId)` (issue #68) — replaces the previous inline `username == "root"` comparison. `usersRepo: ReadUsersRepo` is kept on the constructor only for the unrelated `GET /admin/users/getById/{id}` route.
