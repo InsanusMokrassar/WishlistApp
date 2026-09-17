@@ -23,14 +23,25 @@ class UsersFeatureUserTest {
         assertEquals(setOf("id", "username"), json.keys)
     }
 
-    /** A [RegisteredUser] with an approved non-null email maps to id/username and drops private fields. */
+    /** A populated private lifecycle projects to exactly the public id/username wire shape. */
     @Test
-    fun mapperDropsNonNullEmailAndApproval() {
-        val registered = RegisteredUser(UserId(7L), Username("bob"), Email("bob@example.com"), emailApproved = true)
+    fun mapperDropsCompletePrivateLifecycle() {
+        val registered = RegisteredUser(
+            UserId(7L),
+            Username("bob"),
+            Email("approved@example.com"),
+            emailApproved = true,
+            pendingEmail = Email("pending@example.com"),
+            emailChangeAllowedAt = 1_798_761_600_000L,
+        )
 
         val projected = registered.asUsersFeatureUser()
 
         assertEquals(UsersFeatureUser(UserId(7L), Username("bob")), projected)
+        assertEquals(
+            setOf("id", "username"),
+            Json.encodeToJsonElement(UsersFeatureUser.serializer(), projected).jsonObject.keys,
+        )
     }
 
     /** A [RegisteredUser] with no email still maps id/username correctly. */
@@ -43,10 +54,17 @@ class UsersFeatureUserTest {
         assertEquals(UsersFeatureUser(UserId(8L), Username("carol")), projected)
     }
 
-    /** Round trip restores private email and approval only when both are explicitly re-supplied. */
+    /** Reverse conversion needs all four private lifecycle values to preserve a populated source row. */
     @Test
-    fun reverseMapperRestoresNonNullEmailAndApprovalRoundTrip() {
-        val original = RegisteredUser(UserId(7L), Username("bob"), Email("bob@example.com"), emailApproved = true)
+    fun reverseMapperRequiresAllPrivateLifecycleArguments() {
+        val original = RegisteredUser(
+            UserId(7L),
+            Username("bob"),
+            Email("approved@example.com"),
+            emailApproved = true,
+            pendingEmail = Email("pending@example.com"),
+            emailChangeAllowedAt = 1_798_761_600_000L,
+        )
 
         val restored = original.asUsersFeatureUser().asRegisteredUser(
             email = original.email,

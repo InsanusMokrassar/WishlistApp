@@ -9,6 +9,11 @@ import dev.inmo.wishlist.features.users.common.models.UsersFeatureUser
 import dev.inmo.wishlist.features.users.common.models.Username
 import dev.inmo.wishlist.features.users.common.repo.ReadUsersRepo
 import kotlinx.coroutines.test.runTest
+import kotlinx.serialization.builtins.ListSerializer
+import kotlinx.serialization.json.Json
+import kotlinx.serialization.json.encodeToJsonElement
+import kotlinx.serialization.json.jsonArray
+import kotlinx.serialization.json.jsonObject
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertTrue
@@ -42,8 +47,15 @@ internal class FakeUsersRepo(
  */
 class UsersServiceTest {
 
-    /** Fixture user carrying a non-null email, to prove the returned model cannot expose it. */
-    private val userWithEmail = RegisteredUser(UserId(7L), Username("bob"), Email("bob@example.com"))
+    /** Fixture user carrying complete private lifecycle state, to prove public responses omit every private value. */
+    private val userWithEmail = RegisteredUser(
+        UserId(7L),
+        Username("bob"),
+        Email("approved@example.com"),
+        emailApproved = true,
+        pendingEmail = Email("pending@example.com"),
+        emailChangeAllowedAt = 1_798_761_600_000L,
+    )
 
     /** A seeded user with a non-null email is returned as a [UsersFeatureUser] with only id/username. */
     @Test
@@ -55,6 +67,21 @@ class UsersServiceTest {
         // UsersFeatureUser has no `email` property at all, so this equality check is also a
         // compile-time proof that the returned type cannot carry the email through.
         assertEquals(listOf(UsersFeatureUser(userWithEmail.id, userWithEmail.username)), result)
+    }
+
+    /** Actual list and element JSON contain only public keys even when storage has complete lifecycle state. */
+    @Test
+    fun listAndSinglePublicResponsesOmitPopulatedPrivateMetadata() = runTest {
+        val result = UsersService(FakeUsersRepo(mapOf(userWithEmail.id to userWithEmail))).getAll()
+
+        val listElement = Json.encodeToJsonElement(ListSerializer(UsersFeatureUser.serializer()), result)
+            .jsonArray
+            .single()
+            .jsonObject
+        val single = Json.encodeToJsonElement(UsersFeatureUser.serializer(), result.single()).jsonObject
+
+        assertEquals(setOf("id", "username"), listElement.keys)
+        assertEquals(setOf("id", "username"), single.keys)
     }
 
     /** An empty repo maps to an empty list. */

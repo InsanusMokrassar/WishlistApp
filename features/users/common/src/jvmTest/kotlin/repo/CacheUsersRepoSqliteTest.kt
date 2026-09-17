@@ -3,6 +3,7 @@ package dev.inmo.wishlist.features.users.common.repo
 import dev.inmo.micro_utils.repos.create
 import dev.inmo.wishlist.features.email.common.models.Email
 import dev.inmo.wishlist.features.users.common.models.NewUser
+import dev.inmo.wishlist.features.users.common.models.RegisteredUser
 import dev.inmo.wishlist.features.users.common.models.Username
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.test.advanceUntilIdle
@@ -15,6 +16,39 @@ import kotlin.test.assertTrue
 /** Exercises the production full-cache wrapper over the real SQLite repository. */
 @OptIn(ExperimentalCoroutinesApi::class)
 class CacheUsersRepoSqliteTest {
+    /** A fresh read bypasses a warmed cache after another file-backed repository changes lifecycle state. */
+    @Test
+    fun freshReadBypassesCacheAfterIndependentRepositoryMutation() = runTest {
+        var now = 1_000L
+        withFileBackedSqliteUsersRepos(firstNowMillis = { now }, secondNowMillis = { now }) { _, first, second ->
+            val current = Email("approved@example.com")
+            val pending = Email("pending@example.com")
+            val created = first.create(NewUser(Username("cached"), current)).single()
+            val cache = CacheUsersRepo(first, backgroundScope)
+            advanceUntilIdle()
+            assertEquals(created, cache.getById(created.id))
+
+            checkNotNull(second.approveEmail(created.id, current, cooldownMillis = 10L))
+            now = 1_010L
+            val newer = checkNotNull(second.update(created.id, NewUser(created.username, pending)))
+
+            assertEquals(created, cache.getById(created.id))
+            assertEquals(
+                RegisteredUser(
+                    id = created.id,
+                    username = created.username,
+                    email = current,
+                    emailApproved = true,
+                    pendingEmail = pending,
+                    emailChangeAllowedAt = 1_010L,
+                ),
+                newer,
+            )
+            assertEquals(newer, cache.getByIdFresh(created.id))
+            assertEquals(created, cache.getById(created.id))
+        }
+    }
+
     /** A conditional approval and pending replacement immediately mirror complete lifecycle state into the cache. */
     @Test
     fun approvalImmediatelyMirrorsAndReplacementResetsCache() = runTest {
