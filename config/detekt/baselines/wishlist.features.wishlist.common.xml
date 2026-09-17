@@ -1,0 +1,17 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<SmellBaseline>
+  <ManuallySuppressedIssues/>
+  <CurrentIssues>
+    <ID>UndocumentedPublicClass:AndroidPlugin.kt:AndroidPlugin : StartPlugin</ID>
+    <ID>UndocumentedPublicClass:JSPlugin.kt:JSPlugin : StartPlugin</ID>
+    <ID>UndocumentedPublicClass:Plugin.kt:Plugin : StartPlugin</ID>
+    <ID>UndocumentedPublicClass:Priority.kt:Priority$Companion</ID>
+    <ID>UndocumentedPublicProperty:Wishlist.kt:WishlistId$val long: Long</ID>
+    <ID>UndocumentedPublicProperty:WishlistCopyJob.kt:WishlistCopyJobId$val long: Long</ID>
+    <ID>UndocumentedPublicProperty:WishlistCopyJob.kt:WishlistCopyJobStatus$Done</ID>
+    <ID>UndocumentedPublicProperty:WishlistCopyJob.kt:WishlistCopyJobStatus$Failed</ID>
+    <ID>UndocumentedPublicProperty:WishlistCopyJob.kt:WishlistCopyJobStatus$InProgress</ID>
+    <ID>UndocumentedPublicProperty:WishlistCopyJob.kt:WishlistCopyJobStatus$Pending</ID>
+    <ID>UndocumentedPublicProperty:WishlistItem.kt:WishlistItemId$val long: Long</ID>
+  </CurrentIssues>
+</SmellBaseline>

@@ -1,0 +1,7 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<SmellBaseline>
+  <ManuallySuppressedIssues/>
+  <CurrentIssues>
+    <ID>UndocumentedPublicProperty:CurrencyConfig.kt:CurrencyConfig$val openExchangeRatesRefreshTTLMillis: Long = 1.hours.millisecondsLong</ID>
+  </CurrentIssues>
+</SmellBaseline>

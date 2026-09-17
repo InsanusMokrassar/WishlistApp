@@ -1,0 +1,32 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<SmellBaseline>
+  <ManuallySuppressedIssues/>
+  <CurrentIssues>
+    <ID>UndocumentedPublicClass:UserEditViewModelEmailTest.kt:UserEditViewModelEmailTest</ID>
+    <ID>UndocumentedPublicClass:UserEditViewModelSaveTest.kt:UserEditViewModelSaveTest</ID>
+    <ID>UndocumentedPublicFunction:UserEditViewModelEmailTest.kt:UserEditViewModelEmailTest$@Test fun disabledProbeHidesSectionAndRejectsWrites</ID>
+    <ID>UndocumentedPublicFunction:UserEditViewModelEmailTest.kt:UserEditViewModelEmailTest$@Test fun failedEmailSaveDoesNotRequestVerification</ID>
+    <ID>UndocumentedPublicFunction:UserEditViewModelEmailTest.kt:UserEditViewModelEmailTest$@Test fun falsePutReportsSaveFailure</ID>
+    <ID>UndocumentedPublicFunction:UserEditViewModelEmailTest.kt:UserEditViewModelEmailTest$@Test fun identityLossDuringPutPreventsPostAndRefresh</ID>
+    <ID>UndocumentedPublicFunction:UserEditViewModelEmailTest.kt:UserEditViewModelEmailTest$@Test fun initialProbeFailureExposesRetryAndRecovers</ID>
+    <ID>UndocumentedPublicFunction:UserEditViewModelEmailTest.kt:UserEditViewModelEmailTest$@Test fun lateCancelledRefreshCannotPublish</ID>
+    <ID>UndocumentedPublicFunction:UserEditViewModelEmailTest.kt:UserEditViewModelEmailTest$@Test fun logoutDuringPostSuppressesOldResult</ID>
+    <ID>UndocumentedPublicFunction:UserEditViewModelEmailTest.kt:UserEditViewModelEmailTest$@Test fun missingOwnerEmailIsSavedThenVerified</ID>
+    <ID>UndocumentedPublicFunction:UserEditViewModelEmailTest.kt:UserEditViewModelEmailTest$@Test fun oldFinallyCannotClearNewBusy</ID>
+    <ID>UndocumentedPublicFunction:UserEditViewModelEmailTest.kt:UserEditViewModelEmailTest$@Test fun ownerLeaveAndReturnDoesNotReviveOperation</ID>
+    <ID>UndocumentedPublicFunction:UserEditViewModelEmailTest.kt:UserEditViewModelEmailTest$@Test fun pendingOwnerEmailCanRetryVerificationWithoutSavingAgain</ID>
+    <ID>UndocumentedPublicFunction:UserEditViewModelEmailTest.kt:UserEditViewModelEmailTest$@Test fun postThrowAfterConfirmedSaveReportsDeliveryFailure</ID>
+    <ID>UndocumentedPublicFunction:UserEditViewModelEmailTest.kt:UserEditViewModelEmailTest$@Test fun privateReadFailureExposesRetryAndPreservesDraft</ID>
+    <ID>UndocumentedPublicFunction:UserEditViewModelEmailTest.kt:UserEditViewModelEmailTest$@Test fun putThrowAfterCommitReconcilesPendingWithoutPosting</ID>
+    <ID>UndocumentedPublicFunction:UserEditViewModelEmailTest.kt:UserEditViewModelEmailTest$@Test fun putThrowBeforeCommitKeepsDraftAndNeverPosts</ID>
+    <ID>UndocumentedPublicFunction:UserEditViewModelEmailTest.kt:UserEditViewModelEmailTest$@Test fun queuedSaveRejectsChangedOwner</ID>
+    <ID>UndocumentedPublicFunction:UserEditViewModelEmailTest.kt:UserEditViewModelEmailTest$@Test fun secondaryRefreshFailurePreservesPrimaryError</ID>
+    <ID>UndocumentedPublicFunction:UserEditViewModelSaveTest.kt:UserEditViewModelSaveTest$@Test fun cancellationClearsLoadingWithoutProfileFailure</ID>
+    <ID>UndocumentedPublicFunction:UserEditViewModelSaveTest.kt:UserEditViewModelSaveTest$@Test fun passwordFalseAfterUsernameSuccessKeepsEditorOpen</ID>
+    <ID>UndocumentedPublicFunction:UserEditViewModelSaveTest.kt:UserEditViewModelSaveTest$@Test fun successfulUsernameOnlyAndPasswordSavesNavigateOnceEach</ID>
+    <ID>UndocumentedPublicFunction:UserEditViewModelSaveTest.kt:UserEditViewModelSaveTest$@Test fun usernameFalseSkipsPasswordAndNavigation</ID>
+    <ID>UndocumentedPublicFunction:UserEditViewModelSaveTest.kt:UserEditViewModelSaveTest$@Test fun usernameThrowSkipsPasswordAndNavigation</ID>
+    <ID>UndocumentedPublicFunction:UsersModelFileTest.kt:UsersModelFileTest$@Test fun uploadAvatarAndDownloadBytesDelegateThroughFilesService</ID>
+    <ID>UndocumentedPublicFunction:UsersModelTest.kt:UsersModelTest$@OptIn(ExperimentalCoroutinesApi::class) @Test fun pluginModelPreservesEveryPlatformNeutralDelegationAndReactiveState</ID>
+  </CurrentIssues>
+</SmellBaseline>
