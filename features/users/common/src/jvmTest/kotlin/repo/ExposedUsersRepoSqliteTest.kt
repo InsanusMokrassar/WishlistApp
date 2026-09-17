@@ -26,6 +26,7 @@ import java.nio.file.Files
 import java.util.concurrent.CountDownLatch
 import java.util.concurrent.TimeUnit
 import java.util.concurrent.atomic.AtomicBoolean
+import java.util.concurrent.atomic.AtomicReference
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
@@ -460,47 +461,32 @@ class ExposedUsersRepoSqliteTest {
         withFileBackedSqliteUsersRepos(
             firstAfterWriteLock = {
                 firstLockAcquired.countDown()
-                releaseFirst.await()
+                check(releaseFirst.await(15, TimeUnit.SECONDS)) { "first current-address worker was not released" }
             },
             secondAfterWriteLock = { secondLockAcquired.countDown() },
             secondBusyObservation = busyObservation,
         ) { _, first, second ->
             val shared = Email("concurrent-current@example.com")
-            var firstWrite: Result<RegisteredUser>? = null
-            val firstDone = CountDownLatch(1)
-            val firstThread = Thread {
-                firstWrite = runCatching {
-                    runBlocking { first.create(NewUser(Username("first-current"), shared)).single() }
-                }
-                firstDone.countDown()
+            val firstWorker = BoundedTestWorker("SQLite first current-address worker") {
+                first.create(NewUser(Username("first-current"), shared)).single()
             }
-            firstThread.start()
-            assertTrue(firstLockAcquired.await(10, TimeUnit.SECONDS))
-            var secondWrite: Result<RegisteredUser>? = null
-            val secondStarted = CountDownLatch(1)
-            val secondDone = CountDownLatch(1)
-            val secondThread = Thread {
-                secondStarted.countDown()
-                secondWrite = runCatching {
-                    runBlocking { second.create(NewUser(Username("second-current"), shared)).single() }
-                }
-                secondDone.countDown()
+            val secondWorker = BoundedTestWorker("SQLite second current-address worker") {
+                second.create(NewUser(Username("second-current"), shared)).single()
             }
-            secondThread.start()
-            assertTrue(secondStarted.await(10, TimeUnit.SECONDS))
-            try {
+            runCleanupProtectedContention(
+                workers = listOf(firstWorker, secondWorker),
+                cleanupActions = listOf(releaseFirst::countDown, busyObservation::releaseRetry),
+            ) {
+                firstWorker.start()
+                assertTrue(firstLockAcquired.await(10, TimeUnit.SECONDS))
+                secondWorker.start()
                 assertTrue(busyObservation.awaitBusyEntry())
                 busyObservation.assertHealthy()
                 assertEquals(1, secondLockAcquired.count)
-            } finally {
-                releaseFirst.countDown()
-                assertTrue(firstDone.await(15, TimeUnit.SECONDS))
-                busyObservation.releaseRetry()
-                assertTrue(secondDone.await(15, TimeUnit.SECONDS))
             }
             busyObservation.assertHealthy()
-            assertEquals(shared, checkNotNull(firstWrite).getOrThrow().email)
-            assertIs<DuplicateUserFieldException>(checkNotNull(secondWrite).exceptionOrNull())
+            assertEquals(shared, firstWorker.result().getOrThrow().email)
+            assertIs<DuplicateUserFieldException>(secondWorker.result().exceptionOrNull())
         }
     }
 
@@ -516,7 +502,7 @@ class ExposedUsersRepoSqliteTest {
             firstAfterWriteLock = {
                 if (blockFirstWriter) {
                     firstLockAcquired.countDown()
-                    releaseFirst.await()
+                    check(releaseFirst.await(15, TimeUnit.SECONDS)) { "SQLite pending worker was not released" }
                 }
             },
             secondAfterWriteLock = { secondLockAcquired.countDown() },
@@ -527,36 +513,26 @@ class ExposedUsersRepoSqliteTest {
             val owner = first.create(NewUser(Username("pending-owner"), current)).single()
             checkNotNull(first.approveEmail(owner.id, current))
             blockFirstWriter = true
-            var pendingWrite: Result<RegisteredUser?>? = null
-            val pendingDone = CountDownLatch(1)
-            val pendingThread = Thread {
-                pendingWrite = runCatching { runBlocking { first.setEmail(owner.id, pending) } }
-                pendingDone.countDown()
+            val pendingWorker = BoundedTestWorker("SQLite pending-address worker") {
+                first.setEmail(owner.id, pending)
             }
-            pendingThread.start()
-            assertTrue(firstLockAcquired.await(10, TimeUnit.SECONDS))
-            var currentWrite: Result<RegisteredUser>? = null
-            val currentDone = CountDownLatch(1)
-            val currentThread = Thread {
-                currentWrite = runCatching {
-                    runBlocking { second.create(NewUser(Username("pending-contender"), pending)).single() }
-                }
-                currentDone.countDown()
+            val currentWorker = BoundedTestWorker("SQLite current-address contender") {
+                second.create(NewUser(Username("pending-contender"), pending)).single()
             }
-            currentThread.start()
-            try {
+            runCleanupProtectedContention(
+                workers = listOf(pendingWorker, currentWorker),
+                cleanupActions = listOf(releaseFirst::countDown, busyObservation::releaseRetry),
+            ) {
+                pendingWorker.start()
+                assertTrue(firstLockAcquired.await(10, TimeUnit.SECONDS))
+                currentWorker.start()
                 assertTrue(busyObservation.awaitBusyEntry())
                 busyObservation.assertHealthy()
                 assertEquals(1, secondLockAcquired.count)
-            } finally {
-                releaseFirst.countDown()
-                assertTrue(pendingDone.await(15, TimeUnit.SECONDS))
-                busyObservation.releaseRetry()
-                assertTrue(currentDone.await(15, TimeUnit.SECONDS))
             }
             busyObservation.assertHealthy()
-            assertEquals(pending, checkNotNull(checkNotNull(pendingWrite).getOrThrow()).pendingEmail)
-            assertIs<DuplicateUserFieldException>(checkNotNull(currentWrite).exceptionOrNull())
+            assertEquals(pending, checkNotNull(pendingWorker.result().getOrThrow()).pendingEmail)
+            assertIs<DuplicateUserFieldException>(currentWorker.result().exceptionOrNull())
             assertEquals(
                 Email("unrelated@example.com"),
                 second.create(NewUser(Username("unrelated-contender"), Email("unrelated@example.com"))).single().email,
@@ -570,13 +546,16 @@ class ExposedUsersRepoSqliteTest {
         var now = 500L
         val holderLocked = CountDownLatch(1)
         val releaseHolder = CountDownLatch(1)
-        val holderDone = CountDownLatch(1)
-        val contenderDone = CountDownLatch(1)
         val blockHolder = AtomicBoolean(false)
         val busy = SqliteBusyObservation()
         withFileBackedSqliteUsersRepos(
             firstNowMillis = { now },
-            firstAfterWriteLock = { if (blockHolder.get()) { holderLocked.countDown(); releaseHolder.await(15, TimeUnit.SECONDS) } },
+            firstAfterWriteLock = {
+                if (blockHolder.get()) {
+                    holderLocked.countDown()
+                    check(releaseHolder.await(15, TimeUnit.SECONDS)) { "SQLite expiry holder was not released" }
+                }
+            },
             secondNowMillis = { now },
             secondBusyObservation = busy,
         ) { url, first, second ->
@@ -585,25 +564,26 @@ class ExposedUsersRepoSqliteTest {
             checkNotNull(first.approveEmail(owner.id, address, cooldownMillis = 500L))
             now = 999L
             blockHolder.set(true)
-            var cleared: Result<RegisteredUser?>? = null
-            val holder = Thread { runCatching { runBlocking { first.create(NewUser(Username("blocked-expiry-holder"), Email("blocked-expiry-holder@example.com"))) } }; holderDone.countDown() }
-            val contender = Thread { cleared = runCatching { runBlocking { second.setEmail(owner.id, null) } }; contenderDone.countDown() }
-            holder.start()
-            assertTrue(holderLocked.await(10, TimeUnit.SECONDS))
-            contender.start()
-            try {
+            val holderWorker = BoundedTestWorker("SQLite expiry holder") {
+                first.create(NewUser(Username("blocked-expiry-holder"), Email("blocked-expiry-holder@example.com")))
+            }
+            val contenderWorker = BoundedTestWorker("SQLite expiry contender") {
+                second.setEmail(owner.id, null)
+            }
+            runCleanupProtectedContention(
+                workers = listOf(holderWorker, contenderWorker),
+                cleanupActions = listOf(releaseHolder::countDown, busy::releaseRetry),
+            ) {
+                holderWorker.start()
+                assertTrue(holderLocked.await(10, TimeUnit.SECONDS))
+                contenderWorker.start()
                 assertTrue(busy.awaitBusyEntry())
                 busy.assertHealthy()
                 now = 1_000L
-                assertEquals(1, contenderDone.count)
-            } finally {
-                releaseHolder.countDown()
-                assertTrue(holderDone.await(15, TimeUnit.SECONDS))
-                busy.releaseRetry()
-                assertTrue(contenderDone.await(15, TimeUnit.SECONDS))
             }
             busy.assertHealthy()
-            assertNull(checkNotNull(cleared).getOrThrow()?.email)
+            holderWorker.result().getOrThrow()
+            assertNull(contenderWorker.result().getOrThrow()?.email)
             assertRawSqliteAddressHasNoClaim(url, address)
         }
     }
@@ -614,37 +594,41 @@ class ExposedUsersRepoSqliteTest {
         var now = 1_000L
         val holderLocked = CountDownLatch(1)
         val releaseHolder = CountDownLatch(1)
-        val holderDone = CountDownLatch(1)
-        val contenderDone = CountDownLatch(1)
         val blockHolder = AtomicBoolean(false)
         val busy = SqliteBusyObservation()
         withFileBackedSqliteUsersRepos(
             firstNowMillis = { now },
-            firstAfterWriteLock = { if (blockHolder.get()) { holderLocked.countDown(); releaseHolder.await(15, TimeUnit.SECONDS) } },
+            firstAfterWriteLock = {
+                if (blockHolder.get()) {
+                    holderLocked.countDown()
+                    check(releaseHolder.await(15, TimeUnit.SECONDS)) { "SQLite approval holder was not released" }
+                }
+            },
             secondNowMillis = { now },
             secondBusyObservation = busy,
         ) { _, first, second ->
             val address = Email("blocked-approval@example.com")
             val owner = first.create(NewUser(Username("blocked-approval"), address)).single()
             blockHolder.set(true)
-            var approved: Result<RegisteredUser?>? = null
-            val holder = Thread { runCatching { runBlocking { first.create(NewUser(Username("blocked-approval-holder"), Email("blocked-approval-holder@example.com"))) } }; holderDone.countDown() }
-            val contender = Thread { approved = runCatching { runBlocking { second.approveEmail(owner.id, address, cooldownMillis = 500L) } }; contenderDone.countDown() }
-            holder.start()
-            assertTrue(holderLocked.await(10, TimeUnit.SECONDS))
-            contender.start()
-            try {
+            val holderWorker = BoundedTestWorker("SQLite approval holder") {
+                first.create(NewUser(Username("blocked-approval-holder"), Email("blocked-approval-holder@example.com")))
+            }
+            val contenderWorker = BoundedTestWorker("SQLite approval contender") {
+                second.approveEmail(owner.id, address, cooldownMillis = 500L)
+            }
+            runCleanupProtectedContention(
+                workers = listOf(holderWorker, contenderWorker),
+                cleanupActions = listOf(releaseHolder::countDown, busy::releaseRetry),
+            ) {
+                holderWorker.start()
+                assertTrue(holderLocked.await(10, TimeUnit.SECONDS))
+                contenderWorker.start()
                 assertTrue(busy.awaitBusyEntry())
                 now = 2_000L
-                assertEquals(1, contenderDone.count)
-            } finally {
-                releaseHolder.countDown()
-                assertTrue(holderDone.await(15, TimeUnit.SECONDS))
-                busy.releaseRetry()
-                assertTrue(contenderDone.await(15, TimeUnit.SECONDS))
             }
             busy.assertHealthy()
-            assertEquals(2_500L, checkNotNull(approved).getOrThrow()?.emailChangeAllowedAt)
+            holderWorker.result().getOrThrow()
+            assertEquals(2_500L, contenderWorker.result().getOrThrow()?.emailChangeAllowedAt)
         }
     }
 
@@ -653,12 +637,15 @@ class ExposedUsersRepoSqliteTest {
     fun replacementFirstMakesConcurrentApprovalStale() = runBlocking {
         val holderLocked = CountDownLatch(1)
         val releaseHolder = CountDownLatch(1)
-        val holderDone = CountDownLatch(1)
-        val contenderDone = CountDownLatch(1)
         val blockHolder = AtomicBoolean(false)
         val busy = SqliteBusyObservation()
         withFileBackedSqliteUsersRepos(
-            firstAfterWriteLock = { if (blockHolder.get()) { holderLocked.countDown(); releaseHolder.await(15, TimeUnit.SECONDS) } },
+            firstAfterWriteLock = {
+                if (blockHolder.get()) {
+                    holderLocked.countDown()
+                    check(releaseHolder.await(15, TimeUnit.SECONDS)) { "SQLite replacement holder was not released" }
+                }
+            },
             secondBusyObservation = busy,
         ) { url, first, second ->
             val current = Email("replacement-first-current@example.com")
@@ -668,23 +655,24 @@ class ExposedUsersRepoSqliteTest {
             checkNotNull(first.approveEmail(owner.id, current))
             checkNotNull(first.setEmail(owner.id, oldPending))
             blockHolder.set(true)
-            var approval: Result<RegisteredUser?>? = null
-            val holder = Thread { runCatching { runBlocking { first.setEmail(owner.id, replacement) } }; holderDone.countDown() }
-            val contender = Thread { approval = runCatching { runBlocking { second.approveEmail(owner.id, oldPending) } }; contenderDone.countDown() }
-            holder.start()
-            assertTrue(holderLocked.await(10, TimeUnit.SECONDS))
-            contender.start()
-            try {
+            val holderWorker = BoundedTestWorker("SQLite replacement holder") {
+                first.setEmail(owner.id, replacement)
+            }
+            val contenderWorker = BoundedTestWorker("SQLite stale approval contender") {
+                second.approveEmail(owner.id, oldPending)
+            }
+            runCleanupProtectedContention(
+                workers = listOf(holderWorker, contenderWorker),
+                cleanupActions = listOf(releaseHolder::countDown, busy::releaseRetry),
+            ) {
+                holderWorker.start()
+                assertTrue(holderLocked.await(10, TimeUnit.SECONDS))
+                contenderWorker.start()
                 assertTrue(busy.awaitBusyEntry())
-                assertEquals(1, contenderDone.count)
-            } finally {
-                releaseHolder.countDown()
-                assertTrue(holderDone.await(15, TimeUnit.SECONDS))
-                busy.releaseRetry()
-                assertTrue(contenderDone.await(15, TimeUnit.SECONDS))
             }
             busy.assertHealthy()
-            assertNull(checkNotNull(approval).getOrThrow())
+            holderWorker.result().getOrThrow()
+            assertNull(contenderWorker.result().getOrThrow())
             val stored = checkNotNull(second.getById(owner.id))
             assertEquals(current, stored.email)
             assertEquals(replacement, stored.pendingEmail)
@@ -699,13 +687,16 @@ class ExposedUsersRepoSqliteTest {
         var now = 1_000L
         val holderLocked = CountDownLatch(1)
         val releaseHolder = CountDownLatch(1)
-        val holderDone = CountDownLatch(1)
-        val contenderDone = CountDownLatch(1)
         val blockHolder = AtomicBoolean(false)
         val busy = SqliteBusyObservation()
         withFileBackedSqliteUsersRepos(
             firstNowMillis = { now },
-            firstAfterWriteLock = { if (blockHolder.get()) { holderLocked.countDown(); releaseHolder.await(15, TimeUnit.SECONDS) } },
+            firstAfterWriteLock = {
+                if (blockHolder.get()) {
+                    holderLocked.countDown()
+                    check(releaseHolder.await(15, TimeUnit.SECONDS)) { "SQLite cooldown approval holder was not released" }
+                }
+            },
             secondNowMillis = { now },
             secondBusyObservation = busy,
         ) { url, first, second ->
@@ -716,23 +707,24 @@ class ExposedUsersRepoSqliteTest {
             checkNotNull(first.approveEmail(owner.id, initial))
             checkNotNull(first.setEmail(owner.id, candidate))
             blockHolder.set(true)
-            var replacementResult: Result<RegisteredUser?>? = null
-            val holder = Thread { runCatching { runBlocking { first.approveEmail(owner.id, candidate, cooldownMillis = 500L) } }; holderDone.countDown() }
-            val contender = Thread { replacementResult = runCatching { runBlocking { second.setEmail(owner.id, replacement) } }; contenderDone.countDown() }
-            holder.start()
-            assertTrue(holderLocked.await(10, TimeUnit.SECONDS))
-            contender.start()
-            try {
+            val holderWorker = BoundedTestWorker("SQLite cooldown approval holder") {
+                first.approveEmail(owner.id, candidate, cooldownMillis = 500L)
+            }
+            val contenderWorker = BoundedTestWorker("SQLite cooldown replacement contender") {
+                second.setEmail(owner.id, replacement)
+            }
+            runCleanupProtectedContention(
+                workers = listOf(holderWorker, contenderWorker),
+                cleanupActions = listOf(releaseHolder::countDown, busy::releaseRetry),
+            ) {
+                holderWorker.start()
+                assertTrue(holderLocked.await(10, TimeUnit.SECONDS))
+                contenderWorker.start()
                 assertTrue(busy.awaitBusyEntry())
-                assertEquals(1, contenderDone.count)
-            } finally {
-                releaseHolder.countDown()
-                assertTrue(holderDone.await(15, TimeUnit.SECONDS))
-                busy.releaseRetry()
-                assertTrue(contenderDone.await(15, TimeUnit.SECONDS))
             }
             busy.assertHealthy()
-            assertIs<EmailChangeCooldownException>(checkNotNull(replacementResult).exceptionOrNull())
+            holderWorker.result().getOrThrow()
+            assertIs<EmailChangeCooldownException>(contenderWorker.result().exceptionOrNull())
             val stored = checkNotNull(second.getById(owner.id))
             assertEquals(candidate, stored.email)
             assertNull(stored.pendingEmail)
@@ -747,12 +739,15 @@ class ExposedUsersRepoSqliteTest {
     fun zeroPolicyApprovalFirstAllowsConcurrentReplacement() = runBlocking {
         val holderLocked = CountDownLatch(1)
         val releaseHolder = CountDownLatch(1)
-        val holderDone = CountDownLatch(1)
-        val contenderDone = CountDownLatch(1)
         val blockHolder = AtomicBoolean(false)
         val busy = SqliteBusyObservation()
         withFileBackedSqliteUsersRepos(
-            firstAfterWriteLock = { if (blockHolder.get()) { holderLocked.countDown(); releaseHolder.await(15, TimeUnit.SECONDS) } },
+            firstAfterWriteLock = {
+                if (blockHolder.get()) {
+                    holderLocked.countDown()
+                    check(releaseHolder.await(15, TimeUnit.SECONDS)) { "SQLite zero-policy holder was not released" }
+                }
+            },
             secondBusyObservation = busy,
         ) { url, first, second ->
             val initial = Email("zero-first-initial@example.com")
@@ -762,23 +757,24 @@ class ExposedUsersRepoSqliteTest {
             checkNotNull(first.approveEmail(owner.id, initial))
             checkNotNull(first.setEmail(owner.id, candidate))
             blockHolder.set(true)
-            var replacementResult: Result<RegisteredUser?>? = null
-            val holder = Thread { runCatching { runBlocking { first.approveEmail(owner.id, candidate, cooldownMillis = 0L) } }; holderDone.countDown() }
-            val contender = Thread { replacementResult = runCatching { runBlocking { second.setEmail(owner.id, replacement) } }; contenderDone.countDown() }
-            holder.start()
-            assertTrue(holderLocked.await(10, TimeUnit.SECONDS))
-            contender.start()
-            try {
+            val holderWorker = BoundedTestWorker("SQLite zero-policy approval holder") {
+                first.approveEmail(owner.id, candidate, cooldownMillis = 0L)
+            }
+            val contenderWorker = BoundedTestWorker("SQLite zero-policy replacement contender") {
+                second.setEmail(owner.id, replacement)
+            }
+            runCleanupProtectedContention(
+                workers = listOf(holderWorker, contenderWorker),
+                cleanupActions = listOf(releaseHolder::countDown, busy::releaseRetry),
+            ) {
+                holderWorker.start()
+                assertTrue(holderLocked.await(10, TimeUnit.SECONDS))
+                contenderWorker.start()
                 assertTrue(busy.awaitBusyEntry())
-                assertEquals(1, contenderDone.count)
-            } finally {
-                releaseHolder.countDown()
-                assertTrue(holderDone.await(15, TimeUnit.SECONDS))
-                busy.releaseRetry()
-                assertTrue(contenderDone.await(15, TimeUnit.SECONDS))
             }
             busy.assertHealthy()
-            val stored = checkNotNull(replacementResult).getOrThrow()
+            holderWorker.result().getOrThrow()
+            val stored = contenderWorker.result().getOrThrow()
             assertEquals(candidate, stored?.email)
             assertEquals(replacement, stored?.pendingEmail)
             assertNull(stored?.emailChangeAllowedAt)
@@ -964,6 +960,95 @@ class ExposedUsersRepoSqliteTest {
                 }
             }
         }
+    }
+
+    /** Runs one lifecycle worker on a daemon thread and retains its terminal result for assertions. */
+    private inner class BoundedTestWorker<T>(
+        /** Human-readable identity included in timeout failures. */
+        private val description: String,
+        /** Suspending lifecycle operation whose terminal value or failure must be asserted by the test. */
+        private val action: suspend () -> T,
+    ) {
+        /** Records whether [start] successfully handed the worker to the JVM. */
+        private val started = AtomicBoolean(false)
+
+        /** Signals completion independently from a finite join operation. */
+        private val completed = CountDownLatch(1)
+
+        /** Retains the worker value or failure without rethrowing on the worker thread. */
+        private val outcome = AtomicReference<Result<T>?>(null)
+
+        /** Daemon containment prevents a failed test from leaving a non-daemon JVM worker alive. */
+        private val thread = Thread(
+            {
+                try {
+                    outcome.set(runCatching { runBlocking { action() } })
+                } finally {
+                    completed.countDown()
+                }
+            },
+            description,
+        ).apply { isDaemon = true }
+
+        /** Starts the worker exactly once while the caller's cleanup guard is already active. */
+        fun start() {
+            check(started.compareAndSet(false, true)) { "$description was started more than once" }
+            thread.start()
+        }
+
+        /** Returns the recorded terminal outcome after cleanup has proven worker completion. */
+        fun result(): Result<T> = checkNotNull(outcome.get()) { "$description produced no terminal outcome" }
+
+        /** Finite cleanup that keeps later releases and joins running after an earlier failure. */
+        fun awaitAndJoin(cleanupFailures: MutableList<Throwable>) {
+            if (!started.get()) return
+            collectCleanupFailure(cleanupFailures) {
+                assertTrue(completed.await(15, TimeUnit.SECONDS), "$description did not signal completion")
+            }
+            collectCleanupFailure(cleanupFailures) {
+                thread.join(TimeUnit.SECONDS.toMillis(15))
+            }
+            if (thread.isAlive) {
+                collectCleanupFailure(cleanupFailures) {
+                    thread.interrupt()
+                    thread.join(TimeUnit.SECONDS.toMillis(15))
+                }
+            }
+            collectCleanupFailure(cleanupFailures) {
+                assertFalse(thread.isAlive, "$description outlived bounded cleanup")
+                checkNotNull(outcome.get()) { "$description completed without a recorded outcome" }
+            }
+        }
+    }
+
+    /** Runs a contention body with unconditional gate release and aggregate worker cleanup. */
+    private inline fun <T> runCleanupProtectedContention(
+        workers: List<BoundedTestWorker<*>>,
+        cleanupActions: List<() -> Unit>,
+        block: () -> T,
+    ): T {
+        var primaryFailure: Throwable? = null
+        return try {
+            block()
+        } catch (error: Throwable) {
+            primaryFailure = error
+            throw error
+        } finally {
+            val cleanupFailures = mutableListOf<Throwable>()
+            cleanupActions.forEach { action -> collectCleanupFailure(cleanupFailures, action) }
+            workers.forEach { worker -> worker.awaitAndJoin(cleanupFailures) }
+            if (cleanupFailures.isNotEmpty()) {
+                val cleanupFailure = AssertionError("contention worker cleanup failed")
+                cleanupFailures.forEach(cleanupFailure::addSuppressed)
+                primaryFailure?.addSuppressed(cleanupFailure)
+                if (primaryFailure == null) throw cleanupFailure
+            }
+        }
+    }
+
+    /** Adds one cleanup failure without preventing subsequent releases, waits, or joins. */
+    private fun collectCleanupFailure(cleanupFailures: MutableList<Throwable>, action: () -> Unit) {
+        runCatching(action).exceptionOrNull()?.let(cleanupFailures::add)
     }
 
 }

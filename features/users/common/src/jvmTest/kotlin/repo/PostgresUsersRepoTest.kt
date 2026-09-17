@@ -14,8 +14,10 @@ import org.jetbrains.exposed.v1.jdbc.Database
 import org.jetbrains.exposed.v1.jdbc.transactions.TransactionManager
 import java.sql.DriverManager
 import java.util.concurrent.CountDownLatch
+import java.util.concurrent.Executor
 import java.util.concurrent.TimeUnit
 import java.util.concurrent.atomic.AtomicBoolean
+import java.util.concurrent.atomic.AtomicReference
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
@@ -79,7 +81,7 @@ class PostgresUsersRepoTest {
                 assertNull(cleared.pendingEmail)
                 assertFalse(cleared.emailApproved)
                 assertNull(cleared.emailChangeAllowedAt)
-                DriverManager.getConnection(schemaUrl).use { connection ->
+                openBoundedPostgresConnection(schemaUrl).use { connection ->
                     connection.createStatement().use { statement ->
                         statement.executeQuery("SELECT email, pending_email, email_approved, email_change_allowed_at FROM users WHERE id = ${user.id.long}").use { row ->
                             assertTrue(row.next())
@@ -103,41 +105,34 @@ class PostgresUsersRepoTest {
         val releaseFirst = CountDownLatch(1)
         val secondLockAcquired = CountDownLatch(1)
         val backendPids = PostgresBackendPids()
-        withPostgresUsersRepos(
+        withBoundedPostgresUsersRepos(
             firstAfterWriteLock = {
                 firstLockAcquired.countDown()
-                releaseFirst.await()
+                check(releaseFirst.await(15, TimeUnit.SECONDS)) { "PostgreSQL first current-address worker was not released" }
             },
             secondAfterWriteLock = { secondLockAcquired.countDown() },
             captureBackendPids = backendPids,
         ) { schemaUrl, first, second ->
             val shared = Email("postgres-concurrent-current@example.com")
-            var firstWrite: Result<RegisteredUser>? = null
-            var secondWrite: Result<RegisteredUser>? = null
-            val firstDone = CountDownLatch(1)
-            val secondDone = CountDownLatch(1)
-            val firstThread = Thread {
-                firstWrite = runCatching { kotlinx.coroutines.runBlocking { first.create(NewUser(Username("postgres-current-first"), shared)).single() } }
-                firstDone.countDown()
+            val firstWorker = BoundedPostgresTestWorker("PostgreSQL first current-address worker") {
+                first.create(NewUser(Username("postgres-current-first"), shared)).single()
             }
-            val secondThread = Thread {
-                secondWrite = runCatching { kotlinx.coroutines.runBlocking { second.create(NewUser(Username("postgres-current-second"), shared)).single() } }
-                secondDone.countDown()
+            val secondWorker = BoundedPostgresTestWorker("PostgreSQL second current-address worker") {
+                second.create(NewUser(Username("postgres-current-second"), shared)).single()
             }
             backendPids.arm()
-            try {
-                firstThread.start()
+            runCleanupProtectedPostgresContention(
+                workers = listOf(firstWorker, secondWorker),
+                cleanupActions = listOf(releaseFirst::countDown),
+            ) {
+                firstWorker.start()
                 assertTrue(firstLockAcquired.await(10, TimeUnit.SECONDS))
-                secondThread.start()
+                secondWorker.start()
                 assertPostgresContenderBlockedOnUsersWriteLock(schemaUrl, backendPids)
                 assertEquals(1, secondLockAcquired.count)
-            } finally {
-                releaseFirst.countDown()
-                assertTrue(firstDone.await(15, TimeUnit.SECONDS))
-                assertTrue(secondDone.await(15, TimeUnit.SECONDS))
             }
-            assertEquals(shared, checkNotNull(firstWrite).getOrThrow().email)
-            assertIs<DuplicateUserFieldException>(checkNotNull(secondWrite).exceptionOrNull())
+            assertEquals(shared, firstWorker.result().getOrThrow().email)
+            assertIs<DuplicateUserFieldException>(secondWorker.result().exceptionOrNull())
             assertRawAddressHasOneClaim(schemaUrl, shared)
             assertNoRawSharedAddress(schemaUrl)
         }
@@ -151,11 +146,11 @@ class PostgresUsersRepoTest {
         val secondLockAcquired = CountDownLatch(1)
         val blockFirstWriter = AtomicBoolean(false)
         val backendPids = PostgresBackendPids()
-        withPostgresUsersRepos(
+        withBoundedPostgresUsersRepos(
             firstAfterWriteLock = {
                 if (blockFirstWriter.get()) {
                     firstLockAcquired.countDown()
-                    releaseFirst.await()
+                    check(releaseFirst.await(15, TimeUnit.SECONDS)) { "PostgreSQL pending-address worker was not released" }
                 }
             },
             secondAfterWriteLock = { secondLockAcquired.countDown() },
@@ -167,32 +162,25 @@ class PostgresUsersRepoTest {
             checkNotNull(first.approveEmail(owner.id, current))
             blockFirstWriter.set(true)
 
-            var pendingWrite: Result<RegisteredUser?>? = null
-            var currentWrite: Result<RegisteredUser>? = null
-            val pendingDone = CountDownLatch(1)
-            val currentDone = CountDownLatch(1)
-            val pendingThread = Thread {
-                pendingWrite = runCatching { kotlinx.coroutines.runBlocking { first.setEmail(owner.id, pending) } }
-                pendingDone.countDown()
+            val pendingWorker = BoundedPostgresTestWorker("PostgreSQL pending-address worker") {
+                first.setEmail(owner.id, pending)
             }
-            val currentThread = Thread {
-                currentWrite = runCatching { kotlinx.coroutines.runBlocking { second.create(NewUser(Username("postgres-pending-contender"), pending)).single() } }
-                currentDone.countDown()
+            val currentWorker = BoundedPostgresTestWorker("PostgreSQL current-address contender") {
+                second.create(NewUser(Username("postgres-pending-contender"), pending)).single()
             }
             backendPids.arm()
-            try {
-                pendingThread.start()
+            runCleanupProtectedPostgresContention(
+                workers = listOf(pendingWorker, currentWorker),
+                cleanupActions = listOf(releaseFirst::countDown),
+            ) {
+                pendingWorker.start()
                 assertTrue(firstLockAcquired.await(10, TimeUnit.SECONDS))
-                currentThread.start()
+                currentWorker.start()
                 assertPostgresContenderBlockedOnUsersWriteLock(schemaUrl, backendPids)
                 assertEquals(1, secondLockAcquired.count)
-            } finally {
-                releaseFirst.countDown()
-                assertTrue(pendingDone.await(15, TimeUnit.SECONDS))
-                assertTrue(currentDone.await(15, TimeUnit.SECONDS))
             }
-            assertEquals(pending, checkNotNull(checkNotNull(pendingWrite).getOrThrow()).pendingEmail)
-            assertIs<DuplicateUserFieldException>(checkNotNull(currentWrite).exceptionOrNull())
+            assertEquals(pending, checkNotNull(pendingWorker.result().getOrThrow()).pendingEmail)
+            assertIs<DuplicateUserFieldException>(currentWorker.result().exceptionOrNull())
             assertRawAddressHasOneClaim(schemaUrl, pending)
             assertNoRawSharedAddress(schemaUrl)
         }
@@ -205,42 +193,35 @@ class PostgresUsersRepoTest {
         val releaseFirst = CountDownLatch(1)
         val secondLockAcquired = CountDownLatch(1)
         val backendPids = PostgresBackendPids()
-        withPostgresUsersRepos(
+        withBoundedPostgresUsersRepos(
             firstAfterWriteLock = {
                 firstLockAcquired.countDown()
-                releaseFirst.await()
+                check(releaseFirst.await(15, TimeUnit.SECONDS)) { "PostgreSQL unrelated-address worker was not released" }
             },
             secondAfterWriteLock = { secondLockAcquired.countDown() },
             captureBackendPids = backendPids,
         ) { schemaUrl, first, second ->
             val firstAddress = Email("postgres-unrelated-first@example.com")
             val secondAddress = Email("postgres-unrelated-second@example.com")
-            var firstWrite: Result<RegisteredUser>? = null
-            var secondWrite: Result<RegisteredUser>? = null
-            val firstDone = CountDownLatch(1)
-            val secondDone = CountDownLatch(1)
-            val firstThread = Thread {
-                firstWrite = runCatching { kotlinx.coroutines.runBlocking { first.create(NewUser(Username("postgres-unrelated-first"), firstAddress)).single() } }
-                firstDone.countDown()
+            val firstWorker = BoundedPostgresTestWorker("PostgreSQL first unrelated-address worker") {
+                first.create(NewUser(Username("postgres-unrelated-first"), firstAddress)).single()
             }
-            val secondThread = Thread {
-                secondWrite = runCatching { kotlinx.coroutines.runBlocking { second.create(NewUser(Username("postgres-unrelated-second"), secondAddress)).single() } }
-                secondDone.countDown()
+            val secondWorker = BoundedPostgresTestWorker("PostgreSQL second unrelated-address worker") {
+                second.create(NewUser(Username("postgres-unrelated-second"), secondAddress)).single()
             }
             backendPids.arm()
-            try {
-                firstThread.start()
+            runCleanupProtectedPostgresContention(
+                workers = listOf(firstWorker, secondWorker),
+                cleanupActions = listOf(releaseFirst::countDown),
+            ) {
+                firstWorker.start()
                 assertTrue(firstLockAcquired.await(10, TimeUnit.SECONDS))
-                secondThread.start()
+                secondWorker.start()
                 assertPostgresContenderBlockedOnUsersWriteLock(schemaUrl, backendPids)
                 assertEquals(1, secondLockAcquired.count)
-            } finally {
-                releaseFirst.countDown()
-                assertTrue(firstDone.await(15, TimeUnit.SECONDS))
-                assertTrue(secondDone.await(15, TimeUnit.SECONDS))
             }
-            assertEquals(firstAddress, checkNotNull(firstWrite).getOrThrow().email)
-            assertEquals(secondAddress, checkNotNull(secondWrite).getOrThrow().email)
+            assertEquals(firstAddress, firstWorker.result().getOrThrow().email)
+            assertEquals(secondAddress, secondWorker.result().getOrThrow().email)
         }
     }
 
@@ -248,13 +229,18 @@ class PostgresUsersRepoTest {
     @Test
     fun postgresWriterContentionIsNotClassifiedAsDuplicateOrCooldown() = runBlockingPostgresTest {
         withPostgresUsersRepos { schemaUrl, _, _ ->
-            val contendedDatabase = Database.connect(url = postgresUrlWithLockTimeout(schemaUrl), driver = "org.postgresql.Driver")
+            val contendedDatabase = Database.connect(
+                url = postgresUrlWithLockTimeout(postgresUrlWithDriverBounds(schemaUrl)),
+                driver = "org.postgresql.Driver",
+                setupConnection = { connection -> configurePostgresTestConnection(connection, lockTimeoutMillis = 100) },
+            )
             try {
                 val contendedRepo = ExposedUsersRepo(contendedDatabase)
-                DriverManager.getConnection(schemaUrl).use { connection ->
+                openBoundedPostgresConnection(schemaUrl).use { connection ->
                     connection.autoCommit = false
                     try {
                         connection.createStatement().use { statement ->
+                            statement.queryTimeout = 25
                             statement.executeUpdate("UPDATE users_write_lock SET marker = 0 WHERE id = 1")
                         }
                         val failure = assertFailsWith<ExposedSQLException> {
@@ -277,7 +263,7 @@ class PostgresUsersRepoTest {
     @Test
     fun postgresAdditiveMigrationAndReopenPreserveLegacyAndLifecycleState() = runBlockingPostgresTest {
         withPostgresUsersSchema { schemaUrl ->
-            DriverManager.getConnection(schemaUrl).use { connection ->
+            openBoundedPostgresConnection(schemaUrl).use { connection ->
                 connection.createStatement().use { statement ->
                     statement.execute("CREATE TABLE users (id BIGINT GENERATED BY DEFAULT AS IDENTITY PRIMARY KEY, username TEXT NOT NULL UNIQUE, email TEXT, email_approved BOOLEAN NOT NULL DEFAULT FALSE)")
                     statement.execute("INSERT INTO users (id, username, email, email_approved) VALUES (41, 'postgres-legacy', 'postgres-legacy@example.com', TRUE)")
@@ -323,9 +309,74 @@ class PostgresUsersRepoTest {
     /** Executes a blocking test body without virtual-time scheduling. */
     private fun runBlockingPostgresTest(block: suspend () -> Unit) = kotlinx.coroutines.runBlocking { block() }
 
+    /** Builds two independently bounded PostgreSQL repositories inside one fixture-owned schema. */
+    private suspend fun withBoundedPostgresUsersRepos(
+        firstNowMillis: () -> Long = System::currentTimeMillis,
+        firstAfterWriteLock: (() -> Unit)? = null,
+        secondNowMillis: () -> Long = System::currentTimeMillis,
+        secondAfterWriteLock: (() -> Unit)? = null,
+        captureBackendPids: PostgresBackendPids? = null,
+        block: suspend (String, ExposedUsersRepo, ExposedUsersRepo) -> Unit,
+    ) = withPostgresUsersSchema { schemaUrl ->
+        val boundedSchemaUrl = postgresUrlWithDriverBounds(schemaUrl)
+        val firstDatabase = Database.connect(
+            url = boundedSchemaUrl,
+            driver = "org.postgresql.Driver",
+            setupConnection = { connection ->
+                configurePostgresTestConnection(connection)
+                captureBackendPids?.captureFirst(connection)
+            },
+        )
+        val secondDatabase = Database.connect(
+            url = boundedSchemaUrl,
+            driver = "org.postgresql.Driver",
+            setupConnection = { connection ->
+                configurePostgresTestConnection(connection)
+                captureBackendPids?.captureSecond(connection)
+            },
+        )
+        try {
+            block(
+                schemaUrl,
+                ExposedUsersRepo(firstDatabase, firstNowMillis, firstAfterWriteLock),
+                ExposedUsersRepo(secondDatabase, secondNowMillis, secondAfterWriteLock),
+            )
+        } finally {
+            try {
+                TransactionManager.closeAndUnregister(firstDatabase)
+            } finally {
+                TransactionManager.closeAndUnregister(secondDatabase)
+            }
+        }
+    }
+
+    /** Opens an observer or direct-test connection with finite PostgreSQL driver and JDBC bounds. */
+    private fun openBoundedPostgresConnection(schemaUrl: String): java.sql.Connection =
+        DriverManager.getConnection(postgresUrlWithDriverBounds(schemaUrl)).also(::configurePostgresTestConnection)
+
+    /** Configures finite JDBC network, server statement, and server lock bounds for one test connection. */
+    private fun configurePostgresTestConnection(
+        connection: java.sql.Connection,
+        lockTimeoutMillis: Int = 25_000,
+    ) {
+        connection.setNetworkTimeout(postgresNetworkTimeoutExecutor, 25_000)
+        connection.createStatement().use { statement ->
+            statement.queryTimeout = 25
+            statement.execute("SET statement_timeout = '25000ms'")
+            statement.execute("SET lock_timeout = '${lockTimeoutMillis}ms'")
+        }
+    }
+
+    /** Adds finite PostgreSQL connect and socket bounds without replacing fixture-owned schema parameters. */
+    private fun postgresUrlWithDriverBounds(schemaUrl: String): String =
+        "$schemaUrl${urlParameterSeparator(schemaUrl)}connectTimeout=5&loginTimeout=5&socketTimeout=25&tcpKeepAlive=true"
+
+    /** Selects the URL separator required by an existing PostgreSQL JDBC parameter list. */
+    private fun urlParameterSeparator(url: String): Char = if ('?' in url) '&' else '?'
+
     /** Asserts exactly one raw current-or-pending claim for [address] across fixture rows. */
     private fun assertRawAddressHasOneClaim(schemaUrl: String, address: Email) {
-        DriverManager.getConnection(schemaUrl).use { connection ->
+        openBoundedPostgresConnection(schemaUrl).use { connection ->
             connection.prepareStatement("SELECT COUNT(*) FROM users WHERE email = ? OR pending_email = ?").use { statement ->
                 statement.setString(1, address.string)
                 statement.setString(2, address.string)
@@ -339,7 +390,7 @@ class PostgresUsersRepoTest {
 
     /** Asserts no two fixture rows share an address across raw current and pending columns. */
     private fun assertNoRawSharedAddress(schemaUrl: String) {
-        DriverManager.getConnection(schemaUrl).use { connection ->
+        openBoundedPostgresConnection(schemaUrl).use { connection ->
             connection.createStatement().use { statement ->
                 statement.executeQuery(
                     "SELECT COUNT(*) FROM users first_user JOIN users second_user ON first_user.id < second_user.id " +
@@ -355,7 +406,7 @@ class PostgresUsersRepoTest {
 
     /** Verifies new nullable columns and singleton lock row without modifying legacy values. */
     private fun assertLegacyColumnsAndSingleton(schemaUrl: String, expectedPending: Email? = null) {
-        DriverManager.getConnection(schemaUrl).use { connection ->
+        openBoundedPostgresConnection(schemaUrl).use { connection ->
             connection.createStatement().use { statement ->
                 statement.executeQuery("SELECT pending_email, email_change_allowed_at FROM users WHERE id = 41").use { result ->
                     assertTrue(result.next())
@@ -371,7 +422,8 @@ class PostgresUsersRepoTest {
     }
 
     /** Adds a short PostgreSQL session lock timeout to a fixture-owned schema URL. */
-    private fun postgresUrlWithLockTimeout(schemaUrl: String): String = "$schemaUrl&options=-c%20lock_timeout=100ms"
+    private fun postgresUrlWithLockTimeout(schemaUrl: String): String =
+        "$schemaUrl${urlParameterSeparator(schemaUrl)}options=-c%20lock_timeout=100ms"
 
     /** Observes an active contender blocked by the holder on the physical singleton-row UPDATE. */
     private fun assertPostgresContenderBlockedOnUsersWriteLock(schemaUrl: String, backendPids: PostgresBackendPids) {
@@ -381,10 +433,11 @@ class PostgresUsersRepoTest {
             val holderPid = backendPids.firstPid()
             val contenderPid = backendPids.secondPid()
             if (holderPid > 0 && contenderPid > 0) {
-                DriverManager.getConnection(schemaUrl).use { observer ->
+                openBoundedPostgresConnection(schemaUrl).use { observer ->
                     observer.prepareStatement(
                         "SELECT state, wait_event_type, query, pg_blocking_pids(pid) FROM pg_stat_activity WHERE pid = ?",
                     ).use { statement ->
+                        statement.queryTimeout = 5
                         statement.setInt(1, contenderPid)
                         statement.executeQuery().use { row ->
                             if (row.next()) {
@@ -408,5 +461,99 @@ class PostgresUsersRepoTest {
             Thread.sleep(25)
         }
         throw AssertionError("PostgreSQL contender never reached a holder-blocked users_write_lock UPDATE: $lastObservation")
+    }
+
+    /** Supplies daemon timeout tasks to JDBC so a failed driver timeout cannot retain a non-daemon executor thread. */
+    private val postgresNetworkTimeoutExecutor = Executor { command ->
+        Thread(command, "PostgreSQL test network timeout").apply { isDaemon = true }.start()
+    }
+
+    /** Runs one PostgreSQL lifecycle operation on a daemon thread and stores its terminal result. */
+    private inner class BoundedPostgresTestWorker<T>(
+        /** Human-readable identity included in timeout failures. */
+        private val description: String,
+        /** Suspending lifecycle operation whose value or failure must be asserted by the test. */
+        private val action: suspend () -> T,
+    ) {
+        /** Records whether [start] successfully handed the worker to the JVM. */
+        private val started = AtomicBoolean(false)
+
+        /** Signals completion independently from the worker's finite join operation. */
+        private val completed = CountDownLatch(1)
+
+        /** Retains the worker value or failure without rethrowing on the worker thread. */
+        private val outcome = AtomicReference<Result<T>?>(null)
+
+        /** Daemon containment prevents a failed test from leaving a non-daemon PostgreSQL worker alive. */
+        private val thread = Thread(
+            {
+                try {
+                    outcome.set(runCatching { kotlinx.coroutines.runBlocking { action() } })
+                } finally {
+                    completed.countDown()
+                }
+            },
+            description,
+        ).apply { isDaemon = true }
+
+        /** Starts the worker once while the caller's cleanup guard is already active. */
+        fun start() {
+            check(started.compareAndSet(false, true)) { "$description was started more than once" }
+            thread.start()
+        }
+
+        /** Returns the captured result after cleanup has proven that the worker terminated. */
+        fun result(): Result<T> = checkNotNull(outcome.get()) { "$description produced no terminal outcome" }
+
+        /** Finite cleanup that continues remaining releases and joins after a prior cleanup failure. */
+        fun awaitAndJoin(cleanupFailures: MutableList<Throwable>) {
+            if (!started.get()) return
+            collectPostgresCleanupFailure(cleanupFailures) {
+                assertTrue(completed.await(15, TimeUnit.SECONDS), "$description did not signal completion")
+            }
+            collectPostgresCleanupFailure(cleanupFailures) {
+                thread.join(TimeUnit.SECONDS.toMillis(15))
+            }
+            if (thread.isAlive) {
+                collectPostgresCleanupFailure(cleanupFailures) {
+                    thread.interrupt()
+                    thread.join(TimeUnit.SECONDS.toMillis(15))
+                }
+            }
+            collectPostgresCleanupFailure(cleanupFailures) {
+                assertFalse(thread.isAlive, "$description outlived bounded cleanup")
+                checkNotNull(outcome.get()) { "$description completed without a recorded outcome" }
+            }
+        }
+    }
+
+    /** Runs a PostgreSQL contention body with unconditional release and aggregate worker cleanup. */
+    private inline fun <T> runCleanupProtectedPostgresContention(
+        workers: List<BoundedPostgresTestWorker<*>>,
+        cleanupActions: List<() -> Unit>,
+        block: () -> T,
+    ): T {
+        var primaryFailure: Throwable? = null
+        return try {
+            block()
+        } catch (error: Throwable) {
+            primaryFailure = error
+            throw error
+        } finally {
+            val cleanupFailures = mutableListOf<Throwable>()
+            cleanupActions.forEach { action -> collectPostgresCleanupFailure(cleanupFailures, action) }
+            workers.forEach { worker -> worker.awaitAndJoin(cleanupFailures) }
+            if (cleanupFailures.isNotEmpty()) {
+                val cleanupFailure = AssertionError("PostgreSQL contention worker cleanup failed")
+                cleanupFailures.forEach(cleanupFailure::addSuppressed)
+                primaryFailure?.addSuppressed(cleanupFailure)
+                if (primaryFailure == null) throw cleanupFailure
+            }
+        }
+    }
+
+    /** Records one cleanup failure while allowing all other cleanup actions to continue. */
+    private fun collectPostgresCleanupFailure(cleanupFailures: MutableList<Throwable>, action: () -> Unit) {
+        runCatching(action).exceptionOrNull()?.let(cleanupFailures::add)
     }
 }
