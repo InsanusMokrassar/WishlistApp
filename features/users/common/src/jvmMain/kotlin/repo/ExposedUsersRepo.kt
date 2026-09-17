@@ -64,13 +64,18 @@ private object UsersWriteLockTable : Table("users_write_lock") {
  *
  * @param database Exposed [Database] instance (provided by the common server plugin).
  * @param nowMillis Clock sampled inside locked transactions when a lifecycle deadline is needed.
- * @param afterWriteLock Test seam invoked immediately after the durable writer lock is acquired.
  */
-class ExposedUsersRepo(
+class ExposedUsersRepo internal constructor(
     override val database: Database,
-    private val nowMillis: () -> Long = System::currentTimeMillis,
-    private val afterWriteLock: (() -> Unit)? = null,
+    private val nowMillis: () -> Long,
+    /** Friend-test-only seam invoked after durable singleton-lock acquisition. */
+    private val afterWriteLock: (() -> Unit)?,
 ) : UsersRepo, AbstractExposedCRUDRepo<RegisteredUser, UserId, NewUser>(tableName = "users") {
+    /** Production-compatible constructor; lock-observation hooks remain internal to JVM friend tests. */
+    constructor(
+        database: Database,
+        nowMillis: () -> Long = System::currentTimeMillis,
+    ) : this(database, nowMillis, null)
     /** Auto-increment primary key column. */
     private val idColumn = long("id").autoIncrement()
 

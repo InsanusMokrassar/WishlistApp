@@ -102,12 +102,14 @@ class PostgresUsersRepoTest {
         val firstLockAcquired = CountDownLatch(1)
         val releaseFirst = CountDownLatch(1)
         val secondLockAcquired = CountDownLatch(1)
+        val backendPids = PostgresBackendPids()
         withPostgresUsersRepos(
             firstAfterWriteLock = {
                 firstLockAcquired.countDown()
                 releaseFirst.await()
             },
             secondAfterWriteLock = { secondLockAcquired.countDown() },
+            captureBackendPids = backendPids,
         ) { schemaUrl, first, second ->
             val shared = Email("postgres-concurrent-current@example.com")
             var firstWrite: Result<RegisteredUser>? = null
@@ -122,16 +124,18 @@ class PostgresUsersRepoTest {
                 secondWrite = runCatching { kotlinx.coroutines.runBlocking { second.create(NewUser(Username("postgres-current-second"), shared)).single() } }
                 secondDone.countDown()
             }
-            firstThread.start()
-            assertTrue(firstLockAcquired.await(10, TimeUnit.SECONDS))
-            secondThread.start()
+            backendPids.arm()
             try {
+                firstThread.start()
+                assertTrue(firstLockAcquired.await(10, TimeUnit.SECONDS))
+                secondThread.start()
+                assertPostgresContenderBlockedOnUsersWriteLock(schemaUrl, backendPids)
                 assertEquals(1, secondLockAcquired.count)
             } finally {
                 releaseFirst.countDown()
+                assertTrue(firstDone.await(15, TimeUnit.SECONDS))
+                assertTrue(secondDone.await(15, TimeUnit.SECONDS))
             }
-            assertTrue(firstDone.await(10, TimeUnit.SECONDS))
-            assertTrue(secondDone.await(10, TimeUnit.SECONDS))
             assertEquals(shared, checkNotNull(firstWrite).getOrThrow().email)
             assertIs<DuplicateUserFieldException>(checkNotNull(secondWrite).exceptionOrNull())
             assertRawAddressHasOneClaim(schemaUrl, shared)
@@ -146,6 +150,7 @@ class PostgresUsersRepoTest {
         val releaseFirst = CountDownLatch(1)
         val secondLockAcquired = CountDownLatch(1)
         val blockFirstWriter = AtomicBoolean(false)
+        val backendPids = PostgresBackendPids()
         withPostgresUsersRepos(
             firstAfterWriteLock = {
                 if (blockFirstWriter.get()) {
@@ -154,6 +159,7 @@ class PostgresUsersRepoTest {
                 }
             },
             secondAfterWriteLock = { secondLockAcquired.countDown() },
+            captureBackendPids = backendPids,
         ) { schemaUrl, first, second ->
             val current = Email("postgres-pending-owner@example.com")
             val pending = Email("postgres-pending-contended@example.com")
@@ -173,16 +179,18 @@ class PostgresUsersRepoTest {
                 currentWrite = runCatching { kotlinx.coroutines.runBlocking { second.create(NewUser(Username("postgres-pending-contender"), pending)).single() } }
                 currentDone.countDown()
             }
-            pendingThread.start()
-            assertTrue(firstLockAcquired.await(10, TimeUnit.SECONDS))
-            currentThread.start()
+            backendPids.arm()
             try {
+                pendingThread.start()
+                assertTrue(firstLockAcquired.await(10, TimeUnit.SECONDS))
+                currentThread.start()
+                assertPostgresContenderBlockedOnUsersWriteLock(schemaUrl, backendPids)
                 assertEquals(1, secondLockAcquired.count)
             } finally {
                 releaseFirst.countDown()
+                assertTrue(pendingDone.await(15, TimeUnit.SECONDS))
+                assertTrue(currentDone.await(15, TimeUnit.SECONDS))
             }
-            assertTrue(pendingDone.await(10, TimeUnit.SECONDS))
-            assertTrue(currentDone.await(10, TimeUnit.SECONDS))
             assertEquals(pending, checkNotNull(checkNotNull(pendingWrite).getOrThrow()).pendingEmail)
             assertIs<DuplicateUserFieldException>(checkNotNull(currentWrite).exceptionOrNull())
             assertRawAddressHasOneClaim(schemaUrl, pending)
@@ -196,35 +204,41 @@ class PostgresUsersRepoTest {
         val firstLockAcquired = CountDownLatch(1)
         val releaseFirst = CountDownLatch(1)
         val secondLockAcquired = CountDownLatch(1)
+        val backendPids = PostgresBackendPids()
         withPostgresUsersRepos(
             firstAfterWriteLock = {
                 firstLockAcquired.countDown()
                 releaseFirst.await()
             },
             secondAfterWriteLock = { secondLockAcquired.countDown() },
-        ) { _, first, second ->
+            captureBackendPids = backendPids,
+        ) { schemaUrl, first, second ->
             val firstAddress = Email("postgres-unrelated-first@example.com")
             val secondAddress = Email("postgres-unrelated-second@example.com")
             var firstWrite: Result<RegisteredUser>? = null
             var secondWrite: Result<RegisteredUser>? = null
             val firstDone = CountDownLatch(1)
             val secondDone = CountDownLatch(1)
-            Thread {
+            val firstThread = Thread {
                 firstWrite = runCatching { kotlinx.coroutines.runBlocking { first.create(NewUser(Username("postgres-unrelated-first"), firstAddress)).single() } }
                 firstDone.countDown()
-            }.start()
-            assertTrue(firstLockAcquired.await(10, TimeUnit.SECONDS))
-            Thread {
+            }
+            val secondThread = Thread {
                 secondWrite = runCatching { kotlinx.coroutines.runBlocking { second.create(NewUser(Username("postgres-unrelated-second"), secondAddress)).single() } }
                 secondDone.countDown()
-            }.start()
+            }
+            backendPids.arm()
             try {
+                firstThread.start()
+                assertTrue(firstLockAcquired.await(10, TimeUnit.SECONDS))
+                secondThread.start()
+                assertPostgresContenderBlockedOnUsersWriteLock(schemaUrl, backendPids)
                 assertEquals(1, secondLockAcquired.count)
             } finally {
                 releaseFirst.countDown()
+                assertTrue(firstDone.await(15, TimeUnit.SECONDS))
+                assertTrue(secondDone.await(15, TimeUnit.SECONDS))
             }
-            assertTrue(firstDone.await(10, TimeUnit.SECONDS))
-            assertTrue(secondDone.await(10, TimeUnit.SECONDS))
             assertEquals(firstAddress, checkNotNull(firstWrite).getOrThrow().email)
             assertEquals(secondAddress, checkNotNull(secondWrite).getOrThrow().email)
         }
@@ -358,4 +372,41 @@ class PostgresUsersRepoTest {
 
     /** Adds a short PostgreSQL session lock timeout to a fixture-owned schema URL. */
     private fun postgresUrlWithLockTimeout(schemaUrl: String): String = "$schemaUrl&options=-c%20lock_timeout=100ms"
+
+    /** Observes an active contender blocked by the holder on the physical singleton-row UPDATE. */
+    private fun assertPostgresContenderBlockedOnUsersWriteLock(schemaUrl: String, backendPids: PostgresBackendPids) {
+        val deadline = System.nanoTime() + TimeUnit.SECONDS.toNanos(10)
+        var lastObservation = "contender PID was not captured"
+        while (System.nanoTime() < deadline) {
+            val holderPid = backendPids.firstPid()
+            val contenderPid = backendPids.secondPid()
+            if (holderPid > 0 && contenderPid > 0) {
+                DriverManager.getConnection(schemaUrl).use { observer ->
+                    observer.prepareStatement(
+                        "SELECT state, wait_event_type, query, pg_blocking_pids(pid) FROM pg_stat_activity WHERE pid = ?",
+                    ).use { statement ->
+                        statement.setInt(1, contenderPid)
+                        statement.executeQuery().use { row ->
+                            if (row.next()) {
+                                val state = row.getString("state")
+                                val waitEventType = row.getString("wait_event_type")
+                                val query = row.getString("query") ?: ""
+                                val blockers = row.getArray("pg_blocking_pids")?.array as? Array<*> ?: emptyArray<Any>()
+                                lastObservation = "state=$state wait_event_type=$waitEventType query=$query blockers=${blockers.contentToString()}"
+                                if (
+                                    state == "active" &&
+                                    waitEventType == "Lock" &&
+                                    query.contains("users_write_lock", ignoreCase = true) &&
+                                    query.contains("UPDATE", ignoreCase = true) &&
+                                    blockers.any { it == holderPid || it == holderPid.toLong() }
+                                ) return
+                            }
+                        }
+                    }
+                }
+            }
+            Thread.sleep(25)
+        }
+        throw AssertionError("PostgreSQL contender never reached a holder-blocked users_write_lock UPDATE: $lastObservation")
+    }
 }
