@@ -22,5 +22,10 @@ kotlin {
                 api project(":wishlist.features.ui.booking")
             }
         }
+        jvmTest {
+            dependencies {
+                implementation libs.ktor.client.mock
+            }
+        }
     }
 }

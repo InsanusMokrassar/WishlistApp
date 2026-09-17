@@ -1,10 +1,10 @@
 package dev.inmo.wishlist.features.ui.users
 
-import dev.inmo.micro_utils.common.MPPFile
 import dev.inmo.wishlist.features.admin.client.AdminFeature
 import dev.inmo.wishlist.features.admin.client.AdminWishlistItemsFeature
 import dev.inmo.wishlist.features.admin.client.AdminWishlistsFeature
 import dev.inmo.wishlist.features.admin.client.UsersManagementFeature
+import dev.inmo.wishlist.features.admin.common.Constants as AdminConstants
 import dev.inmo.wishlist.features.admin.common.models.AdminUser
 import dev.inmo.wishlist.features.admin.common.models.AdminWishlist
 import dev.inmo.wishlist.features.admin.common.models.AdminWishlistItem
@@ -23,15 +23,18 @@ import dev.inmo.wishlist.features.auth.common.models.PasswordChangeResult
 import dev.inmo.wishlist.features.auth.common.models.RefreshToken
 import dev.inmo.wishlist.features.auth.common.models.RegistrationResult
 import dev.inmo.wishlist.features.email.client.EmailFeature
+import dev.inmo.wishlist.features.deeplinks.common.models.DeepLinkId
 import dev.inmo.wishlist.features.email.common.models.Email
 import dev.inmo.wishlist.features.email.common.models.EmailVerificationRequestResult
 import dev.inmo.wishlist.features.files.client.FilesClientService
 import dev.inmo.wishlist.features.files.client.FilesFeature
+import dev.inmo.wishlist.features.files.common.Constants as FilesConstants
 import dev.inmo.wishlist.features.files.common.models.FileId
 import dev.inmo.wishlist.features.files.common.models.FilesFeatureMetaInfo
 import dev.inmo.wishlist.features.files.common.models.FinalizeFileRequest
 import dev.inmo.wishlist.features.roles.client.RolesFeature
 import dev.inmo.wishlist.features.roles.common.models.FunctionalityId
+import dev.inmo.wishlist.features.ui.users.ui.DefaultUsersModel
 import dev.inmo.wishlist.features.ui.users.ui.UsersModel
 import dev.inmo.wishlist.features.users.client.UsersFeature
 import dev.inmo.wishlist.features.users.common.models.NewUser
@@ -45,102 +48,203 @@ import dev.inmo.wishlist.features.wishlist.common.models.WishlistId
 import dev.inmo.wishlist.features.wishlist.common.models.WishlistItemId
 import io.ktor.client.HttpClient
 import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.SupervisorJob
-import kotlinx.coroutines.cancel
+import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.test.runCurrent
 import kotlinx.coroutines.test.runTest
 import kotlinx.serialization.json.JsonObject
-import org.koin.core.KoinApplication
 import org.koin.core.context.startKoin
 import org.koin.core.context.stopKoin
 import org.koin.dsl.module
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertFailsWith
+import kotlin.test.assertFalse
+import kotlin.test.assertIs
+import kotlin.test.assertNull
+import kotlin.test.assertSame
 import kotlin.test.assertTrue
 
-/** Resolves the production users model and proves private email calls stay on their owning features. */
+/** Verifies users-model behavior and its production singleton binding. */
 class UsersModelTest {
-    /** Verifies password-email and completion calls retain arguments through UsersModel. */
-    @Test
-    fun pluginModelDelegatesPrivateEmailAndUsernameOperationsWithoutChangingArguments() = runTest {
-        val profile = AuthFeatureUser(UserId(7L), Username("owner"), Email("owner@example.com"), emailApproved = false)
-        val auth = RecordingAuthFeature(profile)
-        val email = RecordingEmailFeature()
-        val passwordChange = RecordingPasswordChangeFeature()
-        val usersManagement = RecordingUsersManagementFeature()
-        val scope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
-        val filesClient = HttpClient()
-        val koin = startModelKoin(auth, email, passwordChange, usersManagement, scope, filesClient)
-        try {
-            val model = koin.koin.get<UsersModel>()
-            val replacement = Email("replacement@example.com")
-            val username = Username("owner-renamed")
-
-            assertEquals(profile, model.getMyProfile())
-            assertTrue(model.isEmailFeatureEnabled())
-            assertTrue(model.setMyEmail(replacement))
-            assertEquals(
-                EmailVerificationRequestResult.Sent,
-                model.requestMyEmailVerification(replacement),
-            )
-            assertEquals(PasswordChangeEmailRequestResult.Sent, model.requestPasswordChangeEmail(replacement))
-            assertEquals(
-                PasswordChangeResult.Changed,
-                model.completePasswordChange(
-                    CompletePasswordChangeRequest(profile.id, dev.inmo.wishlist.features.deeplinks.common.models.DeepLinkId("approval"), Password("new-password")),
-                ),
-            )
-            assertTrue(model.updateUsername(profile.id, username))
-            assertEquals(listOf<Email?>(replacement), email.setCalls)
-            assertEquals(listOf(replacement), email.requestCalls)
-            assertEquals(listOf(replacement), passwordChange.requestedEmails)
-            assertEquals(profile.id, passwordChange.completedRequests.single().userId)
-            assertEquals(listOf(profile.id to username), usersManagement.usernameCalls)
-        } finally {
-            stopKoin()
-            scope.cancel()
-            filesClient.close()
-        }
-    }
-
-    /** Builds a production users-model graph around recording feature doubles. */
-    private fun startModelKoin(
-        auth: RecordingAuthFeature,
-        email: RecordingEmailFeature,
-        passwordChange: RecordingPasswordChangeFeature,
-        usersManagement: RecordingUsersManagementFeature,
-        scope: CoroutineScope,
-        client: HttpClient,
-    ): KoinApplication = startKoin {
-        modules(
-            module {
-                with(Plugin) { setupDI(JsonObject(emptyMap())) }
-                single<UsersFeature> { EmptyUsersFeature }
-                single<ClientAuthFeature> { auth }
-                single<EmailFeature> { email }
-                single<PasswordChangeFeature> { passwordChange }
-                single<AdminFeature> {
-                    object : AdminFeature {
-                        override val usersManagement: UsersManagementFeature = usersManagement
-                        override val wishlists: AdminWishlistsFeature = UnusedWishlistsFeature
-                        override val wishlistItems: AdminWishlistItemsFeature = UnusedWishlistItemsFeature
-                    }
-                }
-                single<FilesClientService> { FilesClientService(client, UnusedFilesFeature) }
-                single<CoroutineScope> { scope }
-                single<AuthCredentialsStorage> { TestCredentialsStorage }
-                single<RolesFeature> { NoRolesFeature }
-                single<StateFlow<AuthFeatureUser?>>(meQualifier) { MutableStateFlow(auth.profile) }
-            }
+    internal companion object {
+        /** Builds the production model around a JVM-test file service. */
+        fun modelForFileTests(
+            filesService: FilesClientService,
+            scope: CoroutineScope,
+        ): DefaultUsersModel = DefaultUsersModel(
+            feature = RecordingUsersFeature(),
+            authFeature = RecordingAuthFeature(),
+            emailFeature = RecordingEmailFeature(),
+            passwordChangeFeature = RecordingPasswordChangeFeature(),
+            meState = MutableStateFlow(null),
+            adminFeature = object : AdminFeature {
+                override val usersManagement: UsersManagementFeature = RecordingUsersManagementFeature()
+                override val wishlists: AdminWishlistsFeature = UnusedWishlistsFeature
+                override val wishlistItems: AdminWishlistItemsFeature = UnusedWishlistItemsFeature
+            },
+            filesService = filesService,
+            scope = scope,
+            credentialsStorage = TestCredentialsStorage(),
+            rolesFeature = RecordingRolesFeature(),
         )
     }
 
-    /** Auth client double returning the configured profile. */
-    private class RecordingAuthFeature(val profile: AuthFeatureUser) : ClientAuthFeature {
+    @OptIn(ExperimentalCoroutinesApi::class)
+    @Test
+    fun pluginModelPreservesEveryPlatformNeutralDelegationAndReactiveState() = runTest {
+        val meState = MutableStateFlow<AuthFeatureUser?>(null)
+        val users = RecordingUsersFeature()
+        val auth = RecordingAuthFeature()
+        val email = RecordingEmailFeature()
+        val passwordChange = RecordingPasswordChangeFeature()
+        val management = RecordingUsersManagementFeature()
+        val roles = RecordingRolesFeature()
+        val files = RecordingFilesFeature()
+        val storage = TestCredentialsStorage()
+        val client = HttpClient()
+        val filesService = FilesClientService(client, files)
+        val koin = startKoin {
+            modules(
+                module {
+                    with(Plugin) { setupDI(JsonObject(emptyMap())) }
+                    single<UsersFeature> { users }
+                    single<ClientAuthFeature> { auth }
+                    single<EmailFeature> { email }
+                    single<PasswordChangeFeature> { passwordChange }
+                    single<AdminFeature> {
+                        object : AdminFeature {
+                            override val usersManagement: UsersManagementFeature = management
+                            override val wishlists: AdminWishlistsFeature = UnusedWishlistsFeature
+                            override val wishlistItems: AdminWishlistItemsFeature = UnusedWishlistItemsFeature
+                        }
+                    }
+                    single<FilesClientService> { filesService }
+                    single<CoroutineScope> { backgroundScope }
+                    single<AuthCredentialsStorage> { storage }
+                    single<RolesFeature> { roles }
+                    single<StateFlow<AuthFeatureUser?>>(meQualifier) { meState }
+                }
+            )
+        }
+        try {
+            val model = koin.koin.get<UsersModel>()
+            assertIs<DefaultUsersModel>(model)
+            assertSame(model, koin.koin.get<UsersModel>())
+            assertSame(storage.userAuthorised, model.userAuthorisedState)
+
+            runCurrent()
+            assertNull(model.currentUserIdFlow.value)
+            assertFalse(model.isCurrentUserRootFlow.value)
+            assertFalse(model.canChangeAvatarForOthersFlow.value)
+            assertEquals(emptyList(), roles.calls)
+
+            val profile = AuthFeatureUser(UserId(7L), Username("owner"), Email("owner@example.com"), emailApproved = false)
+            meState.value = profile
+            runCurrent()
+            assertEquals(profile.id, model.currentUserIdFlow.value)
+            assertTrue(model.isCurrentUserRootFlow.value)
+            assertTrue(model.canChangeAvatarForOthersFlow.value)
+            assertEquals(
+                setOf(
+                    AdminConstants.adminPanelFunctionalityId,
+                    FilesConstants.avatarChangeForOthersFunctionalityId,
+                ),
+                roles.calls.toSet(),
+            )
+
+            assertSame(users.values, model.getAllUsers())
+            assertSame(users.firstDuplicate, model.getUser(users.firstDuplicate.id))
+            assertNull(model.getUser(UserId(404L)))
+            assertEquals(3, users.calls)
+
+            auth.profile = profile
+            assertEquals(profile, model.getMyProfile())
+            assertEquals(1, auth.getMeCalls)
+
+            val replacement = Email("replacement@example.com")
+            assertTrue(model.isEmailFeatureEnabled())
+            assertTrue(model.setMyEmail(replacement))
+            assertEquals(EmailVerificationRequestResult.Sent, model.requestMyEmailVerification(replacement))
+            assertEquals(1, email.enabledCalls)
+            assertEquals(listOf<Email?>(replacement), email.setCalls)
+            assertEquals(listOf(replacement), email.requestCalls)
+
+            val passwordRequest = CompletePasswordChangeRequest(
+                userId = profile.id,
+                approvalId = DeepLinkId("approval"),
+                password = Password("new-password"),
+            )
+            assertSame(
+                PasswordChangeEmailRequestResult.Sent,
+                model.requestPasswordChangeEmail(replacement),
+            )
+            assertSame(PasswordChangeResult.Changed, model.completePasswordChange(passwordRequest))
+            assertEquals(listOf(replacement), passwordChange.requestedEmails)
+            assertEquals(listOf(passwordRequest), passwordChange.completedRequests)
+
+            passwordChange.emailResult = null
+            passwordChange.completeResult = null
+            assertNull(model.requestPasswordChangeEmail(replacement))
+            assertNull(model.completePasswordChange(passwordRequest))
+            assertEquals(listOf(replacement, replacement), passwordChange.requestedEmails)
+            assertEquals(listOf(passwordRequest, passwordRequest), passwordChange.completedRequests)
+
+            val sentinel = IllegalStateException("password-change transport failure")
+            passwordChange.failure = sentinel
+            assertSame(sentinel, assertFailsWith<IllegalStateException> {
+                model.requestPasswordChangeEmail(replacement)
+            })
+            assertEquals(3, passwordChange.requestedEmails.size)
+
+            val username = Username("owner-renamed")
+            val password = Password("replacement-secret")
+            assertTrue(model.updateUsername(profile.id, username))
+            assertTrue(model.setPassword(profile.id, password))
+            assertTrue(model.deleteUser(profile.id))
+            assertEquals(listOf(profile.id to username), management.usernameCalls)
+            assertEquals(listOf(profile.id to password), management.passwordCalls)
+            assertEquals(listOf(profile.id), management.deleteCalls)
+
+            assertEquals(files.avatarId, model.getAvatar(profile.id))
+            assertEquals(listOf(profile.id), files.avatarCalls)
+            assertEquals("/api/files/${files.avatarId.string}", model.imageUrl(files.avatarId))
+
+            meState.value = null
+            runCurrent()
+            assertNull(model.currentUserIdFlow.value)
+            assertFalse(model.isCurrentUserRootFlow.value)
+            assertFalse(model.canChangeAvatarForOthersFlow.value)
+            assertEquals(2, roles.calls.size)
+        } finally {
+            stopKoin()
+            client.close()
+        }
+    }
+
+    private class RecordingUsersFeature : UsersFeature {
+        val firstDuplicate = UsersFeatureUser(UserId(1L), Username("first"))
+        val values = listOf(
+            firstDuplicate,
+            UsersFeatureUser(UserId(1L), Username("second")),
+            UsersFeatureUser(UserId(2L), Username("other")),
+        )
+        var calls = 0
+        override suspend fun getAll(): List<UsersFeatureUser> {
+            calls += 1
+            return values
+        }
+    }
+
+    private class RecordingAuthFeature : ClientAuthFeature {
+        var profile: AuthFeatureUser? = null
+        var getMeCalls = 0
+        override suspend fun getMe(): AuthFeatureUser? {
+            getMeCalls += 1
+            return profile
+        }
         override suspend fun logout() = Unit
-        override suspend fun getMe(): AuthFeatureUser = profile
         override suspend fun login(username: Username, password: Password): AuthCredentials? = error("unused")
         override suspend fun refresh(refreshToken: RefreshToken): AuthCredentials? = error("unused")
         override suspend fun register(username: Username, password: Password): RegistrationResult? = error("unused")
@@ -148,11 +252,14 @@ class UsersModelTest {
         override suspend fun isRegistrationAvailable(): Boolean = error("unused")
     }
 
-    /** Email client double recording private-email operations. */
     private class RecordingEmailFeature : EmailFeature {
+        var enabledCalls = 0
         val setCalls = mutableListOf<Email?>()
         val requestCalls = mutableListOf<Email>()
-        override suspend fun isFeatureEnabled(): Boolean = true
+        override suspend fun isFeatureEnabled(): Boolean {
+            enabledCalls += 1
+            return true
+        }
         override suspend fun sendTestEmail(recipient: Email): Boolean = error("unused")
         override suspend fun setMyEmail(email: Email?): Boolean {
             setCalls += email
@@ -164,30 +271,10 @@ class UsersModelTest {
         }
     }
 
-    /** Records password-change transport calls delegated through the production users model. */
-    private class RecordingPasswordChangeFeature : PasswordChangeFeature {
-        /** Exact expected addresses sent by the owner-editor operation. */
-        val requestedEmails = mutableListOf<Email>()
-
-        /** Exact completion payloads sent by the token-authorized page. */
-        val completedRequests = mutableListOf<CompletePasswordChangeRequest>()
-
-        /** Records one expected email and reports a confirmed message delivery. */
-        override suspend fun requestPasswordChangeEmail(expectedEmail: Email): PasswordChangeEmailRequestResult {
-            requestedEmails += expectedEmail
-            return PasswordChangeEmailRequestResult.Sent
-        }
-
-        /** Records one immutable completion payload and reports a changed password. */
-        override suspend fun completePasswordChange(request: CompletePasswordChangeRequest): PasswordChangeResult {
-            completedRequests += request
-            return PasswordChangeResult.Changed
-        }
-    }
-
-    /** Admin client double recording username operations. */
     private class RecordingUsersManagementFeature : UsersManagementFeature {
         val usernameCalls = mutableListOf<Pair<UserId, Username>>()
+        val passwordCalls = mutableListOf<Pair<UserId, Password>>()
+        val deleteCalls = mutableListOf<UserId>()
         override suspend fun getAll(): List<AdminUser> = error("unused")
         override suspend fun getById(id: UserId): AdminUser? = error("unused")
         override suspend fun create(newUser: NewUserWithPassword): AdminUser? = error("unused")
@@ -196,36 +283,78 @@ class UsersModelTest {
             usernameCalls += id to username
             return true
         }
-        override suspend fun setPassword(id: UserId, password: Password): Boolean = error("unused")
-        override suspend fun delete(id: UserId): Boolean = error("unused")
+        override suspend fun setPassword(id: UserId, password: Password): Boolean {
+            passwordCalls += id to password
+            return true
+        }
+        override suspend fun delete(id: UserId): Boolean {
+            deleteCalls += id
+            return true
+        }
     }
 
-    /** Credentials storage double with an authenticated state and no stored token. */
-    private object TestCredentialsStorage : AuthCredentialsStorage {
+    private class RecordingRolesFeature : RolesFeature {
+        val calls = mutableListOf<FunctionalityId>()
+        override suspend fun isFunctionalityAvailable(functionalityId: FunctionalityId): Boolean {
+            calls += functionalityId
+            return true
+        }
+    }
+
+    /** Records password-change delegation arguments and configurable outcomes. */
+    private class RecordingPasswordChangeFeature : PasswordChangeFeature {
+        /** Exact approved addresses delegated by the model. */
+        val requestedEmails = mutableListOf<Email>()
+
+        /** Exact approval-bound completion payloads delegated by the model. */
+        val completedRequests = mutableListOf<CompletePasswordChangeRequest>()
+
+        /** Result returned for a password-change-email request. */
+        var emailResult: PasswordChangeEmailRequestResult? = PasswordChangeEmailRequestResult.Sent
+
+        /** Result returned for password-change completion. */
+        var completeResult: PasswordChangeResult? = PasswordChangeResult.Changed
+
+        /** Optional exception propagated exactly once by the next delegated operation. */
+        var failure: Throwable? = null
+
+        /** Records and returns the configured password-change-email outcome. */
+        override suspend fun requestPasswordChangeEmail(
+            expectedEmail: Email,
+        ): PasswordChangeEmailRequestResult? {
+            requestedEmails += expectedEmail
+            failure?.let { throw it }
+            return emailResult
+        }
+
+        /** Records and returns the configured completion outcome. */
+        override suspend fun completePasswordChange(
+            request: CompletePasswordChangeRequest,
+        ): PasswordChangeResult? {
+            completedRequests += request
+            failure?.let { throw it }
+            return completeResult
+        }
+    }
+
+    private class RecordingFilesFeature : FilesFeature {
+        val avatarId = FileId("avatar-id")
+        val avatarCalls = mutableListOf<UserId>()
+        override suspend fun getAvatar(userId: UserId): FileId {
+            avatarCalls += userId
+            return avatarId
+        }
+        override suspend fun finalize(request: FinalizeFileRequest): FilesFeatureMetaInfo? = error("unused")
+        override suspend fun getMeta(id: FileId): FilesFeatureMetaInfo? = error("unused")
+        override suspend fun setAvatar(userId: UserId, fileId: FileId): Boolean = error("unused")
+    }
+
+    private class TestCredentialsStorage : AuthCredentialsStorage {
         override val userAuthorised = MutableStateFlow(true)
         override suspend fun get(): AuthCredentials? = null
         override suspend fun save(credentials: AuthCredentials?) = Unit
     }
 
-    /** Public users feature double returning an empty list. */
-    private object EmptyUsersFeature : UsersFeature {
-        override suspend fun getAll(): List<UsersFeatureUser> = emptyList()
-    }
-
-    /** Roles feature double denying unrelated functionality probes. */
-    private object NoRolesFeature : RolesFeature {
-        override suspend fun isFunctionalityAvailable(functionalityId: FunctionalityId): Boolean = false
-    }
-
-    /** Files feature double for dependencies outside the tested model methods. */
-    private object UnusedFilesFeature : FilesFeature {
-        override suspend fun finalize(request: FinalizeFileRequest): FilesFeatureMetaInfo? = error("unused")
-        override suspend fun getMeta(id: FileId): FilesFeatureMetaInfo? = error("unused")
-        override suspend fun getAvatar(userId: UserId): FileId? = error("unused")
-        override suspend fun setAvatar(userId: UserId, fileId: FileId): Boolean = error("unused")
-    }
-
-    /** Admin wishlist double for dependencies outside the tested model methods. */
     private object UnusedWishlistsFeature : AdminWishlistsFeature {
         override suspend fun getAll(): List<AdminWishlist> = error("unused")
         override suspend fun getByUserId(userId: UserId): List<AdminWishlist> = error("unused")
@@ -235,7 +364,6 @@ class UsersModelTest {
         override suspend fun delete(id: WishlistId): Boolean = error("unused")
     }
 
-    /** Admin wishlist-item double for dependencies outside the tested model methods. */
     private object UnusedWishlistItemsFeature : AdminWishlistItemsFeature {
         override suspend fun getByWishlistId(wishlistId: WishlistId): List<AdminWishlistItem> = error("unused")
         override suspend fun create(item: NewWishlistItem): AdminWishlistItem? = error("unused")

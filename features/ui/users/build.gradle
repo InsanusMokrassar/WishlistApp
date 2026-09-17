@@ -40,6 +40,11 @@ kotlin {
                 implementation libs.androidx.compose.ui.test.junit4
             }
         }
+        jvmTest {
+            dependencies {
+                implementation libs.ktor.client.mock
+            }
+        }
     }
 }
 

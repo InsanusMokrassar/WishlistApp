@@ -4,6 +4,7 @@ import dev.inmo.micro_utils.koin.singleWithRandomQualifier
 import dev.inmo.micro_utils.startup.plugin.StartPlugin
 import dev.inmo.wishlist.features.auth.client.ServerUrlStorage
 import dev.inmo.wishlist.features.common.client.models.ViewConfig
+import dev.inmo.wishlist.features.ui.serverUrl.ui.DefaultServerUrlModel
 import dev.inmo.wishlist.features.ui.serverUrl.ui.ServerUrlModel
 import dev.inmo.wishlist.features.ui.serverUrl.ui.ServerUrlViewConfig
 import dev.inmo.wishlist.features.ui.serverUrl.ui.ServerUrlViewModel
@@ -29,13 +30,7 @@ object Plugin : StartPlugin {
         }
         factory { ServerUrlViewModel(node = it.get(), model = get(), interactor = get()) }
         single<ServerUrlModel> {
-            val storage = get<ServerUrlStorage>()
-            object : ServerUrlModel {
-                override suspend fun getServerUrl(): String? = storage.getServerUrl()
-                override suspend fun saveServerUrl(url: String?) {
-                    storage.saveServerUrl(url?.takeIf { it.isNotBlank() })
-                }
-            }
+            DefaultServerUrlModel(storage = get())
         }
     }
 
