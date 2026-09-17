@@ -11,6 +11,7 @@ import dev.inmo.wishlist.features.users.common.repo.exceptions.EmailChangeCooldo
 import kotlinx.coroutines.CoroutineStart
 import kotlinx.coroutines.flow.collect
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.test.advanceUntilIdle
 import kotlinx.coroutines.test.runTest
 import org.jetbrains.exposed.v1.jdbc.SchemaUtils
@@ -22,6 +23,8 @@ import org.sqlite.SQLiteErrorCode
 import org.sqlite.SQLiteException
 import java.sql.DriverManager
 import java.nio.file.Files
+import java.util.concurrent.CountDownLatch
+import java.util.concurrent.TimeUnit
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
@@ -181,6 +184,19 @@ class ExposedUsersRepoSqliteTest {
                 assertEquals(Username("legacy-user"), legacy.username)
                 assertEquals(Email("legacy@example.com"), legacy.email)
                 assertFalse(legacy.emailApproved)
+                DriverManager.getConnection(url).use { connection ->
+                    connection.createStatement().use { statement ->
+                        statement.executeQuery("SELECT pending_email, email_change_allowed_at FROM users WHERE id = 41").use { result ->
+                            assertTrue(result.next())
+                            assertNull(result.getString("pending_email"))
+                            assertNull(result.getObject("email_change_allowed_at"))
+                        }
+                        statement.executeQuery("SELECT COUNT(*) FROM users_write_lock WHERE id = 1 AND marker = 0").use { result ->
+                            assertTrue(result.next())
+                            assertEquals(1, result.getInt(1))
+                        }
+                    }
+                }
             } finally {
                 TransactionManager.closeAndUnregister(database)
             }
@@ -196,11 +212,15 @@ class ExposedUsersRepoSqliteTest {
         val url = "jdbc:sqlite:${databaseFile.toAbsolutePath()}"
         val email = Email("durable@example.com")
         try {
+            var now = 1_000L
             val firstDatabase = Database.connect(url = url, driver = "org.sqlite.JDBC")
             val userId = try {
-                val repo = ExposedUsersRepo(firstDatabase)
+                val repo = ExposedUsersRepo(firstDatabase, nowMillis = { now })
                 val created = repo.create(NewUser(Username("durable"), email)).single()
-                assertTrue(checkNotNull(repo.approveEmail(created.id, email)).emailApproved)
+                val approved = checkNotNull(repo.approveEmail(created.id, email, cooldownMillis = 500))
+                now = checkNotNull(approved.emailChangeAllowedAt)
+                val pending = checkNotNull(repo.setEmail(created.id, Email("durable-pending@example.com")))
+                assertEquals(Email("durable-pending@example.com"), pending.pendingEmail)
                 created.id
             } finally {
                 TransactionManager.closeAndUnregister(firstDatabase)
@@ -211,6 +231,8 @@ class ExposedUsersRepoSqliteTest {
                 val reopened = checkNotNull(ExposedUsersRepo(reopenedDatabase).getById(userId))
                 assertEquals(email, reopened.email)
                 assertTrue(reopened.emailApproved)
+                assertEquals(Email("durable-pending@example.com"), reopened.pendingEmail)
+                assertEquals(1_500L, reopened.emailChangeAllowedAt)
             } finally {
                 TransactionManager.closeAndUnregister(reopenedDatabase)
             }
@@ -315,6 +337,233 @@ class ExposedUsersRepoSqliteTest {
 
             now = 9_000L
             assertEquals(promoted, repo.approveEmail(user.id, replacement, cooldownMillis = 999))
+        }
+    }
+
+    /** Additive migration preserves every old approval state without fabricating pending history or deadlines. */
+    @Test
+    fun legacyApprovalSchemaPreservesApprovedNullAndMalformedRows() = runTest {
+        val databaseFile = Files.createTempFile("wishlist-users-legacy-approval", ".sqlite")
+        val url = "jdbc:sqlite:${databaseFile.toAbsolutePath()}"
+        try {
+            DriverManager.getConnection(url).use { connection ->
+                connection.createStatement().use { statement ->
+                    statement.execute("CREATE TABLE users (id INTEGER PRIMARY KEY AUTOINCREMENT, username TEXT NOT NULL UNIQUE, email TEXT, email_approved BOOLEAN NOT NULL DEFAULT FALSE)")
+                    statement.execute("INSERT INTO users (id, username, email, email_approved) VALUES (1, 'approved', 'approved@example.com', 1)")
+                    statement.execute("INSERT INTO users (id, username, email, email_approved) VALUES (2, 'unapproved', 'unapproved@example.com', 0)")
+                    statement.execute("INSERT INTO users (id, username, email, email_approved) VALUES (3, 'empty', NULL, 1)")
+                    statement.execute("INSERT INTO users (id, username, email, email_approved) VALUES (4, 'malformed', 'not-an-email', 1)")
+                }
+            }
+            val database = Database.connect(url = url, driver = "org.sqlite.JDBC")
+            try {
+                val repo = ExposedUsersRepo(database)
+                assertTrue(checkNotNull(repo.getById(UserId(1))).emailApproved)
+                assertFalse(checkNotNull(repo.getById(UserId(2))).emailApproved)
+                assertFalse(checkNotNull(repo.getById(UserId(3))).emailApproved)
+                assertNull(checkNotNull(repo.getById(UserId(4))).email)
+                DriverManager.getConnection(url).use { connection ->
+                    connection.createStatement().use { statement ->
+                        statement.executeQuery("SELECT COUNT(*) FROM users WHERE pending_email IS NULL AND email_change_allowed_at IS NULL").use { result ->
+                            assertTrue(result.next())
+                            assertEquals(4, result.getInt(1))
+                        }
+                        statement.executeQuery("SELECT email, email_approved FROM users WHERE id = 4").use { result ->
+                            assertTrue(result.next())
+                            assertEquals("not-an-email", result.getString("email"))
+                            assertTrue(result.getBoolean("email_approved"))
+                        }
+                    }
+                }
+                ExposedUsersRepo(database)
+                DriverManager.getConnection(url).use { connection ->
+                    connection.createStatement().use { statement ->
+                        statement.executeQuery("SELECT COUNT(*) FROM users_write_lock WHERE id = 1").use { result ->
+                            assertTrue(result.next())
+                            assertEquals(1, result.getInt(1))
+                        }
+                    }
+                }
+            } finally {
+                TransactionManager.closeAndUnregister(database)
+            }
+        } finally {
+            Files.deleteIfExists(databaseFile)
+        }
+    }
+
+    /** Same-address and same-name requests return the retained record without publishing a false update event. */
+    @Test
+    fun noOpLifecycleWritersDoNotPublishUpdateEvents() = runTest {
+        withInMemorySqliteUsersRepo { repo ->
+            val email = Email("no-op@example.com")
+            val created = repo.create(NewUser(Username("no-op"), email)).single()
+            val approved = checkNotNull(repo.approveEmail(created.id, email))
+            val events = mutableListOf<RegisteredUser>()
+            val collector = backgroundScope.launch(start = CoroutineStart.UNDISPATCHED) {
+                repo.updatedObjectsFlow.collect(events::add)
+            }
+            try {
+                assertEquals(approved, repo.setEmail(created.id, email))
+                assertEquals(approved, repo.updateUsername(created.id, approved.username))
+                assertEquals(listOf(approved), repo.update(listOf(created.id to NewUser(approved.username, email))))
+                advanceUntilIdle()
+                assertEquals(emptyList(), events)
+            } finally {
+                collector.cancel()
+            }
+        }
+    }
+
+    /** Replacements and explicit clears release every previously occupied current or pending slot. */
+    @Test
+    fun replacementAndClearReleaseCurrentAndPendingAddressClaims() = runTest {
+        withInMemorySqliteUsersRepo { repo ->
+            val current = Email("release-current@example.com")
+            val pending = Email("release-pending@example.com")
+            val owner = repo.create(NewUser(Username("owner"), current)).single()
+            checkNotNull(repo.approveEmail(owner.id, current))
+            checkNotNull(repo.setEmail(owner.id, pending))
+
+            assertFailsWith<DuplicateUserFieldException> {
+                repo.create(NewUser(Username("pending-claim"), pending))
+            }
+            val replacement = checkNotNull(repo.setEmail(owner.id, Email("release-replacement@example.com")))
+            assertEquals(Email("release-replacement@example.com"), replacement.pendingEmail)
+            assertEquals(pending, repo.create(NewUser(Username("released-pending"), pending)).single().email)
+
+            checkNotNull(repo.setEmail(owner.id, null))
+            assertEquals(current, repo.create(NewUser(Username("released-current"), current)).single().email)
+            assertEquals(Email("release-replacement@example.com"), repo.create(NewUser(Username("released-replacement"), Email("release-replacement@example.com"))).single().email)
+
+            val deletedCurrent = Email("deleted-current@example.com")
+            val deletedPending = Email("deleted-pending@example.com")
+            val deletedOwner = repo.create(NewUser(Username("deleted-owner"), deletedCurrent)).single()
+            checkNotNull(repo.approveEmail(deletedOwner.id, deletedCurrent))
+            checkNotNull(repo.setEmail(deletedOwner.id, deletedPending))
+            repo.deleteById(listOf(deletedOwner.id))
+            assertEquals(deletedCurrent, repo.create(NewUser(Username("deleted-current-claim"), deletedCurrent)).single().email)
+            assertEquals(deletedPending, repo.create(NewUser(Username("deleted-pending-claim"), deletedPending)).single().email)
+        }
+    }
+
+    /** Independent repositories serialize duplicate current-address creation before either lifecycle read can run. */
+    @Test
+    fun fileBackedRepositoriesSerializeCurrentAddressClaimsAtTheLock() = runBlocking {
+        val firstLockAcquired = CountDownLatch(1)
+        val releaseFirst = CountDownLatch(1)
+        val secondLockAcquired = CountDownLatch(1)
+        withFileBackedSqliteUsersRepos(
+            firstAfterWriteLock = {
+                firstLockAcquired.countDown()
+                releaseFirst.await()
+            },
+            secondAfterWriteLock = { secondLockAcquired.countDown() },
+        ) { _, first, second ->
+            val shared = Email("concurrent-current@example.com")
+            var firstWrite: Result<RegisteredUser>? = null
+            val firstDone = CountDownLatch(1)
+            val firstThread = Thread {
+                firstWrite = runCatching {
+                    runBlocking { first.create(NewUser(Username("first-current"), shared)).single() }
+                }
+                firstDone.countDown()
+            }
+            firstThread.start()
+            assertTrue(firstLockAcquired.await(10, TimeUnit.SECONDS))
+            var secondWrite: Result<RegisteredUser>? = null
+            val secondStarted = CountDownLatch(1)
+            val secondDone = CountDownLatch(1)
+            val secondThread = Thread {
+                secondStarted.countDown()
+                secondWrite = runCatching {
+                    runBlocking { second.create(NewUser(Username("second-current"), shared)).single() }
+                }
+                secondDone.countDown()
+            }
+            secondThread.start()
+            assertTrue(secondStarted.await(10, TimeUnit.SECONDS))
+            assertEquals(1, secondLockAcquired.count)
+            releaseFirst.countDown()
+
+            assertTrue(firstDone.await(10, TimeUnit.SECONDS))
+            assertTrue(secondDone.await(10, TimeUnit.SECONDS))
+            assertEquals(shared, checkNotNull(firstWrite).getOrThrow().email)
+            assertIs<DuplicateUserFieldException>(checkNotNull(secondWrite).exceptionOrNull())
+        }
+    }
+
+    /** Independent current and pending writers cannot commit the same address, while unrelated queued claims complete. */
+    @Test
+    fun fileBackedRepositoriesSerializePendingClaimsAndReleaseUnrelatedWriters() = runBlocking {
+        val firstLockAcquired = CountDownLatch(1)
+        val releaseFirst = CountDownLatch(1)
+        val secondLockAcquired = CountDownLatch(1)
+        var blockFirstWriter = false
+        withFileBackedSqliteUsersRepos(
+            firstAfterWriteLock = {
+                if (blockFirstWriter) {
+                    firstLockAcquired.countDown()
+                    releaseFirst.await()
+                }
+            },
+            secondAfterWriteLock = { secondLockAcquired.countDown() },
+        ) { _, first, second ->
+            val current = Email("concurrent-owner@example.com")
+            val pending = Email("concurrent-pending@example.com")
+            val owner = first.create(NewUser(Username("pending-owner"), current)).single()
+            checkNotNull(first.approveEmail(owner.id, current))
+            blockFirstWriter = true
+            var pendingWrite: Result<RegisteredUser?>? = null
+            val pendingDone = CountDownLatch(1)
+            val pendingThread = Thread {
+                pendingWrite = runCatching { runBlocking { first.setEmail(owner.id, pending) } }
+                pendingDone.countDown()
+            }
+            pendingThread.start()
+            assertTrue(firstLockAcquired.await(10, TimeUnit.SECONDS))
+            var currentWrite: Result<RegisteredUser>? = null
+            val currentDone = CountDownLatch(1)
+            val currentThread = Thread {
+                currentWrite = runCatching {
+                    runBlocking { second.create(NewUser(Username("pending-contender"), pending)).single() }
+                }
+                currentDone.countDown()
+            }
+            currentThread.start()
+            assertEquals(1, secondLockAcquired.count)
+            releaseFirst.countDown()
+
+            assertTrue(pendingDone.await(10, TimeUnit.SECONDS))
+            assertTrue(currentDone.await(10, TimeUnit.SECONDS))
+            assertEquals(pending, checkNotNull(checkNotNull(pendingWrite).getOrThrow()).pendingEmail)
+            assertIs<DuplicateUserFieldException>(checkNotNull(currentWrite).exceptionOrNull())
+            assertEquals(
+                Email("unrelated@example.com"),
+                second.create(NewUser(Username("unrelated-contender"), Email("unrelated@example.com"))).single().email,
+            )
+        }
+    }
+
+    /** A real SQLite writer lock failure stays infrastructure-visible instead of becoming duplicate or cooldown feedback. */
+    @Test
+    fun sqliteWriterContentionIsNotClassifiedAsLifecycleFeedback() = runTest {
+        withFileBackedSqliteUsersRepos { url, first, _ ->
+            DriverManager.getConnection(url).use { connection ->
+                connection.createStatement().use { statement ->
+                    statement.execute("PRAGMA busy_timeout = 0")
+                    statement.execute("BEGIN IMMEDIATE")
+                    try {
+                        val failure = assertFailsWith<ExposedSQLException> {
+                            first.create(NewUser(Username("contention"), Email("contention@example.com")))
+                        }
+                        val sqlite = assertIs<SQLiteException>(failure.cause)
+                        assertEquals(SQLiteErrorCode.SQLITE_BUSY, sqlite.resultCode)
+                    } finally {
+                        statement.execute("ROLLBACK")
+                    }
+                }
+            }
         }
     }
 

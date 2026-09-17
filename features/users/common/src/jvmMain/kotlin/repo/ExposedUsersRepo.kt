@@ -63,10 +63,13 @@ private object UsersWriteLockTable : Table("users_write_lock") {
  * transaction commits. Other constraint and database failures retain their original type.
  *
  * @param database Exposed [Database] instance (provided by the common server plugin).
+ * @param nowMillis Clock sampled inside locked transactions when a lifecycle deadline is needed.
+ * @param afterWriteLock Test seam invoked immediately after the durable writer lock is acquired.
  */
 class ExposedUsersRepo(
     override val database: Database,
     private val nowMillis: () -> Long = System::currentTimeMillis,
+    private val afterWriteLock: (() -> Unit)? = null,
 ) : UsersRepo, AbstractExposedCRUDRepo<RegisteredUser, UserId, NewUser>(tableName = "users") {
     /** Auto-increment primary key column. */
     private val idColumn = long("id").autoIncrement()
@@ -175,18 +178,22 @@ class ExposedUsersRepo(
         mutateEmail(id = id, email = email, username = null)
 
     override suspend fun updateUsername(id: UserId, username: Username): RegisteredUser? {
-        val updated = try {
+        val mutation = try {
             transaction(db = database) {
                 acquireWriteLock()
                 val current = selectUser(id) ?: return@transaction null
-                this@ExposedUsersRepo.exposedUpdate({ idColumn eq id.long }) { it[usernameColumn] = username.string }
-                selectUser(id) ?: current
+                if (username == current.username) {
+                    UserMutation(user = current, changed = false)
+                } else {
+                    this@ExposedUsersRepo.exposedUpdate({ idColumn eq id.long }) { it[usernameColumn] = username.string }
+                    UserMutation(user = selectUser(id) ?: current, changed = true)
+                }
             }
         } catch (error: ExposedSQLException) {
             if (error.isUniqueViolation()) throw DuplicateUserFieldException(cause = error) else throw error
         }
-        updated?.let { _updatedObjectsFlow.emit(it) }
-        return updated
+        mutation?.takeIf { it.changed }?.user?.let { _updatedObjectsFlow.emit(it) }
+        return mutation?.user
     }
 
     /**
@@ -250,8 +257,10 @@ class ExposedUsersRepo(
         } catch (error: ExposedSQLException) {
             if (error.isUniqueViolation()) throw DuplicateUserFieldException(cause = error) else throw error
         }
-        val result = onAfterUpdate(updated)
-        result.forEach { _updatedObjectsFlow.emit(it) }
+        val result = onAfterUpdate(updated.map { (value, mutation) -> value to mutation.user })
+        result.zip(updated).forEach { (user, mutation) ->
+            if (mutation.second.changed) _updatedObjectsFlow.emit(user)
+        }
         return result
     }
 
@@ -337,8 +346,8 @@ class ExposedUsersRepo(
         } catch (error: ExposedSQLException) {
             if (error.isUniqueViolation()) throw DuplicateUserFieldException(cause = error) else throw error
         }
-        updated?.let { _updatedObjectsFlow.emit(it) }
-        return updated
+        updated?.takeIf { it.changed }?.user?.let { _updatedObjectsFlow.emit(it) }
+        return updated?.user
     }
 
     /** Applies a lifecycle mutation after the caller has acquired [UsersWriteLockTable]'s row. */
@@ -346,7 +355,7 @@ class ExposedUsersRepo(
         id: UserId,
         email: Email?,
         username: Username?,
-    ): RegisteredUser? {
+    ): UserMutation? {
         val current = selectUser(id) ?: return null
         val changingEmail = email != current.email && email != current.pendingEmail
         val deadline = current.emailChangeAllowedAt
@@ -358,7 +367,9 @@ class ExposedUsersRepo(
             !changingEmail -> {
                 if (username != null && username != current.username) {
                     this@ExposedUsersRepo.exposedUpdate({ idColumn eq id.long }) { it[usernameColumn] = username.string }
+                    return UserMutation(user = selectUser(id) ?: current, changed = true)
                 }
+                return UserMutation(user = current, changed = false)
             }
             email == null -> {
                 this@ExposedUsersRepo.exposedUpdate({ idColumn eq id.long }) {
@@ -385,7 +396,7 @@ class ExposedUsersRepo(
                 }
             }
         }
-        return selectUser(id)
+        return UserMutation(user = selectUser(id) ?: current, changed = true)
     }
 
     /** Updates the durable lock row before any users-table query. */
@@ -394,6 +405,7 @@ class ExposedUsersRepo(
             it[UsersWriteLockTable.markerColumn] = usersWriteLockMarker
         }
         check(acquired == 1) { "users_write_lock row id=$usersWriteLockRowId is missing" }
+        afterWriteLock?.invoke()
     }
 
     /** Finds a users row without routing its raw columns through a cache or another transaction. */
@@ -418,4 +430,10 @@ class ExposedUsersRepo(
         /** Stable lock-row marker. */
         const val usersWriteLockMarker = 0
     }
+
+    /** Records a locked mutation result while distinguishing durable writes from no-op requests. */
+    private data class UserMutation(
+        val user: RegisteredUser,
+        val changed: Boolean,
+    )
 }
