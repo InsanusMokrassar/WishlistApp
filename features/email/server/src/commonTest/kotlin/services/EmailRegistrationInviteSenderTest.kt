@@ -109,8 +109,11 @@ class EmailRegistrationInviteSenderTest {
         assertEquals(user.email, call.recipient)
         val stored = repo.getAll().values.single()
         val url = buildEmailVerificationUrl("http://localhost:8196", repo.getAll().keys.single())
-        assertEquals("Verify your WishlistApp account", call.subject)
-        assertEquals("<p>Verify your WishlistApp account by <a href=\"$url\">Verify email address</a>.</p>", call.html)
+        assertEquals("Verify your WishlistApp email address", call.subject)
+        assertEquals(
+            "<p>Verify ownership of this email address for your WishlistApp account by <a href=\"$url\">Verify email address</a>.</p>",
+            call.html,
+        )
         assertTrue(emails.sendTextCalls.isEmpty())
         assertEquals(EmailVerification.handlerId, stored.handlerId)
         assertEquals("email.registration_verification", stored.handlerId.string)

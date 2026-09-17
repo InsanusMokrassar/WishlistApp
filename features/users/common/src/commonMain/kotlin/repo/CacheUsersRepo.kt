@@ -7,8 +7,10 @@ import dev.inmo.micro_utils.repos.cache.CRUDCacheRepo
 import dev.inmo.micro_utils.repos.cache.cache.KVCache
 import dev.inmo.micro_utils.repos.cache.full.FullCRUDCacheRepo
 import dev.inmo.micro_utils.repos.cache.full.FullKeyValueCacheRepo
+import dev.inmo.micro_utils.coroutines.withWriteLock
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
+import dev.inmo.wishlist.features.email.common.models.Email
 import dev.inmo.wishlist.features.users.common.models.NewUser
 import dev.inmo.wishlist.features.users.common.models.RegisteredUser
 import dev.inmo.wishlist.features.users.common.models.UserId
@@ -52,4 +54,24 @@ class CacheUsersRepo(
      */
     override suspend fun getUserByUsername(username: Username): RegisteredUser? =
         originalRepo.getUserByUsername(username)
+
+    /**
+     * Delegates conditional address approval to [originalRepo] and synchronously mirrors a successful
+     * result into the id-keyed cache.
+     *
+     * The backing call happens before taking [locker] because it emits its repository update event;
+     * taking the cache lock first could deadlock the cache subscription. Failed conditional writes do
+     * not alter cached state.
+     *
+     * @param id User whose current address is being approved.
+     * @param expectedEmail Exact address required by the backing repository.
+     * @return The approved user returned by the backing repository, or `null` on a failed condition.
+     */
+    override suspend fun approveEmail(id: UserId, expectedEmail: Email): RegisteredUser? {
+        val approved = originalRepo.approveEmail(id, expectedEmail) ?: return null
+        locker.withWriteLock {
+            kvCache.set(mapOf(approved.id to approved))
+        }
+        return approved
+    }
 }

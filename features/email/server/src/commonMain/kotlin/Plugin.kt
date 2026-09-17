@@ -75,7 +75,7 @@ object Plugin : StartPlugin {
         single<EmailFeature> {
             val accountCoordinator = get<EmailVerificationAccountCoordinator>()
             getOrNull<EmailsService>()?.let {
-                EmailFeatureService(it, accountCoordinator, get<RolesFeature>())
+                EmailFeatureService(it, accountCoordinator, get<RolesFeature>(), get<EmailRegistrationInviteSender>())
             } ?: DisabledEmailFeature(accountCoordinator)
         }
         singleWithRandomQualifier {
@@ -89,13 +89,14 @@ object Plugin : StartPlugin {
                 emailsService = getOrNull<EmailsService>(),
             )
         }
-        single<RegistrationEmailSender> {
+        single {
             EmailRegistrationInviteSender(
                 emailsService = getOrNull(),
                 deepLinksService = getOrNull<DeepLinksService>(),
                 publicHttpOrigin = serverConfig.publicHttpOrigin,
             )
         }
+        single<RegistrationEmailSender> { get<EmailRegistrationInviteSender>() }
         singleRequirement {
             FeatureRolesRegistry.Requirement(EmailConstants.sendTestFunctionalityId, SuperAdminRole)
         }

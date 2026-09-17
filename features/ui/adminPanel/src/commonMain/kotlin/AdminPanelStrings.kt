@@ -58,18 +58,53 @@ object AdminPanelStrings {
     val ownerIdLabel = buildStringResource("Owner ID") { IetfLang.Russian("ID владельца") }
 
     // Email feature
+    /** Dashboard heading for the live registered-user list. */
+    val dashboardUsersSection = buildStringResource("Registered users") {
+        IetfLang.Russian("Зарегистрированные пользователи")
+    }
+
+    /** Empty-state text for the dashboard user list. */
+    val dashboardUsersEmpty = buildStringResource("No registered users found.") {
+        IetfLang.Russian("Зарегистрированные пользователи не найдены.")
+    }
+
+    /** Error-state text for a failed dashboard user-list request. */
+    val dashboardUsersLoadFailed = buildStringResource("Could not load registered users.") {
+        IetfLang.Russian("Не удалось загрузить зарегистрированных пользователей.")
+    }
+
+    /** Retry action for a failed dashboard user-list request. */
+    val retryButton = buildStringResource("Retry") { IetfLang.Russian("Повторить") }
+
     /** Section heading for the test-email form on the admin dashboard. */
     val sendTestEmailSection = buildStringResource("Send test email") {
         IetfLang.Russian("Отправить тестовое письмо")
     }
 
     /** Label for the recipient input in the test-email form. */
-    val sendTestEmailRecipientLabel = buildStringResource("Recipient") {
-        IetfLang.Russian("Получатель")
+    val sendTestEmailRecipientLabel = buildStringResource("SMTP test recipient") {
+        IetfLang.Russian("Получатель теста SMTP")
+    }
+
+    /** Explains that the entered address receives only the SMTP test message. */
+    val sendTestEmailExplanation = buildStringResource(
+        "Send a test message to this address. It is the SMTP test recipient and does not change any account email."
+    ) {
+        IetfLang.Russian(
+            "Отправьте тестовое письмо на этот адрес. Адрес используется только как получатель теста SMTP и не меняет email аккаунтов."
+        )
+    }
+
+    /** Status shown instead of the SMTP form when delivery is unavailable. */
+    val sendTestEmailUnavailable = buildStringResource("SMTP email delivery is not configured.") {
+        IetfLang.Russian("Отправка SMTP-почты не настроена.")
     }
 
     /** Label for the send button in the test-email form. */
     val sendTestEmailButton = buildStringResource("Send") { IetfLang.Russian("Отправить") }
+
+    /** Busy label while the SMTP test request is in flight. */
+    val sendTestEmailSending = buildStringResource("Sending...") { IetfLang.Russian("Отправка...") }
 
     /** Feedback shown after a successful test-email delivery. */
     val sendTestEmailSuccess = buildStringResource("Test email sent.") {

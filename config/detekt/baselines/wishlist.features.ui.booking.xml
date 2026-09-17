@@ -1,0 +1,8 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<SmellBaseline>
+  <ManuallySuppressedIssues/>
+  <CurrentIssues>
+    <ID>UndocumentedPublicFunction:BookingModelTest.kt:BookingModelTest$@Test fun delegatesEveryOperationWithExactArgumentsAndResults</ID>
+    <ID>UndocumentedPublicFunction:BookingModelTest.kt:BookingModelTest$@Test fun pluginBindsDefaultModelAsOneInterfaceSingleton</ID>
+  </CurrentIssues>
+</SmellBaseline>

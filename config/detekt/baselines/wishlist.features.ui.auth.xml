@@ -7,6 +7,8 @@
     <ID>UndocumentedPublicClass:AuthViewInteractor.kt:AuthViewInteractor</ID>
     <ID>UndocumentedPublicClass:JSPlugin.kt:JSPlugin : StartPlugin</ID>
     <ID>UndocumentedPublicClass:JVMPlugin.kt:JVMPlugin : StartPlugin</ID>
+    <ID>UndocumentedPublicFunction:AuthModelTest.kt:AuthModelTest$@Test fun delegatesAuthenticationAndPreservesFallbackBehavior</ID>
+    <ID>UndocumentedPublicFunction:AuthModelTest.kt:AuthModelTest$@Test fun pluginBindsDefaultModelAsOneInterfaceSingleton</ID>
     <ID>UndocumentedPublicFunction:AuthViewInteractor.kt:AuthViewInteractor$suspend fun onUserLoggedIn</ID>
     <ID>UndocumentedPublicFunction:AuthViewInteractor.kt:AuthViewInteractor$suspend fun onUserLoggedOut</ID>
     <ID>UndocumentedPublicProperty:AuthViewModel.kt:AuthViewModel$val emailState = _emailState.asStateFlow()</ID>

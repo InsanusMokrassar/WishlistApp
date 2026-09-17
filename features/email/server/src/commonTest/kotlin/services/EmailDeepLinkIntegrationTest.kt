@@ -1,6 +1,8 @@
 package dev.inmo.wishlist.features.email.server.services
 
 import dev.inmo.kroles.repos.BaseRoleSubject
+import dev.inmo.kroles.repos.RolesRepo
+import dev.inmo.kroles.roles.BaseRole
 import dev.inmo.micro_utils.repos.MapKeyValueRepo
 import dev.inmo.wishlist.features.deeplinks.common.models.DeepLinkHandlerInfo
 import dev.inmo.wishlist.features.deeplinks.common.models.DeepLinkId
@@ -24,6 +26,8 @@ import kotlinx.serialization.modules.SerializersModule
 import kotlinx.serialization.modules.polymorphic
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertTrue
+import kotlin.test.fail
 
 /** Exercises application-level verification payload serialization and deeplink dispatch. */
 class EmailDeepLinkIntegrationTest {
@@ -89,5 +93,54 @@ class EmailDeepLinkIntegrationTest {
             service.handle(deeplinkId),
         )
         assertEquals(setOf(UserRole), rolesRepo.getDirectRoles(subject).toSet())
+    }
+
+    /** Approval persists before a failed grant, and reopening the same link finishes pending cleanup. */
+    @Test
+    fun sameVerificationLinkRetriesAfterApprovedGrantFailure() = runTest {
+        val usersRepo = FakeUsersRepo(mapOf(user.id to user))
+        val backingRolesRepo = FakeRolesRepo()
+        val subject = BaseRoleSubject.Direct(user.id.long.toString())
+        backingRolesRepo.includeDirect(subject, NewUserRole)
+        val rolesRepo = FailAfterFirstUserGrant(backingRolesRepo)
+        val handler = EmailVerificationDeepLinkHandler(
+            accountCoordinator = EmailVerificationAccountCoordinator(usersRepo, rolesRepo),
+        )
+        val service = DeepLinksService(FakeDeepLinksRepo(), listOf(handler))
+        val deeplinkId = service.createDeepLink(
+            EmailVerification.handlerId,
+            EmailVerificationPayload(user.id, user.email),
+        )
+
+        try {
+            service.handle(deeplinkId)
+            fail("Expected the first role grant to fail after approval")
+        } catch (_: IllegalStateException) {
+        }
+
+        assertTrue(usersRepo.getById(user.id)?.emailApproved == true)
+        assertEquals(setOf(NewUserRole, UserRole), backingRolesRepo.getDirectRoles(subject).toSet())
+
+        assertEquals(
+            HandleResult.Handled.Redirect(EmailConstants.approvalRedirectPath),
+            service.handle(deeplinkId),
+        )
+        assertEquals(setOf(UserRole), backingRolesRepo.getDirectRoles(subject).toSet())
+    }
+
+    /** One-shot fault adapter that models a server write accepted before the caller lost its response. */
+    private class FailAfterFirstUserGrant(
+        private val delegate: RolesRepo,
+    ) : RolesRepo by delegate {
+        private var failNextUserGrant = true
+
+        override suspend fun includeDirect(subject: BaseRoleSubject, role: BaseRole): Boolean {
+            val changed = delegate.includeDirect(subject, role)
+            if (role == UserRole && failNextUserGrant) {
+                failNextUserGrant = false
+                throw IllegalStateException("grant response lost after mutation")
+            }
+            return changed
+        }
     }
 }

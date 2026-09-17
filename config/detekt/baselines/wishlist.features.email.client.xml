@@ -1,0 +1,10 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<SmellBaseline>
+  <ManuallySuppressedIssues/>
+  <CurrentIssues>
+    <ID>UndocumentedPublicFunction:KtorEmailFeatureTest.kt:KtorEmailFeatureTest$@Test fun capabilityAndVerificationRejectNonSuccessResponses</ID>
+    <ID>UndocumentedPublicFunction:KtorEmailFeatureTest.kt:KtorEmailFeatureTest$@Test fun capabilityNetworkFailurePropagatesToTheRecoverableViewModelState</ID>
+    <ID>UndocumentedPublicFunction:KtorEmailFeatureTest.kt:KtorEmailFeatureTest$@Test fun enabledDecodesSuccessfulTrueAndFalseBodies</ID>
+    <ID>UndocumentedPublicFunction:KtorEmailFeatureTest.kt:KtorEmailFeatureTest$@Test fun verificationPostsOnlyExpectedEmailAndDecodesEveryResult</ID>
+  </CurrentIssues>
+</SmellBaseline>

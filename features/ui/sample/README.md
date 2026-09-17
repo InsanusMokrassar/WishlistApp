@@ -23,6 +23,6 @@ None. Client-only feature; no server component.
 ## Architecture Notes
 
 - `SampleViewConfig` is pushed as the root node by `ClientPlugin.startPlugin` via `InjectNavigationNode(SampleViewConfig())`. It is always present in the navigation stack; the auth overlay sits on top of it.
-- `SampleModel` implementation (in `Plugin.kt`) delegates to injected `SampleFeature` (HTTP text) and `EchoFeature` (status polling with 1-second delay).
+- `DefaultSampleModel` implements `SampleModel` in the common UI package, receives `SampleFeature` and `EchoFeature` as private constructor dependencies, and is registered as an interface `single` in `Plugin.kt`. It delegates HTTP text and status polling with the existing 1-second delay.
 - `SampleViewModel` has no `SampleViewInteractor` — it requires no side-effecting app-level behavior.
 - Platform views: JS uses `org.jetbrains.compose.web.dom.Text`; JVM uses `androidx.compose.material.Text`; Android uses `androidx.compose.material3.Text`.

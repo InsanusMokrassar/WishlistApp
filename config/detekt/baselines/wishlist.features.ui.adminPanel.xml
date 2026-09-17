@@ -2,6 +2,17 @@
 <SmellBaseline>
   <ManuallySuppressedIssues/>
   <CurrentIssues>
+    <ID>UndocumentedPublicClass:AdminPanelViewModelTest.kt:AdminPanelViewModelTest</ID>
+    <ID>UndocumentedPublicFunction:AdminPanelModelTest.kt:AdminPanelModelTest$@Test fun pluginModelDelegatesEveryOperationWithoutChangingArguments</ID>
+    <ID>UndocumentedPublicFunction:AdminPanelViewModelTest.kt:AdminPanelViewModelTest$@Test fun cancellingSmtpRequestClearsBusyState</ID>
+    <ID>UndocumentedPublicFunction:AdminPanelViewModelTest.kt:AdminPanelViewModelTest$@Test fun dashboardCallbacksForwardExactDestinations</ID>
+    <ID>UndocumentedPublicFunction:AdminPanelViewModelTest.kt:AdminPanelViewModelTest$@Test fun disabledSmtpNeverForwardsTestEmail</ID>
+    <ID>UndocumentedPublicFunction:AdminPanelViewModelTest.kt:AdminPanelViewModelTest$@Test fun failedUsersLoadCanRetrySuccessfully</ID>
+    <ID>UndocumentedPublicFunction:AdminPanelViewModelTest.kt:AdminPanelViewModelTest$@Test fun loadsRealUsersWhenCapabilityProbeFails</ID>
+    <ID>UndocumentedPublicFunction:AdminPanelViewModelTest.kt:AdminPanelViewModelTest$@Test fun logoutClearsSuspendedUsersRefreshBeforeLateResponse</ID>
+    <ID>UndocumentedPublicFunction:AdminPanelViewModelTest.kt:AdminPanelViewModelTest$@Test fun newerUsersRefreshWinsOverLateNonCooperativeOlderResponse</ID>
+    <ID>UndocumentedPublicFunction:AdminPanelViewModelTest.kt:AdminPanelViewModelTest$@Test fun resumeRefreshesChangedUsersAndEmptyResultIsNotLoadFailure</ID>
+    <ID>UndocumentedPublicFunction:AdminPanelViewModelTest.kt:AdminPanelViewModelTest$@Test fun smtpBusyStateSuppressesDuplicateAndForwardsTrueFalseAndThrowResults</ID>
     <ID>UndocumentedPublicProperty:AdminPanelStrings.kt:AdminPanelStrings$// Discard confirm val confirmDiscardTitle = buildStringResource("Discard changes?") { IetfLang.Russian("Отменить изменения?") }</ID>
     <ID>UndocumentedPublicProperty:AdminPanelStrings.kt:AdminPanelStrings$// Users val usersListTitle = buildStringResource("All Users") { IetfLang.Russian("Все пользователи") }</ID>
     <ID>UndocumentedPublicProperty:AdminPanelStrings.kt:AdminPanelStrings$// Wishlist items val newItemTitle = buildStringResource("New Item") { IetfLang.Russian("Новый элемент") }</ID>

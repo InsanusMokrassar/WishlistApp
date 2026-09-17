@@ -16,5 +16,10 @@ kotlin {
                 api project(":wishlist.features.common.client")
             }
         }
+        commonTest {
+            dependencies {
+                implementation libs.ktor.client.mock
+            }
+        }
     }
 }

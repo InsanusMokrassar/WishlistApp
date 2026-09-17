@@ -87,8 +87,12 @@ that role with `NewUser` until email verification promotes the account. The gene
   roles-owned `RegistrationRoleLifecycle`, which excludes `User` and includes `NewUser`. Generic grant,
   pending marking, verification promotion, and compensation cleanup share one process-local mutex:
   callback-before-pending is replaced by `NewUser`, pending-before-callback is preserved, and a callback
-  delayed until after promotion idempotently retains exactly `User`. Backfill uses the generic rule and
-  preserves an already explicit pending state.
+  delayed until after promotion idempotently retains exactly `User`. Promotion grants and rereads direct
+  `User` membership before removing `NewUser`; a failed or unconfirmed grant leaves the pending marker
+  for the same link to retry. A committed grant followed by failed pending cleanup can temporarily leave
+  both direct roles and permit login, but a retry converges without compensation. Backfill uses the generic
+  rule and preserves an already explicit pending state.
+- **Revocation-safe verification:** `promoteNewUserToUser` changes roles only when the subject currently has direct `NewUser`. Existing direct `User` or `SuperAdmin` roles are retained without rewriting them, while a subject with neither marker returns `false`. Email approval alone never infers a role, so a later verification callback cannot recreate direct `User` access after an administrator revoked it.
 - **Auth authorization bridge:** `roles/server` binds one `RolesUserRoleAuthorization` as Auth's
   `UserRoleAuthorization` port. Optional self-registration uses the same `roleTransitionMutex` to
   synchronously add and confirm direct `UserRole`, while current authorization checks inspect only

@@ -6,6 +6,7 @@ import dev.inmo.wishlist.features.admin.common.models.NewUserWithPassword
 import dev.inmo.wishlist.features.auth.common.models.Password
 import dev.inmo.wishlist.features.users.common.models.NewUser
 import dev.inmo.wishlist.features.users.common.models.UserId
+import dev.inmo.wishlist.features.users.common.models.Username
 import io.ktor.client.HttpClient
 import io.ktor.client.call.body
 import io.ktor.client.request.delete
@@ -38,6 +39,20 @@ class KtorUsersManagementFeature(
     override suspend fun update(id: UserId, newUser: NewUser): Boolean {
         val response = client.put("$basePath/${Constants.usersUpdatePathPart}/${id.long}") {
             setBody(newUser)
+        }
+        return response.status.isSuccess()
+    }
+
+    /**
+     * Sends a username-only update that cannot overwrite a concurrently changed email address.
+     *
+     * @param id User to rename.
+     * @param username Validated username to persist.
+     * @return `true` for a successful server response.
+     */
+    override suspend fun updateUsername(id: UserId, username: Username): Boolean {
+        val response = client.put("$basePath/${Constants.usersSetUsernamePathPart}/${id.long}") {
+            setBody(username)
         }
         return response.status.isSuccess()
     }

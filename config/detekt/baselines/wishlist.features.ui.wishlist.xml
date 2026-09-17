@@ -2,6 +2,8 @@
 <SmellBaseline>
   <ManuallySuppressedIssues/>
   <CurrentIssues>
+    <ID>UndocumentedPublicFunction:WishlistsModelFileTest.kt:WishlistsModelFileTest$@Test fun uploadAndDownloadDelegateThroughFilesService</ID>
+    <ID>UndocumentedPublicFunction:WishlistsModelTest.kt:WishlistsModelTest$@OptIn(ExperimentalCoroutinesApi::class) @Test fun pluginModelPreservesEveryPlatformNeutralOperation</ID>
     <ID>UndocumentedPublicProperty:WishlistStrings.kt:WishlistStrings$val addImageButton = buildStringResource("Add image") { IetfLang.Russian("Добавить изображение") }</ID>
     <ID>UndocumentedPublicProperty:WishlistStrings.kt:WishlistStrings$val addItemButton = buildStringResource("Add Item") { IetfLang.Russian("Добавить товар") }</ID>
     <ID>UndocumentedPublicProperty:WishlistStrings.kt:WishlistStrings$val addLinkButton = buildStringResource("Add link") { IetfLang.Russian("Добавить ссылку") }</ID>

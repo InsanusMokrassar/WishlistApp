@@ -14,7 +14,10 @@ import dev.inmo.wishlist.features.common.client.ui.components.CalmButton
 import dev.inmo.wishlist.features.common.client.ui.components.CalmButtonVariant
 import dev.inmo.wishlist.features.common.client.ui.components.CalmTextField
 import dev.inmo.wishlist.features.common.client.ui.components.ContentColumn
+import dev.inmo.wishlist.features.common.client.ui.components.ListRow
 import dev.inmo.wishlist.features.common.client.ui.components.PageHead
+import dev.inmo.wishlist.features.common.client.ui.components.RowsList
+import dev.inmo.wishlist.features.common.client.ui.components.Subline
 import dev.inmo.wishlist.features.email.common.models.Email
 import dev.inmo.wishlist.features.ui.adminPanel.AdminPanelStrings
 import org.jetbrains.compose.web.dom.P
@@ -35,8 +38,12 @@ class AdminPanelView(
     override fun onDraw() {
         super.onDraw()
 
-        // Local state for the test-email recipient input.
         var recipientInput by remember { mutableStateOf("") }
+        val users by viewModel.usersState.collectAsState()
+        val usersLoading by viewModel.usersLoadingState.collectAsState()
+        val usersLoadFailed by viewModel.usersLoadFailedState.collectAsState()
+        val emailFeatureEnabled by viewModel.emailFeatureEnabledState.collectAsState()
+        val sendingTestEmail by viewModel.sendTestEmailInProgressState.collectAsState()
         val sendState by viewModel.sendTestEmailState.collectAsState()
 
         ContentColumn {
@@ -55,26 +62,58 @@ class AdminPanelView(
                 },
             )
 
-            // Test-email section — send button validates locally before calling ViewModel.
-            CalmTextField(
-                value = recipientInput,
-                onValueChange = { recipientInput = it },
-                label = AdminPanelStrings.sendTestEmailRecipientLabel.translation(),
-                hint = when {
-                    recipientInput.isNotEmpty() && Email.parse(recipientInput).isFailure ->
-                        AdminPanelStrings.sendTestEmailInvalid.translation()
-                    sendState == true -> AdminPanelStrings.sendTestEmailSuccess.translation()
-                    sendState == false -> AdminPanelStrings.sendTestEmailFailure.translation()
-                    else -> null
+            P { Text(AdminPanelStrings.dashboardUsersSection.translation()) }
+            when {
+                usersLoading -> Subline(AdminPanelStrings.loading.translation())
+                usersLoadFailed -> {
+                    Subline(AdminPanelStrings.dashboardUsersLoadFailed.translation())
+                    CalmButton(
+                        text = AdminPanelStrings.retryButton.translation(),
+                        onClick = { viewModel.onRetryUsers() },
+                    )
                 }
-            )
-            CalmButton(
-                text = AdminPanelStrings.sendTestEmailButton.translation(),
-                onClick = {
-                    Email.parse(recipientInput).onSuccess { viewModel.onSendTestEmail(it) }
-                },
-                disabled = Email.parse(recipientInput).isFailure,
-            )
+                users.isEmpty() -> Subline(AdminPanelStrings.dashboardUsersEmpty.translation())
+                else -> RowsList {
+                    users.forEach { user ->
+                        ListRow(
+                            text = "${user.username.string}  #${user.id.long}",
+                            onSelect = { viewModel.onUserSelected(user.id) },
+                        )
+                    }
+                }
+            }
+
+            if (emailFeatureEnabled) {
+                P { Text(AdminPanelStrings.sendTestEmailSection.translation()) }
+                P { Text(AdminPanelStrings.sendTestEmailExplanation.translation()) }
+                CalmTextField(
+                    value = recipientInput,
+                    onValueChange = { recipientInput = it },
+                    label = AdminPanelStrings.sendTestEmailRecipientLabel.translation(),
+                    disabled = sendingTestEmail,
+                    hint = when {
+                        sendingTestEmail -> AdminPanelStrings.sendTestEmailSending.translation()
+                        recipientInput.isNotEmpty() && Email.parse(recipientInput).isFailure ->
+                            AdminPanelStrings.sendTestEmailInvalid.translation()
+                        sendState == true -> AdminPanelStrings.sendTestEmailSuccess.translation()
+                        sendState == false -> AdminPanelStrings.sendTestEmailFailure.translation()
+                        else -> null
+                    }
+                )
+                CalmButton(
+                    text = if (sendingTestEmail) {
+                        AdminPanelStrings.sendTestEmailSending.translation()
+                    } else {
+                        AdminPanelStrings.sendTestEmailButton.translation()
+                    },
+                    onClick = {
+                        Email.parse(recipientInput).onSuccess { viewModel.onSendTestEmail(it) }
+                    },
+                    disabled = Email.parse(recipientInput).isFailure || sendingTestEmail,
+                )
+            } else {
+                Subline(AdminPanelStrings.sendTestEmailUnavailable.translation())
+            }
         }
     }
 }

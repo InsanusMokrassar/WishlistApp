@@ -11,27 +11,27 @@ import kotlin.test.Test
 import kotlin.test.assertEquals
 
 /**
- * Verifies [AdminUser]'s wire shape (deliberately keeps `email` — root-only surface) and its
+ * Verifies [AdminUser]'s wire shape (deliberately keeps private email approval data — root-only surface) and its
  * [asAdminUser] mapper.
  */
 class AdminUserTest {
 
-    /** Encoded JSON carries exactly `id`/`username`/`email` — kept deliberately on this root-only surface. */
+    /** Encoded JSON carries email approval when true — kept deliberately on this root-only surface. */
     @Test
-    fun serializedFormContainsExactlyIdUsernameAndEmail() {
-        val user = AdminUser(UserId(1L), Username("alice"), Email("alice@example.com"))
+    fun serializedFormContainsEmailAndApprovalWhenApproved() {
+        val user = AdminUser(UserId(1L), Username("alice"), Email("alice@example.com"), emailApproved = true)
 
         val json = Json.encodeToJsonElement(AdminUser.serializer(), user).jsonObject
 
-        assertEquals(setOf("id", "username", "email"), json.keys)
+        assertEquals(setOf("id", "username", "email", "emailApproved"), json.keys)
     }
 
-    /** A [RegisteredUser] with a non-null email maps every field through unchanged. */
+    /** A [RegisteredUser] with an approved non-null email maps every root-only field unchanged. */
     @Test
-    fun mapperCarriesNonNullEmailThrough() {
-        val registered = RegisteredUser(UserId(7L), Username("bob"), Email("bob@example.com"))
+    fun mapperCarriesNonNullEmailAndApprovalThrough() {
+        val registered = RegisteredUser(UserId(7L), Username("bob"), Email("bob@example.com"), emailApproved = true)
 
-        assertEquals(AdminUser(UserId(7L), Username("bob"), Email("bob@example.com")), registered.asAdminUser())
+        assertEquals(AdminUser(UserId(7L), Username("bob"), Email("bob@example.com"), emailApproved = true), registered.asAdminUser())
     }
 
     /** A [RegisteredUser] with no email maps to a null email. */
@@ -45,7 +45,7 @@ class AdminUserTest {
     /** Round trip base → feature → base restores the original unchanged — no extra arguments required. */
     @Test
     fun reverseMapperRoundTripsToOriginalRegisteredUser() {
-        val original = RegisteredUser(UserId(7L), Username("bob"), Email("bob@example.com"))
+        val original = RegisteredUser(UserId(7L), Username("bob"), Email("bob@example.com"), emailApproved = true)
 
         assertEquals(original, original.asAdminUser().asRegisteredUser())
     }

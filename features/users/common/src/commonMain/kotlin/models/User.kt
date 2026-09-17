@@ -45,10 +45,14 @@ data class NewUser(
  * @property id Database-assigned identifier.
  * @property username Unique login name.
  * @property email Stored email address, or `null` when not set.
+ * @property emailApproved Whether the current stored email address has been approved. Historical and
+ *   newly stored addresses default to `false`; this field is repository-owned and never accepted in
+ *   [NewUser].
  */
 @Serializable
 data class RegisteredUser(
     val id: UserId,
     override val username: Username,
-    override val email: Email? = null
+    override val email: Email? = null,
+    val emailApproved: Boolean = false
 ) : User

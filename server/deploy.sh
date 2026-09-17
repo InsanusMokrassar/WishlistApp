@@ -14,7 +14,7 @@ function assert_success() {
 }
 
 app=wishlists
-version=0.0.1
+version=0.0.2
 server=insanusmokrassar
 
 assert_success ../gradlew clean

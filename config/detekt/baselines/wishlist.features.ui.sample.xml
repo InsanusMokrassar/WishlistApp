@@ -13,6 +13,9 @@
     <ID>UndocumentedPublicClass:SampleViewModel.kt:SampleViewModel : ViewModel</ID>
     <ID>UndocumentedPublicFunction:SampleModel.kt:SampleModel$fun serverStatusFlow: Flow&lt;String?></ID>
     <ID>UndocumentedPublicFunction:SampleModel.kt:SampleModel$suspend fun getSampleText: String</ID>
+    <ID>UndocumentedPublicFunction:SampleModelTest.kt:SampleModelTest$@OptIn(ExperimentalCoroutinesApi::class) @Test fun statusFlowEmitsSuccessThenNullAfterOneSecondAndContinuesPolling</ID>
+    <ID>UndocumentedPublicFunction:SampleModelTest.kt:SampleModelTest$@Test fun delegatesSampleText</ID>
+    <ID>UndocumentedPublicFunction:SampleModelTest.kt:SampleModelTest$@Test fun pluginBindsDefaultModelAsOneInterfaceSingleton</ID>
     <ID>UndocumentedPublicProperty:SampleStrings.kt:SampleStrings$val sample = buildStringResource("Sample") { IetfLang.Russian("Пример") }</ID>
     <ID>UndocumentedPublicProperty:SampleViewModel.kt:SampleViewModel$val textState = _textState.asStateFlow()</ID>
   </CurrentIssues>

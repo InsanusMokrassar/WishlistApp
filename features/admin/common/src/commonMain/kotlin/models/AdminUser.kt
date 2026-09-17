@@ -18,12 +18,15 @@ import kotlinx.serialization.Serializable
  * @property id Database-assigned identifier of the user.
  * @property username Unique login name of the user.
  * @property email Stored email of the user, or `null` when unset. Kept intentionally — see class KDoc.
+ * @property emailApproved Whether the current stored email has been approved. This private root-only
+ *   field mirrors storage so administrative mapping never silently discards approval evidence.
  */
 @Serializable
 data class AdminUser(
     val id: UserId,
     val username: Username,
-    val email: Email?
+    val email: Email?,
+    val emailApproved: Boolean = false
 )
 
 /**
@@ -35,7 +38,8 @@ data class AdminUser(
 fun RegisteredUser.asAdminUser(): AdminUser = AdminUser(
     id = id,
     username = username,
-    email = email
+    email = email,
+    emailApproved = emailApproved
 )
 
 /**
@@ -49,5 +53,6 @@ fun RegisteredUser.asAdminUser(): AdminUser = AdminUser(
 fun AdminUser.asRegisteredUser(): RegisteredUser = RegisteredUser(
     id = id,
     username = username,
-    email = email
+    email = email,
+    emailApproved = emailApproved
 )

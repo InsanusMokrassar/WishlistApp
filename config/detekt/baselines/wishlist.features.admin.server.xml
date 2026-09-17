@@ -5,6 +5,9 @@
     <ID>UndocumentedPublicClass:AdminFeature.kt:AdminFeature</ID>
     <ID>UndocumentedPublicClass:JVMPlugin.kt:JVMPlugin : StartPlugin</ID>
     <ID>UndocumentedPublicClass:Plugin.kt:Plugin : StartPlugin</ID>
+    <ID>UndocumentedPublicFunction:AdminRoutingsConfiguratorTest.kt:AdminRoutingsConfiguratorTest$@Test fun usernameRouteMapsMalformedMissingAndDuplicateWritesToExistingStatuses</ID>
+    <ID>UndocumentedPublicFunction:AdminRoutingsConfiguratorTest.kt:AdminRoutingsConfiguratorTest$@Test fun usernameRouteMapsRepositoryDuplicateToConflictWithoutMutatingStoredUser</ID>
+    <ID>UndocumentedPublicFunction:AdminRoutingsConfiguratorTest.kt:AdminRoutingsConfiguratorTest$@Test fun usernameRouteRequiresRootAndPreservesEmailApproval</ID>
     <ID>UndocumentedPublicFunction:UsersManagementFeature.kt:UsersManagementFeature$suspend fun getAll: List&lt;AdminUser></ID>
     <ID>UndocumentedPublicProperty:AdminFeature.kt:AdminFeature$val usersManagement: UsersManagementFeature</ID>
   </CurrentIssues>

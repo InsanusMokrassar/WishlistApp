@@ -7,6 +7,7 @@ import dev.inmo.wishlist.features.admin.common.models.AdminWishlistItem
 import dev.inmo.wishlist.features.admin.common.models.NewUserWithPassword
 import dev.inmo.wishlist.features.users.common.models.NewUser
 import dev.inmo.wishlist.features.users.common.models.UserId
+import dev.inmo.wishlist.features.users.common.models.Username
 import dev.inmo.wishlist.features.wishlist.common.models.NewWishlist
 import dev.inmo.wishlist.features.wishlist.common.models.NewWishlistItem
 import dev.inmo.wishlist.features.wishlist.common.models.WishlistId
@@ -54,6 +55,15 @@ interface AdminPanelModel {
      * @return `true` on success.
      */
     suspend fun updateUser(id: UserId, newUser: NewUser): Boolean
+
+    /**
+     * Updates only [username] for an existing user, preserving server-owned email state.
+     *
+     * @param id User to rename.
+     * @param username Validated replacement name.
+     * @return `true` when the server accepted the mutation.
+     */
+    suspend fun updateUsername(id: UserId, username: Username): Boolean
 
     /**
      * Deletes user [id].

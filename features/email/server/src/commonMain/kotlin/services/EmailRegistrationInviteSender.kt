@@ -29,7 +29,7 @@ class EmailRegistrationInviteSender(
     publicHttpOrigin: String,
 ) : CompensableRegistrationEmailSender {
     /** Subject used for new-account verification invites. */
-    private val subject = "Verify your WishlistApp account"
+    private val subject = "Verify your WishlistApp email address"
 
     /** Validated origin without a trailing slash, path, query, fragment, or credentials. */
     private val publicHttpOrigin = normalizePublicHttpOrigin(publicHttpOrigin)
@@ -65,7 +65,7 @@ class EmailRegistrationInviteSender(
             emails.sendHtml(
                 recipient = recipient,
                 subject = subject,
-                html = "<p>Verify your WishlistApp account by <a href=\"$url\">Verify email address</a>.</p>"
+                html = "<p>Verify ownership of this email address for your WishlistApp account by <a href=\"$url\">Verify email address</a>.</p>"
             )
         } catch (error: CancellationException) {
             try {

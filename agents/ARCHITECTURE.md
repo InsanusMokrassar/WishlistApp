@@ -1,5 +1,9 @@
 # Architecture
 
+## Best-Practice Research Requirement
+
+Before finalizing an architectural plan, this agent MUST search the internet for current best practices relevant to the task. The agent MUST evaluate the findings against this project's existing architecture and apply the practices by adapting them to the project's modules, conventions, and constraints rather than copying generic solutions. The step report MUST identify the sources consulted and explain how the relevant practices were adapted or why they were rejected.
+
 ## Test Planning Requirement
 
 After planning all architectural changes, this agent MUST produce test stubs or test specifications for every planned change:

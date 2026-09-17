@@ -15,6 +15,7 @@
     <ID>UndocumentedPublicProperty:Constants.kt:Constants$const val usersGetByIdPathPart = "getById"</ID>
     <ID>UndocumentedPublicProperty:Constants.kt:Constants$const val usersPathPart = "users"</ID>
     <ID>UndocumentedPublicProperty:Constants.kt:Constants$const val usersSetPasswordPathPart = "setPassword"</ID>
+    <ID>UndocumentedPublicProperty:Constants.kt:Constants$const val usersSetUsernamePathPart = "setUsername"</ID>
     <ID>UndocumentedPublicProperty:Constants.kt:Constants$const val usersUpdatePathPart = "update"</ID>
     <ID>UndocumentedPublicProperty:Constants.kt:Constants$const val wishlistItemsCreatePathPart = "create"</ID>
     <ID>UndocumentedPublicProperty:Constants.kt:Constants$const val wishlistItemsDeletePathPart = "delete"</ID>
