@@ -82,13 +82,13 @@ class DefaultUsersModel(
             }
             .stateIn(scope, SharingStarted.Eagerly, false)
 
-    /** @return The authenticated caller's private profile, or `null` when unavailable. */
+    /** @return The authenticated caller's complete private lifecycle profile, or `null` when unavailable. */
     override suspend fun getMyProfile() = authFeature.getMe()
 
     /** @return `true` when SMTP-backed email operations are enabled. */
     override suspend fun isEmailFeatureEnabled(): Boolean = emailFeature.isFeatureEnabled()
 
-    /** @return `true` when [email] is stored for the authenticated caller. */
+    /** @return `true` when [email] is stored for the authenticated caller; may throw a typed cooldown exception. */
     override suspend fun setMyEmail(email: Email?): Boolean = emailFeature.setMyEmail(email)
 
     /** @return Verification-request result for the caller's [expectedEmail]. */

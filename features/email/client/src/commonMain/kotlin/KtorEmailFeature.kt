@@ -77,8 +77,12 @@ class KtorEmailFeature(private val client: HttpClient) : EmailFeature {
     /**
      * Stores or clears the authenticated caller's own email address on the server.
      *
+     * The HTTP implementation only translates the request and status: a well-formed authenticated
+     * `429` becomes [EmailChangeCooldownException] with the server deadline; malformed or unrelated
+     * failures remain ordinary transport/protocol failures.
      * @param email New address to persist, or `null` to clear.
      * @return `true` when the update was accepted; `false` on failure.
+     * @throws EmailChangeCooldownException when the server returns a valid cooldown body.
      */
     override suspend fun setMyEmail(email: Email?): Boolean {
         val response = client.put(myEmailPath) {

@@ -73,7 +73,8 @@ interface UsersModel {
      * Resolves the authenticated caller's private profile record.
      *
      * This must never be substituted with the public users listing because email and approval state
-     * are intentionally private to the owner.
+     * are intentionally private to the owner. The returned snapshot includes the approved current
+     * email, approval flag, pending candidate, and persisted cooldown deadline.
      *
      * @return The authenticated caller's private profile, or `null` when the session is absent.
      */
@@ -89,9 +90,13 @@ interface UsersModel {
 
     /**
      * Stores or replaces the authenticated caller's email address independently of SMTP delivery.
+     * A replacement or clear can be blocked by the server's post-approval cooldown; the latest
+     * approved current remains authoritative until a pending candidate is approved.
      *
      * @param email Validated address to persist, or `null` to clear the caller's address.
      * @return `true` when the server persisted the requested value.
+     * @throws dev.inmo.wishlist.features.email.common.models.EmailChangeCooldownException
+     *   when the server returns a well-formed typed cooldown response.
      */
     suspend fun setMyEmail(email: Email?): Boolean
 

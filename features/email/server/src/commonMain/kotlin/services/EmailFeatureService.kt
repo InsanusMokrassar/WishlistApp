@@ -77,12 +77,17 @@ class EmailFeatureService(
      * @throws dev.inmo.wishlist.features.users.common.repo.exceptions.DuplicateUserFieldException
      *   when [email] is already stored for a different user; propagates unchanged from
      *   [EmailVerificationAccountCoordinator.updateStoredEmail] — this method does not catch it.
+     * @throws dev.inmo.wishlist.features.users.common.repo.exceptions.EmailChangeCooldownException
+     *   when a replacement or clear is attempted before the persisted deadline.
      */
     override suspend fun setMyEmail(callerId: UserId, email: Email?): Boolean =
         accountCoordinator.updateStoredEmail(callerId, email)
 
     /**
-     * Delivers a verification link only for the caller's exact, pending current address.
+     * Delivers a verification link only for the caller's exact verification candidate: pending
+     * replacement first, otherwise an unapproved current address. An approved current address is
+     * reported as [EmailVerificationRequestResult.AlreadyApproved] only when it equals the expected
+     * address.
      *
      * SMTP and deeplink work intentionally occur outside the coordinator mutex. The record is checked
      * again afterward; if a concurrent write made the delivered link stale, only the request-local

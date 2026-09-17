@@ -37,7 +37,9 @@ interface EmailFeature {
     /**
      * Updates or clears the email address stored for [callerId].
      *
-     * Self-service — no elevated privilege required. Returns `false` when [callerId] is not found.
+     * Self-service — no elevated privilege required. A replacement or clear can be rejected by the
+     * persisted post-approval cooldown; approval leaves the latest approved address current until
+     * a pending replacement is approved. Returns `false` when [callerId] is not found.
      *
      * @param callerId Authenticated caller whose email address is being changed.
      * @param email New address to store, or `null` to clear the current address.
@@ -45,11 +47,15 @@ interface EmailFeature {
      *   update failed.
      * @throws dev.inmo.wishlist.features.users.common.repo.exceptions.DuplicateUserFieldException
      *   when [email] is already stored for a different user.
+     * @throws dev.inmo.wishlist.features.users.common.repo.exceptions.EmailChangeCooldownException
+     *   when a state-changing request arrives before the persisted deadline.
      */
     suspend fun setMyEmail(callerId: UserId, email: Email?): Boolean
 
     /**
-     * Requests verification of the caller's current address only when it still equals [expectedEmail].
+     * Requests verification of the caller's current verification candidate only when it still equals
+     * [expectedEmail]. The pending replacement has priority over the retained approved current;
+     * an unapproved first address is the candidate when no replacement exists.
      *
      * @param callerId Authenticated caller whose current address is considered.
      * @param expectedEmail Address the caller saw before asking for delivery.

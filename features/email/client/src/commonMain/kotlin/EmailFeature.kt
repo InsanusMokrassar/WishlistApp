@@ -39,11 +39,14 @@ interface EmailFeature {
      * Updates the authenticated caller's own email address to [email], or clears it when
      * [email] is `null`.
      *
-     * Self-service — no elevated privilege required. The client implementation forwards the
-     * request to `PUT /email/myEmail`.
+     * Self-service — no elevated privilege required. The server retains the latest approved address
+     * while a replacement is pending and may enforce a post-approval cooldown. The client
+     * implementation forwards the request to `PUT /email/myEmail`.
      *
      * @param email New address to store, or `null` to remove the current address.
      * @return `true` when the update was persisted successfully; `false` otherwise.
+     * @throws dev.inmo.wishlist.features.email.common.models.EmailChangeCooldownException
+     *   when the server returns a well-formed typed cooldown response with the next allowed time.
      */
     suspend fun setMyEmail(email: Email?): Boolean
 

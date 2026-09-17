@@ -53,6 +53,8 @@ class DisabledEmailFeature(
      * @throws dev.inmo.wishlist.features.users.common.repo.exceptions.DuplicateUserFieldException
      *   when [email] is already stored for a different user; propagates unchanged from
      *   [EmailVerificationAccountCoordinator.updateStoredEmail] — this method does not catch it.
+     * @throws dev.inmo.wishlist.features.users.common.repo.exceptions.EmailChangeCooldownException
+     *   when a replacement or clear is attempted before the persisted deadline.
      */
     override suspend fun setMyEmail(callerId: UserId, email: Email?): Boolean =
         accountCoordinator.updateStoredEmail(callerId, email)
