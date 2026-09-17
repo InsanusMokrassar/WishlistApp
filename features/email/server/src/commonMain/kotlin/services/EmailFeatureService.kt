@@ -100,10 +100,14 @@ class EmailFeatureService(
             ?: return EmailVerificationRequestResult.NoEmail
         val currentEmail = initial.verificationCandidate()
         if (currentEmail == null) {
-            return if (initial.emailApproved && initial.pendingEmail == null) {
-                EmailVerificationRequestResult.AlreadyApproved
-            } else {
-                EmailVerificationRequestResult.NoEmail
+            return when {
+                initial.emailApproved && initial.pendingEmail == null && initial.email == expectedEmail -> {
+                    EmailVerificationRequestResult.AlreadyApproved
+                }
+                initial.emailApproved && initial.pendingEmail == null && initial.email != null -> {
+                    EmailVerificationRequestResult.EmailChanged
+                }
+                else -> EmailVerificationRequestResult.NoEmail
             }
         }
         if (currentEmail != expectedEmail) return EmailVerificationRequestResult.EmailChanged
@@ -117,13 +121,17 @@ class EmailFeatureService(
                 rollbackDelivery(delivery)
                 EmailVerificationRequestResult.NoEmail
             }
-            current.emailApproved && current.pendingEmail == null -> {
-                rollbackDelivery(delivery)
-                EmailVerificationRequestResult.AlreadyApproved
-            }
             current.verificationCandidate() == null -> {
                 rollbackDelivery(delivery)
-                EmailVerificationRequestResult.NoEmail
+                when {
+                    current.emailApproved && current.pendingEmail == null && current.email == expectedEmail -> {
+                        EmailVerificationRequestResult.AlreadyApproved
+                    }
+                    current.emailApproved && current.pendingEmail == null && current.email != null -> {
+                        EmailVerificationRequestResult.EmailChanged
+                    }
+                    else -> EmailVerificationRequestResult.NoEmail
+                }
             }
             current.verificationCandidate() != expectedEmail -> {
                 rollbackDelivery(delivery)

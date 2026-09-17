@@ -54,6 +54,48 @@ class PostgresUsersRepoTest {
         }
     }
 
+    /** PostgreSQL uses the same guarded clear lifecycle for dedicated, generic, and bulk writes. */
+    @Test
+    fun clearLifecycleHonorsDeadlineAcrossMutationEntryPoints() = runTest {
+        var now = 1_000L
+        withPostgresUsersSchema { schemaUrl ->
+            val database = Database.connect(url = schemaUrl, driver = "org.postgresql.Driver")
+            try {
+                val repo = ExposedUsersRepo(database, nowMillis = { now })
+                val address = Email("postgres-clear@example.com")
+                val user = repo.create(NewUser(Username("postgres-clear"), address)).single()
+                checkNotNull(repo.approveEmail(user.id, address, cooldownMillis = 500L))
+
+                assertFailsWith<EmailChangeCooldownException> { repo.setEmail(user.id, null) }
+                assertFailsWith<EmailChangeCooldownException> {
+                    repo.update(user.id, NewUser(Username("must-not-rename"), null))
+                }
+                assertEquals(Username("postgres-clear"), repo.getById(user.id)?.username)
+
+                now = 1_500L
+                val cleared = checkNotNull(repo.update(listOf(user.id to NewUser(Username("postgres-cleared"), null))).single())
+                assertEquals(Username("postgres-cleared"), cleared.username)
+                assertNull(cleared.email)
+                assertNull(cleared.pendingEmail)
+                assertFalse(cleared.emailApproved)
+                assertNull(cleared.emailChangeAllowedAt)
+                DriverManager.getConnection(schemaUrl).use { connection ->
+                    connection.createStatement().use { statement ->
+                        statement.executeQuery("SELECT email, pending_email, email_approved, email_change_allowed_at FROM users WHERE id = ${user.id.long}").use { row ->
+                            assertTrue(row.next())
+                            assertNull(row.getString("email"))
+                            assertNull(row.getString("pending_email"))
+                            assertFalse(row.getBoolean("email_approved"))
+                            assertNull(row.getObject("email_change_allowed_at"))
+                        }
+                    }
+                }
+            } finally {
+                TransactionManager.closeAndUnregister(database)
+            }
+        }
+    }
+
     /** Independent PostgreSQL writers serialize current-address claims before the second lifecycle read. */
     @Test
     fun independentRepositoriesSerializeCurrentAddressClaimsBeforeSecondLifecycleRead() = runBlockingPostgresTest {

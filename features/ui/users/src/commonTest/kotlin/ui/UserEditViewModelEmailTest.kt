@@ -2755,4 +2755,132 @@ class UserEditViewModelEmailTest {
             viewModel.scope.cancel()
         }
     }
+
+    /** A first authoritative read rejects a newer pending baseline before any SMTP request. */
+    @Test
+    fun firstReconciliationRejectsSupersedingPendingForEnabledAndDisabledDelivery() = runTest {
+        listOf(true, false).forEach { smtpEnabled ->
+            val submitted = Email("submitted-$smtpEnabled@example.com")
+            val superseding = Email("superseding-$smtpEnabled@example.com")
+            val model = UserEditTestUsersModel(
+                ownerId,
+                owner.copy(email = Email("approved-$smtpEnabled@example.com"), emailApproved = true),
+            ).apply {
+                emailFeatureEnabled = smtpEnabled
+                saveEmailHandler = {
+                    profileState.value = owner.copy(
+                        email = submitted,
+                        emailApproved = true,
+                        pendingEmail = superseding,
+                    )
+                    true
+                }
+            }
+            val viewModel = UserEditViewModel(
+                userEditTestNode(ownerId),
+                model,
+                RecordingUserEditInteractor(),
+                StandardTestDispatcher(testScheduler),
+            )
+            try {
+                advanceUntilIdle()
+                viewModel.onEmailChanged(submitted.string)
+                viewModel.onSaveEmail()
+                advanceUntilIdle()
+
+                assertEquals(submitted.string, viewModel.emailInputState.value)
+                assertEquals(EmailEditorError.EmailChanged, viewModel.emailErrorState.value)
+                assertNull(viewModel.emailSavedState.value)
+                assertTrue(model.requestedEmails.isEmpty())
+            } finally {
+                viewModel.scope.cancel()
+            }
+        }
+    }
+
+    /** A post-delivery read preserves the submitted draft when another pending candidate supersedes it. */
+    @Test
+    fun finalReconciliationRejectsSupersedingPendingAfterPost() = runTest {
+        val submitted = Email("submitted-after-post@example.com")
+        val superseding = Email("superseding-after-post@example.com")
+        val deliveryStarted = CompletableDeferred<Unit>()
+        val releaseDelivery = CompletableDeferred<Unit>()
+        val model = UserEditTestUsersModel(ownerId, owner.copy(email = Email("old@example.com"), emailApproved = true)).apply {
+            saveEmailHandler = {
+                profileState.value = owner.copy(email = submitted, emailApproved = false)
+                true
+            }
+            requestHandler = {
+                deliveryStarted.complete(Unit)
+                releaseDelivery.await()
+                profileState.value = owner.copy(email = submitted, emailApproved = true, pendingEmail = superseding)
+                EmailVerificationRequestResult.Sent
+            }
+        }
+        val viewModel = UserEditViewModel(
+            userEditTestNode(ownerId),
+            model,
+            RecordingUserEditInteractor(),
+            StandardTestDispatcher(testScheduler),
+        )
+        try {
+            advanceUntilIdle()
+            viewModel.onEmailChanged(submitted.string)
+            viewModel.onSaveEmail()
+            runCurrent()
+            assertTrue(deliveryStarted.isCompleted)
+            releaseDelivery.complete(Unit)
+            advanceUntilIdle()
+
+            assertEquals(listOf(submitted), model.requestedEmails)
+            assertEquals(submitted.string, viewModel.emailInputState.value)
+            assertEquals(EmailEditorError.EmailChanged, viewModel.emailErrorState.value)
+            assertNull(viewModel.emailSavedState.value)
+            assertNull(viewModel.emailVerificationResultState.value)
+        } finally {
+            releaseDelivery.complete(Unit)
+            viewModel.scope.cancel()
+        }
+    }
+
+    /** A final read also rejects a superseding pending address when approval skipped SMTP delivery. */
+    @Test
+    fun finalReconciliationRejectsSupersedingPendingAfterApprovalSkippedPost() = runTest {
+        val submitted = Email("submitted-after-approval@example.com")
+        val superseding = Email("superseding-after-approval@example.com")
+        var reads = 0
+        val model = UserEditTestUsersModel(ownerId, owner.copy(email = Email("old@example.com"), emailApproved = true)).apply {
+            saveEmailHandler = {
+                profileState.value = owner.copy(email = submitted, emailApproved = true)
+                true
+            }
+            profileHandler = {
+                reads += 1
+                when (reads) {
+                    1 -> profileState.value
+                    else -> owner.copy(email = submitted, emailApproved = true, pendingEmail = superseding)
+                }
+            }
+        }
+        val viewModel = UserEditViewModel(
+            userEditTestNode(ownerId),
+            model,
+            RecordingUserEditInteractor(),
+            StandardTestDispatcher(testScheduler),
+        )
+        try {
+            advanceUntilIdle()
+            model.emailEvents.clear()
+            viewModel.onEmailChanged(submitted.string)
+            viewModel.onSaveEmail()
+            advanceUntilIdle()
+
+            assertTrue(model.requestedEmails.isEmpty())
+            assertEquals(submitted.string, viewModel.emailInputState.value)
+            assertEquals(EmailEditorError.EmailChanged, viewModel.emailErrorState.value)
+            assertNull(viewModel.emailSavedState.value)
+        } finally {
+            viewModel.scope.cancel()
+        }
+    }
 }

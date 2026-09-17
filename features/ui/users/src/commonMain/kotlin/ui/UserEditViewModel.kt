@@ -965,7 +965,7 @@ class UserEditViewModel(
             val firstProfile = reconcileOwnedEmailProfile(mutation, preserveDraft = true)
                 ?: return@launchEmailMutation
             if (!canContinueEmailMutation(mutation)) return@launchEmailMutation
-            if (!firstProfile.containsPersistedEmail(email)) {
+            if (firstProfile.editableEmailBaseline() != email) {
                 _emailErrorState.value = EmailEditorError.EmailChanged
                 return@launchEmailMutation
             }
@@ -993,7 +993,7 @@ class UserEditViewModel(
                         }
                         return@launchEmailMutation
                     }
-                    if (!finalProfile.containsPersistedEmail(email)) {
+                    if (finalProfile.editableEmailBaseline() != email) {
                         _emailErrorState.value = EmailEditorError.EmailChanged
                         return@launchEmailMutation
                     }

@@ -424,4 +424,90 @@ class EmailFeatureServiceTest {
         assertFailsWith<CancellationException> { request.await() }
         assertEquals(setOf(unrelatedLink), fixture.linkIds())
     }
+
+    /** A different approved address is a state change, not approval of the requested address. */
+    @Test
+    fun approvedDifferentExpectedReturnsEmailChangedWithoutDelivery() = runTest {
+        val approved = Email("approved@example.com")
+        val expected = Email("expected@example.com")
+        val fixture = RequestVerificationFixture(
+            RegisteredUser(UserId(30L), Username("approved"), approved, emailApproved = true),
+        )
+
+        assertEquals(
+            EmailVerificationRequestResult.EmailChanged,
+            fixture.service.requestMyEmailVerification(fixture.user.id, expected),
+        )
+        assertTrue(fixture.emails.sendHtmlCalls.isEmpty())
+        assertTrue(fixture.linkIds().isEmpty())
+    }
+
+    /** A request-owned link is removed when delivery completes after another address becomes approved. */
+    @Test
+    fun smtpCompletionRejectsDifferentApprovedAddressAndDeletesOnlyRequestLink() = runTest {
+        val requested = Email("requested@example.com")
+        val replacement = Email("replacement@example.com")
+        val fixture = requestFixture(requested)
+        val deliveryStarted = CompletableDeferred<Unit>()
+        val releaseDelivery = CompletableDeferred<Boolean>()
+        fixture.emails.sendHtmlHandler = { _, _, _ ->
+            deliveryStarted.complete(Unit)
+            releaseDelivery.await()
+        }
+        val sibling = fixture.addUnrelatedLink()
+        val request = async { fixture.service.requestMyEmailVerification(fixture.user.id, requested) }
+
+        deliveryStarted.await()
+        assertTrue(fixture.service.setMyEmail(fixture.user.id, replacement))
+        assertEquals(true, fixture.usersRepo.approveEmail(fixture.user.id, replacement)?.emailApproved)
+        releaseDelivery.complete(true)
+
+        assertEquals(EmailVerificationRequestResult.EmailChanged, request.await())
+        assertEquals(listOf(requested), fixture.emails.sendHtmlCalls.map { it.recipient })
+        assertEquals(setOf(sibling), fixture.linkIds())
+    }
+
+    /** Post-SMTP classification keeps candidate priority and distinguishes approval, change, sent, and absent states. */
+    @Test
+    fun smtpCompletionClassifiesRequestedAddressAgainstCurrentAndPending() = runTest {
+        val requested = Email("requested-classification@example.com")
+        val replacement = Email("replacement-classification@example.com")
+        suspend fun requestAfter(change: suspend (RequestVerificationFixture) -> Unit): EmailVerificationRequestResult {
+            val fixture = requestFixture(requested)
+            val deliveryStarted = CompletableDeferred<Unit>()
+            val releaseDelivery = CompletableDeferred<Boolean>()
+            fixture.emails.sendHtmlHandler = { _, _, _ ->
+                deliveryStarted.complete(Unit)
+                releaseDelivery.await()
+            }
+            val sibling = fixture.addUnrelatedLink()
+            val request = async { fixture.service.requestMyEmailVerification(fixture.user.id, requested) }
+            deliveryStarted.await()
+            change(fixture)
+            releaseDelivery.complete(true)
+            val result = request.await()
+            when (result) {
+                EmailVerificationRequestResult.Sent -> assertEquals(2, fixture.linkIds().size)
+                else -> assertEquals(setOf(sibling), fixture.linkIds())
+            }
+            return result
+        }
+
+        assertEquals(
+            EmailVerificationRequestResult.AlreadyApproved,
+            requestAfter { fixture -> fixture.usersRepo.approveEmail(fixture.user.id, requested) },
+        )
+        assertEquals(
+            EmailVerificationRequestResult.EmailChanged,
+            requestAfter { fixture ->
+                fixture.usersRepo.approveEmail(fixture.user.id, requested)
+                fixture.service.setMyEmail(fixture.user.id, replacement)
+            },
+        )
+        assertEquals(EmailVerificationRequestResult.Sent, requestAfter { })
+        assertEquals(
+            EmailVerificationRequestResult.NoEmail,
+            requestAfter { fixture -> fixture.service.setMyEmail(fixture.user.id, null) },
+        )
+    }
 }

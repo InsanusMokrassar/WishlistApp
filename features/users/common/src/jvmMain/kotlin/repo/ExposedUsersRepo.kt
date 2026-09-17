@@ -356,9 +356,13 @@ class ExposedUsersRepo(
         email: Email?,
         username: Username?,
     ): UserMutation? {
-        val current = selectUser(id) ?: return null
-        val changingEmail = email != current.email && email != current.pendingEmail
-        val deadline = current.emailChangeAllowedAt
+        val currentRow = selectAll().where { idColumn eq id.long }.limit(1).firstOrNull() ?: return null
+        val current = currentRow.asObject
+        val changingEmail = when (email) {
+            null -> !currentRow.hasEmptyEmailLifecycle()
+            else -> currentRow[emailColumn] != email.string && currentRow[pendingEmailColumn] != email.string
+        }
+        val deadline = currentRow[emailChangeAllowedAtColumn]
         if (changingEmail && deadline != null && nowMillis() < deadline) {
             throw EmailChangeCooldownException(deadline)
         }
@@ -398,6 +402,13 @@ class ExposedUsersRepo(
         }
         return UserMutation(user = selectUser(id) ?: current, changed = true)
     }
+
+    /** Returns whether every raw lifecycle column represents a genuinely empty address state. */
+    private fun ResultRow.hasEmptyEmailLifecycle(): Boolean =
+        get(emailColumn) == null &&
+            get(pendingEmailColumn) == null &&
+            !get(emailApprovedColumn) &&
+            get(emailChangeAllowedAtColumn) == null
 
     /** Updates the durable lock row before any users-table query. */
     private fun JdbcTransaction.acquireWriteLock() {

@@ -398,6 +398,7 @@ class ExposedUsersRepoSqliteTest {
         withInMemorySqliteUsersRepo { repo ->
             val email = Email("no-op@example.com")
             val created = repo.create(NewUser(Username("no-op"), email)).single()
+            val empty = repo.create(NewUser(Username("empty"))).single()
             val approved = checkNotNull(repo.approveEmail(created.id, email))
             val events = mutableListOf<RegisteredUser>()
             val collector = backgroundScope.launch(start = CoroutineStart.UNDISPATCHED) {
@@ -407,6 +408,7 @@ class ExposedUsersRepoSqliteTest {
                 assertEquals(approved, repo.setEmail(created.id, email))
                 assertEquals(approved, repo.updateUsername(created.id, approved.username))
                 assertEquals(listOf(approved), repo.update(listOf(created.id to NewUser(approved.username, email))))
+                assertEquals(empty, repo.setEmail(empty.id, null))
                 advanceUntilIdle()
                 assertEquals(emptyList(), events)
             } finally {
@@ -605,6 +607,66 @@ class ExposedUsersRepoSqliteTest {
 
             val sqlite = assertIs<SQLiteException>(failure.cause)
             assertEquals(SQLiteErrorCode.SQLITE_ERROR, sqlite.resultCode)
+        }
+    }
+
+    /** Explicit clears reject before mutation during cooldown and reset every lifecycle field at expiry. */
+    @Test
+    fun clearLifecycleHonorsDeadlineAcrossMutationEntryPoints() = runTest {
+        var now = 1_000L
+        withInMemorySqliteUsersRepo(nowMillis = { now }) { repo ->
+            val address = Email("clear-policy@example.com")
+            val user = repo.create(NewUser(Username("clear-policy"), address)).single()
+            val approved = checkNotNull(repo.approveEmail(user.id, address, cooldownMillis = 500L))
+
+            assertFailsWith<EmailChangeCooldownException> { repo.setEmail(user.id, null) }
+            assertFailsWith<EmailChangeCooldownException> {
+                repo.update(user.id, NewUser(Username("must-not-rename"), null))
+            }
+            assertEquals(approved, repo.getById(user.id))
+
+            now = 1_500L
+            val cleared = checkNotNull(repo.update(user.id, NewUser(Username("cleared"), null)))
+            assertEquals(Username("cleared"), cleared.username)
+            assertNull(cleared.email)
+            assertNull(cleared.pendingEmail)
+            assertFalse(cleared.emailApproved)
+            assertNull(cleared.emailChangeAllowedAt)
+
+            val unapproved = repo.create(NewUser(Username("unapproved"), Email("unapproved-clear@example.com"))).single()
+            assertNull(checkNotNull(repo.setEmail(unapproved.id, null)).email)
+        }
+    }
+
+    /** A restricted later bulk clear rolls back an earlier rename and publishes no update events. */
+    @Test
+    fun batchClearRejectionRollsBackEarlierMutationAndEvents() = runTest {
+        var now = 1_000L
+        withInMemorySqliteUsersRepo(nowMillis = { now }) { repo ->
+            val first = repo.create(NewUser(Username("clear-first"))).single()
+            val address = Email("clear-batch@example.com")
+            val restricted = repo.create(NewUser(Username("clear-restricted"), address)).single()
+            checkNotNull(repo.approveEmail(restricted.id, address, cooldownMillis = 500L))
+            val events = mutableListOf<RegisteredUser>()
+            val collector = backgroundScope.launch(start = CoroutineStart.UNDISPATCHED) {
+                repo.updatedObjectsFlow.collect(events::add)
+            }
+            try {
+                assertFailsWith<EmailChangeCooldownException> {
+                    repo.update(
+                        listOf(
+                            first.id to NewUser(Username("must-roll-back"), null),
+                            restricted.id to NewUser(restricted.username, null),
+                        ),
+                    )
+                }
+                advanceUntilIdle()
+                assertEquals(first, repo.getById(first.id))
+                assertEquals(address, repo.getById(restricted.id)?.email)
+                assertTrue(events.isEmpty())
+            } finally {
+                collector.cancel()
+            }
         }
     }
 
