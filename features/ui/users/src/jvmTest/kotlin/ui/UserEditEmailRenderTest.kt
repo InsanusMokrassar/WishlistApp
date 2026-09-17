@@ -3,6 +3,7 @@ package dev.inmo.wishlist.features.ui.users.ui
 import androidx.compose.foundation.layout.Column
 import androidx.compose.material.MaterialTheme
 import androidx.compose.ui.test.ExperimentalTestApi
+import androidx.compose.ui.test.assertIsEnabled
 import androidx.compose.ui.test.assertIsNotEnabled
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.onNodeWithTag
@@ -132,13 +133,21 @@ class UserEditEmailRenderTest {
         val ownerId = UserId(7L)
         val otherId = UserId(8L)
         val savedEmail = Email("saved@example.com")
+        val pendingEmail = Email("pending@example.com")
         val compositionScheduler = TestCoroutineScheduler()
         val testBodyScheduler = TestCoroutineScheduler()
         val viewModelScheduler = TestCoroutineScheduler()
         val node = userEditTestNode(ownerId)
         val model = UserEditTestUsersModel(
             ownerId,
-            AuthFeatureUser(ownerId, Username("owner"), email = savedEmail, emailApproved = false),
+            AuthFeatureUser(
+                ownerId,
+                Username("owner"),
+                email = savedEmail,
+                emailApproved = true,
+                pendingEmail = pendingEmail,
+                emailChangeAllowedAt = 20_000L,
+            ),
         ).apply {
             requestResult = EmailVerificationRequestResult.Sent
         }
@@ -174,6 +183,7 @@ class UserEditEmailRenderTest {
 
                 assertTrue(viewModel.canManageOwnEmailState.value)
                 assertEquals(savedEmail, viewModel.ownEmailProfileState.value?.email)
+                assertEquals(pendingEmail, viewModel.ownEmailProfileState.value?.pendingEmail)
                 assertEquals("draft@example.com", viewModel.emailInputState.value)
                 assertEquals(EmailVerificationRequestResult.Sent, viewModel.emailVerificationResultState.value)
 
@@ -355,7 +365,14 @@ class UserEditEmailRenderTest {
         val node = userEditTestNode(ownerId)
         val model = UserEditTestUsersModel(
             rootId,
-            AuthFeatureUser(ownerId, Username("owner"), email = Email("private@example.com"), emailApproved = true),
+            AuthFeatureUser(
+                ownerId,
+                Username("owner"),
+                email = Email("private@example.com"),
+                emailApproved = true,
+                pendingEmail = Email("pending-private@example.com"),
+                emailChangeAllowedAt = 20_000L,
+            ),
         ).apply {
             rootState.value = true
         }
@@ -672,6 +689,163 @@ class UserEditEmailRenderTest {
             }
         } finally {
             releasePut.complete(Unit)
+            viewModel.scope.cancel()
+        }
+    }
+
+    /** Renders retained current, pending candidate, and raw draft independently through the production desktop editor. */
+    @Test
+    fun retainedCurrentPendingAndDraftRenderIndependently() {
+        val ownerId = UserId(7L)
+        val current = Email("approved@example.com")
+        val pending = Email("pending@example.com")
+        val draft = Email("draft@example.com")
+        val compositionScheduler = TestCoroutineScheduler()
+        val testBodyScheduler = TestCoroutineScheduler()
+        val viewModelScheduler = TestCoroutineScheduler()
+        val node = userEditTestNode(ownerId)
+        val model = UserEditTestUsersModel(
+            ownerId,
+            AuthFeatureUser(ownerId, Username("owner"), current, emailApproved = true, pendingEmail = pending),
+        )
+        val viewModel = UserEditViewModel(
+            node,
+            model,
+            RecordingUserEditInteractor(),
+            StandardTestDispatcher(viewModelScheduler),
+        )
+        try {
+            runDesktopComposeUiTest(
+                width = 1024,
+                height = 1200,
+                effectContext = StandardTestDispatcher(compositionScheduler),
+                runTestContext = StandardTestDispatcher(testBodyScheduler),
+            ) {
+                setContent { MaterialTheme { Column { OwnerEmailEditor(viewModel, node) } } }
+                runOnUiThread {
+                    viewModelScheduler.advanceUntilIdle()
+                    viewModel.onEmailChanged(draft.string)
+                }
+                awaitIdle()
+                onNodeWithTag("settings-email-saved").assertExists()
+                onNodeWithTag("settings-email-pending").assertExists()
+                onNodeWithTag("settings-email").assertExists()
+                onNodeWithText(current.string).assertExists()
+                onNodeWithText(pending.string).assertExists()
+                assertEquals(draft.string, viewModel.emailInputState.value)
+                onNodeWithText(UsersListStrings.emailApproved.translation()).assertExists()
+                onNodeWithText(UsersListStrings.resendEmailVerificationButton.translation()).assertExists().assertIsEnabled()
+            }
+        } finally {
+            viewModel.scope.cancel()
+        }
+    }
+
+    /** Shows exact UTC cooldown copy while leaving Refresh usable and withdrawing mutation controls until equal-profile expiry. */
+    @Test
+    fun cooldownPanelDisablesMutationKeepsRefreshAndExpiresOnEqualProfile() {
+        val ownerId = UserId(7L)
+        val deadline = 1_798_761_600_000L
+        var now = deadline - 1L
+        val compositionScheduler = TestCoroutineScheduler()
+        val testBodyScheduler = TestCoroutineScheduler()
+        val viewModelScheduler = TestCoroutineScheduler()
+        val node = userEditTestNode(ownerId)
+        val model = UserEditTestUsersModel(
+            ownerId,
+            AuthFeatureUser(
+                ownerId,
+                Username("owner"),
+                email = Email("approved@example.com"),
+                emailApproved = true,
+                emailChangeAllowedAt = deadline,
+            ),
+        )
+        val viewModel = UserEditViewModel(
+            node,
+            model,
+            RecordingUserEditInteractor(),
+            StandardTestDispatcher(viewModelScheduler),
+            nowMillis = { now },
+        )
+        try {
+            runDesktopComposeUiTest(
+                width = 1024,
+                height = 1200,
+                effectContext = StandardTestDispatcher(compositionScheduler),
+                runTestContext = StandardTestDispatcher(testBodyScheduler),
+            ) {
+                setContent { MaterialTheme { Column { OwnerEmailEditor(viewModel, node) } } }
+                runOnUiThread { viewModelScheduler.advanceUntilIdle() }
+                awaitIdle()
+                onNodeWithTag("settings-email-cooldown").assertExists()
+                onNodeWithText("2027-01-01 00:00:00 UTC", substring = true).assertExists()
+                onNodeWithTag("settings-email").assertIsNotEnabled()
+                onNodeWithText(UsersListStrings.saveEmailAndVerifyButton.translation()).assertIsNotEnabled()
+                onNodeWithText(UsersListStrings.refreshEmailButton.translation()).assertIsEnabled()
+                onNodeWithText(UsersListStrings.resendEmailVerificationButton.translation()).assertDoesNotExist()
+
+                now = deadline
+                onNodeWithText(UsersListStrings.refreshEmailButton.translation()).performClick()
+                runOnUiThread { viewModelScheduler.advanceUntilIdle() }
+                awaitIdle()
+                onNodeWithTag("settings-email-cooldown").assertDoesNotExist()
+                onNodeWithTag("settings-email").assertIsEnabled()
+            }
+        } finally {
+            viewModel.scope.cancel()
+        }
+    }
+
+    /** Rechecks a captured production IME callback after Refresh discovers a new active cooldown. */
+    @Test
+    fun capturedImeActionRejectsNewCooldownWithoutPutOrPost() {
+        val ownerId = UserId(7L)
+        val deadline = 20_000L
+        val compositionScheduler = TestCoroutineScheduler()
+        val testBodyScheduler = TestCoroutineScheduler()
+        val viewModelScheduler = TestCoroutineScheduler()
+        val node = userEditTestNode(ownerId)
+        val model = UserEditTestUsersModel(
+            ownerId,
+            AuthFeatureUser(ownerId, Username("owner"), email = Email("approved@example.com"), emailApproved = true),
+        )
+        val viewModel = UserEditViewModel(
+            node,
+            model,
+            RecordingUserEditInteractor(),
+            StandardTestDispatcher(viewModelScheduler),
+            nowMillis = { deadline - 1L },
+        )
+        try {
+            runDesktopComposeUiTest(
+                width = 1024,
+                height = 1200,
+                effectContext = StandardTestDispatcher(compositionScheduler),
+                runTestContext = StandardTestDispatcher(testBodyScheduler),
+            ) {
+                setContent { MaterialTheme { Column { OwnerEmailEditor(viewModel, node) } } }
+                runOnUiThread { viewModelScheduler.advanceUntilIdle() }
+                awaitIdle()
+                val capturedImeAction = onNodeWithTag("settings-email")
+                    .fetchSemanticsNode()
+                    .config[SemanticsActions.OnImeAction]
+                    .action
+                model.profileState.value = model.profileState.value?.copy(emailChangeAllowedAt = deadline)
+                model.emailEvents.clear()
+                onNodeWithText(UsersListStrings.refreshEmailButton.translation()).performClick()
+                runOnUiThread {
+                    viewModelScheduler.advanceUntilIdle()
+                    capturedImeAction?.invoke()
+                    viewModelScheduler.advanceUntilIdle()
+                }
+                awaitIdle()
+                assertTrue(model.savedEmails.isEmpty())
+                assertTrue(model.requestedEmails.isEmpty())
+                assertTrue(model.emailEvents.none { it.startsWith("PUT:") || it.startsWith("POST:") })
+                assertEquals(deadline, viewModel.emailChangeRestrictionState.value)
+            }
+        } finally {
             viewModel.scope.cancel()
         }
     }

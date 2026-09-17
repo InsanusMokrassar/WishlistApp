@@ -1869,7 +1869,12 @@ class UserEditViewModelEmailTest {
         val interactor = RecordingUserEditInteractor()
         val model = UserEditTestUsersModel(
             ownerId,
-            owner.copy(email = Email("saved@example.com"), emailApproved = true),
+            owner.copy(
+                email = Email("saved@example.com"),
+                emailApproved = true,
+                pendingEmail = Email("pending@example.com"),
+                emailChangeAllowedAt = 1L,
+            ),
         ).apply {
             saveEmailHandler = { email ->
                 profileState.value = profileState.value?.copy(email = email, emailApproved = false)
@@ -2881,6 +2886,202 @@ class UserEditViewModelEmailTest {
             assertNull(viewModel.emailSavedState.value)
         } finally {
             viewModel.scope.cancel()
+        }
+    }
+
+    /** Keeps private lifecycle data and every private action unavailable after each owner boundary loss. */
+    @Test
+    fun privateLifecycleClearsAcrossIdentitySessionTargetAndNodeInvalidation() = runTest {
+        listOf("identity", "logout", "retarget", "root-other").forEach { boundary ->
+            val pending = Email("pending-$boundary@example.com")
+            val deadline = 20_000L
+            val node = userEditTestNode(ownerId)
+            val model = UserEditTestUsersModel(
+                ownerId,
+                owner.copy(
+                    email = Email("approved-$boundary@example.com"),
+                    emailApproved = true,
+                    pendingEmail = pending,
+                    emailChangeAllowedAt = deadline,
+                ),
+            ).apply {
+                rootState.value = boundary == "root-other"
+            }
+            val viewModel = UserEditViewModel(
+                node,
+                model,
+                RecordingUserEditInteractor(),
+                StandardTestDispatcher(testScheduler),
+                nowMillis = { deadline - 1L },
+            )
+            try {
+                advanceUntilIdle()
+                assertEquals(pending.string, viewModel.emailInputState.value, boundary)
+                assertEquals(deadline, viewModel.emailChangeRestrictionState.value, boundary)
+                model.emailEvents.clear()
+                when (boundary) {
+                    "identity" -> model.currentUserIdState.value = UserId(99L)
+                    "logout" -> {
+                        model.authorisedState.value = false
+                        model.currentUserIdState.value = null
+                    }
+                    "retarget" -> node.retarget(UserId(99L))
+                    "root-other" -> model.currentUserIdState.value = UserId(99L)
+                    else -> error("Unexpected boundary: $boundary")
+                }
+                advanceUntilIdle()
+
+                viewModel.onEmailChanged("forbidden@example.com")
+                viewModel.onSaveEmail()
+                viewModel.onResendEmailVerification()
+                viewModel.onRefreshEmail()
+                advanceUntilIdle()
+                assertNull(viewModel.ownEmailProfileState.value, boundary)
+                assertEquals("", viewModel.emailInputState.value, boundary)
+                assertNull(viewModel.emailChangeRestrictionState.value, boundary)
+                assertNull(viewModel.emailSavedState.value, boundary)
+                assertNull(viewModel.emailVerificationResultState.value, boundary)
+                assertNull(viewModel.emailErrorState.value, boundary)
+                assertFalse(viewModel.canManageOwnEmailState.value, boundary)
+                assertFalse(viewModel.canMutateOwnEmailState.value, boundary)
+                assertTrue(model.emailEvents.isEmpty(), boundary)
+                assertTrue(model.savedEmails.isEmpty(), boundary)
+                assertTrue(model.requestedEmails.isEmpty(), boundary)
+            } finally {
+                viewModel.scope.cancel()
+            }
+        }
+    }
+
+    /** Treats only a typed, well-formed cooldown as a restriction when ordinary storage outcomes fail. */
+    @Test
+    fun genericMutationFailuresStaySaveFailedWithoutCooldownOrDelivery() = runTest {
+        listOf("false", "409", "network", "malformed-429").forEach { outcome ->
+            val replacement = Email("replacement-$outcome@example.com")
+            val model = UserEditTestUsersModel(
+                ownerId,
+                owner.copy(email = Email("approved-$outcome@example.com"), emailApproved = true),
+            ).apply {
+                saveEmailHandler = {
+                    when (outcome) {
+                        "false" -> false
+                        else -> throw IllegalStateException(outcome)
+                    }
+                }
+            }
+            val viewModel = UserEditViewModel(
+                userEditTestNode(ownerId),
+                model,
+                RecordingUserEditInteractor(),
+                StandardTestDispatcher(testScheduler),
+            )
+            try {
+                advanceUntilIdle()
+                viewModel.onEmailChanged(replacement.string)
+                viewModel.onSaveEmail()
+                advanceUntilIdle()
+                assertEquals(EmailEditorError.SaveFailed, viewModel.emailErrorState.value, outcome)
+                assertNull(viewModel.emailChangeRestrictionState.value, outcome)
+                assertEquals(replacement.string, viewModel.emailInputState.value, outcome)
+                assertEquals(1, model.savedEmails.size, outcome)
+                assertTrue(model.requestedEmails.isEmpty(), outcome)
+                assertNull(viewModel.emailSavedState.value, outcome)
+            } finally {
+                viewModel.scope.cancel()
+            }
+        }
+    }
+
+    /** Preserves an authoritative typed cooldown through failed reconciliation, then retires it at exact expiry. */
+    @Test
+    fun typedCooldownFailedReconciliationPreservesRestrictionUntilCheckedExpiry() = runTest {
+        val replacement = Email("replacement@example.com")
+        val deadline = 20_000L
+        var now = deadline - 1L
+        var failReconciliation = false
+        val model = UserEditTestUsersModel(
+            ownerId,
+            owner.copy(email = Email("approved@example.com"), emailApproved = true),
+        ).apply {
+            saveEmailHandler = {
+                failReconciliation = true
+                throw EmailChangeCooldownException(EmailChangeCooldown(deadline))
+            }
+            profileHandler = {
+                if (failReconciliation) throw IllegalStateException("private read failed")
+                profileState.value
+            }
+        }
+        val viewModel = UserEditViewModel(
+            userEditTestNode(ownerId),
+            model,
+            RecordingUserEditInteractor(),
+            StandardTestDispatcher(testScheduler),
+            nowMillis = { now },
+        )
+        try {
+            advanceUntilIdle()
+            model.emailEvents.clear()
+            viewModel.onEmailChanged(replacement.string)
+            viewModel.onSaveEmail()
+            advanceUntilIdle()
+            assertEquals(replacement.string, viewModel.emailInputState.value)
+            assertEquals(deadline, viewModel.emailChangeRestrictionState.value)
+            assertTrue(viewModel.emailLoadFailedState.value)
+            assertEquals(EmailEditorError.LoadFailed, viewModel.emailErrorState.value)
+            assertEquals(listOf("PUT:${replacement.string}", "GET"), model.emailEvents)
+            assertTrue(model.requestedEmails.isEmpty())
+            assertNull(viewModel.emailSavedState.value)
+            assertNull(viewModel.emailVerificationResultState.value)
+
+            now = deadline
+            failReconciliation = false
+            viewModel.onRefreshEmail()
+            advanceUntilIdle()
+            assertNull(viewModel.emailChangeRestrictionState.value)
+            assertTrue(viewModel.canMutateOwnEmailState.value)
+        } finally {
+            viewModel.scope.cancel()
+        }
+    }
+
+    /** Retires completed feedback for either independent private snapshot field without erasing negative failures. */
+    @Test
+    fun pendingAndDeadlineSnapshotChangesRetireCompletedFeedbackIndependently() = runTest {
+        listOf("pending", "deadline").forEach { changedField ->
+            val pending = Email("pending-$changedField@example.com")
+            val profile = owner.copy(
+                email = Email("approved-$changedField@example.com"),
+                emailApproved = true,
+                pendingEmail = pending,
+                emailChangeAllowedAt = 20_000L,
+            )
+            val model = UserEditTestUsersModel(ownerId, profile).apply {
+                requestHandler = { EmailVerificationRequestResult.Sent }
+            }
+            val viewModel = UserEditViewModel(
+                userEditTestNode(ownerId),
+                model,
+                RecordingUserEditInteractor(),
+                StandardTestDispatcher(testScheduler),
+                nowMillis = { 30_000L },
+            )
+            try {
+                advanceUntilIdle()
+                viewModel.onResendEmailVerification()
+                advanceUntilIdle()
+                assertEquals(EmailVerificationRequestResult.Sent, viewModel.emailVerificationResultState.value, changedField)
+                model.profileState.value = when (changedField) {
+                    "pending" -> profile.copy(pendingEmail = Email("other-$changedField@example.com"))
+                    else -> profile.copy(emailChangeAllowedAt = 20_001L)
+                }
+                viewModel.onRefreshEmail()
+                advanceUntilIdle()
+                assertNull(viewModel.emailVerificationResultState.value, changedField)
+                assertNull(viewModel.emailSavedState.value, changedField)
+            } finally {
+                viewModel.scope.cancel()
+            }
         }
     }
 }
