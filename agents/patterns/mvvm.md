@@ -13,7 +13,7 @@
       private val feature: MyFeature,
       private val storage: MyStorage,
   ) : MyModel {
-      // HTTP calls, DB access, etc.
+      // Calls of feature and storage
   }
   ```
 - `Plugin.kt` remains the composition root and binds the Default class to its interface as a Koin `single`, using named constructor arguments:
