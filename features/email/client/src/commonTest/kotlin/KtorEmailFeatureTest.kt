@@ -2,6 +2,7 @@ package dev.inmo.wishlist.features.email.client
 
 import dev.inmo.wishlist.features.email.common.models.Email
 import dev.inmo.wishlist.features.email.common.models.EmailVerificationRequestResult
+import dev.inmo.wishlist.features.email.common.models.EmailChangeCooldownException
 import io.ktor.client.HttpClient
 import io.ktor.client.engine.mock.MockEngine
 import io.ktor.client.engine.mock.MockRequestHandleScope
@@ -21,6 +22,8 @@ import kotlinx.serialization.json.jsonObject
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertTrue
+import kotlin.test.assertFalse
+import kotlin.test.assertFailsWith
 
 /** Exercises status handling and caller-scoped payloads through the production email client. */
 class KtorEmailFeatureTest {
@@ -106,6 +109,33 @@ class KtorEmailFeatureTest {
             assertThrows { KtorEmailFeature(client).setMyEmail(Email("replacement@example.com")) }
         } finally {
             client.close()
+        }
+    }
+
+    @Test
+    fun setMyEmailDecodesOnlyWellFormedCooldownResponses() = runTest {
+        val client = jsonClient {
+            respondJson("""{"emailChangeAllowedAt":123456789}""", HttpStatusCode.TooManyRequests)
+        }
+        try {
+            val failure = assertFailsWith<EmailChangeCooldownException> {
+                KtorEmailFeature(client).setMyEmail(Email("replacement@example.com"))
+            }
+            assertEquals(123456789L, failure.cooldown.emailChangeAllowedAt)
+        } finally {
+            client.close()
+        }
+
+        listOf("", "{}", "not-json").forEach { body ->
+            val malformedClient = jsonClient { respondJson(body, HttpStatusCode.TooManyRequests) }
+            try {
+                val failure = assertFailsWith<Throwable> {
+                    KtorEmailFeature(malformedClient).setMyEmail(Email("replacement@example.com"))
+                }
+                assertFalse(failure is EmailChangeCooldownException)
+            } finally {
+                malformedClient.close()
+            }
         }
     }
 

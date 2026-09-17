@@ -5,6 +5,7 @@ import dev.inmo.wishlist.features.email.common.models.EmailVerificationRequestRe
 import dev.inmo.wishlist.features.email.server.EmailFeature
 import dev.inmo.wishlist.features.users.common.models.UserId
 import dev.inmo.wishlist.features.users.common.repo.exceptions.DuplicateUserFieldException
+import dev.inmo.wishlist.features.users.common.repo.exceptions.EmailChangeCooldownException
 import io.ktor.client.request.header
 import io.ktor.client.request.post
 import io.ktor.client.request.put
@@ -106,6 +107,23 @@ class EmailRoutingsConfiguratorTest {
         assertEquals(HttpStatusCode.Conflict, response.status)
         val expectedCalls: List<Pair<UserId, Email?>> =
             listOf(UserId(1L) to Email("replacement@example.com"))
+        assertEquals(expectedCalls, feature.setEmailCalls)
+    }
+
+    @Test
+    fun setEmailMapsCooldownToTypedDeadlineBody() = testApplication {
+        val feature = RecordingEmailFeature(setEmailFailure = EmailChangeCooldownException(123456789L))
+        installEmailRoutes(feature)
+
+        val response = client.put("/api/email/myEmail") {
+            header(HttpHeaders.Authorization, "Bearer owner")
+            contentType(ContentType.Application.Json)
+            setBody("{\"email\":\"replacement@example.com\"}")
+        }
+
+        assertEquals(HttpStatusCode.TooManyRequests, response.status)
+        assertEquals("{\"emailChangeAllowedAt\":123456789}", response.bodyAsText())
+        val expectedCalls: List<Pair<UserId, Email?>> = listOf(UserId(1L) to Email("replacement@example.com"))
         assertEquals(expectedCalls, feature.setEmailCalls)
     }
 

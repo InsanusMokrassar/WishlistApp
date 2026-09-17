@@ -17,6 +17,7 @@ import dev.inmo.wishlist.features.email.server.services.SmtpEmailService
 import dev.inmo.wishlist.features.email.server.services.EmailRegistrationInviteSender
 import dev.inmo.wishlist.features.email.server.services.EmailVerificationDeepLinkHandler
 import dev.inmo.wishlist.features.email.server.models.EmailVerificationPayload
+import dev.inmo.wishlist.features.email.server.utils.validatedCooldownMillis
 import dev.inmo.wishlist.features.roles.common.FeatureRolesRegistry
 import dev.inmo.wishlist.features.roles.common.models.SuperAdminRole
 import dev.inmo.wishlist.features.roles.common.utils.singleRequirement
@@ -63,10 +64,7 @@ object Plugin : StartPlugin {
             .decodeFromJsonElement(ServerConfig.serializer(), config)
         val policy = Json { ignoreUnknownKeys = true }
             .decodeFromJsonElement(EmailChangePolicyConfig.serializer(), config)
-        require(!policy.emailChangeCooldown.isNegative() && policy.emailChangeCooldown.isFinite()) {
-            "emailChangeCooldown must be a finite, non-negative duration"
-        }
-        val cooldownMillis = policy.emailChangeCooldown.inWholeMilliseconds
+        val cooldownMillis = policy.validatedCooldownMillis()
         if (emailConfigElement != null) {
             single { get<Json>().decodeFromJsonElement(EmailConfig.serializer(), emailConfigElement) }
             single { SmtpEmailService(get<EmailConfig>()) }

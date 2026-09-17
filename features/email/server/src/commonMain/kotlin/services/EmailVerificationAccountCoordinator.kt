@@ -53,11 +53,10 @@ class EmailVerificationAccountCoordinator(
      *
      * @param userId User to replace.
      * @param user Replacement username/address values.
-     * @return `true` when persisted, `false` on an unexpected failed update, or `null` when absent.
+     * @return `true` when persisted or `null` when no such user exists.
      */
     suspend fun updateUser(userId: UserId, user: NewUser): Boolean? = mutex.withLock {
-        if (usersRepo.getById(userId) == null) return@withLock null
-        usersRepo.update(userId, user) != null
+        usersRepo.update(userId, user)?.let { true }
     }
 
     /**
@@ -65,10 +64,10 @@ class EmailVerificationAccountCoordinator(
      *
      * @param userId User whose username changes.
      * @param username New username.
-     * @return `true` when persisted, `false` on an unexpected failed update, or `null` when absent.
+     * @return `true` when persisted or `null` when no such user exists.
      */
     suspend fun updateUsername(userId: UserId, username: Username): Boolean? = mutex.withLock {
-        usersRepo.updateUsername(userId, username) != null
+        usersRepo.updateUsername(userId, username)?.let { true }
     }
 
     /**
@@ -81,7 +80,7 @@ class EmailVerificationAccountCoordinator(
      * @return The current private user record, or `null` when no account remains.
      */
     suspend fun getCurrentUser(userId: UserId): RegisteredUser? = mutex.withLock {
-        usersRepo.getById(userId)
+        usersRepo.getByIdFresh(userId)
     }
 
     /**

@@ -37,10 +37,36 @@ internal class FakeUsersRepo(
     override suspend fun getUserByUsername(username: Username): RegisteredUser? =
         getAll().values.firstOrNull { it.username == username }
 
-    override suspend fun approveEmail(id: UserId, expectedEmail: Email): RegisteredUser? =
+    override suspend fun setEmail(id: UserId, email: Email?): RegisteredUser? = locker.withWriteLock {
+        val current = map[id] ?: return@withWriteLock null
+        when {
+            email == current.email || email == current.pendingEmail -> current
+            email == null -> current.copy(email = null, emailApproved = false, pendingEmail = null, emailChangeAllowedAt = null)
+            current.emailApproved && current.email != null -> current.copy(pendingEmail = email)
+            else -> current.copy(email = email, emailApproved = false, pendingEmail = null)
+        }.also { map[id] = it }
+    }?.also { _updatedObjectsFlow.emit(it) }
+
+    override suspend fun updateUsername(id: UserId, username: Username): RegisteredUser? = locker.withWriteLock {
+        map[id]?.copy(username = username)?.also { map[id] = it }
+    }?.also { _updatedObjectsFlow.emit(it) }
+
+    override suspend fun approveEmail(id: UserId, expectedEmail: Email, cooldownMillis: Long): RegisteredUser? =
         locker.withWriteLock {
             val current = map[id] ?: return@withWriteLock null
-            if (current.email != expectedEmail) return@withWriteLock null
-            current.copy(emailApproved = true).also { map[id] = it }
+            when {
+                current.pendingEmail == expectedEmail -> current.copy(
+                    email = expectedEmail,
+                    emailApproved = true,
+                    pendingEmail = null,
+                    emailChangeAllowedAt = cooldownMillis.takeIf { it > 0L },
+                )
+                current.email == expectedEmail && !current.emailApproved && current.pendingEmail == null -> current.copy(
+                    emailApproved = true,
+                    emailChangeAllowedAt = cooldownMillis.takeIf { it > 0L },
+                )
+                current.email == expectedEmail && current.emailApproved && current.pendingEmail == null -> current
+                else -> return@withWriteLock null
+            }.also { map[id] = it }
         }?.also { _updatedObjectsFlow.emit(it) }
 }

@@ -18,10 +18,12 @@ import dev.inmo.wishlist.features.users.common.models.UserId
 import dev.inmo.wishlist.features.users.common.models.Username
 import dev.inmo.wishlist.features.users.common.repo.UsersRepo
 import dev.inmo.wishlist.features.users.common.repo.exceptions.DuplicateUserFieldException
+import dev.inmo.wishlist.features.users.common.repo.exceptions.EmailChangeCooldownException
 import dev.inmo.wishlist.features.wishlist.server.services.WishlistService
 import io.ktor.client.request.header
 import io.ktor.client.request.put
 import io.ktor.client.request.setBody
+import io.ktor.client.statement.bodyAsText
 import io.ktor.http.ContentType
 import io.ktor.http.HttpHeaders
 import io.ktor.http.HttpStatusCode
@@ -113,6 +115,22 @@ class AdminRoutingsConfiguratorTest {
         assertEquals(user, backing.getById(user.id))
     }
 
+    @Test
+    fun fullUpdateMapsCooldownWithoutPartiallyRenamingUser() = testApplication {
+        val backing = FakeUsersRepo(mapOf(user.id to user))
+        installAdminRoutes(CooldownOnUpdateUsersRepo(backing))
+
+        val response = client.put("/api/admin/users/update/${user.id.long}") {
+            header(HttpHeaders.Authorization, "Bearer root")
+            contentType(ContentType.Application.Json)
+            setBody("{\"username\":\"renamed\",\"email\":\"replacement@example.com\"}")
+        }
+
+        assertEquals(HttpStatusCode.TooManyRequests, response.status)
+        assertEquals("{\"emailChangeAllowedAt\":123456789}", response.bodyAsText())
+        assertEquals(user, backing.getById(user.id))
+    }
+
     private fun ApplicationTestBuilder.installAdminRoutes(users: UsersRepo) {
         val wishlists = FakeWishlistRepo()
         val wishlistItems = FakeWishlistItemRepo()
@@ -161,8 +179,15 @@ class AdminRoutingsConfiguratorTest {
     }
 
     private class DuplicateOnUpdateUsersRepo(private val delegate: UsersRepo) : UsersRepo by delegate {
-        override suspend fun update(id: UserId, value: NewUser): RegisteredUser? {
+        override suspend fun updateUsername(id: UserId, username: Username): RegisteredUser? {
             throw DuplicateUserFieldException()
+        }
+    }
+
+    /** Simulates the repository-owned durable deadline rejection at the full-update boundary. */
+    private class CooldownOnUpdateUsersRepo(private val delegate: UsersRepo) : UsersRepo by delegate {
+        override suspend fun update(id: UserId, value: NewUser): RegisteredUser? {
+            throw EmailChangeCooldownException(123456789L)
         }
     }
 }

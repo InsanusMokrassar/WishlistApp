@@ -99,13 +99,16 @@ internal class FakeUsersRepo(
 
     override suspend fun setEmail(id: UserId, email: Email?): RegisteredUser? = locker.withWriteLock {
         val current = map[id] ?: return@withWriteLock null
-        when {
-            email == current.email || email == current.pendingEmail -> current
+        val updated = when {
             email == null -> current.copy(email = null, emailApproved = false, pendingEmail = null, emailChangeAllowedAt = null)
+            email == current.email || email == current.pendingEmail -> current
             current.emailApproved && current.email != null -> current.copy(pendingEmail = email)
             else -> current.copy(email = email, emailApproved = false, pendingEmail = null)
-        }.also { map[id] = it }
-    }?.also { _updatedObjectsFlow.emit(it) }
+        }
+        ensureEmailAvailable(id, updated.email, updated.pendingEmail)
+        if (updated != current) map[id] = updated
+        updated to (updated != current)
+    }?.also { (updated, changed) -> if (changed) _updatedObjectsFlow.emit(updated) }?.first
 
     override suspend fun updateUsername(id: UserId, username: Username): RegisteredUser? = locker.withWriteLock {
         map[id]?.copy(username = username)?.also { map[id] = it }
@@ -114,7 +117,7 @@ internal class FakeUsersRepo(
     override suspend fun approveEmail(id: UserId, expectedEmail: Email, cooldownMillis: Long): RegisteredUser? =
         locker.withWriteLock {
             val current = map[id] ?: return@withWriteLock null
-            when {
+            val approved = when {
                 current.pendingEmail == expectedEmail -> current.copy(
                     email = expectedEmail,
                     emailApproved = true,
@@ -127,6 +130,18 @@ internal class FakeUsersRepo(
                 )
                 current.email == expectedEmail && current.emailApproved && current.pendingEmail == null -> current
                 else -> return@withWriteLock null
-            }.also { map[id] = it }
-        }?.also { _updatedObjectsFlow.emit(it) }
+            }
+            if (approved != current) map[id] = approved
+            approved to (approved != current)
+        }?.also { (approved, changed) -> if (changed) _updatedObjectsFlow.emit(approved) }?.first
+
+    /** Rejects addresses occupied by either private email slot of another fixture account. */
+    private fun ensureEmailAvailable(id: UserId, email: Email?, pendingEmail: Email?) {
+        val occupied = map.values.any { user ->
+            user.id != id && listOfNotNull(user.email, user.pendingEmail).any { candidate ->
+                candidate == email || candidate == pendingEmail
+            }
+        }
+        if (occupied) throw DuplicateUserFieldException()
+    }
 }

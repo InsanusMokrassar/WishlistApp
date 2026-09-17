@@ -99,7 +99,13 @@ class EmailFeatureService(
         val initial = accountCoordinator.getCurrentUser(callerId)
             ?: return EmailVerificationRequestResult.NoEmail
         val currentEmail = initial.verificationCandidate()
-        if (currentEmail == null && initial.emailApproved && initial.pendingEmail == null) return EmailVerificationRequestResult.AlreadyApproved
+        if (currentEmail == null) {
+            return if (initial.emailApproved && initial.pendingEmail == null) {
+                EmailVerificationRequestResult.AlreadyApproved
+            } else {
+                EmailVerificationRequestResult.NoEmail
+            }
+        }
         if (currentEmail != expectedEmail) return EmailVerificationRequestResult.EmailChanged
 
         val sender = inviteSender ?: return EmailVerificationRequestResult.Unavailable
@@ -107,17 +113,21 @@ class EmailFeatureService(
             ?: return EmailVerificationRequestResult.DeliveryFailed
         val current = accountCoordinator.getCurrentUser(callerId)
         return when {
-            current == null || current.verificationCandidate() == null -> {
+            current == null -> {
+                rollbackDelivery(delivery)
+                EmailVerificationRequestResult.NoEmail
+            }
+            current.emailApproved && current.pendingEmail == null -> {
+                rollbackDelivery(delivery)
+                EmailVerificationRequestResult.AlreadyApproved
+            }
+            current.verificationCandidate() == null -> {
                 rollbackDelivery(delivery)
                 EmailVerificationRequestResult.NoEmail
             }
             current.verificationCandidate() != expectedEmail -> {
                 rollbackDelivery(delivery)
                 EmailVerificationRequestResult.EmailChanged
-            }
-            current.emailApproved && current.pendingEmail == null -> {
-                rollbackDelivery(delivery)
-                EmailVerificationRequestResult.AlreadyApproved
             }
             else -> EmailVerificationRequestResult.Sent
         }

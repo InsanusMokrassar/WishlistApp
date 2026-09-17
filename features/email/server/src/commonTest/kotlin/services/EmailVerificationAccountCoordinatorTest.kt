@@ -194,7 +194,9 @@ class EmailVerificationAccountCoordinatorTest {
         )
         assertEquals(invitedEmail, rolesRepo.emailAtUserRoleGrant)
         assertTrue(update.await())
-        assertEquals(changedEmail, usersRepo.getById(user.id)?.email)
+        assertEquals(invitedEmail, usersRepo.getById(user.id)?.email)
+        assertEquals(changedEmail, usersRepo.getById(user.id)?.pendingEmail)
+        assertTrue(checkNotNull(usersRepo.getById(user.id)).emailApproved)
         assertEquals(setOf(UserRole), rolesRepo.getDirectRoles(subject).toSet())
     }
 
