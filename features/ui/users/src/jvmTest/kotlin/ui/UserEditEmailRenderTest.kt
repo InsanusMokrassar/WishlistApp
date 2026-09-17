@@ -28,6 +28,7 @@ import kotlinx.coroutines.test.TestCoroutineScheduler
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
+import kotlin.test.assertNotNull
 import kotlin.test.assertNull
 import kotlin.test.assertTrue
 
@@ -134,6 +135,7 @@ class UserEditEmailRenderTest {
         val otherId = UserId(8L)
         val savedEmail = Email("saved@example.com")
         val pendingEmail = Email("pending@example.com")
+        val deadline = 20_000L
         val compositionScheduler = TestCoroutineScheduler()
         val testBodyScheduler = TestCoroutineScheduler()
         val viewModelScheduler = TestCoroutineScheduler()
@@ -146,7 +148,7 @@ class UserEditEmailRenderTest {
                 email = savedEmail,
                 emailApproved = true,
                 pendingEmail = pendingEmail,
-                emailChangeAllowedAt = 20_000L,
+                emailChangeAllowedAt = deadline,
             ),
         ).apply {
             requestResult = EmailVerificationRequestResult.Sent
@@ -156,6 +158,7 @@ class UserEditEmailRenderTest {
             model,
             RecordingUserEditInteractor(),
             StandardTestDispatcher(viewModelScheduler),
+            nowMillis = { deadline - 1L },
         )
         try {
             runDesktopComposeUiTest(
@@ -171,38 +174,34 @@ class UserEditEmailRenderTest {
                 }
                 runOnUiThread { viewModelScheduler.advanceUntilIdle() }
                 awaitIdle()
-                runOnUiThread {
-                    viewModel.onEmailChanged("draft@example.com")
-                    viewModel.onResendEmailVerification()
-                    viewModelScheduler.advanceUntilIdle()
-                }
-                awaitIdle()
                 onNodeWithTag("settings-email-saved").assertExists()
+                onNodeWithTag("settings-email-pending").assertExists()
                 onNodeWithTag("settings-email").assertExists()
-                onNodeWithText(UsersListStrings.emailVerificationSent.translation()).assertExists()
+                onNodeWithTag("settings-email-cooldown").assertExists()
+                onNodeWithText(UsersListStrings.emailPendingApproval.translation()).assertExists()
 
                 assertTrue(viewModel.canManageOwnEmailState.value)
                 assertEquals(savedEmail, viewModel.ownEmailProfileState.value?.email)
                 assertEquals(pendingEmail, viewModel.ownEmailProfileState.value?.pendingEmail)
-                assertEquals("draft@example.com", viewModel.emailInputState.value)
-                assertEquals(EmailVerificationRequestResult.Sent, viewModel.emailVerificationResultState.value)
+                assertEquals(deadline, viewModel.emailChangeRestrictionState.value)
 
                 runOnUiThread { node.retarget(otherId) }
                 awaitIdle()
 
                 assertTrue(viewModel.canManageOwnEmailState.value)
                 assertEquals(savedEmail, viewModel.ownEmailProfileState.value?.email)
-                assertEquals("draft@example.com", viewModel.emailInputState.value)
-                assertEquals(EmailVerificationRequestResult.Sent, viewModel.emailVerificationResultState.value)
+                assertEquals(pendingEmail, viewModel.ownEmailProfileState.value?.pendingEmail)
+                assertEquals(deadline, viewModel.emailChangeRestrictionState.value)
                 onNodeWithTag("settings-email-saved").assertDoesNotExist()
+                onNodeWithTag("settings-email-pending").assertDoesNotExist()
                 onNodeWithTag("settings-email").assertDoesNotExist()
+                onNodeWithTag("settings-email-cooldown").assertDoesNotExist()
                 onNodeWithText(savedEmail.string).assertDoesNotExist()
                 onNodeWithText(UsersListStrings.emailPendingApproval.translation()).assertDoesNotExist()
                 onNodeWithText(UsersListStrings.emailReplacementNeedsVerification.translation()).assertDoesNotExist()
                 onNodeWithText(UsersListStrings.saveEmailAndVerifyButton.translation()).assertDoesNotExist()
                 onNodeWithText(UsersListStrings.resendEmailVerificationButton.translation()).assertDoesNotExist()
                 onNodeWithText(UsersListStrings.refreshEmailButton.translation()).assertDoesNotExist()
-                onNodeWithText(UsersListStrings.emailVerificationSent.translation()).assertDoesNotExist()
             }
         } finally {
             viewModel.scope.cancel()
@@ -802,6 +801,7 @@ class UserEditEmailRenderTest {
     fun capturedImeActionRejectsNewCooldownWithoutPutOrPost() {
         val ownerId = UserId(7L)
         val deadline = 20_000L
+        val draft = Email("candidate@example.com")
         val compositionScheduler = TestCoroutineScheduler()
         val testBodyScheduler = TestCoroutineScheduler()
         val viewModelScheduler = TestCoroutineScheduler()
@@ -827,16 +827,21 @@ class UserEditEmailRenderTest {
                 setContent { MaterialTheme { Column { OwnerEmailEditor(viewModel, node) } } }
                 runOnUiThread { viewModelScheduler.advanceUntilIdle() }
                 awaitIdle()
+                onNodeWithTag("settings-email").performTextReplacement(draft.string)
+                runOnUiThread { viewModelScheduler.advanceUntilIdle() }
+                awaitIdle()
+                onNodeWithText(UsersListStrings.saveEmailAndVerifyButton.translation()).assertIsEnabled()
                 val capturedImeAction = onNodeWithTag("settings-email")
                     .fetchSemanticsNode()
                     .config[SemanticsActions.OnImeAction]
-                    .action
+                    .action.let(::assertNotNull)
                 model.profileState.value = model.profileState.value?.copy(emailChangeAllowedAt = deadline)
                 model.emailEvents.clear()
                 onNodeWithText(UsersListStrings.refreshEmailButton.translation()).performClick()
                 runOnUiThread {
                     viewModelScheduler.advanceUntilIdle()
-                    capturedImeAction?.invoke()
+                    assertEquals(draft.string, viewModel.emailInputState.value)
+                    capturedImeAction.invoke()
                     viewModelScheduler.advanceUntilIdle()
                 }
                 awaitIdle()

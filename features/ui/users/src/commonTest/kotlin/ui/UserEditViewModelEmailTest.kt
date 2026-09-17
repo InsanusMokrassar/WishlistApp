@@ -2853,18 +2853,11 @@ class UserEditViewModelEmailTest {
     fun finalReconciliationRejectsSupersedingPendingAfterApprovalSkippedPost() = runTest {
         val submitted = Email("submitted-after-approval@example.com")
         val superseding = Email("superseding-after-approval@example.com")
-        var reads = 0
+        var postPutReads = 0
         val model = UserEditTestUsersModel(ownerId, owner.copy(email = Email("old@example.com"), emailApproved = true)).apply {
             saveEmailHandler = {
                 profileState.value = owner.copy(email = submitted, emailApproved = true)
                 true
-            }
-            profileHandler = {
-                reads += 1
-                when (reads) {
-                    1 -> profileState.value
-                    else -> owner.copy(email = submitted, emailApproved = true, pendingEmail = superseding)
-                }
             }
         }
         val viewModel = UserEditViewModel(
@@ -2875,11 +2868,24 @@ class UserEditViewModelEmailTest {
         )
         try {
             advanceUntilIdle()
+            model.profileHandler = {
+                postPutReads += 1
+                when (postPutReads) {
+                    1 -> owner.copy(email = submitted, emailApproved = true)
+                    2 -> owner.copy(email = submitted, emailApproved = true, pendingEmail = superseding)
+                    else -> error("Unexpected post-PUT profile read: $postPutReads")
+                }
+            }
             model.emailEvents.clear()
             viewModel.onEmailChanged(submitted.string)
             viewModel.onSaveEmail()
             advanceUntilIdle()
 
+            assertEquals(2, postPutReads)
+            assertEquals(
+                listOf("PUT:${submitted.string}", "GET", "GET"),
+                model.emailEvents,
+            )
             assertTrue(model.requestedEmails.isEmpty())
             assertEquals(submitted.string, viewModel.emailInputState.value)
             assertEquals(EmailEditorError.EmailChanged, viewModel.emailErrorState.value)

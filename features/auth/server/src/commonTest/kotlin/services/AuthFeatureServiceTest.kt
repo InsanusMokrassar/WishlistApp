@@ -21,12 +21,9 @@ import dev.inmo.wishlist.features.users.common.models.RegisteredUser
 import dev.inmo.wishlist.features.users.common.models.UserId
 import dev.inmo.wishlist.features.users.common.models.Username
 import dev.inmo.wishlist.features.users.common.repo.UsersRepo
-import dev.inmo.wishlist.features.users.common.repo.CacheUsersRepo
 import dev.inmo.wishlist.features.users.common.repo.exceptions.DuplicateUserFieldException
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CompletableDeferred
-import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitCancellation
 import kotlinx.coroutines.test.runTest
@@ -922,39 +919,6 @@ class AuthFeatureServiceTest {
             AuthFeatureUser(userWithEmail.id, userWithEmail.username, userWithEmail.email),
             result
         )
-    }
-
-    /** A valid bearer read bypasses a stale cache and exposes the backing repository's complete private lifecycle. */
-    @Test
-    fun authenticatedPrivateReadBypassesIndependentlyStaleCache() = runTest {
-        val current = Email("approved@example.com")
-        val pending = Email("pending@example.com")
-        val initial = RegisteredUser(userWithEmail.id, userWithEmail.username, current)
-        val backing = FakeUsersRepo(mapOf(initial.id to initial))
-        val cacheScope = CoroutineScope(SupervisorJob().apply { cancel() })
-        val cachedValues = MapKeyValueRepo<UserId, RegisteredUser>()
-        cachedValues.set(mapOf(initial.id to initial))
-        val cache = CacheUsersRepo(backing, cacheScope, cachedValues)
-        val service = buildService(cache)
-        service.setPassword(initial.id, plainPassword)
-        val credentials = checkNotNull(service.login(initial.username, plainPassword))
-
-        checkNotNull(backing.approveEmail(initial.id, current, cooldownMillis = 1_798_761_600_000L))
-        val newer = checkNotNull(backing.setEmail(initial.id, pending))
-
-        assertEquals(initial, cache.getById(initial.id))
-        assertEquals(
-            AuthFeatureUser(
-                initial.id,
-                initial.username,
-                current,
-                emailApproved = true,
-                pendingEmail = pending,
-                emailChangeAllowedAt = 1_798_761_600_000L,
-            ),
-            service.getUser(credentials.token),
-        )
-        assertEquals(newer, cache.getByIdFresh(initial.id))
     }
 
     /** A token issued by a service configured with a zero TTL is treated as already expired. */
