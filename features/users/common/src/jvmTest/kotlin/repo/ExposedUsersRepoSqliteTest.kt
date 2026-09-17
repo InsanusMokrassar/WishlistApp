@@ -782,6 +782,40 @@ class ExposedUsersRepoSqliteTest {
         }
     }
 
+    /** Xerial retries stop at the callback-owned deadline when a holder never releases before that deadline. */
+    @Test
+    fun sqliteBusyHandlerStopsRetryingAtAbsoluteDeadline() = runBlocking {
+        val holderLocked = CountDownLatch(1)
+        val releaseHolder = CountDownLatch(1)
+        val busy = SqliteBusyObservation(retryTimeoutNanos = TimeUnit.MILLISECONDS.toNanos(100))
+        withFileBackedSqliteUsersRepos(
+            firstAfterWriteLock = {
+                holderLocked.countDown()
+                check(releaseHolder.await(15, TimeUnit.SECONDS)) { "SQLite bounded-retry holder was not released" }
+            },
+            secondBusyObservation = busy,
+        ) { _, first, second ->
+            val holderWorker = BoundedTestWorker("SQLite bounded-retry holder") {
+                first.create(NewUser(Username("bounded-retry-holder"), Email("bounded-retry-holder@example.com"))).single()
+            }
+            val contenderWorker = BoundedTestWorker("SQLite bounded-retry contender") {
+                second.create(NewUser(Username("bounded-retry-contender"), Email("bounded-retry-contender@example.com"))).single()
+            }
+            runCleanupProtectedContention(
+                workers = listOf(holderWorker, contenderWorker),
+                cleanupActions = listOf(releaseHolder::countDown, busy::releaseRetry),
+            ) {
+                holderWorker.start()
+                assertTrue(holderLocked.await(10, TimeUnit.SECONDS))
+                contenderWorker.start()
+                assertTrue(busy.awaitBusyEntry())
+                assertTrue(busy.awaitRetryDeadlineExhaustion())
+            }
+            busy.assertRetryDeadlineExhausted()
+            holderWorker.result().getOrThrow()
+        }
+    }
+
     /** A real SQLite writer lock failure stays infrastructure-visible instead of becoming duplicate or cooldown feedback. */
     @Test
     fun sqliteWriterContentionIsNotClassifiedAsLifecycleFeedback() = runTest {
