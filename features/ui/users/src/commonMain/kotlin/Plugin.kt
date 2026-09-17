@@ -1,26 +1,13 @@
 package dev.inmo.wishlist.features.ui.users
 
-import dev.inmo.micro_utils.common.MPPFile
 import dev.inmo.micro_utils.koin.singleWithRandomQualifier
 import dev.inmo.micro_utils.startup.plugin.StartPlugin
 import dev.inmo.wishlist.features.admin.client.AdminFeature
-import dev.inmo.wishlist.features.admin.common.Constants as AdminConstants
-import dev.inmo.wishlist.features.auth.client.AuthCredentialsStorage
-import dev.inmo.wishlist.features.auth.client.ClientAuthFeature
 import dev.inmo.wishlist.features.auth.client.meStateFlow
-import dev.inmo.wishlist.features.auth.common.models.Password
 import dev.inmo.wishlist.features.common.client.models.ViewConfig
-import dev.inmo.wishlist.features.email.client.EmailFeature
-import dev.inmo.wishlist.features.email.common.models.Email
-import dev.inmo.wishlist.features.email.common.models.EmailVerificationRequestResult
 import dev.inmo.wishlist.features.files.client.FilesClientService
-import dev.inmo.wishlist.features.files.common.Constants as FilesConstants
-import dev.inmo.wishlist.features.files.common.models.FileId
-import dev.inmo.wishlist.features.roles.client.RolesFeature
 import dev.inmo.wishlist.features.users.client.UsersFeature
-import dev.inmo.wishlist.features.users.common.models.UserId
-import dev.inmo.wishlist.features.users.common.models.Username
-import dev.inmo.wishlist.features.users.common.models.UsersFeatureUser
+import dev.inmo.wishlist.features.ui.users.ui.DefaultUsersModel
 import dev.inmo.wishlist.features.ui.users.ui.UserEditViewConfig
 import dev.inmo.wishlist.features.ui.users.ui.UserEditViewModel
 import dev.inmo.wishlist.features.ui.users.ui.UserViewConfig
@@ -28,13 +15,6 @@ import dev.inmo.wishlist.features.ui.users.ui.UserViewModel
 import dev.inmo.wishlist.features.ui.users.ui.UsersListViewConfig
 import dev.inmo.wishlist.features.ui.users.ui.UsersListViewModel
 import dev.inmo.wishlist.features.ui.users.ui.UsersModel
-import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.ExperimentalCoroutinesApi
-import kotlinx.coroutines.flow.SharingStarted
-import kotlinx.coroutines.flow.StateFlow
-import kotlinx.coroutines.flow.map
-import kotlinx.coroutines.flow.mapLatest
-import kotlinx.coroutines.flow.stateIn
 import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.modules.SerializersModule
 import org.koin.core.Koin
@@ -49,7 +29,6 @@ import org.koin.core.module.Module
  * [FilesClientService].
  */
 object Plugin : StartPlugin {
-    @OptIn(ExperimentalCoroutinesApi::class)
     override fun Module.setupDI(config: JsonObject) {
         singleWithRandomQualifier {
             SerializersModule {
@@ -65,70 +44,17 @@ object Plugin : StartPlugin {
         factory { UserViewModel(node = it.get(), model = get(), interactor = get()) }
         factory { UserEditViewModel(node = it.get(), model = get(), interactor = get()) }
         single<UsersModel> {
-            val feature = get<UsersFeature>()
-            val authFeature = get<ClientAuthFeature>()
-            val emailFeature = get<EmailFeature>()
-            val meState = meStateFlow
-            val adminFeature = get<AdminFeature>()
-            val filesService = get<FilesClientService>()
-            val scope = get<CoroutineScope>()
-            val credentialsStorage = get<AuthCredentialsStorage>()
-            val rolesFeature = get<RolesFeature>()
-            object : UsersModel {
-                override val userAuthorisedState = credentialsStorage.userAuthorised
-
-                override suspend fun getAllUsers(): List<UsersFeatureUser> = feature.getAll()
-
-                override suspend fun getUser(id: UserId): UsersFeatureUser? =
-                    feature.getAll().find { it.id == id }
-
-                override val currentUserIdFlow: StateFlow<UserId?> =
-                    meState.map { it?.id }.stateIn(scope, SharingStarted.Eagerly, meState.value?.id)
-
-                override val isCurrentUserRootFlow: StateFlow<Boolean> =
-                    meState
-                        .mapLatest { me ->
-                            me != null && rolesFeature.isFunctionalityAvailable(AdminConstants.adminPanelFunctionalityId)
-                        }
-                        .stateIn(scope, SharingStarted.Eagerly, false)
-
-                override val canChangeAvatarForOthersFlow: StateFlow<Boolean> =
-                    meState
-                        .mapLatest { me ->
-                            me != null && rolesFeature.isFunctionalityAvailable(FilesConstants.avatarChangeForOthersFunctionalityId)
-                        }
-                        .stateIn(scope, SharingStarted.Eagerly, false)
-
-                override suspend fun getMyProfile() = authFeature.getMe()
-
-                override suspend fun isEmailFeatureEnabled(): Boolean = emailFeature.isFeatureEnabled()
-
-                override suspend fun setMyEmail(email: Email?): Boolean = emailFeature.setMyEmail(email)
-
-                override suspend fun requestMyEmailVerification(
-                    expectedEmail: Email
-                ): EmailVerificationRequestResult = emailFeature.requestMyEmailVerification(expectedEmail)
-
-                override suspend fun updateUsername(id: UserId, username: Username): Boolean =
-                    adminFeature.usersManagement.updateUsername(id, username)
-
-                override suspend fun setPassword(id: UserId, password: Password): Boolean =
-                    adminFeature.usersManagement.setPassword(id, password)
-
-                override suspend fun deleteUser(id: UserId): Boolean =
-                    adminFeature.usersManagement.delete(id)
-
-                override suspend fun getAvatar(userId: UserId): FileId? =
-                    filesService.getAvatar(userId)
-
-                override suspend fun uploadAvatar(userId: UserId, file: MPPFile): FileId? =
-                    filesService.uploadAvatar(userId, file)
-
-                override fun imageUrl(id: FileId): String = filesService.apiFileUrl(id)
-
-                override suspend fun loadImageBytes(id: FileId): ByteArray? =
-                    filesService.downloadBytes(id)
-            }
+            DefaultUsersModel(
+                feature = get(),
+                authFeature = get(),
+                emailFeature = get(),
+                meState = meStateFlow,
+                adminFeature = get(),
+                filesService = get(),
+                scope = get(),
+                credentialsStorage = get(),
+                rolesFeature = get(),
+            )
         }
     }
 

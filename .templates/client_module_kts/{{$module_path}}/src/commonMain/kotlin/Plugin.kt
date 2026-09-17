@@ -7,6 +7,7 @@ import kotlinx.serialization.modules.SerializersModule
 import org.koin.core.Koin
 import org.koin.core.module.Module
 import dev.inmo.wishlist.features.common.client.models.ViewConfig
+import dev.inmo.wishlist.{{$module_package}}.ui.Default{{$module_ui_name}}Model
 import dev.inmo.wishlist.{{$module_package}}.ui.{{$module_ui_name}}Model
 import dev.inmo.wishlist.{{$module_package}}.ui.{{$module_ui_name}}ViewConfig
 import dev.inmo.wishlist.{{$module_package}}.ui.{{$module_ui_name}}ViewModel
@@ -21,9 +22,7 @@ object Plugin : StartPlugin {
         }
         factory { {{$module_ui_name}}ViewModel(it.get(), get(), get()) }
         single<{{$module_ui_name}}Model> {
-            object : {{$module_ui_name}}Model {
-
-            }
+            Default{{$module_ui_name}}Model()
         }
     }
 

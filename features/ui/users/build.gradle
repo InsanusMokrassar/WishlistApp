@@ -28,5 +28,10 @@ kotlin {
                 api project(":wishlist.features.roles.client")
             }
         }
+        jvmTest {
+            dependencies {
+                implementation libs.ktor.client.mock
+            }
+        }
     }
 }

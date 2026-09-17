@@ -6,17 +6,24 @@
 
 - Declared as an **interface** in `commonMain`.
 - Its purpose is to **talk to the outside world**: HTTP client requests, database queries, WebSocket streams, device APIs, or any other external I/O. It must not hold UI state or contain presentation logic.
-- The concrete implementation is registered in `Plugin.kt` as a Koin `single`:
+- Its concrete implementation is a public class in a separate `Default<InterfaceName>.kt` file, named by prefixing the interface with `Default` (for example, `DefaultMyModel`). Anonymous Model implementations are forbidden.
+- Every outside-world dependency used by the implementation is accepted through the primary constructor as a `private val`. The class must not resolve dependencies from Koin or another service locator:
   ```kotlin
-  single<MyModel> {
-      object : MyModel {
-          // HTTP calls, DB access, etc.
-      }
+  class DefaultMyModel(
+      private val feature: MyFeature,
+      private val storage: MyStorage,
+  ) : MyModel {
+      // Calls of feature and storage
   }
   ```
-- For non-trivial implementations, extract to a named class and register the same way:
+- `Plugin.kt` remains the composition root and binds the Default class to its interface as a Koin `single`, using named constructor arguments:
   ```kotlin
-  single<MyModel> { MyModelImpl(get()) }
+  single<MyModel> {
+      DefaultMyModel(
+          feature = get(),
+          storage = get(),
+      )
+  }
   ```
 - The interface must expose:
   - **Global outside-world state** as `val ...: StateFlow<T>`. The implementation backs it with a `MutableRedeliverStateFlow`:
@@ -24,7 +31,7 @@
     interface MyModel {
         val items: StateFlow<List<Item>>
     }
-    class MyModelImpl : MyModel {
+    class DefaultMyModel : MyModel {
         private val _items = MutableRedeliverStateFlow<List<Item>>(emptyList())
         override val items: StateFlow<List<Item>> = _items
     }
@@ -203,7 +210,9 @@ factory { MyViewModel(it.get(), get(), get()) }
 **3. Model singleton** — in common `Plugin.kt`:
 
 ```kotlin
-single<MyModel> { MyModelImpl(/* deps */) }
+single<MyModel> {
+    DefaultMyModel(feature = get())
+}
 ```
 
 **4. Interactor singleton** — NOT in the feature's `Plugin.kt`; bound in the top-level `client/` module's `ClientPlugin` (commonMain by default; platform-specific source set only when the implementation requires platform APIs) — see the Interactor section above.
@@ -254,22 +263,30 @@ interface SampleModel {
 }
 ```
 
-**Step 3 — Create an anonymous Model implementation in `Plugin.kt`** that delegates to the injected feature:
+**Step 3 — Create `DefaultSampleModel.kt`** with constructor-injected dependencies and bind the class in `Plugin.kt`:
 
 ```kotlin
-single<SampleModel> {
-    val feature = get<SampleFeature>()  // from features/sample/client
-    val echoFeature = get<EchoFeature>()
-    object : SampleModel {
-        override suspend fun getSampleText(): String = feature.getSampleText()
-        override fun serverStatusFlow(): Flow<String?> = flow {
-            while (true) {
-                val result = runCatchingLogging { echoFeature.getEcho() }
-                emit(result.getOrNull())
-                delay(1.seconds)
-            }
+// DefaultSampleModel.kt
+class DefaultSampleModel(
+    private val feature: SampleFeature,
+    private val echoFeature: EchoFeature,
+) : SampleModel {
+    override suspend fun getSampleText(): String = feature.getSampleText()
+    override fun serverStatusFlow(): Flow<String?> = flow {
+        while (true) {
+            val result = runCatchingLogging { echoFeature.getEcho() }
+            emit(result.getOrNull())
+            delay(1.seconds)
         }
     }
+}
+
+// Plugin.kt
+single<SampleModel> {
+    DefaultSampleModel(
+        feature = get(),
+        echoFeature = get(),
+    )
 }
 ```
 

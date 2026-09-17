@@ -44,8 +44,7 @@ None — client-only UI feature.
   My Lists → `WishlistsListViewConfig()`, Discover → `UsersListViewConfig()`,
   Reserved → `MyPresentsBooksViewConfig()`, Settings → `UserEditViewConfig(me)`,
   profile row → `UserViewConfig(me)`, New list → `WishlistEditViewConfig(null)`.
-- `SidebarModel` is registered in this feature's `Plugin` and resolves `WishlistsModel` /
-  `BookingModel` lazily from Koin — no cross-feature `setupDI` delegation.
+- `DefaultSidebarModel` implements `SidebarModel` in the common UI package and is registered as an interface `single` in this feature's `Plugin`. Its constructor receives `WishlistsModel`, `BookingModel`, and `UsersModel`; the Plugin resolves those dependencies lazily without cross-feature `setupDI` delegation.
 - **Feature Interface Return Model Rule:** `SidebarModel.getMyWishlists(): List<WishlistsFeatureWishlist>`
   (was `List<RegisteredWishlist>`) — this feature is a genuine V4 (`features/wishlist`) consumer via
   `WishlistsModel.getMyWishlists()`, confirmed to have zero `RegisteredUser`/`meStateFlow`/`AuthFeature`

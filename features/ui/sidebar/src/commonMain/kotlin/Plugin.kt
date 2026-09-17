@@ -4,14 +4,12 @@ import dev.inmo.micro_utils.koin.singleWithRandomQualifier
 import dev.inmo.micro_utils.startup.plugin.StartPlugin
 import dev.inmo.wishlist.features.common.client.models.ViewConfig
 import dev.inmo.wishlist.features.ui.booking.ui.BookingModel
+import dev.inmo.wishlist.features.ui.sidebar.ui.DefaultSidebarModel
 import dev.inmo.wishlist.features.ui.sidebar.ui.SidebarModel
 import dev.inmo.wishlist.features.ui.sidebar.ui.SidebarViewConfig
 import dev.inmo.wishlist.features.ui.sidebar.ui.SidebarViewModel
 import dev.inmo.wishlist.features.ui.users.ui.UsersModel
 import dev.inmo.wishlist.features.ui.wishlist.ui.WishlistsModel
-import dev.inmo.wishlist.features.users.common.models.UserId
-import dev.inmo.wishlist.features.wishlist.common.models.WishlistsFeatureWishlist
-import kotlinx.coroutines.flow.StateFlow
 import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.modules.SerializersModule
 import org.koin.core.Koin
@@ -35,16 +33,11 @@ object Plugin : StartPlugin {
         }
 
         single<SidebarModel> {
-            val wishlistsModel = get<WishlistsModel>()
-            val bookingModel = get<BookingModel>()
-            val usersModel = get<UsersModel>()
-            object : SidebarModel {
-                override val currentUserIdFlow: StateFlow<UserId?> = wishlistsModel.currentUserIdFlow
-                override val isCurrentUserRootFlow: StateFlow<Boolean> = usersModel.isCurrentUserRootFlow
-                override suspend fun getMyWishlists(): List<WishlistsFeatureWishlist> = wishlistsModel.getMyWishlists()
-                override suspend fun getReservedCount(): Int = bookingModel.myPresentsBooks().size
-                override suspend fun getUserName(userId: UserId): String? = wishlistsModel.getUserName(userId)
-            }
+            DefaultSidebarModel(
+                wishlistsModel = get(),
+                bookingModel = get(),
+                usersModel = get(),
+            )
         }
 
         factory { SidebarViewModel(node = it.get(), model = get(), interactor = get()) }
