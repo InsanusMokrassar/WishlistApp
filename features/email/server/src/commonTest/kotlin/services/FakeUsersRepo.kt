@@ -75,9 +75,9 @@ internal class FakeUsersRepo(
         }
         val currentProfile = emailProfiles[id] ?: old.asEmailProfile()
         val updatedProfile = when {
+            newValue.email == null -> EmailProfile(userId = id.long)
             newValue.email == currentProfile.email || newValue.email == currentProfile.pendingEmail ->
                 currentProfile.copy(userId = id.long)
-            newValue.email == null -> EmailProfile(userId = id.long)
             currentProfile.emailApproved && currentProfile.email != null -> currentProfile.copy(
                 pendingEmail = newValue.email,
                 emailChangeRequestedAt = null,

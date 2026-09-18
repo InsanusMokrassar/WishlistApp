@@ -46,6 +46,7 @@ import kotlin.time.Duration.Companion.minutes
  * access too, since [AuthFeatureService.register] and the fixtures below create users).
  *
  * @param initialUsers Users the repo is pre-seeded with, keyed by their [UserId].
+ * @param initialEmailProfiles Email-owned state seeded independently from reduced user fixtures.
  */
 internal class FakeUsersRepo(
     initialUsers: Map<UserId, RegisteredUser> = emptyMap(),
@@ -63,8 +64,8 @@ internal class FakeUsersRepo(
     override suspend fun updateObject(newValue: NewUser, id: UserId, old: RegisteredUser): RegisteredUser {
         val currentProfile = emailProfiles[id] ?: old.asEmailProfile()
         val profile = when {
-            newValue.email == currentProfile.email || newValue.email == currentProfile.pendingEmail -> currentProfile
             newValue.email == null -> EmailProfile(userId = id.long)
+            newValue.email == currentProfile.email || newValue.email == currentProfile.pendingEmail -> currentProfile
             currentProfile.emailApproved && currentProfile.email != null -> currentProfile.copy(pendingEmail = newValue.email)
             else -> EmailProfile(userId = id.long, email = newValue.email)
         }
@@ -100,8 +101,8 @@ internal class FakeUsersRepo(
         val current = map[id] ?: return@withWriteLock null
         val profile = emailProfiles[id] ?: current.asEmailProfile()
         val updatedProfile = when {
-            email == profile.email || email == profile.pendingEmail -> profile
             email == null -> EmailProfile(userId = id.long)
+            email == profile.email || email == profile.pendingEmail -> profile
             profile.emailApproved && profile.email != null -> profile.copy(pendingEmail = email)
             else -> EmailProfile(userId = id.long, email = email)
         }
@@ -455,6 +456,44 @@ class AuthFeatureServiceTest {
         registrationRoleLifecycle = registrationRoleLifecycle,
         userRoleAuthorization = userRoleAuthorization,
     )
+
+    /** Full fixture updates clear explicit null addresses before nullable same-slot no-op checks. */
+    @Test
+    fun fakeFullUpdateClearsLifecycleAndRetainsSameAddressNoOps() = runTest {
+        val unapproved = RegisteredUser(UserId(71L), Username("fake-unapproved"), Email("fake-unapproved@example.com"))
+        val approved = RegisteredUser(UserId(72L), Username("fake-approved"), Email("fake-approved@example.com"), true)
+        val unapprovedProfile = EmailProfile(
+            userId = unapproved.id.long,
+            email = unapproved.email,
+            emailChangeRequestedAt = 10L,
+        )
+        val approvedProfile = EmailProfile(
+            userId = approved.id.long,
+            email = approved.email,
+            emailApproved = true,
+            emailChangeAllowedAt = 20L,
+        )
+        val usersRepo = FakeUsersRepo(
+            initialUsers = mapOf(unapproved.id to unapproved, approved.id to approved),
+            initialEmailProfiles = mapOf(unapproved.id to unapprovedProfile, approved.id to approvedProfile),
+        )
+
+        assertEquals(listOf(unapproved), usersRepo.update(listOf(unapproved.id to NewUser(unapproved.username, unapproved.email))))
+        assertEquals(unapprovedProfile, usersRepo.getEmailProfileFresh(unapproved.id))
+        assertEquals(listOf(approved), usersRepo.update(listOf(approved.id to NewUser(approved.username, approved.email))))
+        assertEquals(approvedProfile, usersRepo.getEmailProfileFresh(approved.id))
+
+        assertEquals(
+            listOf(RegisteredUser(unapproved.id, unapproved.username)),
+            usersRepo.update(listOf(unapproved.id to NewUser(unapproved.username, null))),
+        )
+        assertEquals(EmailProfile(userId = unapproved.id.long), usersRepo.getEmailProfileFresh(unapproved.id))
+        assertEquals(
+            listOf(RegisteredUser(approved.id, approved.username)),
+            usersRepo.update(listOf(approved.id to NewUser(approved.username, null))),
+        )
+        assertEquals(EmailProfile(userId = approved.id.long), usersRepo.getEmailProfileFresh(approved.id))
+    }
 
     /** Auth config exposes both registration flags without server-only types. */
     @Test

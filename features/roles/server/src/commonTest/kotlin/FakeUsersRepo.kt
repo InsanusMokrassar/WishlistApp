@@ -17,20 +17,24 @@ import dev.inmo.wishlist.features.users.common.repo.UsersRepo
  * No duplicate-username/email enforcement — not exercised by any test in this module.
  *
  * @param initialUsers Users the repo is pre-seeded with, keyed by their [UserId].
+ * @param initialEmailProfiles Email-owned state seeded independently from reduced user fixtures.
  */
 internal class FakeUsersRepo(
-    initialUsers: Map<UserId, RegisteredUser> = emptyMap()
+    initialUsers: Map<UserId, RegisteredUser> = emptyMap(),
+    initialEmailProfiles: Map<UserId, EmailProfile> = emptyMap(),
 ) : UsersRepo, MapCRUDRepo<RegisteredUser, UserId, NewUser>(initialUsers.toMutableMap()) {
     private var nextId: Long = (initialUsers.keys.maxOfOrNull { it.long } ?: 0L) + 1L
 
     /** Email verification state independent from the reduced user fixture. */
-    private val emailProfiles = initialUsers.mapValues { (_, user) -> user.asEmailProfile() }.toMutableMap()
+    private val emailProfiles = initialUsers.mapValues { (_, user) -> user.asEmailProfile() }
+        .toMutableMap()
+        .also { it.putAll(initialEmailProfiles) }
 
     override suspend fun updateObject(newValue: NewUser, id: UserId, old: RegisteredUser): RegisteredUser {
         val currentProfile = emailProfiles[id] ?: old.asEmailProfile()
         val profile = when {
-            newValue.email == currentProfile.email || newValue.email == currentProfile.pendingEmail -> currentProfile
             newValue.email == null -> EmailProfile(userId = id.long)
+            newValue.email == currentProfile.email || newValue.email == currentProfile.pendingEmail -> currentProfile
             currentProfile.emailApproved && currentProfile.email != null -> currentProfile.copy(pendingEmail = newValue.email)
             else -> EmailProfile(userId = id.long, email = newValue.email)
         }
@@ -60,8 +64,8 @@ internal class FakeUsersRepo(
         val current = map[id] ?: return@withWriteLock null
         val profile = emailProfiles[id] ?: current.asEmailProfile()
         val updatedProfile = when {
-            email == profile.email || email == profile.pendingEmail -> profile
             email == null -> EmailProfile(userId = id.long)
+            email == profile.email || email == profile.pendingEmail -> profile
             profile.emailApproved && profile.email != null -> profile.copy(pendingEmail = email)
             else -> EmailProfile(userId = id.long, email = email)
         }

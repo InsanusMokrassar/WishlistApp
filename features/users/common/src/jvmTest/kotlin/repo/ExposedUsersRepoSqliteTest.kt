@@ -509,6 +509,134 @@ class ExposedUsersRepoSqliteTest {
         }
     }
 
+    /** Adding requested-at preserves populated legacy lifecycle slots and leaves historical time unknown. */
+    @Test
+    fun populatedLegacyLifecycleSchemaSurvivesRepeatedReopenAndSameAddressSaves() = runTest {
+        val databaseFile = Files.createTempFile("wishlist-users-legacy-lifecycle", ".sqlite")
+        val url = "jdbc:sqlite:${databaseFile.toAbsolutePath()}"
+        val approvedId = UserId(41L)
+        val firstId = UserId(42L)
+        val emptyId = UserId(43L)
+        val approvedCurrent = Email("legacy-approved@example.com")
+        val approvedPending = Email("legacy-pending@example.com")
+        val firstCurrent = Email("legacy-first@example.com")
+        val firstReplacement = Email("legacy-first-replacement@example.com")
+
+        fun assertRawLifecycle(firstEmail: Email, firstRequestedAt: Long?) {
+            DriverManager.getConnection(url).use { connection ->
+                connection.prepareStatement(
+                    "SELECT email, email_approved, pending_email, email_change_requested_at, email_change_allowed_at FROM users WHERE id = ?",
+                ).use { statement ->
+                    fun assertRow(
+                        id: UserId,
+                        email: Email?,
+                        approved: Boolean,
+                        pending: Email?,
+                        requestedAt: Long?,
+                        allowedAt: Long?,
+                    ) {
+                        statement.setLong(1, id.long)
+                        statement.executeQuery().use { result ->
+                            assertTrue(result.next())
+                            assertEquals(email?.string, result.getString("email"))
+                            assertEquals(approved, result.getBoolean("email_approved"))
+                            assertEquals(pending?.string, result.getString("pending_email"))
+                            val storedRequestedAt = result.getLong("email_change_requested_at").takeUnless { result.wasNull() }
+                            val storedAllowedAt = result.getLong("email_change_allowed_at").takeUnless { result.wasNull() }
+                            assertEquals(requestedAt, storedRequestedAt)
+                            assertEquals(allowedAt, storedAllowedAt)
+                        }
+                    }
+
+                    assertRow(approvedId, approvedCurrent, true, approvedPending, null, 900L)
+                    assertRow(firstId, firstEmail, false, null, firstRequestedAt, null)
+                    assertRow(emptyId, null, false, null, null, null)
+                }
+                connection.createStatement().use { statement ->
+                    statement.executeQuery("SELECT COUNT(*) FROM users_write_lock WHERE id = 1 AND marker = 0").use { result ->
+                        assertTrue(result.next())
+                        assertEquals(1, result.getInt(1))
+                    }
+                }
+            }
+        }
+
+        try {
+            DriverManager.getConnection(url).use { connection ->
+                connection.createStatement().use { statement ->
+                    statement.execute(
+                        "CREATE TABLE users (id INTEGER PRIMARY KEY AUTOINCREMENT, username TEXT NOT NULL UNIQUE, email TEXT, email_approved BOOLEAN NOT NULL DEFAULT FALSE, pending_email TEXT, email_change_allowed_at BIGINT)",
+                    )
+                    statement.execute(
+                        "INSERT INTO users (id, username, email, email_approved, pending_email, email_change_allowed_at) VALUES (41, 'legacy-approved', 'legacy-approved@example.com', 1, 'legacy-pending@example.com', 900)",
+                    )
+                    statement.execute(
+                        "INSERT INTO users (id, username, email, email_approved, pending_email, email_change_allowed_at) VALUES (42, 'legacy-first', 'legacy-first@example.com', 0, NULL, NULL)",
+                    )
+                    statement.execute(
+                        "INSERT INTO users (id, username, email, email_approved, pending_email, email_change_allowed_at) VALUES (43, 'legacy-empty', NULL, 0, NULL, NULL)",
+                    )
+                }
+            }
+
+            val firstDatabase = Database.connect(url = url, driver = "org.sqlite.JDBC")
+            try {
+                val repo = ExposedUsersRepo(firstDatabase, nowMillis = { 1_000L })
+                assertEquals(approvedCurrent, repo.getEmailProfileFresh(approvedId)?.email)
+                assertEquals(approvedPending, repo.getEmailProfileFresh(approvedId)?.pendingEmail)
+                assertEquals(900L, repo.getEmailProfileFresh(approvedId)?.emailChangeAllowedAt)
+                assertNull(repo.getEmailProfileFresh(approvedId)?.emailChangeRequestedAt)
+                assertEquals(firstCurrent, repo.getEmailProfileFresh(firstId)?.email)
+                assertNull(repo.getEmailProfileFresh(firstId)?.emailChangeRequestedAt)
+
+                assertEquals(
+                    listOf(checkNotNull(repo.getById(approvedId))),
+                    repo.update(listOf(approvedId to NewUser(Username("legacy-approved"), approvedCurrent))),
+                )
+                assertEquals(
+                    listOf(checkNotNull(repo.getById(approvedId))),
+                    repo.update(listOf(approvedId to NewUser(Username("legacy-approved"), approvedPending))),
+                )
+                assertEquals(
+                    listOf(checkNotNull(repo.getById(firstId))),
+                    repo.update(listOf(firstId to NewUser(Username("legacy-first"), firstCurrent))),
+                )
+                assertEquals(
+                    listOf(checkNotNull(repo.getById(emptyId))),
+                    repo.update(listOf(emptyId to NewUser(Username("legacy-empty"), null))),
+                )
+                assertRawLifecycle(firstCurrent, null)
+            } finally {
+                TransactionManager.closeAndUnregister(firstDatabase)
+            }
+
+            val reopenedDatabase = Database.connect(url = url, driver = "org.sqlite.JDBC")
+            try {
+                val reopened = ExposedUsersRepo(reopenedDatabase, nowMillis = { 1_000L })
+                assertEquals(approvedPending, reopened.getEmailProfileFresh(approvedId)?.pendingEmail)
+                assertNull(reopened.getEmailProfileFresh(approvedId)?.emailChangeRequestedAt)
+                assertEquals(firstCurrent, reopened.getEmailProfileFresh(firstId)?.email)
+                assertNull(reopened.getEmailProfileFresh(firstId)?.emailChangeRequestedAt)
+                assertRawLifecycle(firstCurrent, null)
+            } finally {
+                TransactionManager.closeAndUnregister(reopenedDatabase)
+            }
+
+            val reopenedTwiceDatabase = Database.connect(url = url, driver = "org.sqlite.JDBC")
+            try {
+                val reopenedTwice = ExposedUsersRepo(reopenedTwiceDatabase, nowMillis = { 1_000L })
+                val replaced = checkNotNull(reopenedTwice.setEmail(firstId, firstReplacement))
+                assertEquals(firstReplacement, replaced.email)
+                assertEquals(1_000L, reopenedTwice.getEmailProfileFresh(firstId)?.emailChangeRequestedAt)
+                assertRawLifecycle(firstReplacement, 1_000L)
+            } finally {
+                TransactionManager.closeAndUnregister(reopenedTwiceDatabase)
+            }
+        } finally {
+            Files.deleteIfExists(databaseFile)
+        }
+    }
+
     /** Same-address and same-name requests return the retained record without publishing a false update event. */
     @Test
     fun noOpLifecycleWritersDoNotPublishUpdateEvents() = runTest {
