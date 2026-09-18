@@ -2,9 +2,9 @@ package dev.inmo.wishlist.features.email.server.services
 
 import dev.inmo.kroles.repos.RolesRepo
 import dev.inmo.wishlist.features.email.common.models.Email
+import dev.inmo.wishlist.features.email.common.models.EmailProfile
 import dev.inmo.wishlist.features.roles.server.promoteNewUserToUser
 import dev.inmo.wishlist.features.users.common.models.NewUser
-import dev.inmo.wishlist.features.users.common.models.RegisteredUser
 import dev.inmo.wishlist.features.users.common.models.Username
 import dev.inmo.wishlist.features.users.common.models.UserId
 import dev.inmo.wishlist.features.users.common.repo.UsersRepo
@@ -71,16 +71,17 @@ class EmailVerificationAccountCoordinator(
     }
 
     /**
-     * Returns the current private record for [userId] under the shared account mutex.
+     * Returns fresh email-owned state for [userId] under the shared account mutex.
      *
-     * The caller must still compare the returned record after asynchronous delivery because SMTP is
-     * intentionally outside this lock.
+     * This deliberately uses [UsersRepo.getEmailProfileFresh] instead of a user projection so
+     * pending verification state cannot be observed through a cache or a user-owned model. SMTP
+     * remains outside this mutex, so callers that deliver asynchronously must re-read afterward.
      *
-     * @param userId Authenticated account to inspect.
-     * @return The current private user record, or `null` when no account remains.
+     * @param userId Authenticated owner whose state is inspected.
+     * @return Fresh email profile for an existing owner, or `null` when the account no longer exists.
      */
-    suspend fun getCurrentUser(userId: UserId): RegisteredUser? = mutex.withLock {
-        usersRepo.getByIdFresh(userId)
+    suspend fun getCurrentEmailProfile(userId: UserId): EmailProfile? = mutex.withLock {
+        usersRepo.getEmailProfileFresh(userId)
     }
 
     /**

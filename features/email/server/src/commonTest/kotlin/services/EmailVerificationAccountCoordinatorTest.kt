@@ -8,6 +8,7 @@ import dev.inmo.wishlist.features.deeplinks.common.models.DeepLinkId
 import dev.inmo.wishlist.features.deeplinks.common.models.HandleResult
 import dev.inmo.wishlist.features.email.common.EmailConstants
 import dev.inmo.wishlist.features.email.common.models.Email
+import dev.inmo.wishlist.features.email.common.models.EmailProfile
 import dev.inmo.wishlist.features.email.server.EmailFeature
 import dev.inmo.wishlist.features.email.server.Plugin
 import dev.inmo.wishlist.features.email.server.models.EmailVerificationPayload
@@ -113,6 +114,14 @@ class EmailVerificationAccountCoordinatorTest {
 
     /** Pending account used by every coordinator-ordering test. */
     private val user = RegisteredUser(UserId(7L), Username("alice"), invitedEmail)
+
+    /** Rejects cached-user reads so the test proves the coordinator uses only the fresh profile capability. */
+    private class FreshProfileOnlyUsersRepo(
+        private val delegate: FakeUsersRepo,
+    ) : UsersRepo by delegate {
+        override suspend fun getByIdFresh(id: UserId): RegisteredUser? =
+            error("Coordinator must not read a user projection for email state")
+    }
 
     /** Direct role subject corresponding to [user]. */
     private val subject = BaseRoleSubject.Direct(user.id.long.toString())
@@ -247,7 +256,15 @@ class EmailVerificationAccountCoordinatorTest {
         config: JsonObject,
         expectEnabled: Boolean,
     ) {
-        val usersRepo = FakeUsersRepo(mapOf(user.id to user))
+        val profile = EmailProfile(
+            userId = user.id.long,
+            email = invitedEmail,
+            emailChangeRequestedAt = 100L,
+        )
+        val usersRepo = FakeUsersRepo(
+            initialUsers = mapOf(user.id to user),
+            initialEmailProfiles = mapOf(user.id to profile),
+        )
         val rolesRepo = BlockingPromotionRolesRepo(usersRepo, user.id)
         val application = createKoinApplication(config, usersRepo, rolesRepo)
         try {
@@ -264,6 +281,8 @@ class EmailVerificationAccountCoordinatorTest {
                 expectEnabled -> assertIs<EmailFeatureService>(feature)
                 else -> assertIs<DisabledEmailFeature>(feature)
             }
+            assertEquals(profile, feature.getMyEmail(user.id))
+            assertEquals(listOf(user.id), usersRepo.emailProfileReadCalls)
             val handler = application.koin.getAll<DeepLinkHandler>()
                 .filterIsInstance<EmailVerificationDeepLinkHandler>()
                 .single()
@@ -286,6 +305,29 @@ class EmailVerificationAccountCoordinatorTest {
         assertTrue(coordinator.updateStoredEmail(user.id, null))
         assertEquals(null, usersRepo.getById(user.id)?.email)
         assertFalse(coordinator.updateStoredEmail(UserId(999L), changedEmail))
+    }
+
+    /** Fresh reads stay under the shared mutex, bypass user projections, and propagate repository failures. */
+    @Test
+    fun getCurrentEmailProfileUsesMandatoryFreshProfileReadAndPropagatesErrors() = runTest {
+        val profile = EmailProfile(
+            userId = user.id.long,
+            email = invitedEmail,
+            emailApproved = true,
+            pendingEmail = changedEmail,
+            emailChangeRequestedAt = 100L,
+            emailChangeAllowedAt = 200L,
+        )
+        val fake = FakeUsersRepo(
+            initialUsers = mapOf(user.id to user),
+            initialEmailProfiles = mapOf(user.id to profile),
+        )
+        val coordinator = EmailVerificationAccountCoordinator(FreshProfileOnlyUsersRepo(fake), FakeRolesRepo())
+
+        assertEquals(profile, coordinator.getCurrentEmailProfile(user.id))
+        fake.emailProfileReadFailure = IllegalStateException("fresh profile failed")
+        assertFailsWith<IllegalStateException> { coordinator.getCurrentEmailProfile(user.id) }
+        assertEquals(listOf(user.id, user.id), fake.emailProfileReadCalls)
     }
 
     /** Duplicate propagation releases the mutex for a subsequent successful operation. */

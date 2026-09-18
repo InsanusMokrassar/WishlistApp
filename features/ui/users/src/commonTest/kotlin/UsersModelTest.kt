@@ -20,6 +20,7 @@ import dev.inmo.wishlist.features.auth.common.models.RefreshToken
 import dev.inmo.wishlist.features.auth.common.models.RegistrationResult
 import dev.inmo.wishlist.features.email.client.EmailFeature
 import dev.inmo.wishlist.features.email.common.models.Email
+import dev.inmo.wishlist.features.email.common.models.EmailProfile
 import dev.inmo.wishlist.features.email.common.models.EmailVerificationRequestResult
 import dev.inmo.wishlist.features.files.client.FilesClientService
 import dev.inmo.wishlist.features.files.client.FilesFeature
@@ -224,6 +225,7 @@ class UsersModelTest {
             enabledCalls += 1
             return true
         }
+        override suspend fun getMyEmail(): EmailProfile? = error("unused")
         override suspend fun sendTestEmail(recipient: Email): Boolean = error("unused")
         override suspend fun setMyEmail(email: Email?): Boolean {
             setCalls += email

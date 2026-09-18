@@ -7,6 +7,7 @@ import dev.inmo.wishlist.features.deeplinks.common.repo.DeepLinksRepo
 import dev.inmo.wishlist.features.deeplinks.server.services.DeepLinksService
 import dev.inmo.wishlist.features.email.common.EmailConstants
 import dev.inmo.wishlist.features.email.common.models.Email
+import dev.inmo.wishlist.features.email.common.models.EmailProfile
 import dev.inmo.wishlist.features.email.common.models.EmailVerificationRequestResult
 import dev.inmo.wishlist.features.email.server.EmailsService
 import dev.inmo.wishlist.features.email.server.models.EmailAttachment
@@ -158,6 +159,31 @@ class EmailFeatureServiceTest {
     fun isFeatureEnabledAlwaysReturnsTrue() = runTest {
         val service = createService()
         assertTrue(service.isFeatureEnabled())
+    }
+
+    /** Enabled SMTP wiring reads independent fresh email state without invoking SMTP. */
+    @Test
+    fun getMyEmailReturnsFreshEmailOwnedProfileOrNullWithoutSmtp() = runTest {
+        val profile = EmailProfile(
+            userId = plainUser.id.long,
+            email = Email("approved@example.com"),
+            emailApproved = true,
+            pendingEmail = Email("pending@example.com"),
+            emailChangeRequestedAt = 100L,
+            emailChangeAllowedAt = 200L,
+        )
+        val emails = FakeEmailsService()
+        val repo = FakeUsersRepo(
+            initialUsers = mapOf(plainUser.id to plainUser),
+            initialEmailProfiles = mapOf(plainUser.id to profile),
+        )
+        val service = createService(emailsService = emails, usersRepo = repo)
+
+        assertEquals(profile, service.getMyEmail(plainUser.id))
+        assertEquals(null, service.getMyEmail(UserId(999L)))
+        assertTrue(emails.sendTextCalls.isEmpty())
+        assertTrue(emails.sendHtmlCalls.isEmpty())
+        assertEquals(listOf(plainUser.id, UserId(999L)), repo.emailProfileReadCalls)
     }
 
     /** Superadmin caller + present `emailsService` → exactly one `sendText` call with the fixed subject/text; result is `sendText`'s own `true`. */
@@ -337,6 +363,34 @@ class EmailFeatureServiceTest {
             EmailVerificationRequestResult.DeliveryFailed,
             unavailableService.requestMyEmailVerification(pending.id, email),
         )
+    }
+
+    /** A pending replacement from the email profile outranks the retained approved legacy current address. */
+    @Test
+    fun requestVerificationUsesExactPendingRecipientFromEmailProfile() = runTest {
+        val approved = Email("approved@example.com")
+        val replacement = Email("replacement@example.com")
+        val user = RegisteredUser(UserId(16L), Username("profile-owner"), approved, emailApproved = true)
+        val profile = EmailProfile(
+            userId = user.id.long,
+            email = approved,
+            emailApproved = true,
+            pendingEmail = replacement,
+            emailChangeRequestedAt = 100L,
+        )
+        val emails = FakeEmailsService(result = true)
+        val repo = FakeUsersRepo(
+            initialUsers = mapOf(user.id to user),
+            initialEmailProfiles = mapOf(user.id to profile),
+        )
+        val service = createService(
+            emailsService = emails,
+            usersRepo = repo,
+            inviteSender = createInviteSender(emails),
+        )
+
+        assertEquals(EmailVerificationRequestResult.Sent, service.requestMyEmailVerification(user.id, replacement))
+        assertEquals(listOf(replacement), emails.sendHtmlCalls.map { it.recipient })
     }
 
     @Test

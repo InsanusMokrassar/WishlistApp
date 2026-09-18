@@ -2,13 +2,14 @@ package dev.inmo.wishlist.features.email.server.services
 
 import dev.inmo.wishlist.features.email.common.EmailConstants
 import dev.inmo.wishlist.features.email.common.models.Email
+import dev.inmo.wishlist.features.email.common.models.EmailProfile
 import dev.inmo.wishlist.features.email.common.models.EmailVerificationRequestResult
+import dev.inmo.wishlist.features.email.common.utils.verificationCandidate
 import dev.inmo.wishlist.features.email.server.EmailFeature
 import dev.inmo.wishlist.features.email.server.EmailsService
 import dev.inmo.wishlist.features.auth.server.RegistrationEmailDeliveryHandle
 import dev.inmo.wishlist.features.roles.server.RolesFeature
 import dev.inmo.wishlist.features.users.common.models.UserId
-import dev.inmo.wishlist.features.users.common.utils.verificationCandidate
 import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.withContext
 
@@ -47,6 +48,15 @@ class EmailFeatureService(
      *   [DisabledEmailFeature] for the SMTP-disabled no-op path.
      */
     override suspend fun isFeatureEnabled(): Boolean = true
+
+    /**
+     * Reads the caller's email-owned state through the shared coordinator.
+     *
+     * @param callerId Authenticated owner whose state is read.
+     * @return Fresh email profile, or `null` when the owner no longer exists.
+     */
+    override suspend fun getMyEmail(callerId: UserId): EmailProfile? =
+        accountCoordinator.getCurrentEmailProfile(callerId)
 
     /**
      * Sends a test email to [recipient] if [callerId] may access the `email.sendTest` functionality.
@@ -101,7 +111,7 @@ class EmailFeatureService(
         callerId: UserId,
         expectedEmail: Email,
     ): EmailVerificationRequestResult {
-        val initial = accountCoordinator.getCurrentUser(callerId)
+        val initial = accountCoordinator.getCurrentEmailProfile(callerId)
             ?: return EmailVerificationRequestResult.NoEmail
         val currentEmail = initial.verificationCandidate()
         if (currentEmail == null) {
@@ -118,9 +128,9 @@ class EmailFeatureService(
         if (currentEmail != expectedEmail) return EmailVerificationRequestResult.EmailChanged
 
         val sender = inviteSender ?: return EmailVerificationRequestResult.Unavailable
-        val delivery = sender.sendRegistrationEmailWithCompensation(initial)
+        val delivery = sender.sendVerificationEmailWithCompensation(callerId, currentEmail)
             ?: return EmailVerificationRequestResult.DeliveryFailed
-        val current = accountCoordinator.getCurrentUser(callerId)
+        val current = accountCoordinator.getCurrentEmailProfile(callerId)
         return when {
             current == null -> {
                 rollbackDelivery(delivery)

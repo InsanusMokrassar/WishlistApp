@@ -1,6 +1,7 @@
 package dev.inmo.wishlist.features.email.client
 
 import dev.inmo.wishlist.features.email.common.models.Email
+import dev.inmo.wishlist.features.email.common.models.EmailProfile
 import dev.inmo.wishlist.features.email.common.models.EmailVerificationRequestResult
 
 /**
@@ -23,6 +24,17 @@ interface EmailFeature {
      * @return `true` when an SMTP host is configured server-side; `false` otherwise.
      */
     suspend fun isFeatureEnabled(): Boolean
+
+    /**
+     * Reads the authenticated caller's own email-feature state.
+     *
+     * An existing account with no address returns an empty profile. `null` means only that the
+     * server returned `404 Not Found` after authenticating the caller; transport, authorization,
+     * decoding, and malformed-response failures propagate to the caller.
+     *
+     * @return Fresh email profile for the caller, or `null` only for a missing account.
+     */
+    suspend fun getMyEmail(): EmailProfile?
 
     /**
      * Sends a test email to [recipient] using the server's configured SMTP settings.

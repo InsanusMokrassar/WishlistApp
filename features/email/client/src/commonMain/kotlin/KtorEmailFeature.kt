@@ -3,6 +3,7 @@ package dev.inmo.wishlist.features.email.client
 import dev.inmo.wishlist.features.email.common.EmailConstants
 import dev.inmo.wishlist.features.email.client.EmailFeature
 import dev.inmo.wishlist.features.email.common.models.Email
+import dev.inmo.wishlist.features.email.common.models.EmailProfile
 import dev.inmo.wishlist.features.email.common.models.SetEmailRequest
 import dev.inmo.wishlist.features.email.common.models.TestEmailRequest
 import dev.inmo.wishlist.features.email.common.models.EmailVerificationRequest
@@ -11,6 +12,7 @@ import dev.inmo.wishlist.features.email.common.models.EmailChangeCooldown
 import dev.inmo.wishlist.features.email.common.models.EmailChangeCooldownException
 import io.ktor.client.HttpClient
 import io.ktor.client.call.body
+import io.ktor.client.plugins.ClientRequestException
 import io.ktor.client.plugins.expectSuccess
 import io.ktor.client.request.get
 import io.ktor.client.request.post
@@ -58,6 +60,27 @@ class KtorEmailFeature(private val client: HttpClient) : EmailFeature {
         return client.get(enabledPath) {
             expectSuccess = true
         }.body()
+    }
+
+    /**
+     * Fetches the authenticated owner's email profile from `GET /email/myEmail`.
+     *
+     * Only an explicit `404 Not Found` becomes `null`. Every other failed status is enforced by
+     * Ktor's per-request `expectSuccess`, and a malformed successful body remains a decoding
+     * failure rather than being mistaken for an absent profile.
+     *
+     * @return Fresh email profile, or `null` only when the account is missing.
+     */
+    override suspend fun getMyEmail(): EmailProfile? = try {
+        client.get(myEmailPath) {
+            expectSuccess = true
+        }.body<EmailProfile>()
+    } catch (error: ClientRequestException) {
+        if (error.response.status == HttpStatusCode.NotFound) {
+            null
+        } else {
+            throw error
+        }
     }
 
     /**

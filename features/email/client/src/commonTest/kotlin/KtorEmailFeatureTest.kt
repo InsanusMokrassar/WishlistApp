@@ -1,6 +1,7 @@
 package dev.inmo.wishlist.features.email.client
 
 import dev.inmo.wishlist.features.email.common.models.Email
+import dev.inmo.wishlist.features.email.common.models.EmailProfile
 import dev.inmo.wishlist.features.email.common.models.EmailVerificationRequestResult
 import dev.inmo.wishlist.features.email.common.models.EmailChangeCooldownException
 import io.ktor.client.HttpClient
@@ -16,6 +17,7 @@ import io.ktor.http.content.OutgoingContent
 import io.ktor.http.headersOf
 import io.ktor.serialization.kotlinx.json.json
 import kotlinx.coroutines.test.runTest
+import kotlinx.coroutines.CancellationException
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonPrimitive
 import kotlinx.serialization.json.jsonObject
@@ -27,6 +29,92 @@ import kotlin.test.assertFailsWith
 
 /** Exercises status handling and caller-scoped payloads through the production email client. */
 class KtorEmailFeatureTest {
+    @Test
+    fun getMyEmailGetsExistingPopulatedAndEmptyProfiles() = runTest {
+        listOf(
+            EmailProfile(
+                userId = 7L,
+                email = Email("approved@example.com"),
+                emailApproved = true,
+                pendingEmail = Email("pending@example.com"),
+                emailChangeRequestedAt = 101L,
+                emailChangeAllowedAt = 202L,
+            ),
+            EmailProfile(userId = 8L),
+        ).forEach { expected ->
+            val client = jsonClient { request ->
+                assertEquals(HttpMethod.Get, request.method)
+                assertEquals("/email/myEmail", request.url.encodedPath)
+                assertTrue(request.url.parameters.isEmpty())
+                respondJson(Json.encodeToString(EmailProfile.serializer(), expected))
+            }
+            try {
+                assertEquals(expected, KtorEmailFeature(client).getMyEmail())
+            } finally {
+                client.close()
+            }
+        }
+    }
+
+    @Test
+    fun getMyEmailMapsOnlyNotFoundToNull() = runTest {
+        val missingClient = jsonClient { respondJson("{}", HttpStatusCode.NotFound) }
+        try {
+            assertEquals(null, KtorEmailFeature(missingClient).getMyEmail())
+        } finally {
+            missingClient.close()
+        }
+
+        listOf(
+            HttpStatusCode.Unauthorized,
+            HttpStatusCode.Forbidden,
+            HttpStatusCode.InternalServerError,
+        ).forEach { status ->
+            val failureClient = jsonClient {
+                respondJson("""{"userId":7,"email":"owner@example.com"}""", status)
+            }
+            try {
+                assertThrows { KtorEmailFeature(failureClient).getMyEmail() }
+            } finally {
+                failureClient.close()
+            }
+        }
+    }
+
+    @Test
+    fun getMyEmailRejectsMalformedSuccessfulModelsAndTransportFailures() = runTest {
+        listOf(
+            "{}",
+            "null",
+            """{"userId":7,"email":"not-an-email"}""",
+            "not-json",
+        ).forEach { body ->
+            val malformedClient = jsonClient { respondJson(body) }
+            try {
+                assertThrows { KtorEmailFeature(malformedClient).getMyEmail() }
+            } finally {
+                malformedClient.close()
+            }
+        }
+
+        val networkClient = jsonClient { throw IllegalStateException("network unavailable") }
+        try {
+            assertThrows { KtorEmailFeature(networkClient).getMyEmail() }
+        } finally {
+            networkClient.close()
+        }
+    }
+
+    @Test
+    fun getMyEmailPropagatesCancellation() = runTest {
+        val client = jsonClient { throw CancellationException("cancelled") }
+        try {
+            assertFailsWith<CancellationException> { KtorEmailFeature(client).getMyEmail() }
+        } finally {
+            client.close()
+        }
+    }
+
     @Test
     fun enabledDecodesSuccessfulTrueAndFalseBodies() = runTest {
         listOf(true, false).forEach { expected ->
