@@ -1,6 +1,7 @@
 package dev.inmo.wishlist.features.users.common.models
 
 import dev.inmo.wishlist.features.email.common.models.Email
+import kotlinx.serialization.decodeFromString
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.encodeToJsonElement
 import kotlinx.serialization.json.jsonObject
@@ -23,21 +24,23 @@ class UsersFeatureUserTest {
         assertEquals(setOf("id", "username"), json.keys)
     }
 
-    /** A populated private lifecycle projects to exactly the public id/username wire shape. */
+    /** Reduced persistence and public serializers expose only their intentional fields. */
     @Test
-    fun mapperDropsCompletePrivateLifecycle() {
+    fun serializersExposeExactCurrentIdentityAndPublicKeys() {
         val registered = RegisteredUser(
             UserId(7L),
             Username("bob"),
             Email("approved@example.com"),
             emailApproved = true,
-            pendingEmail = Email("pending@example.com"),
-            emailChangeAllowedAt = 1_798_761_600_000L,
         )
 
         val projected = registered.asUsersFeatureUser()
 
         assertEquals(UsersFeatureUser(UserId(7L), Username("bob")), projected)
+        assertEquals(
+            setOf("id", "username", "email", "emailApproved"),
+            RegisteredUser.serializer().descriptor.run { (0 until elementsCount).map(::getElementName).toSet() },
+        )
         assertEquals(
             setOf("id", "username"),
             Json.encodeToJsonElement(UsersFeatureUser.serializer(), projected).jsonObject.keys,
@@ -54,23 +57,19 @@ class UsersFeatureUserTest {
         assertEquals(UsersFeatureUser(UserId(8L), Username("carol")), projected)
     }
 
-    /** Reverse conversion needs all four private lifecycle values to preserve a populated source row. */
+    /** Reverse conversion needs explicit current email and approval values. */
     @Test
-    fun reverseMapperRequiresAllPrivateLifecycleArguments() {
+    fun reverseMapperRequiresCurrentEmailAndApprovalArguments() {
         val original = RegisteredUser(
             UserId(7L),
             Username("bob"),
             Email("approved@example.com"),
             emailApproved = true,
-            pendingEmail = Email("pending@example.com"),
-            emailChangeAllowedAt = 1_798_761_600_000L,
         )
 
         val restored = original.asUsersFeatureUser().asRegisteredUser(
             email = original.email,
             emailApproved = original.emailApproved,
-            pendingEmail = original.pendingEmail,
-            emailChangeAllowedAt = original.emailChangeAllowedAt,
         )
 
         assertEquals(original, restored)
@@ -84,10 +83,22 @@ class UsersFeatureUserTest {
         val restored = original.asUsersFeatureUser().asRegisteredUser(
             email = null,
             emailApproved = false,
-            pendingEmail = null,
-            emailChangeAllowedAt = null,
         )
 
         assertEquals(original, restored)
+    }
+
+    /** Old lifecycle keys decode compatibly but reduced user JSON never re-emits them. */
+    @Test
+    fun oldLifecycleKeysDecodeWithoutReemission() {
+        val json = Json { ignoreUnknownKeys = true; encodeDefaults = true }
+
+        val decoded = json.decodeFromString<RegisteredUser>(
+            """{"id":7,"username":"bob","email":"approved@example.com","emailApproved":true,"pendingEmail":"pending@example.com","emailChangeRequestedAt":1,"emailChangeAllowedAt":2}""",
+        )
+        val encoded = json.encodeToJsonElement(RegisteredUser.serializer(), decoded).jsonObject
+
+        assertEquals(RegisteredUser(UserId(7L), Username("bob"), Email("approved@example.com"), true), decoded)
+        assertEquals(setOf("id", "username", "email", "emailApproved"), encoded.keys)
     }
 }

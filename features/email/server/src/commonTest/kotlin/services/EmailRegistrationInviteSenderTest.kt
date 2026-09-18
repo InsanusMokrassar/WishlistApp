@@ -152,7 +152,6 @@ class EmailRegistrationInviteSenderTest {
             username = user.username,
             email = Email("approved@example.com"),
             emailApproved = true,
-            pendingEmail = Email("replacement@example.com"),
         )
         val noEmail = user.copy(email = null)
 

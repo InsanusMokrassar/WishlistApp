@@ -66,8 +66,8 @@ class AuthFeatureServiceSqliteTest {
 
             assertEquals(initial, cache.getById(initial.id))
             val approved = checkNotNull(secondRepo.approveEmail(initial.id, current, cooldownMillis = 5L))
-            assertEquals(1_005L, approved.emailChangeAllowedAt)
-            now = checkNotNull(approved.emailChangeAllowedAt)
+            assertEquals(1_005L, secondRepo.getEmailProfileFresh(approved.id)?.emailChangeAllowedAt)
+            now = checkNotNull(secondRepo.getEmailProfileFresh(approved.id)?.emailChangeAllowedAt)
             val replacement = checkNotNull(secondRepo.setEmail(initial.id, pending))
 
             assertEquals(initial, cache.getById(initial.id))
@@ -77,12 +77,21 @@ class AuthFeatureServiceSqliteTest {
                     username = initial.username,
                     email = current,
                     emailApproved = true,
-                    pendingEmail = pending,
-                    emailChangeAllowedAt = approved.emailChangeAllowedAt,
                 ),
                 service.getUser(credentials.token),
             )
             assertEquals(replacement, cache.getByIdFresh(initial.id))
+            assertEquals(
+                dev.inmo.wishlist.features.email.common.models.EmailProfile(
+                    userId = initial.id.long,
+                    email = current,
+                    emailApproved = true,
+                    pendingEmail = pending,
+                    emailChangeRequestedAt = 1_005L,
+                    emailChangeAllowedAt = 1_005L,
+                ),
+                cache.getEmailProfileFresh(initial.id),
+            )
         } finally {
             cacheScope.cancel()
             try {

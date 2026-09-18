@@ -23,33 +23,50 @@ internal class FakeUsersRepo(
 ) : UsersRepo, MapCRUDRepo<RegisteredUser, UserId, NewUser>(initialUsers.toMutableMap()) {
     private var nextId: Long = (initialUsers.keys.maxOfOrNull { it.long } ?: 0L) + 1L
 
-    override suspend fun updateObject(newValue: NewUser, id: UserId, old: RegisteredUser): RegisteredUser =
-        old.copy(
+    /** Email verification state independent from the reduced user fixture. */
+    private val emailProfiles = initialUsers.mapValues { (_, user) -> user.asEmailProfile() }.toMutableMap()
+
+    override suspend fun updateObject(newValue: NewUser, id: UserId, old: RegisteredUser): RegisteredUser {
+        val currentProfile = emailProfiles[id] ?: old.asEmailProfile()
+        val profile = when {
+            newValue.email == currentProfile.email || newValue.email == currentProfile.pendingEmail -> currentProfile
+            newValue.email == null -> EmailProfile(userId = id.long)
+            currentProfile.emailApproved && currentProfile.email != null -> currentProfile.copy(pendingEmail = newValue.email)
+            else -> EmailProfile(userId = id.long, email = newValue.email)
+        }
+        emailProfiles[id] = profile
+        return old.copy(
             username = newValue.username,
-            email = newValue.email,
-            emailApproved = newValue.email != null && old.email == newValue.email && old.emailApproved,
+            email = profile.email,
+            emailApproved = profile.emailApproved,
         )
+    }
 
     override suspend fun createObject(newValue: NewUser): Pair<UserId, RegisteredUser> {
         val id = UserId(nextId++)
-        return id to RegisteredUser(id, newValue.username, newValue.email)
+        val user = RegisteredUser(id, newValue.username, newValue.email)
+        emailProfiles[id] = user.asEmailProfile()
+        return id to user
     }
 
     override suspend fun getUserByUsername(username: Username): RegisteredUser? =
         getAll().values.firstOrNull { it.username == username }
 
-    /** Rejects email lifecycle reads outside this roles-focused fixture's supported surface. */
+    /** Returns independent email-owned lifecycle state. */
     override suspend fun getEmailProfileFresh(id: UserId): EmailProfile? =
-        error("Email profile reads are not exercised by this roles fake")
+        map[id]?.let { emailProfiles[id] ?: it.asEmailProfile() }
 
     override suspend fun setEmail(id: UserId, email: Email?): RegisteredUser? = locker.withWriteLock {
         val current = map[id] ?: return@withWriteLock null
-        when {
-            email == current.email || email == current.pendingEmail -> current
-            email == null -> current.copy(email = null, emailApproved = false, pendingEmail = null, emailChangeAllowedAt = null)
-            current.emailApproved && current.email != null -> current.copy(pendingEmail = email)
-            else -> current.copy(email = email, emailApproved = false, pendingEmail = null)
-        }.also { map[id] = it }
+        val profile = emailProfiles[id] ?: current.asEmailProfile()
+        val updatedProfile = when {
+            email == profile.email || email == profile.pendingEmail -> profile
+            email == null -> EmailProfile(userId = id.long)
+            profile.emailApproved && profile.email != null -> profile.copy(pendingEmail = email)
+            else -> EmailProfile(userId = id.long, email = email)
+        }
+        emailProfiles[id] = updatedProfile
+        current.withEmailProfile(updatedProfile).also { map[id] = it }
     }?.also { _updatedObjectsFlow.emit(it) }
 
     override suspend fun updateUsername(id: UserId, username: Username): RegisteredUser? = locker.withWriteLock {
@@ -59,19 +76,35 @@ internal class FakeUsersRepo(
     override suspend fun approveEmail(id: UserId, expectedEmail: Email, cooldownMillis: Long): RegisteredUser? =
         locker.withWriteLock {
             val current = map[id] ?: return@withWriteLock null
-            when {
-                current.pendingEmail == expectedEmail -> current.copy(
+            val profile = emailProfiles[id] ?: current.asEmailProfile()
+            val approvedProfile = when {
+                profile.pendingEmail == expectedEmail -> profile.copy(
                     email = expectedEmail,
                     emailApproved = true,
                     pendingEmail = null,
                     emailChangeAllowedAt = cooldownMillis.takeIf { it > 0L },
                 )
-                current.email == expectedEmail && !current.emailApproved && current.pendingEmail == null -> current.copy(
+                profile.email == expectedEmail && !profile.emailApproved && profile.pendingEmail == null -> profile.copy(
                     emailApproved = true,
                     emailChangeAllowedAt = cooldownMillis.takeIf { it > 0L },
                 )
-                current.email == expectedEmail && current.emailApproved && current.pendingEmail == null -> current
+                profile.email == expectedEmail && profile.emailApproved && profile.pendingEmail == null -> profile
                 else -> return@withWriteLock null
-            }.also { map[id] = it }
+            }
+            emailProfiles[id] = approvedProfile
+            current.withEmailProfile(approvedProfile).also { map[id] = it }
         }?.also { _updatedObjectsFlow.emit(it) }
+
+    /** Maps reduced fixture identity to email-owned state. */
+    private fun RegisteredUser.asEmailProfile(): EmailProfile = EmailProfile(
+        userId = id.long,
+        email = email,
+        emailApproved = emailApproved,
+    )
+
+    /** Synchronizes only current email identity from an email-owned profile. */
+    private fun RegisteredUser.withEmailProfile(profile: EmailProfile): RegisteredUser = copy(
+        email = profile.email,
+        emailApproved = profile.emailApproved,
+    )
 }

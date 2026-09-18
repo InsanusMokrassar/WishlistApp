@@ -29,7 +29,8 @@ import kotlin.test.assertTrue
  * @param initialUsers Users the repo is pre-seeded with, keyed by their [UserId].
  */
 internal class FakeUsersRepo(
-    initialUsers: Map<UserId, RegisteredUser> = emptyMap()
+    initialUsers: Map<UserId, RegisteredUser> = emptyMap(),
+    private val emailProfiles: Map<UserId, EmailProfile> = emptyMap(),
 ) : ReadUsersRepo, ReadCRUDRepo<RegisteredUser, UserId> by ReadMapCRUDRepo(initialUsers) {
 
     /**
@@ -41,24 +42,32 @@ internal class FakeUsersRepo(
     override suspend fun getUserByUsername(username: Username): RegisteredUser? =
         getAll().values.firstOrNull { it.username == username }
 
-    /** Rejects email lifecycle reads outside the public-users read fixture's supported surface. */
+    /** Returns independently seeded email-owned lifecycle state. */
     override suspend fun getEmailProfileFresh(id: UserId): EmailProfile? =
-        error("Email profile reads are not exercised by this public-users fake")
+        emailProfiles[id]
 }
 
 /**
  * Verifies [UsersService.getAll] projects every stored [RegisteredUser] onto [UsersFeatureUser],
- * dropping [RegisteredUser.email] — the regression test for the issue #67 public-listing leak.
+ * dropping private email data — the regression test for the issue #67 public-listing leak.
  */
 class UsersServiceTest {
 
-    /** Fixture user carrying complete private lifecycle state, to prove public responses omit every private value. */
+    /** Fixture user carrying current private identity state. */
     private val userWithEmail = RegisteredUser(
         UserId(7L),
         Username("bob"),
         Email("approved@example.com"),
         emailApproved = true,
+    )
+
+    /** Independently persisted lifecycle state that must never affect a public response. */
+    private val pendingEmailProfile = EmailProfile(
+        userId = userWithEmail.id.long,
+        email = userWithEmail.email,
+        emailApproved = true,
         pendingEmail = Email("pending@example.com"),
+        emailChangeRequestedAt = 1_798_761_500_000L,
         emailChangeAllowedAt = 1_798_761_600_000L,
     )
 
@@ -74,10 +83,14 @@ class UsersServiceTest {
         assertEquals(listOf(UsersFeatureUser(userWithEmail.id, userWithEmail.username)), result)
     }
 
-    /** Actual list and element JSON contain only public keys even when storage has complete lifecycle state. */
+    /** Public JSON omits populated lifecycle state persisted separately in [EmailProfile]. */
     @Test
     fun listAndSinglePublicResponsesOmitPopulatedPrivateMetadata() = runTest {
-        val result = UsersService(FakeUsersRepo(mapOf(userWithEmail.id to userWithEmail))).getAll()
+        val repo = FakeUsersRepo(
+            initialUsers = mapOf(userWithEmail.id to userWithEmail),
+            emailProfiles = mapOf(userWithEmail.id to pendingEmailProfile),
+        )
+        val result = UsersService(repo).getAll()
 
         val listElement = Json.encodeToJsonElement(ListSerializer(UsersFeatureUser.serializer()), result)
             .jsonArray
@@ -87,6 +100,7 @@ class UsersServiceTest {
 
         assertEquals(setOf("id", "username"), listElement.keys)
         assertEquals(setOf("id", "username"), single.keys)
+        assertEquals(pendingEmailProfile, repo.getEmailProfileFresh(userWithEmail.id))
     }
 
     /** An empty repo maps to an empty list. */

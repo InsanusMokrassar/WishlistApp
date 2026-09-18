@@ -128,8 +128,6 @@ class ExposedUsersRepo internal constructor(
                 username = Username(get(usernameColumn)),
                 email = email,
                 emailApproved = email != null && get(emailApprovedColumn),
-                pendingEmail = get(pendingEmailColumn)?.let { Email.parse(it).getOrNull() },
-                emailChangeAllowedAt = get(emailChangeAllowedAtColumn),
             )
         }
 
@@ -325,8 +323,9 @@ class ExposedUsersRepo internal constructor(
     override suspend fun approveEmail(id: UserId, expectedEmail: Email, cooldownMillis: Long): RegisteredUser? {
         val approval = transaction(db = database) {
             acquireWriteLock()
-            val current = selectUser(id)
+            val currentRow = selectAll().where { idColumn eq id.long }.limit(1).firstOrNull()
                 ?: return@transaction null
+            val current = currentRow.asEmailProfile
             when {
                 current.pendingEmail == expectedEmail -> {
                     val deadline = if (cooldownMillis == 0L) null else Math.addExact(nowMillis(), cooldownMillis)
@@ -348,7 +347,8 @@ class ExposedUsersRepo internal constructor(
                     }
                     selectUser(id)?.let { true to it }
                 }
-                current.email == expectedEmail && current.emailApproved && current.pendingEmail == null -> false to current
+                current.email == expectedEmail && current.emailApproved && current.pendingEmail == null ->
+                    false to currentRow.asObject
                 else -> null
             }
         }

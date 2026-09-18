@@ -241,7 +241,7 @@ class EmailVerificationAccountCoordinatorTest {
         assertEquals(invitedEmail, rolesRepo.emailAtUserRoleGrant)
         assertTrue(update.await())
         assertEquals(invitedEmail, usersRepo.getById(user.id)?.email)
-        assertEquals(changedEmail, usersRepo.getById(user.id)?.pendingEmail)
+        assertEquals(changedEmail, usersRepo.getEmailProfileFresh(user.id)?.pendingEmail)
         assertTrue(checkNotNull(usersRepo.getById(user.id)).emailApproved)
         assertEquals(setOf(UserRole), rolesRepo.getDirectRoles(subject).toSet())
     }
@@ -436,7 +436,7 @@ class EmailVerificationAccountCoordinatorTest {
                     val feature = application.koin.get<EmailFeature>()
                     assertTrue(coordinator.verifyInvitedEmailAndPromote(created.id, addressA))
                     val approved = checkNotNull(usersRepo.getById(created.id))
-                    assertEquals(1_010L, approved.emailChangeAllowedAt)
+                    assertEquals(1_010L, usersRepo.getEmailProfileFresh(created.id)?.emailChangeAllowedAt)
 
                     assertFailsWith<EmailChangeCooldownException> { feature.setMyEmail(created.id, addressB) }
                     assertFailsWith<EmailChangeCooldownException> { feature.setMyEmail(created.id, null) }
@@ -449,9 +449,10 @@ class EmailVerificationAccountCoordinatorTest {
                     now = 1_010L
                     assertTrue(feature.setMyEmail(created.id, addressB))
                     assertEquals(
-                        approved.copy(username = Username("plugin-renamed-$smtpEnabled"), pendingEmail = addressB),
+                        approved.copy(username = Username("plugin-renamed-$smtpEnabled")),
                         usersRepo.getById(created.id),
                     )
+                    assertEquals(addressB, usersRepo.getEmailProfileFresh(created.id)?.pendingEmail)
                 } finally {
                     application.close()
                 }

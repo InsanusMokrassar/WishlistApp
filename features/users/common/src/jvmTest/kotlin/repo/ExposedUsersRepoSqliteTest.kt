@@ -156,13 +156,13 @@ class ExposedUsersRepoSqliteTest {
             val changed = checkNotNull(repo.update(created.id, NewUser(renamed.username, changedEmail)))
             assertEquals(originalEmail, changed.email)
             assertTrue(changed.emailApproved)
-            assertEquals(changedEmail, changed.pendingEmail)
+            assertEquals(changedEmail, repo.getEmailProfileFresh(created.id)?.pendingEmail)
             assertNull(repo.approveEmail(created.id, originalEmail))
 
             val cleared = checkNotNull(repo.update(created.id, NewUser(changed.username, null)))
             assertEquals(null, cleared.email)
-            assertNull(cleared.pendingEmail)
             assertFalse(cleared.emailApproved)
+            assertEquals(EmailProfile(userId = created.id.long), repo.getEmailProfileFresh(created.id))
         }
     }
 
@@ -329,9 +329,9 @@ class ExposedUsersRepoSqliteTest {
                 val repo = ExposedUsersRepo(firstDatabase, nowMillis = { now })
                 val created = repo.create(NewUser(Username("durable"), email)).single()
                 val approved = checkNotNull(repo.approveEmail(created.id, email, cooldownMillis = 500))
-                now = checkNotNull(approved.emailChangeAllowedAt)
+                now = checkNotNull(repo.getEmailProfileFresh(approved.id)?.emailChangeAllowedAt)
                 val pending = checkNotNull(repo.setEmail(created.id, Email("durable-pending@example.com")))
-                assertEquals(Email("durable-pending@example.com"), pending.pendingEmail)
+                assertEquals(Email("durable-pending@example.com"), repo.getEmailProfileFresh(pending.id)?.pendingEmail)
                 created.id
             } finally {
                 TransactionManager.closeAndUnregister(firstDatabase)
@@ -340,11 +340,12 @@ class ExposedUsersRepoSqliteTest {
             val reopenedDatabase = Database.connect(url = url, driver = "org.sqlite.JDBC")
             try {
                 val reopened = checkNotNull(ExposedUsersRepo(reopenedDatabase).getById(userId))
+                val profile = checkNotNull(ExposedUsersRepo(reopenedDatabase).getEmailProfileFresh(userId))
                 assertEquals(email, reopened.email)
                 assertTrue(reopened.emailApproved)
-                assertEquals(Email("durable-pending@example.com"), reopened.pendingEmail)
-                assertEquals(1_500L, reopened.emailChangeAllowedAt)
-                assertEquals(1_500L, ExposedUsersRepo(reopenedDatabase).getEmailProfileFresh(userId)?.emailChangeRequestedAt)
+                assertEquals(Email("durable-pending@example.com"), profile.pendingEmail)
+                assertEquals(1_500L, profile.emailChangeAllowedAt)
+                assertEquals(1_500L, profile.emailChangeRequestedAt)
             } finally {
                 TransactionManager.closeAndUnregister(reopenedDatabase)
             }
@@ -367,8 +368,8 @@ class ExposedUsersRepoSqliteTest {
 
             val changedAddress = repo.update(listOf(created.id to NewUser(sameAddress.username, replacement))).single()
             assertEquals(original, changedAddress.email)
-            assertEquals(replacement, changedAddress.pendingEmail)
             assertTrue(changedAddress.emailApproved)
+            assertEquals(replacement, repo.getEmailProfileFresh(created.id)?.pendingEmail)
 
             val cleared = repo.update(listOf(created.id to NewUser(changedAddress.username, null))).single()
             assertNull(cleared.email)
@@ -437,7 +438,7 @@ class ExposedUsersRepoSqliteTest {
             val user = repo.create(NewUser(Username("cooldown"), initial)).single()
             repo.create(NewUser(Username("occupied"), occupied))
             val approved = checkNotNull(repo.approveEmail(user.id, initial, cooldownMillis = 500))
-            assertEquals(1_500L, approved.emailChangeAllowedAt)
+            assertEquals(1_500L, repo.getEmailProfileFresh(approved.id)?.emailChangeAllowedAt)
 
             val blocked = assertFailsWith<EmailChangeCooldownException> {
                 repo.setEmail(user.id, occupied)
@@ -447,9 +448,9 @@ class ExposedUsersRepoSqliteTest {
 
             now = 1_500L
             val pending = checkNotNull(repo.setEmail(user.id, replacement))
-            assertEquals(replacement, pending.pendingEmail)
+            assertEquals(replacement, repo.getEmailProfileFresh(pending.id)?.pendingEmail)
             val promoted = checkNotNull(repo.approveEmail(user.id, replacement, cooldownMillis = 500))
-            assertEquals(2_000L, promoted.emailChangeAllowedAt)
+            assertEquals(2_000L, repo.getEmailProfileFresh(promoted.id)?.emailChangeAllowedAt)
 
             now = 9_000L
             assertEquals(promoted, repo.approveEmail(user.id, replacement, cooldownMillis = 999))
@@ -547,7 +548,7 @@ class ExposedUsersRepoSqliteTest {
                 repo.create(NewUser(Username("pending-claim"), pending))
             }
             val replacement = checkNotNull(repo.setEmail(owner.id, Email("release-replacement@example.com")))
-            assertEquals(Email("release-replacement@example.com"), replacement.pendingEmail)
+            assertEquals(Email("release-replacement@example.com"), repo.getEmailProfileFresh(replacement.id)?.pendingEmail)
             assertEquals(pending, repo.create(NewUser(Username("released-pending"), pending)).single().email)
 
             checkNotNull(repo.setEmail(owner.id, null))
@@ -645,7 +646,8 @@ class ExposedUsersRepoSqliteTest {
                 assertEquals(1, secondLockAcquired.count)
             }
             busyObservation.assertHealthy()
-            assertEquals(pending, checkNotNull(pendingWorker.result().getOrThrow()).pendingEmail)
+            checkNotNull(pendingWorker.result().getOrThrow())
+            assertEquals(pending, second.getEmailProfileFresh(owner.id)?.pendingEmail)
             assertIs<DuplicateUserFieldException>(currentWorker.result().exceptionOrNull())
             assertEquals(
                 Email("unrelated@example.com"),
@@ -781,7 +783,8 @@ class ExposedUsersRepoSqliteTest {
             }
             busy.assertHealthy()
             holderWorker.result().getOrThrow()
-            assertEquals(2_500L, contenderWorker.result().getOrThrow()?.emailChangeAllowedAt)
+            checkNotNull(contenderWorker.result().getOrThrow())
+            assertEquals(2_500L, second.getEmailProfileFresh(owner.id)?.emailChangeAllowedAt)
         }
     }
 
@@ -828,7 +831,7 @@ class ExposedUsersRepoSqliteTest {
             assertNull(contenderWorker.result().getOrThrow())
             val stored = checkNotNull(second.getById(owner.id))
             assertEquals(current, stored.email)
-            assertEquals(replacement, stored.pendingEmail)
+            assertEquals(replacement, second.getEmailProfileFresh(owner.id)?.pendingEmail)
             assertRawSqliteAddressHasOneClaim(url, replacement)
             assertRawSqliteAddressHasNoClaim(url, oldPending)
         }
@@ -880,8 +883,8 @@ class ExposedUsersRepoSqliteTest {
             assertIs<EmailChangeCooldownException>(contenderWorker.result().exceptionOrNull())
             val stored = checkNotNull(second.getById(owner.id))
             assertEquals(candidate, stored.email)
-            assertNull(stored.pendingEmail)
-            assertEquals(1_500L, stored.emailChangeAllowedAt)
+            assertNull(second.getEmailProfileFresh(owner.id)?.pendingEmail)
+            assertEquals(1_500L, second.getEmailProfileFresh(owner.id)?.emailChangeAllowedAt)
             assertRawSqliteAddressHasOneClaim(url, candidate)
             assertRawSqliteAddressHasNoClaim(url, replacement)
         }
@@ -929,8 +932,8 @@ class ExposedUsersRepoSqliteTest {
             holderWorker.result().getOrThrow()
             val stored = contenderWorker.result().getOrThrow()
             assertEquals(candidate, stored?.email)
-            assertEquals(replacement, stored?.pendingEmail)
-            assertNull(stored?.emailChangeAllowedAt)
+            assertEquals(replacement, second.getEmailProfileFresh(owner.id)?.pendingEmail)
+            assertNull(second.getEmailProfileFresh(owner.id)?.emailChangeAllowedAt)
             assertRawSqliteAddressHasOneClaim(url, replacement)
         }
     }
@@ -1051,9 +1054,8 @@ class ExposedUsersRepoSqliteTest {
             val cleared = checkNotNull(repo.update(user.id, NewUser(Username("cleared"), null)))
             assertEquals(Username("cleared"), cleared.username)
             assertNull(cleared.email)
-            assertNull(cleared.pendingEmail)
             assertFalse(cleared.emailApproved)
-            assertNull(cleared.emailChangeAllowedAt)
+            assertEquals(EmailProfile(userId = user.id.long), repo.getEmailProfileFresh(user.id))
 
             val unapproved = repo.create(NewUser(Username("unapproved"), Email("unapproved-clear@example.com"))).single()
             assertNull(checkNotNull(repo.setEmail(unapproved.id, null)).email)

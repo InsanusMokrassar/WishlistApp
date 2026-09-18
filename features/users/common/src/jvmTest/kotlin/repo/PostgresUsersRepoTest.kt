@@ -2,6 +2,7 @@ package dev.inmo.wishlist.features.users.common.repo
 
 import dev.inmo.micro_utils.repos.create
 import dev.inmo.wishlist.features.email.common.models.Email
+import dev.inmo.wishlist.features.email.common.models.EmailProfile
 import dev.inmo.wishlist.features.users.common.models.NewUser
 import dev.inmo.wishlist.features.users.common.models.RegisteredUser
 import dev.inmo.wishlist.features.users.common.models.UserId
@@ -40,8 +41,8 @@ class PostgresUsersRepoTest {
 
             val replacement = checkNotNull(repo.setEmail(user.id, pending))
             assertEquals(current, replacement.email)
-            assertEquals(pending, replacement.pendingEmail)
             assertTrue(replacement.emailApproved)
+            assertEquals(pending, repo.getEmailProfileFresh(user.id)?.pendingEmail)
 
             val duplicate = assertFailsWith<DuplicateUserFieldException> {
                 repo.create(NewUser(Username("postgres-other"), pending))
@@ -50,9 +51,9 @@ class PostgresUsersRepoTest {
 
             val promoted = checkNotNull(repo.approveEmail(user.id, pending, cooldownMillis = 1_000))
             assertEquals(pending, promoted.email)
-            assertNull(promoted.pendingEmail)
             assertTrue(promoted.emailApproved)
-            assertNotNull(promoted.emailChangeAllowedAt)
+            assertNull(repo.getEmailProfileFresh(user.id)?.pendingEmail)
+            assertNotNull(repo.getEmailProfileFresh(user.id)?.emailChangeAllowedAt)
         }
     }
 
@@ -78,9 +79,8 @@ class PostgresUsersRepoTest {
                 val cleared = checkNotNull(repo.update(listOf(user.id to NewUser(Username("postgres-cleared"), null))).single())
                 assertEquals(Username("postgres-cleared"), cleared.username)
                 assertNull(cleared.email)
-                assertNull(cleared.pendingEmail)
                 assertFalse(cleared.emailApproved)
-                assertNull(cleared.emailChangeAllowedAt)
+                assertEquals(EmailProfile(userId = user.id.long), repo.getEmailProfileFresh(user.id))
                 openBoundedPostgresConnection(schemaUrl).use { connection ->
                     connection.createStatement().use { statement ->
                         statement.executeQuery("SELECT email, pending_email, email_approved, email_change_allowed_at FROM users WHERE id = ${user.id.long}").use { row ->
@@ -179,7 +179,8 @@ class PostgresUsersRepoTest {
                 assertPostgresContenderBlockedOnUsersWriteLock(schemaUrl, backendPids)
                 assertEquals(1, secondLockAcquired.count)
             }
-            assertEquals(pending, checkNotNull(pendingWorker.result().getOrThrow()).pendingEmail)
+            checkNotNull(pendingWorker.result().getOrThrow())
+            assertEquals(pending, second.getEmailProfileFresh(owner.id)?.pendingEmail)
             assertIs<DuplicateUserFieldException>(currentWorker.result().exceptionOrNull())
             assertRawAddressHasOneClaim(schemaUrl, pending)
             assertNoRawSharedAddress(schemaUrl)
@@ -319,16 +320,17 @@ class PostgresUsersRepoTest {
                 val legacy = checkNotNull(repo.getById(legacyId))
                 assertEquals(Email("postgres-legacy@example.com"), legacy.email)
                 assertTrue(legacy.emailApproved)
-                assertNull(legacy.pendingEmail)
-                assertNull(legacy.emailChangeAllowedAt)
+                assertNull(repo.getEmailProfileFresh(legacyId)?.pendingEmail)
+                assertNull(repo.getEmailProfileFresh(legacyId)?.emailChangeAllowedAt)
                 assertNull(repo.getEmailProfileFresh(legacyId)?.emailChangeRequestedAt)
                 assertLegacyColumnsAndSingleton(schemaUrl)
                 val pending = checkNotNull(repo.setEmail(legacyId, replacement))
-                assertEquals(replacement, pending.pendingEmail)
+                assertEquals(replacement, repo.getEmailProfileFresh(pending.id)?.pendingEmail)
                 assertEquals(1_000L, repo.getEmailProfileFresh(legacyId)?.emailChangeRequestedAt)
                 val deadlineUser = repo.create(NewUser(Username("postgres-deadline"), deadlineAddress)).single()
                 assertEquals(1_000L, repo.getEmailProfileFresh(deadlineUser.id)?.emailChangeRequestedAt)
-                assertEquals(1_500L, checkNotNull(repo.approveEmail(deadlineUser.id, deadlineAddress, cooldownMillis = 500)).emailChangeAllowedAt)
+                checkNotNull(repo.approveEmail(deadlineUser.id, deadlineAddress, cooldownMillis = 500))
+                assertEquals(1_500L, repo.getEmailProfileFresh(deadlineUser.id)?.emailChangeAllowedAt)
                 assertNull(repo.getEmailProfileFresh(deadlineUser.id)?.emailChangeRequestedAt)
                 assertLegacyColumnsAndSingleton(schemaUrl, replacement)
             } finally {
@@ -340,11 +342,11 @@ class PostgresUsersRepoTest {
                 val reopened = ExposedUsersRepo(reopenedDatabase)
                 val legacy = checkNotNull(reopened.getById(legacyId))
                 assertEquals(Email("postgres-legacy@example.com"), legacy.email)
-                assertEquals(replacement, legacy.pendingEmail)
-                assertNull(legacy.emailChangeAllowedAt)
+                assertEquals(replacement, reopened.getEmailProfileFresh(legacyId)?.pendingEmail)
+                assertNull(reopened.getEmailProfileFresh(legacyId)?.emailChangeAllowedAt)
                 assertEquals(1_000L, reopened.getEmailProfileFresh(legacyId)?.emailChangeRequestedAt)
                 val deadlineUser = checkNotNull(reopened.getUserByUsername(Username("postgres-deadline")))
-                assertEquals(1_500L, deadlineUser.emailChangeAllowedAt)
+                assertEquals(1_500L, reopened.getEmailProfileFresh(deadlineUser.id)?.emailChangeAllowedAt)
                 assertNull(reopened.getEmailProfileFresh(deadlineUser.id)?.emailChangeRequestedAt)
                 assertLegacyColumnsAndSingleton(schemaUrl, replacement)
             } finally {

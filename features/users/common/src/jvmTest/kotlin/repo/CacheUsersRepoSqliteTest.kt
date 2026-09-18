@@ -40,8 +40,6 @@ class CacheUsersRepoSqliteTest {
                     username = created.username,
                     email = current,
                     emailApproved = true,
-                    pendingEmail = pending,
-                    emailChangeAllowedAt = 1_010L,
                 ),
                 newer,
             )
@@ -82,8 +80,8 @@ class CacheUsersRepoSqliteTest {
 
             val changed = checkNotNull(cache.update(created.id, NewUser(approved.username, replacement)))
             assertEquals(original, changed.email)
-            assertEquals(replacement, changed.pendingEmail)
             assertTrue(changed.emailApproved)
+            assertEquals(replacement, cache.getEmailProfileFresh(created.id)?.pendingEmail)
             assertEquals(changed, cache.getById(created.id))
             assertEquals(changed, backing.getById(created.id))
         }

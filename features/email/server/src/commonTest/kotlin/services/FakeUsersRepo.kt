@@ -73,15 +73,23 @@ internal class FakeUsersRepo(
         if (newValue.email != null && map.values.any { it.id != id && it.email == newValue.email }) {
             throw DuplicateUserFieldException()
         }
-        val updated = old.copy(
+        val currentProfile = emailProfiles[id] ?: old.asEmailProfile()
+        val updatedProfile = when {
+            newValue.email == currentProfile.email || newValue.email == currentProfile.pendingEmail ->
+                currentProfile.copy(userId = id.long)
+            newValue.email == null -> EmailProfile(userId = id.long)
+            currentProfile.emailApproved && currentProfile.email != null -> currentProfile.copy(
+                pendingEmail = newValue.email,
+                emailChangeRequestedAt = null,
+            )
+            else -> EmailProfile(userId = id.long, email = newValue.email)
+        }
+        emailProfiles[id] = updatedProfile
+        return old.copy(
             username = newValue.username,
-            email = newValue.email,
-            emailApproved = newValue.email != null && old.email == newValue.email && old.emailApproved,
+            email = updatedProfile.email,
+            emailApproved = updatedProfile.emailApproved,
         )
-        emailProfiles[id] = updated.asEmailProfile(
-            emailChangeRequestedAt = emailProfiles[id]?.emailChangeRequestedAt,
-        )
-        return updated
     }
 
     /**
@@ -203,21 +211,16 @@ internal class FakeUsersRepo(
         if (occupied) throw DuplicateUserFieldException()
     }
 
-    /** Creates an email-owned projection from a temporary legacy user fixture. */
-    private fun RegisteredUser.asEmailProfile(emailChangeRequestedAt: Long? = null): EmailProfile = EmailProfile(
+    /** Creates an email-owned projection from a reduced user fixture. */
+    private fun RegisteredUser.asEmailProfile(): EmailProfile = EmailProfile(
         userId = id.long,
         email = email,
         emailApproved = emailApproved,
-        pendingEmail = pendingEmail,
-        emailChangeRequestedAt = emailChangeRequestedAt,
-        emailChangeAllowedAt = emailChangeAllowedAt,
     )
 
-    /** Synchronizes the legacy reduced fixture only at a simulated write boundary. */
+    /** Synchronizes current email identity only at a simulated write boundary. */
     private fun RegisteredUser.withEmailProfile(profile: EmailProfile): RegisteredUser = copy(
         email = profile.email,
         emailApproved = profile.emailApproved,
-        pendingEmail = profile.pendingEmail,
-        emailChangeAllowedAt = profile.emailChangeAllowedAt,
     )
 }

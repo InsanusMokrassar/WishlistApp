@@ -197,9 +197,10 @@ class AdminRoutingsConfiguratorTest {
                 }
                 assertEquals(HttpStatusCode.OK, replacement.status)
                 assertEquals(
-                    approved.copy(username = Username("route-expired"), pendingEmail = addressB),
+                    approved.copy(username = Username("route-expired")),
                     users.getById(target.id),
                 )
+                assertEquals(addressB, users.getEmailProfileFresh(target.id)?.pendingEmail)
 
                 val duplicateResponse = client.put("/api/admin/users/update/${target.id.long}") {
                     header(HttpHeaders.Authorization, "Bearer root")
