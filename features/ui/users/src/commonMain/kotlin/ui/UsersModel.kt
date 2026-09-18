@@ -1,8 +1,8 @@
 package dev.inmo.wishlist.features.ui.users.ui
 
 import dev.inmo.micro_utils.common.MPPFile
-import dev.inmo.wishlist.features.auth.common.models.AuthFeatureUser
 import dev.inmo.wishlist.features.email.common.models.Email
+import dev.inmo.wishlist.features.email.common.models.EmailProfile
 import dev.inmo.wishlist.features.email.common.models.EmailVerificationRequestResult
 import dev.inmo.wishlist.features.auth.common.models.Password
 import dev.inmo.wishlist.features.files.common.models.FileId
@@ -70,15 +70,14 @@ interface UsersModel {
     val canChangeAvatarForOthersFlow: StateFlow<Boolean>
 
     /**
-     * Resolves the authenticated caller's private profile record.
+     * Resolves authenticated caller email state owned by the email feature.
      *
-     * This must never be substituted with the public users listing because email and approval state
-     * are intentionally private to the owner. The returned snapshot includes the approved current
-     * email, approval flag, pending candidate, and persisted cooldown deadline.
+     * This must never be substituted with auth state or public users listing. Email lifecycle state
+     * is private to its owner and is served by the email feature.
      *
-     * @return The authenticated caller's private profile, or `null` when the session is absent.
+     * @return The authenticated caller's email profile, or `null` when the account is absent.
      */
-    suspend fun getMyProfile(): AuthFeatureUser?
+    suspend fun getMyEmailProfile(): EmailProfile?
 
     /**
      * Returns whether SMTP-backed verification delivery is configured for the owner email editor.

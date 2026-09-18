@@ -1,6 +1,6 @@
 package dev.inmo.wishlist.features.ui.users.ui
 
-import dev.inmo.wishlist.features.auth.common.models.AuthFeatureUser
+import dev.inmo.wishlist.features.email.common.models.EmailProfile
 import dev.inmo.wishlist.features.users.common.models.UserId
 import dev.inmo.wishlist.features.users.common.models.Username
 import kotlinx.coroutines.CompletableDeferred
@@ -19,7 +19,7 @@ import kotlin.test.assertTrue
 @OptIn(ExperimentalCoroutinesApi::class)
 class UserEditViewModelSaveTest {
     private val userId = UserId(7L)
-    private val user = AuthFeatureUser(userId, Username("owner"), email = null)
+    private val user = EmailProfile(userId = userId.long)
 
     @Test
     fun usernameFalseSkipsPasswordAndNavigation() = runTest {

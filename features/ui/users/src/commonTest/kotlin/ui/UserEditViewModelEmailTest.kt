@@ -1,13 +1,12 @@
 package dev.inmo.wishlist.features.ui.users.ui
 
 import dev.inmo.navigation.core.NavigationNodeState
-import dev.inmo.wishlist.features.auth.common.models.AuthFeatureUser
 import dev.inmo.wishlist.features.email.common.models.Email
 import dev.inmo.wishlist.features.email.common.models.EmailChangeCooldown
 import dev.inmo.wishlist.features.email.common.models.EmailChangeCooldownException
+import dev.inmo.wishlist.features.email.common.models.EmailProfile
 import dev.inmo.wishlist.features.email.common.models.EmailVerificationRequestResult
 import dev.inmo.wishlist.features.users.common.models.UserId
-import dev.inmo.wishlist.features.users.common.models.Username
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.cancel
@@ -29,7 +28,7 @@ import kotlin.test.assertTrue
 @OptIn(ExperimentalCoroutinesApi::class)
 class UserEditViewModelEmailTest {
     private val ownerId = UserId(7L)
-    private val owner = AuthFeatureUser(ownerId, Username("owner"), email = null)
+    private val owner = EmailProfile(userId = ownerId.long)
 
     @Test
     fun missingOwnerEmailIsSavedThenVerified() = runTest {
@@ -91,8 +90,9 @@ class UserEditViewModelEmailTest {
             )
             assertEquals(listOf<Email?>(replacementEmail), model.savedEmails)
             assertEquals(listOf(replacementEmail), model.requestedEmails)
-            assertEquals(replacementEmail, viewModel.ownEmailProfileState.value?.email)
-            assertFalse(viewModel.ownEmailProfileState.value?.emailApproved ?: true)
+            assertEquals(approvedEmail, viewModel.ownEmailProfileState.value?.email)
+            assertTrue(viewModel.ownEmailProfileState.value?.emailApproved ?: false)
+            assertEquals(replacementEmail, viewModel.ownEmailProfileState.value?.pendingEmail)
             assertEquals(replacementEmail, viewModel.emailSavedState.value)
             assertFalse(viewModel.isDirtyState.value)
             assertEquals(0, interactor.savedCalls)
@@ -134,6 +134,7 @@ class UserEditViewModelEmailTest {
             assertEquals(listOf(replacementEmail), model.requestedEmails)
             assertEquals(replacementEmail, viewModel.ownEmailProfileState.value?.email)
             assertFalse(viewModel.ownEmailProfileState.value?.emailApproved ?: true)
+            assertNull(viewModel.ownEmailProfileState.value?.pendingEmail)
             assertEquals(replacementEmail, viewModel.emailSavedState.value)
             assertFalse(viewModel.isDirtyState.value)
             assertEquals(0, interactor.savedCalls)
@@ -346,7 +347,7 @@ class UserEditViewModelEmailTest {
             assertTrue(model.requestedEmails.isEmpty())
             assertNull(viewModel.emailVerificationResultState.value)
             assertNull(viewModel.emailSavedState.value)
-            assertEquals(ownerId, viewModel.ownEmailProfileState.value?.id)
+            assertEquals(ownerId.long, viewModel.ownEmailProfileState.value?.userId)
             assertEquals(replacementEmail, viewModel.ownEmailProfileState.value?.email)
             assertTrue(viewModel.emailOperationInterruptedState.value)
         } finally {
@@ -530,7 +531,10 @@ class UserEditViewModelEmailTest {
         val email = Email("replacement@example.com")
         val model = UserEditTestUsersModel(ownerId, owner.copy(email = approvedEmail, emailApproved = true)).apply {
             saveEmailHandler = { savedEmail ->
-                profileState.value = profileState.value?.copy(email = savedEmail, emailApproved = false)
+                profileState.value = profileState.value?.copy(
+                    pendingEmail = savedEmail,
+                    emailChangeRequestedAt = 10_000L,
+                )
                 throw IllegalStateException("response lost after commit")
             }
         }
@@ -547,8 +551,9 @@ class UserEditViewModelEmailTest {
             advanceUntilIdle()
 
             assertEquals(EmailEditorError.SaveFailed, viewModel.emailErrorState.value)
-            assertEquals(email, viewModel.ownEmailProfileState.value?.email)
-            assertFalse(viewModel.ownEmailProfileState.value?.emailApproved ?: true)
+            assertEquals(approvedEmail, viewModel.ownEmailProfileState.value?.email)
+            assertTrue(viewModel.ownEmailProfileState.value?.emailApproved ?: false)
+            assertEquals(email, viewModel.ownEmailProfileState.value?.pendingEmail)
             assertEquals(email.string, viewModel.emailInputState.value)
             assertFalse(viewModel.isDirtyState.value)
             assertNull(viewModel.emailSavedState.value)
@@ -694,7 +699,7 @@ class UserEditViewModelEmailTest {
             advanceUntilIdle()
 
             assertEquals(EmailCapabilityState.Enabled, viewModel.emailCapabilityState.value)
-            assertEquals(ownerId, viewModel.ownEmailProfileState.value?.id)
+            assertEquals(ownerId.long, viewModel.ownEmailProfileState.value?.userId)
             assertTrue(viewModel.canMutateOwnEmailState.value)
         } finally {
             viewModel.scope.cancel()
@@ -768,8 +773,9 @@ class UserEditViewModelEmailTest {
             assertEquals(listOf<Email?>(replacementEmail), model.savedEmails)
             assertTrue(model.requestedEmails.isEmpty())
             assertTrue(viewModel.canManageOwnEmailState.value)
-            assertEquals(replacementEmail, viewModel.ownEmailProfileState.value?.email)
-            assertFalse(viewModel.ownEmailProfileState.value?.emailApproved ?: true)
+            assertEquals(approvedEmail, viewModel.ownEmailProfileState.value?.email)
+            assertTrue(viewModel.ownEmailProfileState.value?.emailApproved ?: false)
+            assertEquals(replacementEmail, viewModel.ownEmailProfileState.value?.pendingEmail)
             assertEquals(replacementEmail, viewModel.emailSavedState.value)
             assertFalse(viewModel.isDirtyState.value)
         } finally {
@@ -1019,7 +1025,7 @@ class UserEditViewModelEmailTest {
                 model.profileHandler = {
                     when (variant) {
                         "missing" -> null
-                        "wrong-owner" -> owner.copy(id = UserId(99L), email = replacementEmail)
+                        "wrong-owner" -> owner.copy(userId = 99L, email = replacementEmail)
                         "old-address" -> owner.copy(email = oldEmail, emailApproved = true)
                         "other-address" -> owner.copy(email = Email("other@example.com"), emailApproved = false)
                         "no-address" -> owner
@@ -1043,7 +1049,7 @@ class UserEditViewModelEmailTest {
                         assertTrue(viewModel.emailLoadFailedState.value, variant)
                     }
                     else -> {
-                        assertEquals(ownerId, viewModel.ownEmailProfileState.value?.id, variant)
+                        assertEquals(ownerId.long, viewModel.ownEmailProfileState.value?.userId, variant)
                         assertEquals(EmailEditorError.EmailChanged, viewModel.emailErrorState.value, variant)
                     }
                 }
@@ -1167,7 +1173,7 @@ class UserEditViewModelEmailTest {
                         when (variant) {
                             "changed" -> owner.copy(email = Email("changed@example.com"), emailApproved = false)
                             "missing" -> null
-                            "wrong-owner" -> owner.copy(id = UserId(99L), email = replacementEmail)
+                            "wrong-owner" -> owner.copy(userId = 99L, email = replacementEmail)
                             else -> throw IllegalStateException("final read failed")
                         }
                     }
@@ -1211,7 +1217,8 @@ class UserEditViewModelEmailTest {
             advanceUntilIdle()
 
             assertEquals(listOf(replacementEmail), model.requestedEmails)
-            assertFalse(viewModel.ownEmailProfileState.value?.emailApproved ?: true)
+            assertTrue(viewModel.ownEmailProfileState.value?.emailApproved ?: false)
+            assertEquals(replacementEmail, viewModel.ownEmailProfileState.value?.pendingEmail)
             assertNull(viewModel.emailVerificationResultState.value)
             assertNull(viewModel.emailSavedState.value)
             assertEquals(EmailEditorError.EmailChanged, viewModel.emailErrorState.value)
@@ -1541,7 +1548,7 @@ class UserEditViewModelEmailTest {
     fun mismatchedInitialPrivateProfileFailsClosed() = runTest {
         val model = UserEditTestUsersModel(
             ownerId,
-            owner.copy(id = UserId(99L), email = Email("private@example.com"), emailApproved = true),
+            owner.copy(userId = 99L, email = Email("private@example.com"), emailApproved = true),
         )
         val viewModel = UserEditViewModel(
             userEditTestNode(ownerId),
@@ -2186,7 +2193,7 @@ class UserEditViewModelEmailTest {
                     } else {
                         when (variant) {
                             "null" -> null
-                            "wrong-owner" -> owner.copy(id = UserId(99L), email = savedEmail, emailApproved = false)
+                            "wrong-owner" -> owner.copy(userId = 99L, email = savedEmail, emailApproved = false)
                             else -> throw IllegalStateException("private read failed")
                         }
                     }
@@ -2241,7 +2248,7 @@ class UserEditViewModelEmailTest {
                     } else {
                         when (variant) {
                             "null" -> null
-                            "wrong-owner" -> owner.copy(id = UserId(99L), email = savedEmail)
+                            "wrong-owner" -> owner.copy(userId = 99L, email = savedEmail)
                             else -> throw IllegalStateException("private read failed")
                         }
                     }
@@ -2597,7 +2604,7 @@ class UserEditViewModelEmailTest {
     fun rawDraftDirtinessCoversWhitespaceStoredAndAdminCases() = runTest {
         data class Case(
             val name: String,
-            val profile: AuthFeatureUser,
+            val profile: EmailProfile,
             val draft: String,
             val dirty: Boolean,
             val rootDirty: Boolean = false,
@@ -3088,6 +3095,83 @@ class UserEditViewModelEmailTest {
             } finally {
                 viewModel.scope.cancel()
             }
+        }
+    }
+
+    /** Retires positive feedback when only the email-owned request time changes without replacing a draft. */
+    @Test
+    fun requestedAtOnlyRefreshRetiresPositiveFeedbackAndKeepsDirtyDraft() = runTest {
+        val approved = Email("approved@example.com")
+        val pending = Email("pending@example.com")
+        val draft = "dirty@example.com"
+        val initialProfile = owner.copy(
+            email = approved,
+            emailApproved = true,
+            pendingEmail = pending,
+            emailChangeRequestedAt = 1_000L,
+        )
+        val model = UserEditTestUsersModel(ownerId, initialProfile).apply {
+            requestHandler = { EmailVerificationRequestResult.Sent }
+        }
+        val viewModel = UserEditViewModel(
+            userEditTestNode(ownerId),
+            model,
+            RecordingUserEditInteractor(),
+            StandardTestDispatcher(testScheduler),
+        )
+        try {
+            advanceUntilIdle()
+            viewModel.onEmailChanged(draft)
+            viewModel.onResendEmailVerification()
+            advanceUntilIdle()
+            assertEquals(EmailVerificationRequestResult.Sent, viewModel.emailVerificationResultState.value)
+            assertTrue(viewModel.isDirtyState.value)
+
+            model.profileState.value = initialProfile.copy(emailChangeRequestedAt = 1_001L)
+            viewModel.onRefreshEmail()
+            advanceUntilIdle()
+
+            assertNull(viewModel.emailVerificationResultState.value)
+            assertEquals(draft, viewModel.emailInputState.value)
+            assertTrue(viewModel.isDirtyState.value)
+        } finally {
+            viewModel.scope.cancel()
+        }
+    }
+
+    /** Retires completed storage feedback when a refreshed profile changes only request time. */
+    @Test
+    fun requestedAtOnlyRefreshRetiresSavedFeedback() = runTest {
+        val approved = Email("approved@example.com")
+        val replacement = Email("replacement@example.com")
+        val model = UserEditTestUsersModel(
+            ownerId,
+            owner.copy(email = approved, emailApproved = true),
+        )
+        val viewModel = UserEditViewModel(
+            userEditTestNode(ownerId),
+            model,
+            RecordingUserEditInteractor(),
+            StandardTestDispatcher(testScheduler),
+        )
+        try {
+            advanceUntilIdle()
+            viewModel.onEmailChanged(replacement.string)
+            viewModel.onSaveEmail()
+            advanceUntilIdle()
+            assertEquals(replacement, viewModel.emailSavedState.value)
+            assertEquals(EmailVerificationRequestResult.Sent, viewModel.emailVerificationResultState.value)
+
+            model.profileState.value = checkNotNull(model.profileState.value).copy(
+                emailChangeRequestedAt = 10_001L,
+            )
+            viewModel.onRefreshEmail()
+            advanceUntilIdle()
+
+            assertNull(viewModel.emailSavedState.value)
+            assertNull(viewModel.emailVerificationResultState.value)
+        } finally {
+            viewModel.scope.cancel()
         }
     }
 }

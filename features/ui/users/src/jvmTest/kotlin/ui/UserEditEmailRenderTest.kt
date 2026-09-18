@@ -14,12 +14,11 @@ import androidx.compose.ui.test.performTextReplacement
 import androidx.compose.ui.test.v2.runDesktopComposeUiTest
 import androidx.compose.ui.semantics.SemanticsActions
 import dev.inmo.micro_utils.strings.translation
-import dev.inmo.wishlist.features.auth.common.models.AuthFeatureUser
 import dev.inmo.wishlist.features.email.common.models.Email
+import dev.inmo.wishlist.features.email.common.models.EmailProfile
 import dev.inmo.wishlist.features.email.common.models.EmailVerificationRequestResult
 import dev.inmo.wishlist.features.ui.users.UsersListStrings
 import dev.inmo.wishlist.features.users.common.models.UserId
-import dev.inmo.wishlist.features.users.common.models.Username
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.cancel
@@ -39,9 +38,8 @@ class UserEditEmailRenderTest {
     @Test
     fun ownerEmailPanelRendersOnDesktop() {
         val ownerId = UserId(7L)
-        val owner = AuthFeatureUser(
-            ownerId,
-            Username("owner"),
+        val owner = EmailProfile(
+            userId = ownerId.long,
             email = Email("approved@example.com"),
             emailApproved = true,
             pendingEmail = Email("pending@example.com"),
@@ -93,7 +91,7 @@ class UserEditEmailRenderTest {
         val node = userEditTestNode(ownerId)
         val model = UserEditTestUsersModel(
             ownerId,
-            AuthFeatureUser(ownerId, Username("owner"), email = null),
+            EmailProfile(userId = ownerId.long),
         ).apply {
             emailFeatureEnabled = false
         }
@@ -142,9 +140,8 @@ class UserEditEmailRenderTest {
         val node = userEditTestNode(ownerId)
         val model = UserEditTestUsersModel(
             ownerId,
-            AuthFeatureUser(
-                ownerId,
-                Username("owner"),
+            EmailProfile(
+                userId = ownerId.long,
                 email = savedEmail,
                 emailApproved = true,
                 pendingEmail = pendingEmail,
@@ -220,7 +217,7 @@ class UserEditEmailRenderTest {
         val node = userEditTestNode(ownerId)
         val model = UserEditTestUsersModel(
             ownerId,
-            AuthFeatureUser(ownerId, Username("owner"), email = savedEmail, emailApproved = true),
+            EmailProfile(userId = ownerId.long, email = savedEmail, emailApproved = true),
         )
         val viewModel = UserEditViewModel(
             node,
@@ -254,8 +251,9 @@ class UserEditEmailRenderTest {
                     listOf("PUT:${replacementEmail.string}", "GET", "POST:${replacementEmail.string}", "GET"),
                     model.emailEvents,
                 )
-                assertEquals(replacementEmail, viewModel.ownEmailProfileState.value?.email)
-                assertFalse(viewModel.ownEmailProfileState.value?.emailApproved ?: true)
+                assertEquals(savedEmail, viewModel.ownEmailProfileState.value?.email)
+                assertTrue(viewModel.ownEmailProfileState.value?.emailApproved ?: false)
+                assertEquals(replacementEmail, viewModel.ownEmailProfileState.value?.pendingEmail)
             }
         } finally {
             viewModel.scope.cancel()
@@ -274,7 +272,7 @@ class UserEditEmailRenderTest {
         val node = userEditTestNode(ownerId)
         val model = UserEditTestUsersModel(
             ownerId,
-            AuthFeatureUser(ownerId, Username("owner"), email = savedEmail, emailApproved = false),
+            EmailProfile(userId = ownerId.long, email = savedEmail, emailApproved = false),
         )
         val viewModel = UserEditViewModel(
             node,
@@ -319,7 +317,7 @@ class UserEditEmailRenderTest {
         val testBodyScheduler = TestCoroutineScheduler()
         val viewModelScheduler = TestCoroutineScheduler()
         val node = userEditTestNode(ownerId)
-        val model = UserEditTestUsersModel(ownerId, AuthFeatureUser(ownerId, Username("owner"), email = null))
+        val model = UserEditTestUsersModel(ownerId, EmailProfile(userId = ownerId.long))
         val viewModel = UserEditViewModel(
             node,
             model,
@@ -364,9 +362,8 @@ class UserEditEmailRenderTest {
         val node = userEditTestNode(ownerId)
         val model = UserEditTestUsersModel(
             rootId,
-            AuthFeatureUser(
-                ownerId,
-                Username("owner"),
+            EmailProfile(
+                userId = ownerId.long,
                 email = Email("private@example.com"),
                 emailApproved = true,
                 pendingEmail = Email("pending-private@example.com"),
@@ -409,10 +406,10 @@ class UserEditEmailRenderTest {
     /** Covers missing, pending, and approved profiles under confirmed save-only delivery capability. */
     @Test
     fun disabledDeliveryGuidanceCoversEverySavedProfileState() {
-        listOf<AuthFeatureUser?>(
-            AuthFeatureUser(UserId(7L), Username("owner"), email = null),
-            AuthFeatureUser(UserId(7L), Username("owner"), email = Email("pending@example.com"), emailApproved = false),
-            AuthFeatureUser(UserId(7L), Username("owner"), email = Email("approved@example.com"), emailApproved = true),
+        listOf<EmailProfile>(
+            EmailProfile(userId = 7L),
+            EmailProfile(userId = 7L, email = Email("pending@example.com"), emailApproved = false),
+            EmailProfile(userId = 7L, email = Email("approved@example.com"), emailApproved = true),
         ).forEach { profile ->
             val ownerId = UserId(7L)
             val compositionScheduler = TestCoroutineScheduler()
@@ -461,7 +458,7 @@ class UserEditEmailRenderTest {
         val node = userEditTestNode(ownerId)
         val model = UserEditTestUsersModel(
             ownerId,
-            AuthFeatureUser(ownerId, Username("owner"), email = savedEmail, emailApproved = true),
+            EmailProfile(userId = ownerId.long, email = savedEmail, emailApproved = true),
         ).apply { saveEmailResult = false }
         val viewModel = UserEditViewModel(
             node,
@@ -515,7 +512,7 @@ class UserEditEmailRenderTest {
         val node = userEditTestNode(ownerId)
         val model = UserEditTestUsersModel(
             ownerId,
-            AuthFeatureUser(ownerId, Username("owner"), email = savedEmail, emailApproved = false),
+            EmailProfile(userId = ownerId.long, email = savedEmail, emailApproved = false),
         )
         val viewModel = UserEditViewModel(
             node,
@@ -561,7 +558,7 @@ class UserEditEmailRenderTest {
         val node = userEditTestNode(ownerId)
         val model = UserEditTestUsersModel(
             ownerId,
-            AuthFeatureUser(ownerId, Username("owner"), email = savedEmail, emailApproved = false),
+            EmailProfile(userId = ownerId.long, email = savedEmail, emailApproved = false),
         ).apply {
             requestHandler = {
                 profileState.value = profileState.value?.copy(emailApproved = true)
@@ -618,10 +615,13 @@ class UserEditEmailRenderTest {
         val node = userEditTestNode(ownerId)
         val model = UserEditTestUsersModel(
             ownerId,
-            AuthFeatureUser(ownerId, Username("owner"), email = savedEmail, emailApproved = true),
+            EmailProfile(userId = ownerId.long, email = savedEmail, emailApproved = true),
         ).apply {
             saveEmailHandler = { email ->
-                profileState.value = profileState.value?.copy(email = email, emailApproved = false)
+                profileState.value = profileState.value?.copy(
+                    pendingEmail = email,
+                    emailChangeRequestedAt = 10_000L,
+                )
                 if (suspendPut) {
                     putEntered.complete(Unit)
                     releasePut.await()
@@ -705,7 +705,7 @@ class UserEditEmailRenderTest {
         val node = userEditTestNode(ownerId)
         val model = UserEditTestUsersModel(
             ownerId,
-            AuthFeatureUser(ownerId, Username("owner"), current, emailApproved = true, pendingEmail = pending),
+            EmailProfile(userId = ownerId.long, email = current, emailApproved = true, pendingEmail = pending),
         )
         val viewModel = UserEditViewModel(
             node,
@@ -752,9 +752,8 @@ class UserEditEmailRenderTest {
         val node = userEditTestNode(ownerId)
         val model = UserEditTestUsersModel(
             ownerId,
-            AuthFeatureUser(
-                ownerId,
-                Username("owner"),
+            EmailProfile(
+                userId = ownerId.long,
                 email = Email("approved@example.com"),
                 emailApproved = true,
                 emailChangeAllowedAt = deadline,
@@ -808,7 +807,7 @@ class UserEditEmailRenderTest {
         val node = userEditTestNode(ownerId)
         val model = UserEditTestUsersModel(
             ownerId,
-            AuthFeatureUser(ownerId, Username("owner"), email = Email("approved@example.com"), emailApproved = true),
+            EmailProfile(userId = ownerId.long, email = Email("approved@example.com"), emailApproved = true),
         )
         val viewModel = UserEditViewModel(
             node,

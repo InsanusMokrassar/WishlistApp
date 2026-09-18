@@ -10,14 +10,10 @@ import dev.inmo.wishlist.features.admin.common.models.AdminWishlist
 import dev.inmo.wishlist.features.admin.common.models.AdminWishlistItem
 import dev.inmo.wishlist.features.admin.common.models.NewUserWithPassword
 import dev.inmo.wishlist.features.auth.client.AuthCredentialsStorage
-import dev.inmo.wishlist.features.auth.client.ClientAuthFeature
 import dev.inmo.wishlist.features.auth.client.meQualifier
-import dev.inmo.wishlist.features.auth.common.models.AuthConfig
 import dev.inmo.wishlist.features.auth.common.models.AuthCredentials
 import dev.inmo.wishlist.features.auth.common.models.AuthFeatureUser
 import dev.inmo.wishlist.features.auth.common.models.Password
-import dev.inmo.wishlist.features.auth.common.models.RefreshToken
-import dev.inmo.wishlist.features.auth.common.models.RegistrationResult
 import dev.inmo.wishlist.features.email.client.EmailFeature
 import dev.inmo.wishlist.features.email.common.models.Email
 import dev.inmo.wishlist.features.email.common.models.EmailProfile
@@ -70,7 +66,6 @@ class UsersModelTest {
             scope: CoroutineScope,
         ): DefaultUsersModel = DefaultUsersModel(
             feature = RecordingUsersFeature(),
-            authFeature = RecordingAuthFeature(),
             emailFeature = RecordingEmailFeature(),
             meState = MutableStateFlow(null),
             adminFeature = object : AdminFeature {
@@ -90,7 +85,6 @@ class UsersModelTest {
     fun pluginModelPreservesEveryPlatformNeutralDelegationAndReactiveState() = runTest {
         val meState = MutableStateFlow<AuthFeatureUser?>(null)
         val users = RecordingUsersFeature()
-        val auth = RecordingAuthFeature()
         val email = RecordingEmailFeature()
         val management = RecordingUsersManagementFeature()
         val roles = RecordingRolesFeature()
@@ -103,7 +97,6 @@ class UsersModelTest {
                 module {
                     with(Plugin) { setupDI(JsonObject(emptyMap())) }
                     single<UsersFeature> { users }
-                    single<ClientAuthFeature> { auth }
                     single<EmailFeature> { email }
                     single<AdminFeature> {
                         object : AdminFeature {
@@ -151,9 +144,16 @@ class UsersModelTest {
             assertNull(model.getUser(UserId(404L)))
             assertEquals(3, users.calls)
 
-            auth.profile = profile
-            assertEquals(profile, model.getMyProfile())
-            assertEquals(1, auth.getMeCalls)
+            val emailProfile = EmailProfile(
+                userId = profile.id.long,
+                email = Email("owner@example.com"),
+                pendingEmail = Email("replacement@example.com"),
+                emailChangeRequestedAt = 1_000L,
+                emailChangeAllowedAt = 2_000L,
+            )
+            email.profile = emailProfile
+            assertEquals(emailProfile, model.getMyEmailProfile())
+            assertEquals(1, email.getMyEmailCalls)
 
             val replacement = Email("replacement@example.com")
             assertTrue(model.isEmailFeatureEnabled())
@@ -202,30 +202,20 @@ class UsersModelTest {
         }
     }
 
-    private class RecordingAuthFeature : ClientAuthFeature {
-        var profile: AuthFeatureUser? = null
-        var getMeCalls = 0
-        override suspend fun getMe(): AuthFeatureUser? {
-            getMeCalls += 1
-            return profile
-        }
-        override suspend fun logout() = Unit
-        override suspend fun login(username: Username, password: Password): AuthCredentials? = error("unused")
-        override suspend fun refresh(refreshToken: RefreshToken): AuthCredentials? = error("unused")
-        override suspend fun register(username: Username, password: Password): RegistrationResult? = error("unused")
-        override suspend fun getConfig(): AuthConfig = error("unused")
-        override suspend fun isRegistrationAvailable(): Boolean = error("unused")
-    }
-
     private class RecordingEmailFeature : EmailFeature {
         var enabledCalls = 0
+        var getMyEmailCalls = 0
+        var profile: EmailProfile? = null
         val setCalls = mutableListOf<Email?>()
         val requestCalls = mutableListOf<Email>()
         override suspend fun isFeatureEnabled(): Boolean {
             enabledCalls += 1
             return true
         }
-        override suspend fun getMyEmail(): EmailProfile? = error("unused")
+        override suspend fun getMyEmail(): EmailProfile? {
+            getMyEmailCalls += 1
+            return profile
+        }
         override suspend fun sendTestEmail(recipient: Email): Boolean = error("unused")
         override suspend fun setMyEmail(email: Email?): Boolean {
             setCalls += email

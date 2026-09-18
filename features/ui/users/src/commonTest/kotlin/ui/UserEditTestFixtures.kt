@@ -5,10 +5,10 @@ import dev.inmo.navigation.core.NavigationChain
 import dev.inmo.navigation.core.NavigationNode
 import dev.inmo.navigation.core.NavigationNodeFactory
 import dev.inmo.navigation.core.NavigationNodeState
-import dev.inmo.wishlist.features.auth.common.models.AuthFeatureUser
 import dev.inmo.wishlist.features.auth.common.models.Password
 import dev.inmo.wishlist.features.common.client.models.ViewConfig
 import dev.inmo.wishlist.features.email.common.models.Email
+import dev.inmo.wishlist.features.email.common.models.EmailProfile
 import dev.inmo.wishlist.features.email.common.models.EmailVerificationRequestResult
 import dev.inmo.wishlist.features.files.common.models.FileId
 import dev.inmo.wishlist.features.users.common.models.UserId
@@ -20,7 +20,7 @@ import kotlinx.coroutines.flow.StateFlow
 /** Mutable, hook-driven model for deterministic owner-email and root-save ViewModel tests. */
 internal class UserEditTestUsersModel(
     initialUserId: UserId?,
-    initialProfile: AuthFeatureUser?,
+    initialProfile: EmailProfile?,
     initiallyAuthorised: Boolean = initialUserId != null,
 ) : UsersModel {
     val currentUserIdState = MutableStateFlow(initialUserId)
@@ -30,20 +30,37 @@ internal class UserEditTestUsersModel(
     val profileState = MutableStateFlow(initialProfile)
 
     var emailFeatureEnabled = true
+    var nextEmailChangeRequestedAt = 10_000L
     var saveEmailResult = true
     var requestResult = EmailVerificationRequestResult.Sent
     var updateUsernameResult = true
     var setPasswordResult = true
 
     var probeHandler: suspend () -> Boolean = { emailFeatureEnabled }
-    var profileHandler: suspend () -> AuthFeatureUser? = { profileState.value }
+    var profileHandler: suspend () -> EmailProfile? = { profileState.value }
     var saveEmailHandler: suspend (Email?) -> Boolean = { email ->
         if (saveEmailResult) {
             profileState.value = profileState.value?.let { profile ->
-                profile.copy(
-                    email = email,
-                    emailApproved = email != null && email == profile.email && profile.emailApproved,
-                )
+                when {
+                    email == null -> profile.copy(
+                        email = null,
+                        emailApproved = false,
+                        pendingEmail = null,
+                        emailChangeRequestedAt = null,
+                        emailChangeAllowedAt = null,
+                    )
+                    email == profile.email || email == profile.pendingEmail -> profile
+                    profile.emailApproved -> profile.copy(
+                        pendingEmail = email,
+                        emailChangeRequestedAt = nextEmailChangeRequestedAt++,
+                    )
+                    else -> profile.copy(
+                        email = email,
+                        emailApproved = false,
+                        pendingEmail = null,
+                        emailChangeRequestedAt = nextEmailChangeRequestedAt++,
+                    )
+                }
             }
         }
         saveEmailResult
@@ -68,7 +85,7 @@ internal class UserEditTestUsersModel(
     override suspend fun getAllUsers(): List<UsersFeatureUser> = emptyList()
     override suspend fun getUser(id: UserId): UsersFeatureUser? = null
 
-    override suspend fun getMyProfile(): AuthFeatureUser? {
+    override suspend fun getMyEmailProfile(): EmailProfile? {
         profileReads += 1
         emailEvents += "GET"
         return profileHandler()

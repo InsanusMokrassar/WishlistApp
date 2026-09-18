@@ -8,12 +8,14 @@ import dev.inmo.navigation.core.NavigationNode
 import dev.inmo.navigation.core.NavigationNodeState
 import dev.inmo.navigation.core.onResumeFlow
 import dev.inmo.navigation.mvvm.ViewModel
-import dev.inmo.wishlist.features.auth.common.models.AuthFeatureUser
 import dev.inmo.wishlist.features.auth.common.models.Password
 import dev.inmo.wishlist.features.common.client.models.ViewConfig
 import dev.inmo.wishlist.features.email.common.models.Email
 import dev.inmo.wishlist.features.email.common.models.EmailChangeCooldownException
+import dev.inmo.wishlist.features.email.common.models.EmailProfile
 import dev.inmo.wishlist.features.email.common.models.EmailVerificationRequestResult
+import dev.inmo.wishlist.features.email.common.utils.emailDraftBaseline
+import dev.inmo.wishlist.features.email.common.utils.verificationCandidate
 import dev.inmo.wishlist.features.common.client.utils.subscribeOnLoggedOut
 import dev.inmo.wishlist.features.files.common.models.FileId
 import dev.inmo.wishlist.features.users.common.models.UserId
@@ -156,10 +158,10 @@ class UserEditViewModel(
         .map { it == EmailCapabilityState.Enabled }
         .stateIn(workScope, SharingStarted.Eagerly, false)
 
-    private val _ownEmailProfileState = MutableRedeliverStateFlow<AuthFeatureUser?>(null)
+    private val _ownEmailProfileState = MutableRedeliverStateFlow<EmailProfile?>(null)
 
-    /** Private current-owner record used only by the owner-email controls. */
-    val ownEmailProfileState: StateFlow<AuthFeatureUser?> = _ownEmailProfileState.asStateFlow()
+    /** Private current-owner email state used only by owner-email controls. */
+    val ownEmailProfileState: StateFlow<EmailProfile?> = _ownEmailProfileState.asStateFlow()
 
     private val _emailInputState = MutableRedeliverStateFlow("")
 
@@ -256,7 +258,7 @@ class UserEditViewModel(
         ) { isOwner, capability, profile, idle, changeAllowed ->
             isOwner &&
                 capability.allowsStorage &&
-                profile?.id == userId &&
+                profile?.userId == userId.long &&
                 idle &&
                 changeAllowed
         }.stateIn(workScope, SharingStarted.Eagerly, false)
@@ -473,10 +475,10 @@ class UserEditViewModel(
                 }
                 currentCoroutineContext().ensureActive()
                 if (!isCurrentOwnerRequest(requestVersion, generation, callerId)) return@launch
-                val profile = model.getMyProfile()
+                val profile = model.getMyEmailProfile()
                 currentCoroutineContext().ensureActive()
                 if (!isCurrentOwnerRequest(requestVersion, generation, callerId)) return@launch
-                if (profile?.id != userId) {
+                if (profile?.userId != userId.long) {
                     _ownEmailProfileState.value = null
                     clearCompletedEmailFeedback()
                     _emailCapabilityState.value = EmailCapabilityState.Failed
@@ -517,18 +519,14 @@ class UserEditViewModel(
         input.trim() != baselineEmail?.string.orEmpty()
 
     /** Returns the saved candidate the editor uses as its clean draft baseline. */
-    private fun AuthFeatureUser.editableEmailBaseline(): Email? = pendingEmail ?: email
-
-    /** Returns the only address eligible for owner verification delivery. */
-    private fun AuthFeatureUser.verificationCandidate(): Email? =
-        pendingEmail ?: email?.takeIf { !emailApproved }
+    private fun EmailProfile.editableEmailBaseline(): Email? = emailDraftBaseline()
 
     /** Returns whether [email] already occupies either persisted owner email slot. */
-    private fun AuthFeatureUser.containsPersistedEmail(email: Email): Boolean =
+    private fun EmailProfile.containsPersistedEmail(email: Email): Boolean =
         email == this.email || email == pendingEmail
 
     /** Returns whether [email] is the approved current address rather than a pending candidate. */
-    private fun AuthFeatureUser.isApprovedCurrentEmail(email: Email): Boolean =
+    private fun EmailProfile.isApprovedCurrentEmail(email: Email): Boolean =
         pendingEmail == null && this.email == email && emailApproved
 
     /** Clears the completed-storage marker and its exact checked snapshot together. */
@@ -567,13 +565,14 @@ class UserEditViewModel(
 
     /** Applies a checked private profile while retaining a dirty or explicitly preserved draft. */
     private fun applyOwnedEmailProfile(
-        profile: AuthFeatureUser,
+        profile: EmailProfile,
         preserveDraft: Boolean,
     ) {
         val snapshot = EmailFeedbackSnapshot(
             email = profile.email,
             emailApproved = profile.emailApproved,
             pendingEmail = profile.pendingEmail,
+            emailChangeRequestedAt = profile.emailChangeRequestedAt,
             emailChangeAllowedAt = profile.emailChangeAllowedAt,
         )
         if (emailSavedSnapshot != snapshot) {
@@ -601,17 +600,23 @@ class UserEditViewModel(
     /** Publishes a server-supplied cooldown deadline without guessing from a generic failed response. */
     private fun publishEmailCooldown(
         deadline: Long,
-        profile: AuthFeatureUser? = _ownEmailProfileState.value,
+        profile: EmailProfile? = _ownEmailProfileState.value,
     ) {
         _emailChangeRestrictionState.value = deadline
         _emailChangeAllowedState.value = nowMillis() >= deadline
         emailCooldownSnapshot = profile?.let {
-            EmailFeedbackSnapshot(it.email, it.emailApproved, it.pendingEmail, it.emailChangeAllowedAt)
+            EmailFeedbackSnapshot(
+                email = it.email,
+                emailApproved = it.emailApproved,
+                pendingEmail = it.pendingEmail,
+                emailChangeRequestedAt = it.emailChangeRequestedAt,
+                emailChangeAllowedAt = it.emailChangeAllowedAt,
+            )
         }
     }
 
     /** Returns the checked private profile accepted by an imperative owner-email callback. */
-    private fun currentProfileForEmailMutation(requireEnabledSmtp: Boolean): AuthFeatureUser? {
+    private fun currentProfileForEmailMutation(requireEnabledSmtp: Boolean): EmailProfile? {
         val session = synchronizeOwnerSession()
         val callerId = session.callerId ?: return null
         if (!isCurrentRawOwner(callerId)) return null
@@ -619,7 +624,7 @@ class UserEditViewModel(
         if (!capability.allowsStorage) return null
         if (requireEnabledSmtp && capability != EmailCapabilityState.Enabled) return null
         if (_emailLoadFailedState.value || _emailLoadingState.value || _emailBusyState.value) return null
-        val profile = _ownEmailProfileState.value?.takeIf { it.id == userId } ?: return null
+        val profile = _ownEmailProfileState.value?.takeIf { it.userId == userId.long } ?: return null
         profile.emailChangeAllowedAt?.takeIf { nowMillis() < it }?.let {
             publishEmailCooldown(it, profile)
             return null
@@ -639,7 +644,7 @@ class UserEditViewModel(
         val capability = _emailCapabilityState.value
         if (!capability.allowsStorage) return null
         if (requireEnabledSmtp && capability != EmailCapabilityState.Enabled) return null
-        if (_ownEmailProfileState.value?.id != userId) return null
+        if (_ownEmailProfileState.value?.userId != userId.long) return null
         if (_emailLoadFailedState.value || _emailLoadingState.value || _emailBusyState.value) return null
         _ownEmailProfileState.value?.emailChangeAllowedAt?.takeIf { nowMillis() < it }?.let {
             publishEmailCooldown(it)
@@ -696,12 +701,12 @@ class UserEditViewModel(
     private suspend fun reconcileOwnedEmailProfile(
         mutation: OwnerEmailMutation,
         preserveDraft: Boolean,
-    ): AuthFeatureUser? {
+    ): EmailProfile? {
         if (!canContinueEmailMutation(mutation)) return null
         try {
-            val profile = model.getMyProfile()
+            val profile = model.getMyEmailProfile()
             if (!canContinueEmailMutation(mutation)) return null
-            if (profile?.id != userId) {
+            if (profile?.userId != userId.long) {
                 _ownEmailProfileState.value = null
                 clearCompletedEmailFeedback()
                 _emailLoadFailedState.value = true
@@ -735,7 +740,7 @@ class UserEditViewModel(
     private fun publishVerificationResult(
         mutation: OwnerEmailMutation,
         recipient: Email,
-        profile: AuthFeatureUser,
+        profile: EmailProfile,
         result: EmailVerificationRequestResult,
     ) {
         if (profile.verificationCandidate() != recipient && !profile.isApprovedCurrentEmail(recipient)) return
@@ -743,6 +748,7 @@ class UserEditViewModel(
             email = profile.email,
             emailApproved = profile.emailApproved,
             pendingEmail = profile.pendingEmail,
+            emailChangeRequestedAt = profile.emailChangeRequestedAt,
             emailChangeAllowedAt = profile.emailChangeAllowedAt,
         )
         if (!isCurrentEmailMutation(mutation)) return
@@ -753,7 +759,7 @@ class UserEditViewModel(
     /** Publishes the completed-storage marker only from an exact checked private [profile]. */
     private fun publishEmailSaved(
         mutation: OwnerEmailMutation,
-        profile: AuthFeatureUser,
+        profile: EmailProfile,
     ) {
         val email = profile.editableEmailBaseline() ?: return
         if (!isCurrentEmailMutation(mutation)) return
@@ -761,6 +767,7 @@ class UserEditViewModel(
             email = profile.email,
             emailApproved = profile.emailApproved,
             pendingEmail = profile.pendingEmail,
+            emailChangeRequestedAt = profile.emailChangeRequestedAt,
             emailChangeAllowedAt = profile.emailChangeAllowedAt,
         )
         _emailSavedState.value = email
@@ -1141,12 +1148,14 @@ enum class EmailCapabilityState {
  * @property email Current owner address, or `null` when absent.
  * @property emailApproved Approval value read with [email] from the same private owner record.
  * @property pendingEmail Replacement candidate awaiting approval, or `null` when absent.
+ * @property emailChangeRequestedAt Request time for the active verification candidate, or `null`.
  * @property emailChangeAllowedAt Persisted email-change deadline, or `null` when unrestricted.
  */
 private data class EmailFeedbackSnapshot(
     val email: Email?,
     val emailApproved: Boolean,
     val pendingEmail: Email?,
+    val emailChangeRequestedAt: Long?,
     val emailChangeAllowedAt: Long?,
 )
 

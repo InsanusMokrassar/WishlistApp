@@ -46,7 +46,6 @@ object Plugin : StartPlugin {
         single<UsersModel> {
             DefaultUsersModel(
                 feature = get(),
-                authFeature = get(),
                 emailFeature = get(),
                 meState = meStateFlow,
                 adminFeature = get(),
