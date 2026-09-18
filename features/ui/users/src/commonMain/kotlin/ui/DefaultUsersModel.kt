@@ -30,8 +30,8 @@ import kotlinx.coroutines.flow.stateIn
  * Default outside-world implementation shared by the users list, profile, and editor screens.
  *
  * @param feature Public users capability.
- * @param emailFeature Current-user email management capability.
- * @param meState Reactive private current-user record.
+ * @param emailFeature Current-user email capability, including the owner-profile read.
+ * @param meState Reactive auth record used only for caller identity and authorization state.
  * @param adminFeature Administrative user mutation capability.
  * @param filesService Avatar storage and download service.
  * @param scope Lifetime used for derived state flows.
@@ -80,7 +80,11 @@ class DefaultUsersModel(
             }
             .stateIn(scope, SharingStarted.Eagerly, false)
 
-    /** @return Fresh email-owned state for authenticated caller, or `null` for a missing account. */
+    /**
+     * Reads the complete owner profile from the email feature without using auth's user model.
+     *
+     * @return Fresh email-owned state for authenticated caller, or `null` for a missing account.
+     */
     override suspend fun getMyEmailProfile(): EmailProfile? = emailFeature.getMyEmail()
 
     /** @return `true` when SMTP-backed email operations are enabled. */

@@ -58,7 +58,7 @@ class CacheUsersRepo(
 
     override suspend fun getByIdFresh(id: UserId): RegisteredUser? = originalRepo.getByIdFresh(id)
 
-    /** Delegates an email-owned fresh read without observing or updating the user cache. */
+    /** Delegates an email-owned fresh read without observing, refreshing, or updating the user cache. */
     override suspend fun getEmailProfileFresh(id: UserId): EmailProfile? = originalRepo.getEmailProfileFresh(id)
 
     override suspend fun setEmail(id: UserId, email: Email?): RegisteredUser? =

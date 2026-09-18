@@ -36,7 +36,8 @@ data class AuthFeatureUser(
 
 /**
  * Projects this [RegisteredUser] onto [AuthFeatureUser], retaining caller identity and current email
- * approval only. Pending verification lifecycle state is intentionally email-owned.
+ * approval only. Pending email, requested-at, and cooldown state is intentionally email-owned and
+ * cannot be recovered from this mapper.
  *
  * @return An [AuthFeatureUser] mirroring this user's [RegisteredUser.id], [RegisteredUser.username]
  *   and [RegisteredUser.email].
@@ -49,8 +50,9 @@ fun RegisteredUser.asAuthFeatureUser(): AuthFeatureUser = AuthFeatureUser(
 )
 
 /**
- * Projects this [AuthFeatureUser] back onto the persistence-layer [RegisteredUser], retaining identity,
- * current email, and approval only.
+ * Projects this [AuthFeatureUser] back onto the reduced persistence-layer [RegisteredUser], retaining
+ * identity, current email, and approval only. Email-owned pending/request/deadline state is not
+ * accepted as an argument and is never reconstructed through auth.
  *
  * @return A [RegisteredUser] mirroring this model's [AuthFeatureUser.id], [AuthFeatureUser.username]
  *   and [AuthFeatureUser.email].

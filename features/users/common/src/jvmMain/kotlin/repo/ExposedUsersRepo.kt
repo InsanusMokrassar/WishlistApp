@@ -195,7 +195,14 @@ class ExposedUsersRepo internal constructor(
             selectAll().where { usernameColumn eq username.string }.limit(1).firstOrNull()?.asObject
         }
 
-    /** Reads one complete email lifecycle projection without using a cached user value. */
+    /**
+     * Reads one complete email lifecycle projection from one users-row select.
+     *
+     * The projection is the email feature's model even though the physical lifecycle columns remain
+     * in the users row for locked cross-slot uniqueness and approval atomicity. A legacy candidate's
+     * unknown request time is returned as `null`; reads never infer it from the approval deadline or
+     * current clock.
+     */
     override suspend fun getEmailProfileFresh(id: UserId): EmailProfile? =
         transaction(db = database) {
             selectAll().where { idColumn eq id.long }.limit(1).firstOrNull()?.asEmailProfile
@@ -384,7 +391,13 @@ class ExposedUsersRepo internal constructor(
         return updated?.user
     }
 
-    /** Applies a lifecycle mutation after the caller has acquired [UsersWriteLockTable]'s row. */
+    /**
+     * Applies a lifecycle mutation after the caller has acquired [UsersWriteLockTable]'s row.
+     *
+     * A different accepted candidate receives one post-lock [nowMillis] sample in the same
+     * transaction. Same-current/same-pending saves, username-only writes, and failed operations do
+     * not restamp [emailChangeRequestedAt]; approval and explicit clear remove it.
+     */
     private fun JdbcTransaction.mutateEmailInTransaction(
         id: UserId,
         email: Email?,

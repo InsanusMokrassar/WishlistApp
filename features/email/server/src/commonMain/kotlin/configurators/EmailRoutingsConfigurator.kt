@@ -23,7 +23,7 @@ import io.ktor.server.routing.route
 /**
  * Ktor routing configurator for the email feature.
  *
- * Registers four endpoints under the `/email` path prefix (auto-prefixed to `/api/email` by the
+ * Registers five endpoints under the `/email` path prefix (auto-prefixed to `/api/email` by the
  * server's `InternalApplicationRoutingConfigurator`):
  *
  * - `GET  /email/enabled`   — public; returns whether SMTP delivery is configured.

@@ -37,14 +37,15 @@ fun RegisteredUser.asUsersFeatureUser(): UsersFeatureUser = UsersFeatureUser(
 )
 
 /**
- * Projects this [UsersFeatureUser] back onto the persistence-layer [RegisteredUser].
+ * Projects this [UsersFeatureUser] back onto the reduced persistence-layer [RegisteredUser].
  *
  * [UsersFeatureUser] deliberately drops [RegisteredUser.email] and [RegisteredUser.emailApproved]
  * (see this model's class KDoc), so the reverse conversion cannot recover either value from the
  * receiver: the caller MUST supply both fields explicitly. The parameters have NO default values on
  * purpose — a silent default would let a caller accidentally reconstruct a user with private data
  * erased, the same data-integrity trap (in the opposite direction) that issue #67 fixed. Pending
- * verification lifecycle state is not a user-model field and cannot be reconstructed here.
+ * email, accepted-candidate time, and cooldown state are email-owned and cannot be reconstructed
+ * here at all.
  *
  * @param email Email address to restore onto the rebuilt [RegisteredUser] (typically taken from the
  *   stored record being reconstructed), or `null` to consciously record "no email".

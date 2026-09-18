@@ -25,8 +25,9 @@ import org.koin.core.module.Module
  *
  * Registers polymorphic serializers and ViewModel factories for the users list, the public
  * profile view and the profile edit screens, plus the single [UsersModel] singleton wrapping the
- * public [UsersFeature], the authenticated-user ("me") state flow, admin [AdminFeature] and
- * [FilesClientService].
+ * public [UsersFeature], the email-owned [dev.inmo.wishlist.features.email.client.EmailFeature]
+ * profile/mutation surface, the authenticated-user ("me") identity state flow, admin
+ * [AdminFeature] and [FilesClientService].
  */
 object Plugin : StartPlugin {
     override fun Module.setupDI(config: JsonObject) {

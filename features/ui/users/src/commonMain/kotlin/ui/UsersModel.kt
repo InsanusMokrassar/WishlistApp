@@ -15,7 +15,7 @@ import kotlinx.coroutines.flow.StateFlow
  * Model facade consumed by every users UI screen (list, profile view, profile edit).
  *
  * Hides the underlying `features/users/client` (public read), `features/auth/client`
- * (current caller), `features/roles/client` (functionality-availability checks),
+ * (current caller identity), `features/roles/client` (functionality-availability checks),
  * `features/admin/client` (admin-panel mutations) and `features/files/client` (avatar storage)
  * feature surfaces behind one interface.
  */
@@ -73,7 +73,9 @@ interface UsersModel {
      * Resolves authenticated caller email state owned by the email feature.
      *
      * This must never be substituted with auth state or public users listing. Email lifecycle state
-     * is private to its owner and is served by the email feature.
+     * is private to its owner and is served by
+     * [dev.inmo.wishlist.features.email.client.EmailFeature] as an [EmailProfile], including
+     * pending verification information and both timestamps.
      *
      * @return The authenticated caller's email profile, or `null` when the account is absent.
      */

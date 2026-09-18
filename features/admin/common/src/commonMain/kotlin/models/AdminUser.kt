@@ -32,6 +32,8 @@ data class AdminUser(
 
 /**
  * Projects this [RegisteredUser] onto [AdminUser], retaining identity, current email, and approval.
+ * Email-owned pending/request/deadline state is never accepted by this mapper or returned through
+ * admin APIs.
  *
  * @return An [AdminUser] mirroring this user's [RegisteredUser.id], [RegisteredUser.username] and
  *   [RegisteredUser.email].
@@ -44,8 +46,9 @@ fun RegisteredUser.asAdminUser(): AdminUser = AdminUser(
 )
 
 /**
- * Projects this [AdminUser] back onto the persistence-layer [RegisteredUser], retaining identity,
- * current email, and approval only.
+ * Projects this [AdminUser] back onto the reduced persistence-layer [RegisteredUser], retaining
+ * identity, current email, and approval only. Email-owned pending/request/deadline state is not
+ * accepted as an argument and is never reconstructed through admin models.
  *
  * @return A [RegisteredUser] mirroring this model's [AdminUser.id], [AdminUser.username] and
  *   [AdminUser.email].

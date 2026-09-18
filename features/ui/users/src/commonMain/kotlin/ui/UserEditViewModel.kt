@@ -55,6 +55,10 @@ import korlibs.time.DateTime
  * Username/password mutations go through the admin-panel endpoints; the avatar upload goes through
  * the files feature (allowed for the owner or the `files.avatarChangeForOthers` functionality).
  * Server-side authorization is the source of truth — the gating here is purely presentational.
+ * The private owner email state is an [EmailProfile] obtained through [UsersModel.getMyEmailProfile],
+ * never an [dev.inmo.wishlist.features.auth.common.models.AuthFeatureUser]. Its five-field feedback
+ * snapshot includes the accepted-candidate request time so a newer request retires older positive
+ * feedback without adding a timestamp control to the UI.
  *
  * On logout this screen exits unconditionally to the underlying profile (read) view via
  * [UserEditViewInteractor.onNavigateBack], bypassing the dirty-changes confirm dialog.

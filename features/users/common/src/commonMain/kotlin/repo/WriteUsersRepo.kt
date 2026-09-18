@@ -15,16 +15,20 @@ import dev.inmo.wishlist.features.email.common.models.Email
  * [dev.inmo.wishlist.features.users.common.repo.exceptions.DuplicateUserFieldException] when the
  * given username or non-null email already belongs to a different user. Email lifecycle writes
  * retain the latest approved address in `email`, use `pendingEmail` for a replacement until exact
- * verification approval, and enforce a persisted post-approval deadline. See that exception's
- * KDoc for the full propagation path.
+ * verification approval, record accepted-candidate time separately from the approval-rooted
+ * deadline, and enforce the persisted post-approval deadline. The lifecycle state is returned via
+ * the email-owned fresh profile projection rather than [RegisteredUser]. See that exception's KDoc
+ * for the full propagation path.
  */
 interface WriteUsersRepo : WriteCRUDRepo<RegisteredUser, UserId, NewUser> {
     /** Applies the lifecycle-aware email mutation for [id].
      *
      * A replacement after approval is stored as a pending candidate while the approved current
-     * address remains unchanged. Clearing is also a state-changing lifecycle mutation and is
-     * rejected while the persisted cooldown deadline is active; an exact deadline permits the
-     * mutation. Same-slot no-ops do not cancel a pending candidate.
+     * address remains unchanged. A new candidate records an accepted-write request time; a legacy
+     * candidate may retain `null` because no historical time can be inferred. Clearing is also a
+     * state-changing lifecycle mutation and is rejected while the persisted cooldown deadline is
+     * active; an exact deadline permits the mutation. Same-slot no-ops do not restamp or cancel a
+     * pending candidate.
      * @param id User whose email lifecycle is changed.
      * @param email Replacement address, or `null` for explicit clearing.
      * @return Updated record, or `null` when [id] is absent.
@@ -45,8 +49,9 @@ interface WriteUsersRepo : WriteCRUDRepo<RegisteredUser, UserId, NewUser> {
      * Approval is deliberately a repository-owned mutation rather than a caller-writable field on
      * [NewUser], preventing stale verification links or ordinary user edits from approving another
      * address. For a replacement, approval promotes `pendingEmail` to `email`, clears the pending
-     * slot, and may issue a deadline from the approval clock. Replaying the already-approved exact
-     * current address is a no-op.
+     * slot, clears the candidate request time, and may issue a deadline from the approval clock.
+     * Requested-at and the approval-rooted deadline are distinct fields. Replaying the
+     * already-approved exact current address is a no-op.
      *
      * @param id User whose address is being approved.
      * @param expectedEmail Exact address bound into the verification link.

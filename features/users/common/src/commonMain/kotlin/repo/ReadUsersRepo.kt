@@ -13,14 +13,15 @@ interface ReadUsersRepo : ReadCRUDRepo<RegisteredUser, UserId> {
      */
     suspend fun getUserByUsername(username: Username): RegisteredUser?
 
-    /** Reads the current backing value, bypassing any cache when an implementation has one. */
+    /** Reads the current identity backing value, bypassing any cache when an implementation has one. */
     suspend fun getByIdFresh(id: UserId): RegisteredUser? = getById(id)
 
     /**
      * Reads the email feature's complete owner state directly from persistent storage.
      *
      * Implementations must not derive this profile from [RegisteredUser], because cached or reduced
-     * user projections do not own the pending verification lifecycle.
+     * user projections do not own the pending verification lifecycle. The read is mandatory so a
+     * coordinator cannot silently fall back to a user model or return a fabricated empty profile.
      *
      * @param id User whose email state must be read.
      * @return A profile for an existing user, including an empty profile for an account without an
