@@ -4,6 +4,7 @@ import dev.inmo.micro_utils.repos.UpdatedValuePair
 import dev.inmo.micro_utils.repos.exposed.AbstractExposedCRUDRepo
 import dev.inmo.micro_utils.repos.exposed.initTable
 import dev.inmo.wishlist.features.email.common.models.Email
+import dev.inmo.wishlist.features.email.common.models.EmailProfile
 import dev.inmo.wishlist.features.common.common.utils.isUniqueViolation
 import dev.inmo.wishlist.features.users.common.models.NewUser
 import dev.inmo.wishlist.features.users.common.models.RegisteredUser
@@ -108,6 +109,9 @@ class ExposedUsersRepo internal constructor(
     /** Nullable UTC epoch-millisecond deadline issued after a new approval. */
     private val emailChangeAllowedAtColumn = long("email_change_allowed_at").nullable()
 
+    /** Nullable UTC epoch-millisecond time when the active verification candidate was accepted. */
+    private val emailChangeRequestedAtColumn = long("email_change_requested_at").nullable()
+
     override val primaryKey = PrimaryKey(idColumn)
 
     /**
@@ -125,6 +129,20 @@ class ExposedUsersRepo internal constructor(
                 email = email,
                 emailApproved = email != null && get(emailApprovedColumn),
                 pendingEmail = get(pendingEmailColumn)?.let { Email.parse(it).getOrNull() },
+                emailChangeAllowedAt = get(emailChangeAllowedAtColumn),
+            )
+        }
+
+    /** Maps one raw users row to the email feature's complete owner-state projection. */
+    private val ResultRow.asEmailProfile: EmailProfile
+        get() {
+            val email = get(emailColumn)?.let { Email.parse(it).getOrNull() }
+            return EmailProfile(
+                userId = get(idColumn),
+                email = email,
+                emailApproved = email != null && get(emailApprovedColumn),
+                pendingEmail = get(pendingEmailColumn)?.let { Email.parse(it).getOrNull() },
+                emailChangeRequestedAt = get(emailChangeRequestedAtColumn),
                 emailChangeAllowedAt = get(emailChangeAllowedAtColumn),
             )
         }
@@ -177,6 +195,12 @@ class ExposedUsersRepo internal constructor(
     override suspend fun getUserByUsername(username: Username): RegisteredUser? =
         transaction(db = database) {
             selectAll().where { usernameColumn eq username.string }.limit(1).firstOrNull()?.asObject
+        }
+
+    /** Reads one complete email lifecycle projection without using a cached user value. */
+    override suspend fun getEmailProfileFresh(id: UserId): EmailProfile? =
+        transaction(db = database) {
+            selectAll().where { idColumn eq id.long }.limit(1).firstOrNull()?.asEmailProfile
         }
 
     override suspend fun setEmail(id: UserId, email: Email?): RegisteredUser? =
@@ -237,7 +261,10 @@ class ExposedUsersRepo internal constructor(
                 acquireWriteLock()
                 values.map { value ->
                     ensureEmailAvailable(email = value.email, excludedId = null)
-                    insert { statement -> update(id = null, value = value, it = statement) }.asObject(value)
+                    insert { statement ->
+                        update(id = null, value = value, it = statement)
+                        statement[emailChangeRequestedAtColumn] = value.email?.let { nowMillis() }
+                    }.asObject(value)
                 }
             }
         } catch (error: ExposedSQLException) {
@@ -307,6 +334,7 @@ class ExposedUsersRepo internal constructor(
                         it[emailColumn] = expectedEmail.string
                         it[pendingEmailColumn] = null
                         it[emailApprovedColumn] = true
+                        it[emailChangeRequestedAtColumn] = null
                         it[emailChangeAllowedAtColumn] = deadline
                     }
                     selectUser(id)?.let { true to it }
@@ -315,6 +343,7 @@ class ExposedUsersRepo internal constructor(
                     val deadline = if (cooldownMillis == 0L) null else Math.addExact(nowMillis(), cooldownMillis)
                     this@ExposedUsersRepo.exposedUpdate({ idColumn eq id.long }) {
                         it[emailApprovedColumn] = true
+                        it[emailChangeRequestedAtColumn] = null
                         it[emailChangeAllowedAtColumn] = deadline
                     }
                     selectUser(id)?.let { true to it }
@@ -368,7 +397,8 @@ class ExposedUsersRepo internal constructor(
             else -> currentRow[emailColumn] != email.string && currentRow[pendingEmailColumn] != email.string
         }
         val deadline = currentRow[emailChangeAllowedAtColumn]
-        if (changingEmail && deadline != null && nowMillis() < deadline) {
+        val mutationNowMillis = if (changingEmail) nowMillis() else null
+        if (changingEmail && deadline != null && checkNotNull(mutationNowMillis) < deadline) {
             throw EmailChangeCooldownException(deadline)
         }
         if (changingEmail) ensureEmailAvailable(email = email, excludedId = id)
@@ -386,6 +416,7 @@ class ExposedUsersRepo internal constructor(
                     it[emailColumn] = null
                     it[pendingEmailColumn] = null
                     it[emailApprovedColumn] = false
+                    it[emailChangeRequestedAtColumn] = null
                     it[emailChangeAllowedAtColumn] = null
                 }
             }
@@ -393,6 +424,7 @@ class ExposedUsersRepo internal constructor(
                 this@ExposedUsersRepo.exposedUpdate({ idColumn eq id.long }) {
                     if (username != null) it[usernameColumn] = username.string
                     it[pendingEmailColumn] = email.string
+                    it[emailChangeRequestedAtColumn] = mutationNowMillis
                 }
             }
             else -> {
@@ -401,6 +433,7 @@ class ExposedUsersRepo internal constructor(
                     it[emailColumn] = email.string
                     it[pendingEmailColumn] = null
                     it[emailApprovedColumn] = false
+                    it[emailChangeRequestedAtColumn] = mutationNowMillis
                     it[emailChangeAllowedAtColumn] = null
                 }
             }
@@ -413,6 +446,7 @@ class ExposedUsersRepo internal constructor(
         get(emailColumn) == null &&
             get(pendingEmailColumn) == null &&
             !get(emailApprovedColumn) &&
+            get(emailChangeRequestedAtColumn) == null &&
             get(emailChangeAllowedAtColumn) == null
 
     /** Updates the durable lock row before any users-table query. */

@@ -16,6 +16,7 @@ import dev.inmo.wishlist.features.auth.server.RegistrationRoleLifecycle
 import dev.inmo.wishlist.features.auth.server.UserRoleAuthorization
 import dev.inmo.wishlist.features.auth.server.repo.PasswordsRepo
 import dev.inmo.wishlist.features.email.common.models.Email
+import dev.inmo.wishlist.features.email.common.models.EmailProfile
 import dev.inmo.wishlist.features.users.common.models.NewUser
 import dev.inmo.wishlist.features.users.common.models.RegisteredUser
 import dev.inmo.wishlist.features.users.common.models.UserId
@@ -73,6 +74,10 @@ internal class FakeUsersRepo(
 
     override suspend fun getUserByUsername(username: Username): RegisteredUser? =
         getAll().values.firstOrNull { it.username == username }
+
+    /** Rejects email lifecycle reads outside this auth-focused fixture's supported surface. */
+    override suspend fun getEmailProfileFresh(id: UserId): EmailProfile? =
+        error("Email profile reads are not exercised by this auth fake")
 
     override suspend fun setEmail(id: UserId, email: Email?): RegisteredUser? = locker.withWriteLock {
         val current = map[id] ?: return@withWriteLock null

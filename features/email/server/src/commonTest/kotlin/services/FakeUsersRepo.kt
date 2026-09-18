@@ -3,6 +3,7 @@ package dev.inmo.wishlist.features.email.server.services
 import dev.inmo.micro_utils.repos.MapCRUDRepo
 import dev.inmo.micro_utils.coroutines.withWriteLock
 import dev.inmo.wishlist.features.email.common.models.Email
+import dev.inmo.wishlist.features.email.common.models.EmailProfile
 import dev.inmo.wishlist.features.users.common.models.NewUser
 import dev.inmo.wishlist.features.users.common.models.RegisteredUser
 import dev.inmo.wishlist.features.users.common.models.UserId
@@ -96,6 +97,10 @@ internal class FakeUsersRepo(
      */
     override suspend fun getUserByUsername(username: Username): RegisteredUser? =
         getAll().values.firstOrNull { it.username == username }
+
+    /** Rejects the new persistence projection until this fake is migrated with the email service slice. */
+    override suspend fun getEmailProfileFresh(id: UserId): EmailProfile? =
+        error("Email profile reads are not exercised by this pre-migration fake")
 
     override suspend fun setEmail(id: UserId, email: Email?): RegisteredUser? = locker.withWriteLock {
         val current = map[id] ?: return@withWriteLock null

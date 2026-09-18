@@ -2,6 +2,7 @@ package dev.inmo.wishlist.features.users.common.repo
 
 import dev.inmo.micro_utils.repos.create
 import dev.inmo.wishlist.features.email.common.models.Email
+import dev.inmo.wishlist.features.email.common.models.EmailProfile
 import dev.inmo.wishlist.features.users.common.models.NewUser
 import dev.inmo.wishlist.features.users.common.models.RegisteredUser
 import dev.inmo.wishlist.features.users.common.models.Username
@@ -46,6 +47,17 @@ class CacheUsersRepoSqliteTest {
             )
             assertEquals(newer, cache.getByIdFresh(created.id))
             assertEquals(created, cache.getById(created.id))
+            assertEquals(
+                EmailProfile(
+                    userId = created.id.long,
+                    email = current,
+                    emailApproved = true,
+                    pendingEmail = pending,
+                    emailChangeRequestedAt = 1_010L,
+                    emailChangeAllowedAt = 1_010L,
+                ),
+                cache.getEmailProfileFresh(created.id),
+            )
         }
     }
 

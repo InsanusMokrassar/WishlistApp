@@ -3,6 +3,7 @@ package dev.inmo.wishlist.features.users.server.services
 import dev.inmo.micro_utils.repos.ReadCRUDRepo
 import dev.inmo.micro_utils.repos.ReadMapCRUDRepo
 import dev.inmo.wishlist.features.email.common.models.Email
+import dev.inmo.wishlist.features.email.common.models.EmailProfile
 import dev.inmo.wishlist.features.users.common.models.RegisteredUser
 import dev.inmo.wishlist.features.users.common.models.UserId
 import dev.inmo.wishlist.features.users.common.models.UsersFeatureUser
@@ -39,6 +40,10 @@ internal class FakeUsersRepo(
      */
     override suspend fun getUserByUsername(username: Username): RegisteredUser? =
         getAll().values.firstOrNull { it.username == username }
+
+    /** Rejects email lifecycle reads outside the public-users read fixture's supported surface. */
+    override suspend fun getEmailProfileFresh(id: UserId): EmailProfile? =
+        error("Email profile reads are not exercised by this public-users fake")
 }
 
 /**

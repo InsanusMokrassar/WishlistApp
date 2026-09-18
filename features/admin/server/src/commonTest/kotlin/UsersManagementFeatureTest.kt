@@ -17,6 +17,7 @@ import dev.inmo.wishlist.features.auth.common.models.Password
 import dev.inmo.wishlist.features.auth.server.repo.PasswordsRepo
 import dev.inmo.wishlist.features.auth.server.services.AuthFeatureService
 import dev.inmo.wishlist.features.email.common.models.Email
+import dev.inmo.wishlist.features.email.common.models.EmailProfile
 import dev.inmo.wishlist.features.email.server.services.EmailVerificationAccountCoordinator
 import dev.inmo.wishlist.features.users.common.models.NewUser
 import dev.inmo.wishlist.features.users.common.models.RegisteredUser
@@ -64,6 +65,10 @@ internal class FakeUsersRepo(
 
     override suspend fun getUserByUsername(username: Username): RegisteredUser? =
         getAll().values.firstOrNull { it.username == username }
+
+    /** Rejects email lifecycle reads outside this admin-focused fixture's supported surface. */
+    override suspend fun getEmailProfileFresh(id: UserId): EmailProfile? =
+        error("Email profile reads are not exercised by this admin fake")
 
     override suspend fun setEmail(id: UserId, email: Email?): RegisteredUser? = locker.withWriteLock {
         val current = map[id] ?: return@withWriteLock null

@@ -259,6 +259,47 @@ class PostgresUsersRepoTest {
         }
     }
 
+    /** A PostgreSQL candidate write samples request time only after a verified singleton-row lock wait. */
+    @Test
+    fun blockedCandidateCreateUsesClockAfterObservedPostgresLockWait() = runBlockingPostgresTest {
+        var now = 1_000L
+        val holderLocked = CountDownLatch(1)
+        val releaseHolder = CountDownLatch(1)
+        val contenderLocked = CountDownLatch(1)
+        val backendPids = PostgresBackendPids()
+        withBoundedPostgresUsersRepos(
+            firstNowMillis = { now },
+            firstAfterWriteLock = {
+                holderLocked.countDown()
+                check(releaseHolder.await(15, TimeUnit.SECONDS)) { "PostgreSQL candidate holder was not released" }
+            },
+            secondNowMillis = { now },
+            secondAfterWriteLock = { contenderLocked.countDown() },
+            captureBackendPids = backendPids,
+        ) { schemaUrl, first, second ->
+            val holderWorker = BoundedPostgresTestWorker("PostgreSQL candidate holder") {
+                first.create(NewUser(Username("postgres-candidate-holder"), Email("postgres-candidate-holder@example.com"))).single()
+            }
+            val contenderWorker = BoundedPostgresTestWorker("PostgreSQL candidate contender") {
+                second.create(NewUser(Username("postgres-candidate-contender"), Email("postgres-candidate-contender@example.com"))).single()
+            }
+            backendPids.arm()
+            runCleanupProtectedPostgresContention(
+                workers = listOf(holderWorker, contenderWorker),
+                cleanupActions = listOf(releaseHolder::countDown),
+            ) {
+                holderWorker.start()
+                assertTrue(holderLocked.await(10, TimeUnit.SECONDS))
+                contenderWorker.start()
+                assertPostgresContenderBlockedOnUsersWriteLock(schemaUrl, backendPids)
+                assertEquals(1, contenderLocked.count)
+                now = 2_000L
+            }
+            val contender = contenderWorker.result().getOrThrow()
+            assertEquals(2_000L, first.getEmailProfileFresh(contender.id)?.emailChangeRequestedAt)
+        }
+    }
+
     /** Additive PostgreSQL initialization preserves legacy data and survives reopening with lifecycle state intact. */
     @Test
     fun postgresAdditiveMigrationAndReopenPreserveLegacyAndLifecycleState() = runBlockingPostgresTest {
@@ -280,11 +321,15 @@ class PostgresUsersRepoTest {
                 assertTrue(legacy.emailApproved)
                 assertNull(legacy.pendingEmail)
                 assertNull(legacy.emailChangeAllowedAt)
+                assertNull(repo.getEmailProfileFresh(legacyId)?.emailChangeRequestedAt)
                 assertLegacyColumnsAndSingleton(schemaUrl)
                 val pending = checkNotNull(repo.setEmail(legacyId, replacement))
                 assertEquals(replacement, pending.pendingEmail)
+                assertEquals(1_000L, repo.getEmailProfileFresh(legacyId)?.emailChangeRequestedAt)
                 val deadlineUser = repo.create(NewUser(Username("postgres-deadline"), deadlineAddress)).single()
+                assertEquals(1_000L, repo.getEmailProfileFresh(deadlineUser.id)?.emailChangeRequestedAt)
                 assertEquals(1_500L, checkNotNull(repo.approveEmail(deadlineUser.id, deadlineAddress, cooldownMillis = 500)).emailChangeAllowedAt)
+                assertNull(repo.getEmailProfileFresh(deadlineUser.id)?.emailChangeRequestedAt)
                 assertLegacyColumnsAndSingleton(schemaUrl, replacement)
             } finally {
                 TransactionManager.closeAndUnregister(firstDatabase)
@@ -297,8 +342,10 @@ class PostgresUsersRepoTest {
                 assertEquals(Email("postgres-legacy@example.com"), legacy.email)
                 assertEquals(replacement, legacy.pendingEmail)
                 assertNull(legacy.emailChangeAllowedAt)
+                assertEquals(1_000L, reopened.getEmailProfileFresh(legacyId)?.emailChangeRequestedAt)
                 val deadlineUser = checkNotNull(reopened.getUserByUsername(Username("postgres-deadline")))
                 assertEquals(1_500L, deadlineUser.emailChangeAllowedAt)
+                assertNull(reopened.getEmailProfileFresh(deadlineUser.id)?.emailChangeRequestedAt)
                 assertLegacyColumnsAndSingleton(schemaUrl, replacement)
             } finally {
                 TransactionManager.closeAndUnregister(reopenedDatabase)
@@ -408,9 +455,10 @@ class PostgresUsersRepoTest {
     private fun assertLegacyColumnsAndSingleton(schemaUrl: String, expectedPending: Email? = null) {
         openBoundedPostgresConnection(schemaUrl).use { connection ->
             connection.createStatement().use { statement ->
-                statement.executeQuery("SELECT pending_email, email_change_allowed_at FROM users WHERE id = 41").use { result ->
+                statement.executeQuery("SELECT pending_email, email_change_requested_at, email_change_allowed_at FROM users WHERE id = 41").use { result ->
                     assertTrue(result.next())
                     assertEquals(expectedPending?.string, result.getString("pending_email"))
+                    if (expectedPending == null) assertNull(result.getObject("email_change_requested_at"))
                     assertNull(result.getObject("email_change_allowed_at"))
                 }
                 statement.executeQuery("SELECT COUNT(*) FROM users_write_lock WHERE id = 1 AND marker = 0").use { result ->
