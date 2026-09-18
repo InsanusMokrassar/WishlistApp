@@ -120,6 +120,48 @@ class EmailRegistrationInviteSenderTest {
         assertEquals(EmailVerificationPayload(user.id, user.email), stored.value)
     }
 
+    /** Direct verification delivery binds the exact caller-selected recipient into SMTP and deeplink payload. */
+    @Test
+    fun directRecipientDeliveryBindsExactPayload() = runTest {
+        val repo = FakeDeepLinksRepo()
+        val links = DeepLinksService(repo, emptyList())
+        val emails = FakeEmailsService()
+        val sender = EmailRegistrationInviteSender(emails, links, "http://localhost:8196")
+        val replacement = Email("replacement@example.com")
+
+        assertTrue(sender.sendVerificationEmailWithCompensation(user.id, replacement) != null)
+
+        assertEquals(listOf(replacement), emails.sendHtmlCalls.map { it.recipient })
+        assertEquals(
+            EmailVerificationPayload(user.id, replacement),
+            repo.getAll().values.single().value,
+        )
+    }
+
+    /** Registration delivery uses only an unapproved current address and never promotes a pending replacement into it. */
+    @Test
+    fun registrationAdapterUsesOnlyUnapprovedCurrentEmail() = runTest {
+        val repo = FakeDeepLinksRepo()
+        val sender = EmailRegistrationInviteSender(
+            emailsService = FakeEmailsService(),
+            deepLinksService = DeepLinksService(repo, emptyList()),
+            publicHttpOrigin = "http://localhost:8196",
+        )
+        val approvedWithReplacement = RegisteredUser(
+            id = user.id,
+            username = user.username,
+            email = Email("approved@example.com"),
+            emailApproved = true,
+        )
+        val noEmail = user.copy(email = null)
+
+        assertEquals(null, sender.sendRegistrationEmailWithCompensation(approvedWithReplacement))
+        assertEquals(null, sender.sendRegistrationEmailWithCompensation(noEmail))
+        assertTrue(repo.getAll().isEmpty())
+        assertTrue(sender.sendRegistrationEmailWithCompensation(user) != null)
+        assertEquals(EmailVerificationPayload(user.id, user.email), repo.getAll().values.single().value)
+    }
+
     /** A compensable delivery retains its link until the returned request-local handle rolls it back. */
     @Test
     fun compensableDeliveryRetainsAndRollsBackItsExactDeepLink() = runTest {

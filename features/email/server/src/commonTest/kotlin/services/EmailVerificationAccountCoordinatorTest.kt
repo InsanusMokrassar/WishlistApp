@@ -8,6 +8,7 @@ import dev.inmo.wishlist.features.deeplinks.common.models.DeepLinkId
 import dev.inmo.wishlist.features.deeplinks.common.models.HandleResult
 import dev.inmo.wishlist.features.email.common.EmailConstants
 import dev.inmo.wishlist.features.email.common.models.Email
+import dev.inmo.wishlist.features.email.common.models.EmailProfile
 import dev.inmo.wishlist.features.email.server.EmailFeature
 import dev.inmo.wishlist.features.email.server.Plugin
 import dev.inmo.wishlist.features.email.server.models.EmailVerificationPayload
@@ -15,10 +16,13 @@ import dev.inmo.wishlist.features.roles.common.models.NewUserRole
 import dev.inmo.wishlist.features.roles.common.models.UserRole
 import dev.inmo.wishlist.features.roles.server.RolesFeature
 import dev.inmo.wishlist.features.users.common.models.RegisteredUser
+import dev.inmo.wishlist.features.users.common.models.NewUser
 import dev.inmo.wishlist.features.users.common.models.UserId
 import dev.inmo.wishlist.features.users.common.models.Username
 import dev.inmo.wishlist.features.users.common.repo.UsersRepo
 import dev.inmo.wishlist.features.users.common.repo.exceptions.DuplicateUserFieldException
+import dev.inmo.wishlist.features.users.common.repo.exceptions.EmailChangeCooldownException
+import dev.inmo.wishlist.features.users.common.repo.ExposedUsersRepo
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.async
@@ -32,6 +36,9 @@ import kotlinx.serialization.json.put
 import kotlinx.serialization.json.putJsonObject
 import org.koin.core.KoinApplication
 import org.koin.dsl.module
+import org.jetbrains.exposed.v1.jdbc.Database
+import org.jetbrains.exposed.v1.jdbc.transactions.TransactionManager
+import java.nio.file.Files
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFailsWith
@@ -108,11 +115,57 @@ class EmailVerificationAccountCoordinatorTest {
     /** Pending account used by every coordinator-ordering test. */
     private val user = RegisteredUser(UserId(7L), Username("alice"), invitedEmail)
 
+    /** Rejects cached-user reads so the test proves the coordinator uses only the fresh profile capability. */
+    private class FreshProfileOnlyUsersRepo(
+        private val delegate: FakeUsersRepo,
+    ) : UsersRepo by delegate {
+        override suspend fun getByIdFresh(id: UserId): RegisteredUser? =
+            error("Coordinator must not read a user projection for email state")
+    }
+
     /** Direct role subject corresponding to [user]. */
     private val subject = BaseRoleSubject.Direct(user.id.long.toString())
 
     /** Deeplink id required by the handler contract. */
     private val deeplinkId = DeepLinkId("verification-7")
+
+    /** Full fixture updates clear explicit null addresses before nullable same-slot no-op checks. */
+    @Test
+    fun fakeFullUpdateClearsLifecycleAndRetainsSameAddressNoOps() = runTest {
+        val unapproved = RegisteredUser(UserId(71L), Username("fake-unapproved"), Email("fake-unapproved@example.com"))
+        val approved = RegisteredUser(UserId(72L), Username("fake-approved"), Email("fake-approved@example.com"), true)
+        val unapprovedProfile = EmailProfile(
+            userId = unapproved.id.long,
+            email = unapproved.email,
+            emailChangeRequestedAt = 10L,
+        )
+        val approvedProfile = EmailProfile(
+            userId = approved.id.long,
+            email = approved.email,
+            emailApproved = true,
+            emailChangeAllowedAt = 20L,
+        )
+        val usersRepo = FakeUsersRepo(
+            initialUsers = mapOf(unapproved.id to unapproved, approved.id to approved),
+            initialEmailProfiles = mapOf(unapproved.id to unapprovedProfile, approved.id to approvedProfile),
+        )
+
+        assertEquals(listOf(unapproved), usersRepo.update(listOf(unapproved.id to NewUser(unapproved.username, unapproved.email))))
+        assertEquals(unapprovedProfile, usersRepo.getEmailProfileFresh(unapproved.id))
+        assertEquals(listOf(approved), usersRepo.update(listOf(approved.id to NewUser(approved.username, approved.email))))
+        assertEquals(approvedProfile, usersRepo.getEmailProfileFresh(approved.id))
+
+        assertEquals(
+            listOf(RegisteredUser(unapproved.id, unapproved.username)),
+            usersRepo.update(listOf(unapproved.id to NewUser(unapproved.username, null))),
+        )
+        assertEquals(EmailProfile(userId = unapproved.id.long), usersRepo.getEmailProfileFresh(unapproved.id))
+        assertEquals(
+            listOf(RegisteredUser(approved.id, approved.username)),
+            usersRepo.update(listOf(approved.id to NewUser(approved.username, null))),
+        )
+        assertEquals(EmailProfile(userId = approved.id.long), usersRepo.getEmailProfileFresh(approved.id))
+    }
 
     /**
      * Builds a real Email plugin Koin application with controlled repository dependencies.
@@ -161,6 +214,37 @@ class EmailVerificationAccountCoordinatorTest {
         }
     }
 
+    /** Returns a valid graph configuration whose root policy issues a ten-millisecond restriction. */
+    private fun positivePolicyConfig(smtpEnabled: Boolean): JsonObject = buildJsonObject {
+        put("emailChangeCooldown", "PT0.01S")
+        if (smtpEnabled) {
+            putJsonObject("email") {
+                putJsonObject("smtp") {
+                    put("host", "smtp.example.com")
+                    put("from", "noreply@example.com")
+                }
+            }
+        }
+    }
+
+    /** Runs a real repository over a fixture-owned SQLite file and always unregisters its database. */
+    private suspend fun withSqliteUsersRepo(
+        nowMillis: () -> Long,
+        block: suspend (ExposedUsersRepo) -> Unit,
+    ) {
+        val file = Files.createTempFile("wishlist-email-coordinator", ".sqlite")
+        val database = Database.connect(url = "jdbc:sqlite:${file.toAbsolutePath()}", driver = "org.sqlite.JDBC")
+        try {
+            block(ExposedUsersRepo(database, nowMillis))
+        } finally {
+            try {
+                TransactionManager.closeAndUnregister(database)
+            } finally {
+                Files.deleteIfExists(file)
+            }
+        }
+    }
+
     /**
      * Forces verification to own the coordinator before a self-service update starts.
      *
@@ -194,7 +278,9 @@ class EmailVerificationAccountCoordinatorTest {
         )
         assertEquals(invitedEmail, rolesRepo.emailAtUserRoleGrant)
         assertTrue(update.await())
-        assertEquals(changedEmail, usersRepo.getById(user.id)?.email)
+        assertEquals(invitedEmail, usersRepo.getById(user.id)?.email)
+        assertEquals(changedEmail, usersRepo.getEmailProfileFresh(user.id)?.pendingEmail)
+        assertTrue(checkNotNull(usersRepo.getById(user.id)).emailApproved)
         assertEquals(setOf(UserRole), rolesRepo.getDirectRoles(subject).toSet())
     }
 
@@ -208,7 +294,15 @@ class EmailVerificationAccountCoordinatorTest {
         config: JsonObject,
         expectEnabled: Boolean,
     ) {
-        val usersRepo = FakeUsersRepo(mapOf(user.id to user))
+        val profile = EmailProfile(
+            userId = user.id.long,
+            email = invitedEmail,
+            emailChangeRequestedAt = 100L,
+        )
+        val usersRepo = FakeUsersRepo(
+            initialUsers = mapOf(user.id to user),
+            initialEmailProfiles = mapOf(user.id to profile),
+        )
         val rolesRepo = BlockingPromotionRolesRepo(usersRepo, user.id)
         val application = createKoinApplication(config, usersRepo, rolesRepo)
         try {
@@ -225,6 +319,8 @@ class EmailVerificationAccountCoordinatorTest {
                 expectEnabled -> assertIs<EmailFeatureService>(feature)
                 else -> assertIs<DisabledEmailFeature>(feature)
             }
+            assertEquals(profile, feature.getMyEmail(user.id))
+            assertEquals(listOf(user.id), usersRepo.emailProfileReadCalls)
             val handler = application.koin.getAll<DeepLinkHandler>()
                 .filterIsInstance<EmailVerificationDeepLinkHandler>()
                 .single()
@@ -247,6 +343,29 @@ class EmailVerificationAccountCoordinatorTest {
         assertTrue(coordinator.updateStoredEmail(user.id, null))
         assertEquals(null, usersRepo.getById(user.id)?.email)
         assertFalse(coordinator.updateStoredEmail(UserId(999L), changedEmail))
+    }
+
+    /** Fresh reads stay under the shared mutex, bypass user projections, and propagate repository failures. */
+    @Test
+    fun getCurrentEmailProfileUsesMandatoryFreshProfileReadAndPropagatesErrors() = runTest {
+        val profile = EmailProfile(
+            userId = user.id.long,
+            email = invitedEmail,
+            emailApproved = true,
+            pendingEmail = changedEmail,
+            emailChangeRequestedAt = 100L,
+            emailChangeAllowedAt = 200L,
+        )
+        val fake = FakeUsersRepo(
+            initialUsers = mapOf(user.id to user),
+            initialEmailProfiles = mapOf(user.id to profile),
+        )
+        val coordinator = EmailVerificationAccountCoordinator(FreshProfileOnlyUsersRepo(fake), FakeRolesRepo())
+
+        assertEquals(profile, coordinator.getCurrentEmailProfile(user.id))
+        fake.emailProfileReadFailure = IllegalStateException("fresh profile failed")
+        assertFailsWith<IllegalStateException> { coordinator.getCurrentEmailProfile(user.id) }
+        assertEquals(listOf(user.id, user.id), fake.emailProfileReadCalls)
     }
 
     /** Duplicate propagation releases the mutex for a subsequent successful operation. */
@@ -336,5 +455,46 @@ class EmailVerificationAccountCoordinatorTest {
     @Test
     fun smtpEnabledKoinGraphSharesOneCoordinator() = runTest {
         assertKoinGraphSharesCoordinator(smtpEnabledConfig(), expectEnabled = true)
+    }
+
+    /** Actual Plugin graphs enforce the same positive policy with real durable storage in both SMTP shapes. */
+    @Test
+    fun positivePolicyFromPluginGuardsEnabledAndDisabledRealRepositories() = runTest {
+        listOf(false, true).forEach { smtpEnabled ->
+            var now = 1_000L
+            withSqliteUsersRepo(nowMillis = { now }) { usersRepo ->
+                val addressA = Email("plugin-${smtpEnabled}-a@example.com")
+                val addressB = Email("plugin-${smtpEnabled}-b@example.com")
+                val created = usersRepo.create(listOf(NewUser(Username("plugin-$smtpEnabled"), addressA))).single()
+                val rolesRepo = FakeRolesRepo()
+                rolesRepo.includeDirect(BaseRoleSubject.Direct(created.id.long.toString()), NewUserRole)
+                val application = createKoinApplication(positivePolicyConfig(smtpEnabled), usersRepo, rolesRepo)
+                try {
+                    val coordinator = application.koin.get<EmailVerificationAccountCoordinator>()
+                    val feature = application.koin.get<EmailFeature>()
+                    assertTrue(coordinator.verifyInvitedEmailAndPromote(created.id, addressA))
+                    val approved = checkNotNull(usersRepo.getById(created.id))
+                    assertEquals(1_010L, usersRepo.getEmailProfileFresh(created.id)?.emailChangeAllowedAt)
+
+                    assertFailsWith<EmailChangeCooldownException> { feature.setMyEmail(created.id, addressB) }
+                    assertFailsWith<EmailChangeCooldownException> { feature.setMyEmail(created.id, null) }
+                    assertEquals(approved, usersRepo.getById(created.id))
+
+                    assertTrue(feature.setMyEmail(created.id, addressA))
+                    assertEquals(true, coordinator.updateUsername(created.id, Username("plugin-renamed-$smtpEnabled")))
+                    assertEquals(approved.copy(username = Username("plugin-renamed-$smtpEnabled")), usersRepo.getById(created.id))
+
+                    now = 1_010L
+                    assertTrue(feature.setMyEmail(created.id, addressB))
+                    assertEquals(
+                        approved.copy(username = Username("plugin-renamed-$smtpEnabled")),
+                        usersRepo.getById(created.id),
+                    )
+                    assertEquals(addressB, usersRepo.getEmailProfileFresh(created.id)?.pendingEmail)
+                } finally {
+                    application.close()
+                }
+            }
+        }
     }
 }

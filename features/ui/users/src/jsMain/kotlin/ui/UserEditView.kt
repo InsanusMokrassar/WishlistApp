@@ -22,6 +22,7 @@ import dev.inmo.wishlist.features.common.client.ui.components.PageHead
 import dev.inmo.wishlist.features.email.common.models.EmailVerificationRequestResult
 import dev.inmo.wishlist.features.ui.topBar.ui.TopBarTitleProvider
 import dev.inmo.wishlist.features.ui.users.UsersListStrings
+import dev.inmo.wishlist.features.ui.users.utils.emailChangeDeadlineText
 import dev.inmo.wishlist.features.ui.users.utils.pickImageFile
 import kotlinx.coroutines.launch
 import org.jetbrains.compose.web.attributes.InputType
@@ -75,8 +76,12 @@ class UserEditView(
         val mismatch by viewModel.passwordMismatchState.collectAsState()
         val canSave by viewModel.canSaveState.collectAsState()
         val canUploadAvatar by viewModel.canUploadAvatarState.collectAsState()
+        val currentConfig by this@UserEditView.configState.collectAsState()
         val canManageOwnEmail by viewModel.canManageOwnEmailState.collectAsState()
         val canMutateOwnEmail by viewModel.canMutateOwnEmailState.collectAsState()
+        val canSaveEmail by viewModel.canSaveEmailState.collectAsState()
+        val canResendEmail by viewModel.canResendEmailVerificationState.collectAsState()
+        val emailCapability by viewModel.emailCapabilityState.collectAsState()
         val ownEmailProfile by viewModel.ownEmailProfileState.collectAsState()
         val emailInput by viewModel.emailInputState.collectAsState()
         val emailLoading by viewModel.emailLoadingState.collectAsState()
@@ -84,10 +89,17 @@ class UserEditView(
         val emailError by viewModel.emailErrorState.collectAsState()
         val emailLoadFailed by viewModel.emailLoadFailedState.collectAsState()
         val emailVerificationResult by viewModel.emailVerificationResultState.collectAsState()
+        val emailSaved by viewModel.emailSavedState.collectAsState()
+        val emailOperationInterrupted by viewModel.emailOperationInterruptedState.collectAsState()
+        val emailChangeRestriction by viewModel.emailChangeRestrictionState.collectAsState()
         val profileSaveError by viewModel.profileSaveErrorState.collectAsState()
         val showDiscard by viewModel.showConfirmDialogState.collectAsState()
         val showDelete by viewModel.showDeleteDialogState.collectAsState()
         val scope = rememberCoroutineScope()
+        val canRenderOwnEmail =
+            canManageOwnEmail &&
+                currentConfig.userId == viewModel.userId &&
+                this@UserEditView.config.userId == viewModel.userId
 
         if (showDiscard) {
             ConfirmModal(
@@ -145,7 +157,7 @@ class UserEditView(
                     }
                 }
 
-                if (canManageOwnEmail) {
+                if (canRenderOwnEmail) {
                     FieldSet {
                         when {
                             emailLoading -> FormHint(UsersListStrings.emailLoading.translation())
@@ -156,50 +168,67 @@ class UserEditView(
                                     error = true,
                                 )
                             }
-                            ownEmailProfile?.email == null -> {
+                            else -> {
+                                val currentEmail = ownEmailProfile?.email
+                                val pendingEmail = ownEmailProfile?.pendingEmail
+                                if (currentEmail == null) {
+                                    FormHint(UsersListStrings.emailMissing.translation())
+                                } else {
+                                    CalmTextField(
+                                        value = currentEmail.string,
+                                        onValueChange = {},
+                                        label = UsersListStrings.savedEmailLabel.translation(),
+                                        type = InputType.Email,
+                                        disabled = true,
+                                        hint = if (ownEmailProfile?.emailApproved == true) {
+                                            UsersListStrings.emailApproved.translation()
+                                        } else {
+                                            UsersListStrings.emailPendingApproval.translation()
+                                        },
+                                        id = "settings-email-saved",
+                                    )
+                                }
+                                if (pendingEmail != null) {
+                                    CalmTextField(
+                                        value = pendingEmail.string,
+                                        onValueChange = {},
+                                        label = UsersListStrings.pendingEmailLabel.translation(),
+                                        type = InputType.Email,
+                                        disabled = true,
+                                        hint = UsersListStrings.emailPendingApproval.translation(),
+                                        id = "settings-email-pending",
+                                    )
+                                    FormHint(UsersListStrings.emailReplacementNeedsVerification.translation())
+                                }
                                 CalmTextField(
                                     value = emailInput,
                                     onValueChange = { viewModel.onEmailChanged(it) },
                                     label = UsersListStrings.emailLabel.translation(),
                                     type = InputType.Email,
                                     disabled = !canMutateOwnEmail,
-                                    hint = UsersListStrings.emailMissing.translation(),
                                     id = "settings-email",
                                 )
                                 CalmButton(
-                                    text = UsersListStrings.saveEmailAndVerifyButton.translation(),
-                                    onClick = { viewModel.onSaveEmailAndRequestVerification() },
+                                    text = if (emailCapability == EmailCapabilityState.Enabled) {
+                                        UsersListStrings.saveEmailAndVerifyButton.translation()
+                                    } else {
+                                        UsersListStrings.saveEmailButton.translation()
+                                    },
+                                    onClick = { viewModel.onSaveEmail() },
                                     variant = CalmButtonVariant.Primary,
-                                    disabled = !canMutateOwnEmail,
+                                    disabled = !canSaveEmail,
                                 )
-                            }
-                            ownEmailProfile?.emailApproved == true -> {
-                                CalmTextField(
-                                    value = ownEmailProfile?.email?.string.orEmpty(),
-                                    onValueChange = {},
-                                    label = UsersListStrings.emailLabel.translation(),
-                                    type = InputType.Email,
-                                    disabled = true,
-                                    hint = UsersListStrings.emailApproved.translation(),
-                                    id = "settings-email",
-                                )
-                            }
-                            else -> {
-                                CalmTextField(
-                                    value = ownEmailProfile?.email?.string.orEmpty(),
-                                    onValueChange = {},
-                                    label = UsersListStrings.emailLabel.translation(),
-                                    type = InputType.Email,
-                                    disabled = true,
-                                    hint = UsersListStrings.emailPendingApproval.translation(),
-                                    id = "settings-email",
-                                )
-                                CalmButton(
-                                    text = UsersListStrings.resendEmailVerificationButton.translation(),
-                                    onClick = { viewModel.onResendEmailVerification() },
-                                    variant = CalmButtonVariant.Primary,
-                                    disabled = !canMutateOwnEmail,
-                                )
+                                if (
+                                    (pendingEmail != null || (currentEmail != null && !ownEmailProfile!!.emailApproved)) &&
+                                    emailCapability == EmailCapabilityState.Enabled
+                                ) {
+                                    CalmButton(
+                                        text = UsersListStrings.resendEmailVerificationButton.translation(),
+                                        onClick = { viewModel.onResendEmailVerification() },
+                                        variant = CalmButtonVariant.Ghost,
+                                        disabled = !canResendEmail,
+                                    )
+                                }
                             }
                         }
                         when (emailError) {
@@ -211,10 +240,24 @@ class UserEditView(
                                 UsersListStrings.emailSaveFailed.translation(),
                                 error = true,
                             )
+                            EmailEditorError.EmailChanged -> FormHint(
+                                UsersListStrings.emailVerificationChanged.translation(),
+                                error = true,
+                            )
                             EmailEditorError.LoadFailed, null -> Unit
                         }
                         if (emailLoadFailed && ownEmailProfile != null) {
                             FormHint(UsersListStrings.emailLoadFailed.translation(), error = true)
+                        }
+                        emailChangeRestriction?.let { deadline ->
+                            FormHint(
+                                UsersListStrings.emailChangeCooldown.translation()
+                                    .replace("%s", emailChangeDeadlineText(deadline)),
+                                error = true,
+                            )
+                        }
+                        emailSaved?.let {
+                            FormHint(UsersListStrings.emailSaved.translation())
                         }
                         CalmButton(
                             text = UsersListStrings.refreshEmailButton.translation(),
@@ -222,6 +265,12 @@ class UserEditView(
                             variant = CalmButtonVariant.Ghost,
                             disabled = emailBusy || emailLoading,
                         )
+                        if (
+                            emailVerificationResult == EmailVerificationRequestResult.Unavailable ||
+                            (ownEmailProfile != null && emailCapability == EmailCapabilityState.Disabled)
+                        ) {
+                            FormHint(UsersListStrings.emailVerificationUnavailable.translation(), error = true)
+                        }
                         when (emailVerificationResult) {
                             EmailVerificationRequestResult.Sent -> FormHint(
                                 UsersListStrings.emailVerificationSent.translation()
@@ -229,10 +278,7 @@ class UserEditView(
                             EmailVerificationRequestResult.AlreadyApproved -> FormHint(
                                 UsersListStrings.emailVerificationAlreadyApproved.translation()
                             )
-                            EmailVerificationRequestResult.Unavailable -> FormHint(
-                                UsersListStrings.emailVerificationUnavailable.translation(),
-                                error = true,
-                            )
+                            EmailVerificationRequestResult.Unavailable -> Unit
                             EmailVerificationRequestResult.NoEmail -> FormHint(
                                 UsersListStrings.emailVerificationNoEmail.translation(),
                                 error = true,
@@ -248,6 +294,9 @@ class UserEditView(
                             null -> Unit
                         }
                     }
+                }
+                if (emailOperationInterrupted && canRenderOwnEmail) {
+                    FormHint(UsersListStrings.emailOperationInterrupted.translation(), error = true)
                 }
 
                 if (isRoot) {

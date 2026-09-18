@@ -1,8 +1,8 @@
 package dev.inmo.wishlist.features.ui.users.ui
 
 import dev.inmo.micro_utils.common.MPPFile
-import dev.inmo.wishlist.features.auth.common.models.AuthFeatureUser
 import dev.inmo.wishlist.features.email.common.models.Email
+import dev.inmo.wishlist.features.email.common.models.EmailProfile
 import dev.inmo.wishlist.features.email.common.models.EmailVerificationRequestResult
 import dev.inmo.wishlist.features.auth.common.models.Password
 import dev.inmo.wishlist.features.files.common.models.FileId
@@ -15,7 +15,7 @@ import kotlinx.coroutines.flow.StateFlow
  * Model facade consumed by every users UI screen (list, profile view, profile edit).
  *
  * Hides the underlying `features/users/client` (public read), `features/auth/client`
- * (current caller), `features/roles/client` (functionality-availability checks),
+ * (current caller identity), `features/roles/client` (functionality-availability checks),
  * `features/admin/client` (admin-panel mutations) and `features/files/client` (avatar storage)
  * feature surfaces behind one interface.
  */
@@ -70,32 +70,40 @@ interface UsersModel {
     val canChangeAvatarForOthersFlow: StateFlow<Boolean>
 
     /**
-     * Resolves the authenticated caller's private profile record.
+     * Resolves authenticated caller email state owned by the email feature.
      *
-     * This must never be substituted with the public users listing because email and approval state
-     * are intentionally private to the owner.
+     * This must never be substituted with auth state or public users listing. Email lifecycle state
+     * is private to its owner and is served by
+     * [dev.inmo.wishlist.features.email.client.EmailFeature] as an [EmailProfile], including
+     * pending verification information and both timestamps.
      *
-     * @return The authenticated caller's private profile, or `null` when the session is absent.
+     * @return The authenticated caller's email profile, or `null` when the account is absent.
      */
-    suspend fun getMyProfile(): AuthFeatureUser?
+    suspend fun getMyEmailProfile(): EmailProfile?
 
     /**
-     * Returns whether self-service email verification delivery is configured.
+     * Returns whether SMTP-backed verification delivery is configured for the owner email editor.
+     * Storage remains available when the capability is disabled; the flag controls delivery only.
      *
-     * @return `true` when SMTP-backed email operations are available.
+     * @return `true` when verification delivery is available.
      */
     suspend fun isEmailFeatureEnabled(): Boolean
 
     /**
-     * Replaces the authenticated caller's stored email address.
+     * Stores or replaces the authenticated caller's email address independently of SMTP delivery.
+     * A replacement or clear can be blocked by the server's post-approval cooldown; the latest
+     * approved current remains authoritative until a pending candidate is approved.
      *
      * @param email Validated address to persist, or `null` to clear the caller's address.
      * @return `true` when the server persisted the requested value.
+     * @throws dev.inmo.wishlist.features.email.common.models.EmailChangeCooldownException
+     *   when the server returns a well-formed typed cooldown response.
      */
     suspend fun setMyEmail(email: Email?): Boolean
 
     /**
-     * Requests a verification message for the caller's displayed current email address.
+     * Requests a verification message for the caller's displayed current email address when SMTP
+     * delivery is enabled.
      *
      * @param expectedEmail Current private-profile email snapshot.
      * @return Server result describing delivery or the current account state.

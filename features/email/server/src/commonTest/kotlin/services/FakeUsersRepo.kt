@@ -3,6 +3,7 @@ package dev.inmo.wishlist.features.email.server.services
 import dev.inmo.micro_utils.repos.MapCRUDRepo
 import dev.inmo.micro_utils.coroutines.withWriteLock
 import dev.inmo.wishlist.features.email.common.models.Email
+import dev.inmo.wishlist.features.email.common.models.EmailProfile
 import dev.inmo.wishlist.features.users.common.models.NewUser
 import dev.inmo.wishlist.features.users.common.models.RegisteredUser
 import dev.inmo.wishlist.features.users.common.models.UserId
@@ -29,13 +30,26 @@ import dev.inmo.wishlist.features.users.common.repo.exceptions.DuplicateUserFiel
  * performs a linear scan via `getAll()` — acceptable for the small fixtures used in these tests.
  *
  * @param initialUsers Users the repo is pre-seeded with, keyed by their [UserId].
+ * @param initialEmailProfiles Email-owned state seeded independently from the reduced user model.
  */
 internal class FakeUsersRepo(
-    initialUsers: Map<UserId, RegisteredUser> = emptyMap()
+    initialUsers: Map<UserId, RegisteredUser> = emptyMap(),
+    initialEmailProfiles: Map<UserId, EmailProfile> = emptyMap(),
 ) : UsersRepo, MapCRUDRepo<RegisteredUser, UserId, NewUser>(initialUsers.toMutableMap()) {
 
     /** Next id assigned by [createObject], one past the highest id in the seeded map. */
     private var nextId: Long = (initialUsers.keys.maxOfOrNull { it.long } ?: 0L) + 1L
+
+    /** Email-owned state keyed independently from the reduced user projection. */
+    private val emailProfiles = initialUsers.mapValues { (_, user) -> user.asEmailProfile() }
+        .toMutableMap()
+        .also { it.putAll(initialEmailProfiles) }
+
+    /** Fresh-profile read calls observed by coordinator tests. */
+    val emailProfileReadCalls = mutableListOf<UserId>()
+
+    /** Optional failure propagated by [getEmailProfileFresh] without a cached-user fallback. */
+    var emailProfileReadFailure: Throwable? = null
 
     /**
      * Applies [newValue] on top of [old], keeping [old]'s id.
@@ -59,10 +73,22 @@ internal class FakeUsersRepo(
         if (newValue.email != null && map.values.any { it.id != id && it.email == newValue.email }) {
             throw DuplicateUserFieldException()
         }
+        val currentProfile = emailProfiles[id] ?: old.asEmailProfile()
+        val updatedProfile = when {
+            newValue.email == null -> EmailProfile(userId = id.long)
+            newValue.email == currentProfile.email || newValue.email == currentProfile.pendingEmail ->
+                currentProfile.copy(userId = id.long)
+            currentProfile.emailApproved && currentProfile.email != null -> currentProfile.copy(
+                pendingEmail = newValue.email,
+                emailChangeRequestedAt = null,
+            )
+            else -> EmailProfile(userId = id.long, email = newValue.email)
+        }
+        emailProfiles[id] = updatedProfile
         return old.copy(
             username = newValue.username,
-            email = newValue.email,
-            emailApproved = newValue.email != null && old.email == newValue.email && old.emailApproved,
+            email = updatedProfile.email,
+            emailApproved = updatedProfile.emailApproved,
         )
     }
 
@@ -85,7 +111,9 @@ internal class FakeUsersRepo(
             throw DuplicateUserFieldException()
         }
         val id = UserId(nextId++)
-        return id to RegisteredUser(id, newValue.username, newValue.email)
+        val created = RegisteredUser(id, newValue.username, newValue.email)
+        emailProfiles[id] = created.asEmailProfile()
+        return id to created
     }
 
     /**
@@ -97,10 +125,102 @@ internal class FakeUsersRepo(
     override suspend fun getUserByUsername(username: Username): RegisteredUser? =
         getAll().values.firstOrNull { it.username == username }
 
-    override suspend fun approveEmail(id: UserId, expectedEmail: Email): RegisteredUser? =
+    /** Returns the independent email projection only while its owner still exists. */
+    override suspend fun getEmailProfileFresh(id: UserId): EmailProfile? {
+        emailProfileReadCalls += id
+        emailProfileReadFailure?.let { throw it }
+        val user = map[id] ?: return null
+        return emailProfiles[id] ?: user.asEmailProfile()
+    }
+
+    override suspend fun setEmail(id: UserId, email: Email?): RegisteredUser? = locker.withWriteLock {
+        val current = map[id] ?: return@withWriteLock null
+        val currentProfile = emailProfiles[id] ?: current.asEmailProfile()
+        val updatedProfile = when {
+            email == null -> currentProfile.copy(
+                email = null,
+                emailApproved = false,
+                pendingEmail = null,
+                emailChangeRequestedAt = null,
+                emailChangeAllowedAt = null,
+            )
+            email == currentProfile.email || email == currentProfile.pendingEmail -> currentProfile
+            currentProfile.emailApproved && currentProfile.email != null -> currentProfile.copy(
+                pendingEmail = email,
+                emailChangeRequestedAt = null,
+            )
+            else -> currentProfile.copy(
+                email = email,
+                emailApproved = false,
+                pendingEmail = null,
+                emailChangeRequestedAt = null,
+                emailChangeAllowedAt = null,
+            )
+        }
+        ensureEmailAvailable(id, updatedProfile.email, updatedProfile.pendingEmail)
+        val updated = current.withEmailProfile(updatedProfile)
+        val changed = updatedProfile != currentProfile
+        if (changed) {
+            emailProfiles[id] = updatedProfile
+            map[id] = updated
+        }
+        updated to changed
+    }?.also { (updated, changed) -> if (changed) _updatedObjectsFlow.emit(updated) }?.first
+
+    override suspend fun updateUsername(id: UserId, username: Username): RegisteredUser? = locker.withWriteLock {
+        map[id]?.copy(username = username)?.also { map[id] = it }
+    }?.also { _updatedObjectsFlow.emit(it) }
+
+    override suspend fun approveEmail(id: UserId, expectedEmail: Email, cooldownMillis: Long): RegisteredUser? =
         locker.withWriteLock {
             val current = map[id] ?: return@withWriteLock null
-            if (current.email != expectedEmail) return@withWriteLock null
-            current.copy(emailApproved = true).also { map[id] = it }
-        }?.also { _updatedObjectsFlow.emit(it) }
+            val currentProfile = emailProfiles[id] ?: current.asEmailProfile()
+            val approvedProfile = when {
+                currentProfile.pendingEmail == expectedEmail -> currentProfile.copy(
+                    email = expectedEmail,
+                    emailApproved = true,
+                    pendingEmail = null,
+                    emailChangeRequestedAt = null,
+                    emailChangeAllowedAt = if (cooldownMillis == 0L) null else cooldownMillis,
+                )
+                currentProfile.email == expectedEmail && !currentProfile.emailApproved && currentProfile.pendingEmail == null -> currentProfile.copy(
+                    emailApproved = true,
+                    emailChangeRequestedAt = null,
+                    emailChangeAllowedAt = if (cooldownMillis == 0L) null else cooldownMillis,
+                )
+                currentProfile.email == expectedEmail && currentProfile.emailApproved && currentProfile.pendingEmail == null -> currentProfile
+                else -> return@withWriteLock null
+            }
+            val approved = current.withEmailProfile(approvedProfile)
+            val changed = approvedProfile != currentProfile
+            if (changed) {
+                emailProfiles[id] = approvedProfile
+                map[id] = approved
+            }
+            approved to changed
+        }?.also { (approved, changed) -> if (changed) _updatedObjectsFlow.emit(approved) }?.first
+
+    /** Rejects addresses occupied by either private email slot of another fixture account. */
+    private fun ensureEmailAvailable(id: UserId, email: Email?, pendingEmail: Email?) {
+        val occupied = map.keys.any { storedId ->
+            val profile = emailProfiles[storedId] ?: map[storedId]?.asEmailProfile()
+            storedId != id && listOfNotNull(profile?.email, profile?.pendingEmail).any { candidate ->
+                candidate == email || candidate == pendingEmail
+            }
+        }
+        if (occupied) throw DuplicateUserFieldException()
+    }
+
+    /** Creates an email-owned projection from a reduced user fixture. */
+    private fun RegisteredUser.asEmailProfile(): EmailProfile = EmailProfile(
+        userId = id.long,
+        email = email,
+        emailApproved = emailApproved,
+    )
+
+    /** Synchronizes current email identity only at a simulated write boundary. */
+    private fun RegisteredUser.withEmailProfile(profile: EmailProfile): RegisteredUser = copy(
+        email = profile.email,
+        emailApproved = profile.emailApproved,
+    )
 }

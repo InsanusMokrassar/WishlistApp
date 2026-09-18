@@ -1,7 +1,6 @@
 package dev.inmo.wishlist.features.ui.sidebar.ui
 
 import dev.inmo.micro_utils.common.MPPFile
-import dev.inmo.wishlist.features.auth.common.models.AuthFeatureUser
 import dev.inmo.wishlist.features.auth.common.models.Password
 import dev.inmo.wishlist.features.booking.common.models.BookingFeatureItem
 import dev.inmo.wishlist.features.booking.common.models.BookingState
@@ -9,6 +8,7 @@ import dev.inmo.wishlist.features.currency.common.models.CurrencyCode
 import dev.inmo.wishlist.features.currency.common.models.CurrencyInfo
 import dev.inmo.wishlist.features.currency.common.models.CurrencyRates
 import dev.inmo.wishlist.features.email.common.models.Email
+import dev.inmo.wishlist.features.email.common.models.EmailProfile
 import dev.inmo.wishlist.features.email.common.models.EmailVerificationRequestResult
 import dev.inmo.wishlist.features.files.common.models.FileId
 import dev.inmo.wishlist.features.ui.booking.ui.BookingModel
@@ -142,7 +142,7 @@ class SidebarModelTest {
 
         override suspend fun getAllUsers(): List<UsersFeatureUser> = error("unused")
         override suspend fun getUser(id: UserId): UsersFeatureUser? = error("unused")
-        override suspend fun getMyProfile(): AuthFeatureUser? = error("unused")
+        override suspend fun getMyEmailProfile(): EmailProfile? = error("unused")
         override suspend fun isEmailFeatureEnabled(): Boolean = error("unused")
         override suspend fun setMyEmail(email: Email?): Boolean = error("unused")
         override suspend fun requestMyEmailVerification(expectedEmail: Email): EmailVerificationRequestResult = error("unused")

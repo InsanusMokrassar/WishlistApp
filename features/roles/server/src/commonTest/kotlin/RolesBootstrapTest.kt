@@ -7,6 +7,8 @@ import dev.inmo.micro_utils.repos.deleteById
 import dev.inmo.wishlist.features.roles.common.models.SuperAdminRole
 import dev.inmo.wishlist.features.roles.common.models.NewUserRole
 import dev.inmo.wishlist.features.roles.common.models.UserRole
+import dev.inmo.wishlist.features.email.common.models.Email
+import dev.inmo.wishlist.features.email.common.models.EmailProfile
 import dev.inmo.wishlist.features.users.common.models.NewUser
 import dev.inmo.wishlist.features.users.common.models.RegisteredUser
 import dev.inmo.wishlist.features.users.common.models.UserId
@@ -39,6 +41,44 @@ class RolesBootstrapTest {
 
     /** Non-root account fixture used to verify pending and approved transitions. */
     private val plainUser = RegisteredUser(UserId(2L), Username("alice"))
+
+    /** Full fixture updates clear explicit null addresses before nullable same-slot no-op checks. */
+    @Test
+    fun fakeFullUpdateClearsLifecycleAndRetainsSameAddressNoOps() = runTest {
+        val unapproved = RegisteredUser(UserId(71L), Username("fake-unapproved"), Email("fake-unapproved@example.com"))
+        val approved = RegisteredUser(UserId(72L), Username("fake-approved"), Email("fake-approved@example.com"), true)
+        val unapprovedProfile = EmailProfile(
+            userId = unapproved.id.long,
+            email = unapproved.email,
+            emailChangeRequestedAt = 10L,
+        )
+        val approvedProfile = EmailProfile(
+            userId = approved.id.long,
+            email = approved.email,
+            emailApproved = true,
+            emailChangeAllowedAt = 20L,
+        )
+        val usersRepo = FakeUsersRepo(
+            initialUsers = mapOf(unapproved.id to unapproved, approved.id to approved),
+            initialEmailProfiles = mapOf(unapproved.id to unapprovedProfile, approved.id to approvedProfile),
+        )
+
+        assertEquals(listOf(unapproved), usersRepo.update(listOf(unapproved.id to NewUser(unapproved.username, unapproved.email))))
+        assertEquals(unapprovedProfile, usersRepo.getEmailProfileFresh(unapproved.id))
+        assertEquals(listOf(approved), usersRepo.update(listOf(approved.id to NewUser(approved.username, approved.email))))
+        assertEquals(approvedProfile, usersRepo.getEmailProfileFresh(approved.id))
+
+        assertEquals(
+            listOf(RegisteredUser(unapproved.id, unapproved.username)),
+            usersRepo.update(listOf(unapproved.id to NewUser(unapproved.username, null))),
+        )
+        assertEquals(EmailProfile(userId = unapproved.id.long), usersRepo.getEmailProfileFresh(unapproved.id))
+        assertEquals(
+            listOf(RegisteredUser(approved.id, approved.username)),
+            usersRepo.update(listOf(approved.id to NewUser(approved.username, null))),
+        )
+        assertEquals(EmailProfile(userId = approved.id.long), usersRepo.getEmailProfileFresh(approved.id))
+    }
 
     /** Optional registration receives exactly direct approved-user membership. */
     @Test

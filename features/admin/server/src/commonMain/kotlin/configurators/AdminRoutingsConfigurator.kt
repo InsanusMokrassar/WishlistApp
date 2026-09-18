@@ -10,12 +10,14 @@ import dev.inmo.wishlist.features.admin.common.models.asAdminWishlistItem
 import dev.inmo.wishlist.features.admin.server.AdminFeature
 import dev.inmo.wishlist.features.auth.common.models.Password
 import dev.inmo.wishlist.features.auth.server.utils.getCallerUserIdOrAnswerUnauthorized
+import dev.inmo.wishlist.features.email.common.models.EmailChangeCooldown
 import dev.inmo.wishlist.features.roles.server.RolesFeature
 import dev.inmo.wishlist.features.users.common.models.NewUser
 import dev.inmo.wishlist.features.users.common.models.UserId
 import dev.inmo.wishlist.features.users.common.models.Username
 import dev.inmo.wishlist.features.users.common.repo.ReadUsersRepo
 import dev.inmo.wishlist.features.users.common.repo.exceptions.DuplicateUserFieldException
+import dev.inmo.wishlist.features.users.common.repo.exceptions.EmailChangeCooldownException
 import dev.inmo.wishlist.features.wishlist.common.models.NewWishlist
 import dev.inmo.wishlist.features.wishlist.common.models.NewWishlistInFeature
 import dev.inmo.wishlist.features.wishlist.common.models.NewWishlistItem
@@ -125,6 +127,9 @@ class AdminRoutingsConfigurator(
                         val newUser = call.receive<NewUser>()
                         val result = try {
                             adminFeature.usersManagement.update(id, newUser)
+                        } catch (e: EmailChangeCooldownException) {
+                            call.respond(HttpStatusCode.TooManyRequests, EmailChangeCooldown(e.emailChangeAllowedAt))
+                            return@put
                         } catch (e: DuplicateUserFieldException) {
                             call.respond(HttpStatusCode.Conflict)
                             return@put

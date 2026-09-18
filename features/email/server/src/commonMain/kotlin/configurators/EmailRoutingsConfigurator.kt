@@ -8,6 +8,8 @@ import dev.inmo.wishlist.features.email.common.models.SetEmailRequest
 import dev.inmo.wishlist.features.email.common.models.TestEmailRequest
 import dev.inmo.wishlist.features.email.common.models.EmailVerificationRequest
 import dev.inmo.wishlist.features.users.common.repo.exceptions.DuplicateUserFieldException
+import dev.inmo.wishlist.features.users.common.repo.exceptions.EmailChangeCooldownException
+import dev.inmo.wishlist.features.email.common.models.EmailChangeCooldown
 import io.ktor.http.HttpStatusCode
 import io.ktor.server.auth.authenticate
 import io.ktor.server.request.receive
@@ -21,12 +23,14 @@ import io.ktor.server.routing.route
 /**
  * Ktor routing configurator for the email feature.
  *
- * Registers three endpoints under the `/email` path prefix (auto-prefixed to `/api/email` by the
+ * Registers five endpoints under the `/email` path prefix (auto-prefixed to `/api/email` by the
  * server's `InternalApplicationRoutingConfigurator`):
  *
  * - `GET  /email/enabled`   — public; returns whether SMTP delivery is configured.
  * - `POST /email/sendTest`  — bearer; the caller identity is passed to [feature] which enforces
  *   root-only access.
+ * - `GET  /email/myEmail`   — bearer (self-service); returns only the bearer owner's fresh
+ *   email-feature profile, `404` when that account disappeared, and never accepts a target id.
  * - `PUT  /email/myEmail`   — bearer (self-service); the caller identity is passed to [feature]
  *   which persists the address, responding `409 Conflict` when the address is already stored for
  *   a different user
@@ -62,11 +66,24 @@ class EmailRoutingsConfigurator(
                     }
                 }
 
+                get(EmailConstants.myEmailPathPart) {
+                    val callerId = getCallerUserIdOrAnswerUnauthorized() ?: return@get
+                    val profile = feature.getMyEmail(callerId)
+                    if (profile == null) {
+                        call.respond(HttpStatusCode.NotFound)
+                        return@get
+                    }
+                    call.respond(profile)
+                }
+
                 put(EmailConstants.myEmailPathPart) {
                     val callerId = getCallerUserIdOrAnswerUnauthorized() ?: return@put
                     val request = call.receive<SetEmailRequest>()
                     val updated = try {
                         feature.setMyEmail(callerId, request.email)
+                    } catch (e: EmailChangeCooldownException) {
+                        call.respond(HttpStatusCode.TooManyRequests, EmailChangeCooldown(e.emailChangeAllowedAt))
+                        return@put
                     } catch (e: DuplicateUserFieldException) {
                         call.respond(HttpStatusCode.Conflict)
                         return@put

@@ -38,21 +38,24 @@ data class NewUser(
 ) : User
 
 /**
- * Stored user entity returned after creation or lookup.
+ * Stored identity entity returned after creation or lookup.
  *
  * [email] defaults to `null` for back-compatibility with existing serialized payloads that omit the field.
+ * Pending email, accepted-candidate time, and cooldown deadline belong to the email-owned
+ * [dev.inmo.wishlist.features.email.common.models.EmailProfile] projection and are deliberately not
+ * carried by this users model.
  *
  * @property id Database-assigned identifier.
  * @property username Unique login name.
  * @property email Stored email address, or `null` when not set.
  * @property emailApproved Whether the current stored email address has been approved. Historical and
- *   newly stored addresses default to `false`; this field is repository-owned and never accepted in
- *   [NewUser].
+ *   newly stored addresses default to `false`; this current-address field is repository-owned and
+ *   never accepted in [NewUser].
  */
 @Serializable
 data class RegisteredUser(
     val id: UserId,
     override val username: Username,
     override val email: Email? = null,
-    val emailApproved: Boolean = false
+    val emailApproved: Boolean = false,
 ) : User
