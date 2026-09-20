@@ -52,6 +52,7 @@ class ServedWebSmokeTest {
         val context = fixture.newContext()
         val page = context.newPage()
         val errors = BrowserErrorCollector(fixture.baseUrl)
+        page.onRequest { request -> errors.recordRequest(BrowserRequestDetails(request.method(), request.url())) }
         page.onResponse { response -> errors.recordResponse(BrowserResponseDetails(response.request().method(), response.url(), response.status())) }
         page.onPageError { errors.recordPageError(it) }
         page.onConsoleMessage { message ->

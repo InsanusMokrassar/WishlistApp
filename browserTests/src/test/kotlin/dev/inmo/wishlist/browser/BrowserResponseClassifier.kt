@@ -2,6 +2,14 @@ package dev.inmo.wishlist.browser
 
 import java.net.URI
 
+/** A browser request retained for exact anonymous protected-endpoint assertions. */
+internal data class BrowserRequestDetails(
+    /** HTTP method sent by the browser. */
+    val method: String,
+    /** Absolute request URL reported by Playwright. */
+    val url: String,
+)
+
 /** A browser response retained for precise smoke-test diagnostics. */
 internal data class BrowserResponseDetails(
     /** HTTP method sent by the browser. */
@@ -23,9 +31,13 @@ internal class BrowserErrorCollector(
     /** Number of same-origin requests made to the protected caller-owned wishlist endpoint. */
     private var protectedOwnListRequestCount = 0
 
+    /** Records a request so attempts that fail before a response remain visible to the smoke assertion. */
+    fun recordRequest(request: BrowserRequestDetails) {
+        if (isProtectedOwnListRequest(request.method, request.url)) protectedOwnListRequestCount += 1
+    }
+
     /** Records a response and rejects every HTTP 401. */
     fun recordResponse(response: BrowserResponseDetails) {
-        if (isProtectedOwnListRequest(response)) protectedOwnListRequestCount += 1
         if (response.status == 401) errors += "Unexpected HTTP 401: ${response.method} ${response.url}"
     }
 
@@ -42,14 +54,15 @@ internal class BrowserErrorCollector(
     /** Returns a stable snapshot for assertion after page interaction has finished. */
     fun unexpectedErrors(): List<String> = errors.toList()
 
-    /** Returns the number of exact same-origin protected caller-list responses observed so far. */
+    /** Returns the number of exact same-origin protected caller-list requests observed so far. */
     fun protectedOwnListRequests(): Int = protectedOwnListRequestCount
 
-    private fun isProtectedOwnListRequest(response: BrowserResponseDetails): Boolean = runCatching {
+    /** Matches only the exact same-origin protected caller-list request. */
+    private fun isProtectedOwnListRequest(method: String, url: String): Boolean = runCatching {
         val base = URI(baseUrl)
-        val target = URI(response.url).normalize()
-        response.method.equals("GET", ignoreCase = true) &&
+        val target = URI(url).normalize()
+        method.equals("GET", ignoreCase = true) &&
             target.scheme == base.scheme && target.host == base.host && target.port == base.port &&
-            target.rawQuery == null && target.path == "/api/wishlist/getMy"
+            target.userInfo == null && target.rawQuery == null && target.path == "/api/wishlist/getMy"
     }.getOrDefault(false)
 }

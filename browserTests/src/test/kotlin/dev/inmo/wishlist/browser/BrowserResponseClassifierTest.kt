@@ -26,14 +26,37 @@ class BrowserResponseClassifierTest {
         assertEquals(listOf("NoTransformationFoundException", "NoTransformationFoundException"), collector.unexpectedErrors())
     }
 
-    /** Counts the protected caller-list endpoint independently of its status for the anonymous smoke assertion. */
+    /** Counts an exact protected request even when no response is available. */
     @Test
-    fun countsProtectedOwnListRequests() {
+    fun countsProtectedOwnListRequestsWithoutResponse() {
         val collector = BrowserErrorCollector(baseUrl)
-        collector.recordResponse(BrowserResponseDetails("GET", "$baseUrl/api/wishlist/getMy", 200))
-        collector.recordResponse(BrowserResponseDetails("GET", "$baseUrl/api/wishlist/getMy/extra", 200))
+        collector.recordRequest(BrowserRequestDetails("GET", "$baseUrl/api/wishlist/getMy"))
         assertEquals(1, collector.protectedOwnListRequests())
         assertTrue(collector.unexpectedErrors().isEmpty())
+    }
+
+    /** Excludes wrong origin, method, query, user-info, and path from protected request counting. */
+    @Test
+    fun ignoresProtectedEndpointMismatches() {
+        val collector = BrowserErrorCollector(baseUrl)
+        listOf(
+            BrowserRequestDetails("POST", "$baseUrl/api/wishlist/getMy"),
+            BrowserRequestDetails("GET", "$baseUrl/api/wishlist/getMy?retry=1"),
+            BrowserRequestDetails("GET", "$baseUrl/api/wishlist/getMy/extra"),
+            BrowserRequestDetails("GET", "http://localhost:32123/api/wishlist/getMy"),
+            BrowserRequestDetails("GET", "http://user@127.0.0.1:32123/api/wishlist/getMy"),
+            BrowserRequestDetails("GET", "$baseUrl/api/wishlist/getUser"),
+        ).forEach(collector::recordRequest)
+        assertEquals(0, collector.protectedOwnListRequests())
+    }
+
+    /** Keeps response error classification separate from request counting. */
+    @Test
+    fun responseDoesNotCountAsRequest() {
+        val collector = BrowserErrorCollector(baseUrl)
+        collector.recordResponse(BrowserResponseDetails("GET", "$baseUrl/api/wishlist/getMy", 401))
+        assertEquals(0, collector.protectedOwnListRequests())
+        assertEquals(listOf("Unexpected HTTP 401: GET $baseUrl/api/wishlist/getMy"), collector.unexpectedErrors())
     }
 
     /** Rejects page exceptions as strict smoke-test failures. */

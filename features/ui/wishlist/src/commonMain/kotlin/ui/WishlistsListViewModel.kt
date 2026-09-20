@@ -2,6 +2,8 @@ package dev.inmo.wishlist.features.ui.wishlist.ui
 
 import dev.inmo.micro_utils.coroutines.MutableRedeliverStateFlow
 import dev.inmo.micro_utils.coroutines.launchLoggingDropExceptions
+import dev.inmo.kslog.common.KSLog
+import dev.inmo.kslog.common.e
 import dev.inmo.navigation.core.NavigationNode
 import dev.inmo.navigation.core.onResumeFlow
 import dev.inmo.navigation.mvvm.ViewModel
@@ -10,6 +12,7 @@ import dev.inmo.wishlist.features.users.common.models.UserId
 import dev.inmo.wishlist.features.wishlist.common.models.WishlistId
 import dev.inmo.wishlist.features.wishlist.common.models.WishlistsFeatureWishlist
 import kotlinx.coroutines.CoroutineDispatcher
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.SharingStarted
@@ -96,7 +99,15 @@ class WishlistsListViewModel(
         }
         workScope.launch {
             reloadTriggers.collectLatest {
-                loadWishlists()
+                try {
+                    loadWishlists()
+                } catch (exception: CancellationException) {
+                    throw exception
+                } catch (exception: Throwable) {
+                    runCatching {
+                        KSLog.e("WishlistsListViewModel", "Failed to load ${loadTargetDescription()}", exception)
+                    }
+                }
             }
         }
     }
@@ -141,6 +152,9 @@ class WishlistsListViewModel(
     /** Confirms that a completed load still belongs to the visible target and current authorization state. */
     private fun canPublish(generation: Long, targetUserId: UserId?): Boolean =
         generation == loadGeneration && (targetUserId != null || model.userAuthorisedState.value)
+
+    /** Describes the active list target without exposing caller-derived wishlist data in error logs. */
+    private fun loadTargetDescription(): String = targetUserId?.let { "public wishlist list for user $it" } ?: "own wishlist list"
 
     /**
      * Opens the profile of the user whose wishlists are displayed (the browsed owner, or the

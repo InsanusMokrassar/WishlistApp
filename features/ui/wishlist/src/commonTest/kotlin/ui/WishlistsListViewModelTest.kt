@@ -2,9 +2,11 @@ package dev.inmo.wishlist.features.ui.wishlist.ui
 
 import dev.inmo.micro_utils.common.MPPFile
 import dev.inmo.kslog.common.KSLog
+import dev.inmo.kslog.common.LogLevel
 import dev.inmo.navigation.core.NavigationChain
 import dev.inmo.navigation.core.NavigationNode
 import dev.inmo.navigation.core.NavigationNodeFactory
+import dev.inmo.navigation.core.NavigationNodeState
 import dev.inmo.wishlist.features.common.client.models.ViewConfig
 import dev.inmo.wishlist.features.currency.common.models.CurrencyCode
 import dev.inmo.wishlist.features.currency.common.models.CurrencyInfo
@@ -134,6 +136,150 @@ class WishlistsListViewModelTest {
         }
     }
 
+    /** A name failure is logged while the collector remains available for logout and the next login. */
+    @Test
+    fun nameFailureKeepsOwnListCollectorAliveForLogoutAndLogin() = runTest {
+        Dispatchers.setMain(StandardTestDispatcher(testScheduler))
+        val nameFailure = IllegalStateException("name lookup failed")
+        val model = WishlistListTestModel().apply {
+            authorised.value = true
+            currentUserId.value = caller
+            myHandler = { listOf(callerWishlist) }
+            nameHandler = { throw nameFailure }
+        }
+        val viewModel = WishlistsListViewModel(wishlistsListTestNode(), model, RecordingWishlistsListInteractor(), StandardTestDispatcher(testScheduler))
+        try {
+            withCapturedErrorLogs { errors ->
+                advanceUntilIdle()
+                assertEquals(listOf(callerWishlist), viewModel.wishlistsState.value)
+                assertEquals(caller, viewModel.profileUserIdState.value)
+                assertNull(viewModel.userNameState.value)
+                assertFalse(viewModel.loadingState.value)
+                assertEquals(listOf(LoggedError("WishlistsListViewModel", "Failed to load own wishlist list", nameFailure)), errors)
+
+                model.authorised.value = false
+                runCurrent()
+                assertTrue(viewModel.wishlistsState.value.isEmpty())
+                assertNull(viewModel.profileUserIdState.value)
+                assertNull(viewModel.userNameState.value)
+                assertFalse(viewModel.loadingState.value)
+                assertEquals(1, model.myCalls)
+
+                model.nameHandler = { "caller" }
+                model.authorised.value = true
+                advanceUntilIdle()
+                assertEquals(2, model.myCalls)
+                assertEquals(listOf(callerWishlist), viewModel.wishlistsState.value)
+                assertEquals("caller", viewModel.userNameState.value)
+                assertEquals(1, errors.size)
+            }
+        } finally {
+            viewModel.scope.cancel()
+            Dispatchers.resetMain()
+        }
+    }
+
+    /** A protected list failure is logged and a later auth trigger reloads successfully. */
+    @Test
+    fun protectedListFailureRecoversOnLaterLogin() = runTest {
+        Dispatchers.setMain(StandardTestDispatcher(testScheduler))
+        val listFailure = IllegalStateException("protected list failed")
+        val model = WishlistListTestModel().apply {
+            authorised.value = true
+            currentUserId.value = caller
+            myHandler = { throw listFailure }
+        }
+        val viewModel = WishlistsListViewModel(wishlistsListTestNode(), model, RecordingWishlistsListInteractor(), StandardTestDispatcher(testScheduler))
+        try {
+            withCapturedErrorLogs { errors ->
+                advanceUntilIdle()
+                assertEquals(1, model.myCalls)
+                assertTrue(viewModel.wishlistsState.value.isEmpty())
+                assertFalse(viewModel.loadingState.value)
+                assertEquals(listOf(LoggedError("WishlistsListViewModel", "Failed to load own wishlist list", listFailure)), errors)
+
+                model.authorised.value = false
+                runCurrent()
+                model.myHandler = { listOf(callerWishlist) }
+                model.authorised.value = true
+                advanceUntilIdle()
+                assertEquals(2, model.myCalls)
+                assertEquals(listOf(callerWishlist), viewModel.wishlistsState.value)
+                assertEquals("caller", viewModel.userNameState.value)
+                assertEquals(1, errors.size)
+            }
+        } finally {
+            viewModel.scope.cancel()
+            Dispatchers.resetMain()
+        }
+    }
+
+    /** A public list failure is logged and the real navigation resume trigger retries anonymously. */
+    @Test
+    fun publicListFailureRecoversOnResume() = runTest {
+        Dispatchers.setMain(StandardTestDispatcher(testScheduler))
+        val publicOwner = UserId(9L)
+        val publicWishlist = WishlistsFeatureWishlist(WishlistId(11L), publicOwner, "Public", "EUR")
+        val publicFailure = IllegalStateException("public list failed")
+        val node = wishlistsListTestNode(publicOwner)
+        val model = WishlistListTestModel().apply { publicHandler = { throw publicFailure } }
+        val viewModel = WishlistsListViewModel(node, model, RecordingWishlistsListInteractor(), StandardTestDispatcher(testScheduler))
+        try {
+            withCapturedErrorLogs { errors ->
+                advanceUntilIdle()
+                assertEquals(listOf(publicOwner), model.publicCalls)
+                assertTrue(viewModel.wishlistsState.value.isEmpty())
+                assertFalse(viewModel.loadingState.value)
+                assertEquals(listOf(LoggedError("WishlistsListViewModel", "Failed to load public wishlist list for user $publicOwner", publicFailure)), errors)
+
+                model.publicHandler = { listOf(publicWishlist) }
+                node.changeState(NavigationNodeState.RESUMED)
+                advanceUntilIdle()
+                assertEquals(listOf(publicOwner, publicOwner), model.publicCalls)
+                assertEquals(0, model.myCalls)
+                assertEquals(listOf(publicWishlist), viewModel.wishlistsState.value)
+                assertEquals(publicOwner, viewModel.profileUserIdState.value)
+                assertEquals("public", viewModel.userNameState.value)
+                assertEquals(1, errors.size)
+            }
+        } finally {
+            viewModel.scope.cancel()
+            Dispatchers.resetMain()
+        }
+    }
+
+    /** A collectLatest cancellation is not logged as a load failure and logout still clears private state. */
+    @Test
+    fun cancellationIsNotLoggedAsLoadFailure() = runTest {
+        Dispatchers.setMain(StandardTestDispatcher(testScheduler))
+        val entered = CompletableDeferred<Unit>()
+        val neverCompletes = CompletableDeferred<Unit>()
+        val model = WishlistListTestModel().apply {
+            authorised.value = true
+            currentUserId.value = caller
+            myHandler = {
+                entered.complete(Unit)
+                neverCompletes.await()
+                emptyList()
+            }
+        }
+        val viewModel = WishlistsListViewModel(wishlistsListTestNode(), model, RecordingWishlistsListInteractor(), StandardTestDispatcher(testScheduler))
+        try {
+            withCapturedErrorLogs { errors ->
+                runCurrent()
+                assertTrue(entered.isCompleted)
+                model.authorised.value = false
+                advanceUntilIdle()
+                assertTrue(viewModel.wishlistsState.value.isEmpty())
+                assertFalse(viewModel.loadingState.value)
+                assertTrue(errors.isEmpty())
+            }
+        } finally {
+            viewModel.scope.cancel()
+            Dispatchers.resetMain()
+        }
+    }
+
     /** Runs an own-list ViewModel with its scope pinned to the test scheduler. */
     private fun runViewModelTest(block: suspend TestScope.(WishlistListTestModel, WishlistsListViewModel) -> Unit) = runTest {
         Dispatchers.setMain(StandardTestDispatcher(testScheduler))
@@ -154,6 +300,30 @@ private suspend fun <T> withSilentPlatformLogs(block: suspend () -> T): T {
     KSLog.default = KSLog { _, _, _, _ -> }
     return try {
         block()
+    } finally {
+        KSLog.default = originalLogger
+    }
+}
+
+/** Captured error record used to assert that a failed trigger remains observable and attributable. */
+private data class LoggedError(
+    /** Logger tag emitted by the ViewModel. */
+    val tag: String?,
+    /** Stable error context emitted by the ViewModel. */
+    val message: String,
+    /** Original load exception preserved by the logger. */
+    val throwable: Throwable?,
+)
+
+/** Runs a test with a temporary logger that retains error events and restores the previous logger. */
+private suspend fun <T> withCapturedErrorLogs(block: suspend (MutableList<LoggedError>) -> T): T {
+    val originalLogger = KSLog.default
+    val errors = mutableListOf<LoggedError>()
+    KSLog.default = KSLog { level, tag, message, throwable ->
+        if (level == LogLevel.ERROR) errors += LoggedError(tag, message.toString(), throwable)
+    }
+    return try {
+        block(errors)
     } finally {
         KSLog.default = originalLogger
     }
@@ -193,6 +363,9 @@ private class WishlistListTestModel : WishlistsModel {
 
     /** Configurable public owner-list response. */
     var publicHandler: suspend (UserId) -> List<WishlistsFeatureWishlist> = { emptyList() }
+
+    /** Configurable display-name response. */
+    var nameHandler: suspend (UserId) -> String? = { userId -> if (userId == UserId(7L)) "caller" else "public" }
     override val userAuthorisedState: StateFlow<Boolean> = authorised
     override val currentUserIdFlow: StateFlow<UserId?> = currentUserId
     override val selectedCurrency: StateFlow<CurrencyCode?> = MutableStateFlow(null)
@@ -208,7 +381,7 @@ private class WishlistListTestModel : WishlistsModel {
     override suspend fun deleteWishlistItem(id: WishlistItemId): Boolean = false
     override suspend fun copyItemToWishlist(sourceItemId: WishlistItemId, sourceWishlistId: WishlistId, targetWishlistId: WishlistId): WishlistsFeatureItem? = null
     override suspend fun enqueueWishlistCopy(sourceWishlistId: WishlistId): Boolean = false
-    override suspend fun getUserName(userId: UserId): String? = if (userId == UserId(7L)) "caller" else "public"
+    override suspend fun getUserName(userId: UserId): String? = nameHandler(userId)
     override suspend fun uploadImage(file: MPPFile): FileId? = null
     override fun imageUrl(id: FileId): String = ""
     override suspend fun loadImageBytes(id: FileId): ByteArray? = null
