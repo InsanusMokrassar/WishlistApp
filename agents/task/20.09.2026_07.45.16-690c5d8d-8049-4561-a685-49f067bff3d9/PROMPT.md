@@ -37,4 +37,3 @@ The project is Kotlin-first and uses Gradle. The operator's local server uses SQ
 5. README/setup documentation explains local and CI commands, supported platforms, prerequisites, headed mode, and where failure artifacts are found.
 
 References: [Playwright Java with Gradle and JUnit](https://playwright.dev/java/docs/test-runners), [browser installation](https://playwright.dev/java/docs/browsers), [CI guidance](https://playwright.dev/java/docs/ci).
-
