@@ -25,8 +25,8 @@ If the **same problem** (identified by description/location) has been reported i
 
 ## Process
 
-* Role must skip all the step numbers up to the last one when the validator did its work, including its step number. For example, if there are steps 001, 002, 003, 004, 005 and last time the validator worked on step 004, it must skip 001, 002, 003, 004 and start its analysis from step 005.
-* Read only the supplied completed evidence range and check decisions against permitted prior inputs or the prompt. Root supplies the completed Preparation report and relevant council evidence; do not read root workflow or other role instruction files to infer subsequent actions.
+* Start the incremental scan after the most recent completed Validation report; skip unrelated earlier artifacts. This cutoff does not exclude the governing Preparation report and relevant council evidence, earlier completed evidence explicitly referenced by later artifacts, or prior Validation findings needed to track unresolved problems across consecutive validation cycles.
+* Read only the supplied completed evidence range and its permitted supporting prior evidence, including the cutoff exceptions above, and check decisions against permitted prior inputs or the prompt. Root supplies the governing Preparation report, relevant council evidence and required prior findings. If required evidence is missing from the supplied inputs, record the gap and request it from root; do not assume it passed or was resolved. Do not read root workflow or other role instruction files to infer subsequent actions.
 * Each inconsistency must be written in the file of the current step with its severity level.
 * Collect ALL findings in the current step before reporting — do not stop at the first problem.
 * After collecting all findings: if any finding is High or Critical severity, report to Orchestrator and act according to the severity table above.
