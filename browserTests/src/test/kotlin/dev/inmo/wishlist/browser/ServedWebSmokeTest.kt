@@ -10,6 +10,7 @@ import org.junit.jupiter.api.MethodOrderer
 import org.junit.jupiter.api.Order
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.TestMethodOrder
+import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertTrue
 import java.util.UUID
 
@@ -27,24 +28,23 @@ class ServedWebSmokeTest {
     }
 
     /** Verifies that Compose mounts meaningful UI instead of merely serving an HTML shell. */
-    @Test @Order(1) fun rendersApplication() = withPage("renders-application") { _, page, _ ->
+    @Test @Order(1) fun rendersApplication() = withPage("renders-application") { _, page, errors ->
         page.navigate(fixture.baseUrl)
         page.locator(".app").waitFor(Locator.WaitForOptions().setState(WaitForSelectorState.VISIBLE).setTimeout(15_000.0))
         page.locator(".topbar").waitFor(Locator.WaitForOptions().setState(WaitForSelectorState.VISIBLE).setTimeout(15_000.0))
         assertTrue(page.getByRole(com.microsoft.playwright.options.AriaRole.HEADING, Page.GetByRoleOptions().setName("My Wishlists").setExact(true)).isVisible)
+        assertEquals(0, errors.protectedOwnListRequests(), "Anonymous startup must not call GET /api/wishlist/getMy")
     }
 
     /** Registers an isolated account and confirms the authenticated wishlist action is rendered. */
-    @Test @Order(2) fun registersAndReachesAuthenticatedUi() = withPage("registers-and-reaches-authenticated-ui") { _, page, errors ->
+    @Test @Order(2) fun registersAndReachesAuthenticatedUi() = withPage("registers-and-reaches-authenticated-ui") { _, page, _ ->
         val username = "browser_${UUID.randomUUID().toString().replace("-", "").take(16)}"
         page.navigate(fixture.baseUrl)
         page.getByRole(com.microsoft.playwright.options.AriaRole.BUTTON, Page.GetByRoleOptions().setName("Register").setExact(true)).first().click()
         page.locator("#auth-username").fill(username)
         page.locator("#auth-password").fill("BrowserTest!42")
-        errors.moveTo(BrowserSessionPhase.AUTHENTICATING)
         page.getByRole(com.microsoft.playwright.options.AriaRole.BUTTON, Page.GetByRoleOptions().setName("Create account").setExact(true)).click()
         page.getByRole(com.microsoft.playwright.options.AriaRole.BUTTON, Page.GetByRoleOptions().setName("Log out").setExact(true)).first().waitFor(Locator.WaitForOptions().setState(WaitForSelectorState.VISIBLE).setTimeout(15_000.0))
-        errors.moveTo(BrowserSessionPhase.AUTHENTICATED)
         page.getByRole(com.microsoft.playwright.options.AriaRole.BUTTON, Page.GetByRoleOptions().setName("New Wishlist").setExact(true)).first().waitFor(Locator.WaitForOptions().setState(WaitForSelectorState.VISIBLE).setTimeout(15_000.0))
     }
 
@@ -55,7 +55,7 @@ class ServedWebSmokeTest {
         page.onResponse { response -> errors.recordResponse(BrowserResponseDetails(response.request().method(), response.url(), response.status())) }
         page.onPageError { errors.recordPageError(it) }
         page.onConsoleMessage { message ->
-            if (message.type() == "error") errors.recordConsoleError(message.text(), message.location())
+            if (message.type() == "error") errors.recordConsoleError(message.text())
         }
         try {
             block(context, page, errors)
