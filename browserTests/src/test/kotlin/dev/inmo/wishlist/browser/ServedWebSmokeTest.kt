@@ -27,7 +27,7 @@ class ServedWebSmokeTest {
     }
 
     /** Verifies that Compose mounts meaningful UI instead of merely serving an HTML shell. */
-    @Test @Order(1) fun rendersApplication() = withPage("renders-application") { _, page ->
+    @Test @Order(1) fun rendersApplication() = withPage("renders-application") { _, page, _ ->
         page.navigate(fixture.baseUrl)
         page.locator(".app").waitFor(Locator.WaitForOptions().setState(WaitForSelectorState.VISIBLE).setTimeout(15_000.0))
         page.locator(".topbar").waitFor(Locator.WaitForOptions().setState(WaitForSelectorState.VISIBLE).setTimeout(15_000.0))
@@ -35,30 +35,31 @@ class ServedWebSmokeTest {
     }
 
     /** Registers an isolated account and confirms the authenticated wishlist action is rendered. */
-    @Test @Order(2) fun registersAndReachesAuthenticatedUi() = withPage("registers-and-reaches-authenticated-ui") { _, page ->
+    @Test @Order(2) fun registersAndReachesAuthenticatedUi() = withPage("registers-and-reaches-authenticated-ui") { _, page, errors ->
         val username = "browser_${UUID.randomUUID().toString().replace("-", "").take(16)}"
         page.navigate(fixture.baseUrl)
         page.getByRole(com.microsoft.playwright.options.AriaRole.BUTTON, Page.GetByRoleOptions().setName("Register").setExact(true)).first().click()
         page.locator("#auth-username").fill(username)
         page.locator("#auth-password").fill("BrowserTest!42")
+        errors.moveTo(BrowserSessionPhase.AUTHENTICATING)
         page.getByRole(com.microsoft.playwright.options.AriaRole.BUTTON, Page.GetByRoleOptions().setName("Create account").setExact(true)).click()
         page.getByRole(com.microsoft.playwright.options.AriaRole.BUTTON, Page.GetByRoleOptions().setName("Log out").setExact(true)).first().waitFor(Locator.WaitForOptions().setState(WaitForSelectorState.VISIBLE).setTimeout(15_000.0))
+        errors.moveTo(BrowserSessionPhase.AUTHENTICATED)
         page.getByRole(com.microsoft.playwright.options.AriaRole.BUTTON, Page.GetByRoleOptions().setName("New Wishlist").setExact(true)).first().waitFor(Locator.WaitForOptions().setState(WaitForSelectorState.VISIBLE).setTimeout(15_000.0))
     }
 
-    private fun withPage(testName: String, block: (BrowserContext, Page) -> Unit) {
+    private fun withPage(testName: String, block: (BrowserContext, Page, BrowserErrorCollector) -> Unit) {
         val context = fixture.newContext()
         val page = context.newPage()
-        val unexpectedErrors = mutableListOf<String>()
-        page.onPageError { unexpectedErrors += it }
+        val errors = BrowserErrorCollector(fixture.baseUrl)
+        page.onResponse { response -> errors.recordResponse(BrowserResponseDetails(response.request().method(), response.url(), response.status())) }
+        page.onPageError { errors.recordPageError(it) }
         page.onConsoleMessage { message ->
-            if (message.type() == "error" && !isKnownAnonymousBootstrapError(message.text())) {
-                unexpectedErrors += message.text()
-            }
+            if (message.type() == "error") errors.recordConsoleError(message.text(), message.location())
         }
         try {
-            block(context, page)
-            assertTrue(unexpectedErrors.isEmpty(), "Unexpected browser errors: $unexpectedErrors")
+            block(context, page, errors)
+            assertTrue(errors.unexpectedErrors().isEmpty(), "Unexpected browser errors: ${errors.unexpectedErrors()}")
             context.tracing().stop()
         } catch (failure: Throwable) {
             fixture.captureFailure(context, page, testName)
@@ -68,7 +69,4 @@ class ServedWebSmokeTest {
         }
     }
 
-    /** Allows the current unauthenticated API bootstrap response until the client owns a typed anonymous result. */
-    private fun isKnownAnonymousBootstrapError(message: String): Boolean =
-        message.contains("server responded with a status of 401") || message.contains("NoTransformationFoundException")
 }
