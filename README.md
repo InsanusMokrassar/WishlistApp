@@ -70,18 +70,21 @@ Run the real-browser smoke suite with the Gradle wrapper:
 
 The gate builds the development Web bundle, provisions the Playwright-managed
 Chromium revision pinned by the Gradle catalog (`com.microsoft.playwright:playwright`
-1.52.0), starts the Ktor server on a loopback ephemeral port, and runs two JUnit
-smoke tests in Chromium. The first checks the rendered application; the second
-registers a unique disposable account and checks authenticated wishlist controls.
+1.52.0), starts the Ktor server on a loopback ephemeral port, and runs five JUnit
+tests: two served Chromium smoke tests and three focused browser-response classifier
+tests. The smoke tests check the rendered application, then register a unique
+disposable account and check authenticated wishlist controls.
 The default is headless. Use `./gradlew browserTest -PbrowserHeaded=true` to watch
 the run locally.
 
 Every invocation creates its own temporary SQLite database, upload directory,
 server configuration, and port. Cleanup stops the server and removes that temporary
 state; the operator's database and files under `server/src` are not used. Browser
-installation is cached at `browserTests/build/playwright`, so repeating the command
-does not reinstall an already available matching browser. Unrelated Gradle tasks do
-not provision a browser or start the test server.
+installation is cached at `browserTests/build/playwright`. Each gate invocation
+launches the pinned headless browser to validate that cache before the test suite;
+an empty or partial pinned cache is repaired automatically, while unrelated browser
+revisions are preserved. Repeating the command does not reinstall a healthy matching
+browser. Unrelated Gradle tasks do not provision a browser or start the test server.
 
 On a failed browser test, inspect `browserTests/build/artifacts/<invocation>/` for
 `server.log` and, for each failed test, `failure.png` and `trace.zip`. CI runs the

@@ -37,17 +37,19 @@ echo "browser_exit=$?"
 ```
 
 The command must run on a supported Linux runner with JDK 17 and the documented
-Chromium runtime libraries. It builds the Web bundle, provisions the pinned
-Playwright Chromium revision when needed, starts the application with a fresh
-loopback SQLite database and temporary uploads directory, runs the served page
-through Chromium, and cleans up the server and temporary state. The current suite
-contains two tests: `rendersApplication` and
-`registersAndReachesAuthenticatedUi`. Headed inspection is available with
+Chromium runtime libraries. It builds the Web bundle, checks the pinned Chromium
+cache by launching the headless browser, repairs an empty or partial pinned cache
+when needed, starts the application with a fresh loopback SQLite database and
+temporary uploads directory, runs the served page through Chromium, and cleans up
+the server and temporary state. The current suite contains five tests: two served
+smoke tests (`rendersApplication` and `registersAndReachesAuthenticatedUi`) plus
+three focused browser-response classifier tests. Headed inspection is available with
 `./gradlew browserTest -PbrowserHeaded=true`; CI uses headless mode.
 
 The step report must include the exact browser command, its real exit status, the
-Chromium version or pinned Playwright version, passed and failed test counts, the
-artifact directory, and any setup limitation. Record relevant paths for
+Chromium version or pinned Playwright version, cache probe or repair result,
+passed and failed test counts, the artifact directory, and any setup limitation.
+Record relevant paths for
 `server.log`, `failure.png`, and `trace.zip` when present. A required browser gate
 that fails, cannot start, lacks required OS libraries, or is unavailable on the
 runner is `FAIL` and must return to Coding; do not report `PASS` based on a bundle
