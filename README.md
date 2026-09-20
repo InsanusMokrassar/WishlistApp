@@ -70,8 +70,8 @@ Run the real-browser smoke suite with the Gradle wrapper:
 
 The gate builds the development Web bundle, provisions the Playwright-managed
 Chromium revision pinned by the Gradle catalog (`com.microsoft.playwright:playwright`
-1.52.0), starts the Ktor server on a loopback ephemeral port, and runs six JUnit
-tests: two served Chromium smoke tests and four focused browser-response classifier
+1.52.0), starts the Ktor server on a loopback ephemeral port, and runs eight JUnit
+tests: two served Chromium smoke tests and six focused browser-response classifier
 tests. The smoke tests check the rendered application, then register a unique
 disposable account and check authenticated wishlist controls.
 The default is headless. Use `./gradlew browserTest -PbrowserHeaded=true` to watch
@@ -87,9 +87,10 @@ revisions are preserved. Repeating the command does not reinstall a healthy matc
 browser. Unrelated Gradle tasks do not provision a browser or start the test server.
 
 The browser gate treats every console error, page exception, and HTTP 401 as a
-failure. Anonymous startup must make zero same-origin `GET /api/wishlist/getMy`
-requests; public browsing of an explicitly selected owner's wishlists remains
-available anonymously.
+failure. Anonymous startup must emit zero Playwright `onRequest` events for
+same-origin `GET /api/wishlist/getMy`; counting request events also catches an
+attempt that fails before receiving an HTTP response. Public browsing of an
+explicitly selected owner's wishlists remains available anonymously.
 
 On a failed browser test, inspect `browserTests/build/artifacts/<invocation>/` for
 `server.log` and, for each failed test, `failure.png` and `trace.zip`. CI runs the
