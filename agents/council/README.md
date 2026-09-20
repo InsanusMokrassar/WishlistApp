@@ -2,7 +2,7 @@
 
 Architecture is the nonvoting council coordinator. It returns one self-contained Architecturing report with concrete design, implementation order, tests, rationale, README updates and the recorded council outcome.
 
-Participants read [COMMON](COMMON.md), [PROTOCOL](PROTOCOL.md), [MODELS](MODELS.md), their assigned role file and the explicit frozen packet. No ordinary root-role instructions apply to a council participant.
+Participants follow [COMMON](COMMON.md), [PROTOCOL](PROTOCOL.md), [MODELS](MODELS.md), their assigned role file and the explicit frozen packet. They obtain architecture and project facts directly from repository source, configuration, documentation and task history; no separate council project-context document is needed. Other participants' proposal/review/vote artifacts from the current wave or voting cycle, including copies in history or search, remain forbidden. Completed prior cycles and ordinary task reports are permitted evidence. No ordinary root-role instructions apply to a council participant.
 
 All voting contracts live in [roles/](roles/). Discover every Markdown role file there, including nested files, before every cycle and final publication. The default roster must contain [Architect](roles/ARCHITECT.md), [Programmer](roles/PROGRAMMER.md), [Security](roles/SECURITY.md) and [Designer](roles/DESIGNER.md); this list is not the dispatch roster. Adding a role file includes it automatically. Every role runs as a fresh independent subagent in parallel for proposals and every voting cycle, with HL preferred and ML fallback.
 

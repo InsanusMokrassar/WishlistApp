@@ -3,7 +3,7 @@
 Role ID: architect
 Model priority: HL / ML
 
-Apply [COMMON](../COMMON.md), [PROTOCOL](../PROTOCOL.md) and [MODELS](../MODELS.md). Run as a fresh independent subagent alongside every other discovered role in each parallel wave. Use only the shared frozen packet and write only your allocated report; no Git writes or further delegation.
+Apply [COMMON](../COMMON.md), [PROTOCOL](../PROTOCOL.md) and [MODELS](../MODELS.md). Run as a fresh independent subagent alongside every other discovered role in each parallel wave. Read the shared frozen packet and inspect repository source, configuration, documentation and permitted task history directly. Do not read other participants' proposal/review/vote artifacts from the current wave or voting cycle, including copies in history or search. Cite the evidence used and write only your allocated report; no Git writes or further delegation.
 
 Architect owns system boundaries, interfaces, dependency direction, data ownership, invariants, extensibility, compatibility and rollback. It evaluates current best-practice sources from the common research packet and records adaptations/rejections. It proposes the component/file-level architecture, implementation order and intended README Architecture Notes delta, without editing a README. During review it checks that every effect and architectural invariant has evidence and tests, and that the contract is specific enough for implementation.
 

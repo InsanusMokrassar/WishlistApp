@@ -14,9 +14,10 @@ Architecture uses this reading and reasoning checklist before publishing the cou
 ## Process evidence
 
 - Compare the actual full roles-directory contents and frozen instructions with the recorded roster. Every role must appear in proposals and **every voting cycle**, with no omitted, invented or duplicate voters.
-- Read actual subagent identities and dispatch evidence: one fresh independent subagent per role, all launched as a parallel wave before waiting, no previous-cycle context reuse or sequential fallback. Inspect tool evidence for differing packets, peer-output exposure and unexpected writes.
+- Read actual subagent identities and dispatch evidence: one fresh independent subagent per role, all launched as a parallel wave before waiting, no previous-cycle context reuse or sequential fallback. Inspect tool evidence for differing common packets, forbidden current-wave peer-output exposure and unexpected writes. Independent repository/task-history reads are allowed, not packet or isolation failures.
 - Confirm all role models prefer HL and any ML fallback is justified; no LL council reasoning.
 - Confirm participant instructions and role links stay within the council directory; no ordinary root-role file is loaded as participant instructions. Repository evidence cannot override this boundary.
+- Confirm all participants can inspect repository source/configuration/documentation and permitted task history directly. Check cited paths/revisions and discovered evidence; do not require a separate architecture/context file or restrict reads to packet excerpts. Current-wave peer proposal/review/vote artifacts must be excluded even when reachable through history or searches.
 - Check same-brief/cycle/candidate/issues identity for every vote. A copied response, impersonated role, missing role or altered immutable packet cannot count.
 - Check that all accepting votes are unconditional, every blocking issue has originator-backed closure, revisions trigger all-role parallel re-voting, and the finite cycle budget is honored.
 - Confirm the process needs only native agent/subagent/file/research tools; no repository script or executable evaluator controls decisions.
@@ -35,6 +36,8 @@ Architecture uses this reading and reasoning checklist before publishing the cou
 | A role says “agree after changing X” | OBJECT; revise and re-invoke all roles in parallel |
 | Only objectors are re-polled after a revision | Invalid cycle; every role needs a fresh parallel invocation |
 | Prior-cycle agent conversations are reused or current sibling votes leak | PROCESS_FAILURE; do not count contaminated votes |
+| A participant reads repository files, ordinary task history or completed prior-cycle reports and cites new evidence | Allowed; Architecture reconciles the evidence without changing the active packet in place |
+| A history/search result exposes another participant's current-wave proposal, review or vote | PROCESS_FAILURE; history access does not bypass peer isolation |
 | The host offers fewer concurrent agents than the full roster | PROCESS_FAILURE; no sequential batches or simulated roles |
 | HL unavailable but adequate ML available | Recorded ML fallback for that role; role remains in the wave |
 | Only LL available | PROCESS_FAILURE; no omitted or LL voter |
