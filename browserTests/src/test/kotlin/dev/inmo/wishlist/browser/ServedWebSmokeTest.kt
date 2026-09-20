@@ -42,7 +42,7 @@ class ServedWebSmokeTest {
         page.locator("#auth-username").fill(username)
         page.locator("#auth-password").fill("BrowserTest!42")
         page.getByRole(com.microsoft.playwright.options.AriaRole.BUTTON, Page.GetByRoleOptions().setName("Create account").setExact(true)).click()
-        page.getByText("Log out", Page.GetByTextOptions().setExact(true)).waitFor(Locator.WaitForOptions().setState(WaitForSelectorState.VISIBLE).setTimeout(15_000.0))
+        page.getByRole(com.microsoft.playwright.options.AriaRole.BUTTON, Page.GetByRoleOptions().setName("Log out").setExact(true)).first().waitFor(Locator.WaitForOptions().setState(WaitForSelectorState.VISIBLE).setTimeout(15_000.0))
         page.getByRole(com.microsoft.playwright.options.AriaRole.BUTTON, Page.GetByRoleOptions().setName("New Wishlist").setExact(true)).first().waitFor(Locator.WaitForOptions().setState(WaitForSelectorState.VISIBLE).setTimeout(15_000.0))
     }
 
