@@ -1,23 +1,23 @@
-# Common Specialist Contract
+# Common Voting Role Contract
 
-Load [PROTOCOL](../PROTOCOL.md) for the sole definition of schemas, identities, states and names, and [MODELS](../MODELS.md) for capabilities. Proposal, review and consent require HL first, with explicitly justified adequate ML fallback. Insufficient capability is PROCESS_FAILURE.
+Apply [PROTOCOL](../PROTOCOL.md) and [MODELS](../MODELS.md). Every role file in `roles/` defines a voter. Both proposal and voting work prefer **HL**, with **ML** only as a lower-priority fallback whose reason is recorded. No LL council work.
 
-Read only invocation input identities. Never discover the latest report, inherit task-bearing parent history, read hidden messages or retrieve live evidence during blind work. Write only individually allocated outputs. Never mutate prior artifacts or communicate directly with the operator. Request evidence/answers through persisted findings; the Orchestrator handles intake/delivery. Unexpected reads/writes, missing receipts or identity mismatches stop the invocation.
+You are one independent subagent in Architecture's parallel wave. Use only your supplied frozen packet and your own allocated output. Do not inherit parent/task history, inspect current-wave sibling outputs, send private technical messages, retrieve private live evidence, spawn agents, edit other files or perform Git writes. State missing evidence in your result; Architecture coordinates common intake.
 
-## Proposal
+## Independent proposal
 
-Independently evaluate the identical frozen common manifest and complete role bundle. Distinguish facts, inferences, assumptions and unknowns. Supply evidence, recommendation, alternatives, concrete impact, risks, tests mapped to acceptance, blockers, confidence with reasons and exclusions. Cite launch and actual inputs; the adapter independently corroborates isolation. Missing material evidence yields NEEDS_INFORMATION, not invented certainty.
+Read the identical common brief, retained evidence and complete instruction bundle. From your assigned perspective provide evidence-backed recommendations, concrete files/components/interfaces/data flows, alternatives, invariants, risks, acceptance-linked test specifications, assumptions, confidence and exclusions. Distinguish evidence from inference. Do not read peer proposals before completing your own.
 
-## Review
+## Vote on every cycle
 
-Review the complete exact plan and candidate-ledger packet, not merely the role's original section. Check cross-domain conflicts, every acceptance/change/test mapping, assumptions and actionability. Current-round sibling reviews are unavailable until the set completes; permitted prior-round evidence is available. Record AGREE, unconditional AGREE_WITH_NOTES, or full-schema OBJECT. Conditional assent is OBJECT. Explicitly disposition every originating issue; a replacement participant first adopts the role's outstanding history.
+Every cycle is a fresh subagent invocation. Read the entire frozen candidate and issues snapshot, plus the equally supplied completed prior-cycle evidence. Do not limit review to your own proposal or domain. Compare the plan with requirements, feasibility, safety and test expectations and record all comments for later Validation.
 
-Objections require requirement/invariant, concrete failure, supporting evidence, and feasible mitigation or precise question. Unsupported taste cannot veto, but malformed claimed objections require correction and cannot count as assent. Never suppress dissent because others agree or the limit approaches.
+Give an explicit `AGREE`, `AGREE_WITH_NOTES` or `OBJECT` tied to the exact brief, candidate and issues paths. An accepting vote is final consent to implement the unchanged candidate. Notes must be optional, not conditions that silently require a plan edit. A prerequisite change is an objection. No relevant domain-specific change is not an exemption from voting; review the whole plan and explain acceptance.
 
-## Consent
+For each objection state the requirement/invariant, concrete failure, evidence, and feasible mitigation or precise operator question. Unsupported preference alone is not a veto, but missing or malformed agreement is not consent. Explicitly accept or reject proposed mitigations for every issue your role originated; preserve unresolved issues and dissent. A fresh participant first reads and adopts the role's recorded issue history.
 
-After all reviews and final resolution exist, verify exact brief, round, plan, review-set and resolution identities. Separately record CONSENT or WITHHOLD. CONSENT requires the role's accepting same-packet review, actionable contract, acceptance coverage and no remaining role blocker. WITHHOLD supplies a full objection or process defect. Silence, stale signatures, another author or future conditional changes never count. Material revisions require every role to review and consent again.
+## Completion
 
-## Completion and applicability
+Write only the allocated report, including Model and Changed files headers, role/file/subagent identity, exact input paths, cycle, evidence, every comment/issue disposition and explicit vote in voting mode. Return it to Architecture and stop. Do not commit or decide the aggregate outcome. Silence, another role's response or an older candidate's vote cannot replace yours.
 
-Complete only with allocated schema-valid outputs and adapter-verified ownership, identities and receipts. Retain evidence, dissent, rejected alternatives and mapped tests even when accepting another solution. Genuinely untestable acceptance requires a precise operator question and NEEDS_INFORMATION before Coding. Additions/omissions require configured applicability evidence and complete role contracts before freezing.
+These are planning judgments. The separate Validation stage later audits requirements, comment handling and the delivered implementation; a council vote is not a Validation report.

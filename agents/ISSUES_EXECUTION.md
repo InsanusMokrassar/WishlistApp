@@ -21,7 +21,7 @@ Repo: `InsanusMokrassar/WishlistApp`.
    - If no linked PR exists → proceed.
 5. Sync with master per `agents/GIT.md` "## Before Branching".
 6. Create branch for fix: `git checkout -b fix/issue-<N>-<slug>`.
-7. Resolve the issue as the main-session root per `agents/ORCHESTRATOR.md`, using the adapted Architecturing/Council stage and only-CONSENSUS gate for new work. Do NOT spawn a root subagent. Already-started legacy cycles follow the documented adoption exception.
+7. Resolve the issue as root per `agents/ORCHESTRATOR.md`. Invoke Architecture as the council's small orchestrator; it runs every role from the roles directory in independent parallel subagents for every voting cycle and returns the normal Architecturing report. Only a successful CONSENSUS report goes to Coding. Verification remains build/tests; Validation audits requirements and all council comments.
 8. Push branch: `git push origin fix/issue-<N>-<slug>`.
 9. Open PR linked to the issue (body must contain `Closes #<N>`):
    ```
@@ -35,6 +35,6 @@ Repo: `InsanusMokrassar/WishlistApp`.
 
 ## Rules
 
-- One issue at a time. Stage and council invocations/persistence remain sequential under `agents/COUNCIL_ADAPTER.md` to avoid branch/index conflicts.
+- One issue at a time. Outer stages and Git persistence remain sequential; inside Architecturing, all council roles run in independent parallel subagents on every voting cycle. Unique output allocations and Architecture-owned commits prevent shared-index races; do not serialize voting.
 - Ambiguity, blocked outcomes and cycle/attempt escalation use [Operator delivery and escalation](COUNCIL_ADAPTER.md#operator-delivery-and-escalation). Roles only write packages; root handles authorized delivery. Stop until the required answer exists, then read issue comments and preserve answers in new immutable operator-input artifacts before resumption.
 - If operator left a review on the issue's PR → treat it as continuation of the same issue: read ALL review comments (`gh api repos/InsanusMokrassar/WishlistApp/pulls/<PR#>/comments`), fix every comment on the SAME branch, push. Do NOT open a new issue or PR. Continue the issue work where it was left off.

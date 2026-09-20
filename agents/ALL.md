@@ -1,9 +1,9 @@
-COUNCIL MODE TAKES PRECEDENCE: read only the explicit invocation manifest and frozen input identities under `agents/PROTOCOL.md`; never automatically read the latest report. For non-council work only, read `agents/task/<TASK_ID_FORMAT>/<STEP_NUMBER_FORMAT>.md` with the largest `STEP_NUMBER` (or the explicit input set the role contract specifies).
-For non-council work with no step files yet, read `PROMPT.md` in the task folder instead. Council invocations always obey their explicit input manifest.
+COUNCIL WORKER MODE TAKES PRECEDENCE: read only Architecture's explicit frozen packet under `agents/PROTOCOL.md`; never automatically read the latest report or current-wave siblings. For other stages, including the Architecture coordinator, read `agents/task/<TASK_ID_FORMAT>/<STEP_NUMBER_FORMAT>.md` with the largest `STEP_NUMBER` (or the explicit input set the role contract specifies).
+For ordinary stage work with no step files yet, read `PROMPT.md` instead. Voting workers always obey their explicit packet.
 
 THIS AGENT MUST WRITE `agents/task/<TASK_ID_FORMAT>/<STEP_NUMBER_FORMAT>.md` WITH RESULTS REPORT ABOUT ITS WORK.
 
-EVERY ROLE INVOCATION MUST NOT EDIT ANY FILE except its individually allocated output artifacts. Multiple outputs require separate explicit allocations to that invocation. Published artifacts are immutable; corrections receive new numbers. Council roles never edit application files. Exception: Coding may additionally edit task-authorized source, resources, repository documentation and feature `README.md` files. Root additionally bootstraps PROMPT and writes allocated orchestration/brief/launch/receipt/operator-input records by transcription, not technical synthesis.
+EVERY ROLE INVOCATION MUST NOT EDIT ANY FILE except its individually allocated output artifacts. Multiple outputs require separate explicit allocations. Published artifacts are immutable; corrections receive new numbers. Architecture may write council coordination artifacts and its final Architecturing report, and may spawn the independent parallel council workers; those workers write only their own proposal or vote and perform no Git operations. Coding may additionally edit task-authorized source, resources, repository documentation and feature `README.md` files. Root additionally bootstraps PROMPT and writes allocated orchestration/operator-input reports. Preserve unique writer ownership throughout each parallel wave.
 
 See `agents/PROTOCOL.md` for TASK_ID_FORMAT and STEP_NUMBER_FORMAT specifications.
 See `agents/GIT.md` for all git commit and push rules.
@@ -41,7 +41,7 @@ Changed files: <list of changed files>
 
 ALWAYS USE `ast-index` for any code search/navigation (symbols, files, usages, hierarchy). NEVER use grep/find when `ast-index` can do the job. This rule applies to ALL roles without exceptions. If `ast-index` is unavailable, follow the installation and fallback procedure in `agents/TOOLS.md`. Command reference: `agents/AST_INDEX.md`.
 
-Blind council navigation is restricted to the frozen evidence revision and manifest. A shared index containing current task/sibling artifacts is forbidden. If tooling cannot enforce and evidence that boundary, stop with PROCESS_FAILURE; search convenience cannot weaken isolation. Frozen applicable instructions and overrides are distributed identically under `agents/COUNCIL_ADAPTER.md`.
+Council workers use the supplied frozen evidence, not private task-history or sibling-output searches. Prepare source/navigation evidence before the wave and distribute it equally. If the host cannot provide independent task contexts or peer-input exposure is observed, stop with PROCESS_FAILURE; do not add a script-based isolation runner. Applicable instructions and overrides are distributed identically under `agents/COUNCIL_ADAPTER.md`.
 
 In case of changes in source code files (.kt, .java, .ts, .js, etc.) you MUST run `ast-index rebuild`. Do NOT rebuild for markdown, step report, or config-only changes.
 
