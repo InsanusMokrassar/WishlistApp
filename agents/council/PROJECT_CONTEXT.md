@@ -1,6 +1,6 @@
 # WishlistApp Architecture Evidence
 
-Repository facts for [Architecture](ARCHITECTURE.md) and the council. Supply relevant evidence identically to all voting roles; this file is not a role or an orchestration contract.
+Architecture reads this context when preparing the brief. Supply relevant facts and constraints as frozen evidence to every participant; references to other repository documents here are coordinator intake references, not participant instruction entry points.
 
 ## Overview
 

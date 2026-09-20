@@ -1,9 +1,9 @@
-COUNCIL WORKER MODE TAKES PRECEDENCE: read only Architecture's explicit frozen packet under `agents/PROTOCOL.md`; never automatically read the latest report or current-wave siblings. For other stages, including the Architecture coordinator, read `agents/task/<TASK_ID_FORMAT>/<STEP_NUMBER_FORMAT>.md` with the largest `STEP_NUMBER` (or the explicit input set the role contract specifies).
-For ordinary stage work with no step files yet, read `PROMPT.md` instead. Voting workers always obey their explicit packet.
+THIS AGENT MUST READ `agents/task/<TASK_ID_FORMAT>/<STEP_NUMBER_FORMAT>.md` with the largest `STEP_NUMBER` BEFORE ANY WORK (or the full step range the agent's role file specifies).
+If no step files exist yet, read `PROMPT.md` in the task folder instead.
 
 THIS AGENT MUST WRITE `agents/task/<TASK_ID_FORMAT>/<STEP_NUMBER_FORMAT>.md` WITH RESULTS REPORT ABOUT ITS WORK.
 
-EVERY ROLE INVOCATION MUST NOT EDIT ANY FILE except its individually allocated output artifacts. Multiple outputs require separate explicit allocations. Published artifacts are immutable; corrections receive new numbers. Architecture may write council coordination artifacts and its final Architecturing report, and may spawn the independent parallel council workers; those workers write only their own proposal or vote and perform no Git operations. Coding may additionally edit task-authorized source, resources, repository documentation and feature `README.md` files. Root additionally bootstraps PROMPT and writes allocated orchestration/operator-input reports. Preserve unique writer ownership throughout each parallel wave.
+EVERY ROLE SUBAGENT MUST NOT EDIT ANY FILE except its current step file (`agents/task/<TASK_ID_FORMAT>/<STEP_NUMBER_FORMAT>.md`). Exception: Coding may additionally edit the source, resource, and feature `README.md` files the task requires. (The Orchestrator/root additionally creates the task folder and `PROMPT.md` per `agents/PROTOCOL.md`.)
 
 See `agents/PROTOCOL.md` for TASK_ID_FORMAT and STEP_NUMBER_FORMAT specifications.
 See `agents/GIT.md` for all git commit and push rules.
@@ -40,8 +40,6 @@ Changed files: <list of changed files>
 ---
 
 ALWAYS USE `ast-index` for any code search/navigation (symbols, files, usages, hierarchy). NEVER use grep/find when `ast-index` can do the job. This rule applies to ALL roles without exceptions. If `ast-index` is unavailable, follow the installation and fallback procedure in `agents/TOOLS.md`. Command reference: `agents/AST_INDEX.md`.
-
-Council workers use the supplied frozen evidence, not private task-history or sibling-output searches. Prepare source/navigation evidence before the wave and distribute it equally. If the host cannot provide independent task contexts or peer-input exposure is observed, stop with PROCESS_FAILURE; do not add a script-based isolation runner. Applicable instructions and overrides are distributed identically under `agents/COUNCIL_ADAPTER.md`.
 
 In case of changes in source code files (.kt, .java, .ts, .js, etc.) you MUST run `ast-index rebuild`. Do NOT rebuild for markdown, step report, or config-only changes.
 

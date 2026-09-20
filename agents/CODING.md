@@ -1,9 +1,5 @@
 # Coding Rules
 
-## Entry contract
-
-Read the final `agents/task/<TASK_ID>/<NNN>-architecturing.md` report supplied by root, as in the existing Architecturing handoff. It contains the complete design, implementation order, test specifications and README delta. A successful new council result states CONSENSUS; a blocked report cannot enable Coding. Do not load votes, issue ledgers or a separate seal to reconstruct implementation instructions or perform the Validator's council audit. Design concerns stop Coding and return through root to Architecture; changed requirements return through Planning.
-
 ## Pattern Library (load on demand)
 
 Detailed implementation walkthroughs live in `agents/patterns/`. Do NOT read them all — before coding, read ONLY the pattern file(s) matching the task:
@@ -35,11 +31,11 @@ Update the feature `README.md`:
 - Changed ownership/auth semantics
 - New dependencies between modules
 
-Apply the README delta specified in the final Architecturing report. Never change Operator Notes.
+Apply any README delta the Architecture step specified in its step report.
 
 ---
 
-After source/build-affecting changes, run the required compilation task, usually `./gradlew :<MODULE_NAME>:build`. If errors occur, attempt one fixing cycle; in later cycles do not repeat identical fixes, but record the issues. For documentation-only work, inspect links, references and whitespace and report the actual checks performed; do not require a council script or executable fixture. Formal requirements and council-comment validation belongs to the Validation stage.
+After you are done with changes - you must run required compilation task. In most cases, it is `./gradlew :<MODULE_NAME>:build`. If there are errors in output, you must try to fix them. Do only one cycle of fixing; in new cycles do not fix the same (fully same) issues again but add them in report.
 
 ---
 

@@ -1,13 +1,14 @@
 # Agent-Performed Council Validation
 
-This is a reading and reasoning checklist for the **Validation agent**, not a script, executable fixture, parser or extra Verification gate. Read the actual active reports and referenced evidence; record observed results and cited paths in the Validation report. Hypothetical walkthroughs assess the framework, while an executed council needs actual invocation/vote evidence. Do not claim a scenario was executed merely because the instructions describe it.
+Architecture uses this reading and reasoning checklist before publishing the council outcome. It is not a script, executable fixture, parser or extra Verification gate. Read actual reports and referenced evidence; record observed results and cited paths in the final Architecturing report for ordinary downstream review. Hypothetical walkthroughs assess the instructions, while an executed council needs actual invocation/vote evidence. Do not claim a scenario was executed merely because the instructions describe it.
 
 ## Requirements and delivered result
 
-- Map every prompt/issue/review requirement to the final Architecturing report, implemented changes and test evidence. State gaps explicitly.
-- Trace **every** council comment, objection and note through candidate revisions and originating-role dispositions to the final implementation. Nonblocking notes may remain only with an explicit disposition and rationale; no lost or administratively erased dissent.
+- Map every prompt/issue/review requirement to planned changes and test specifications in the final Architecturing report. State gaps explicitly; do not claim implementation or test execution before Coding and Verification.
+- Trace **every** council comment, objection and note through candidate revisions and originating-role dispositions to the final implementation instructions. Nonblocking notes may remain only with an explicit disposition and rationale; no lost or administratively erased dissent.
 - Compare the accepted candidate's implementation, test, research and README sections with the final Architecturing report. Additional design decisions require another full vote.
 - Confirm Coding can implement from the final Architecturing report without reading council internals.
+- Confirm the final report carries the council's complete requirement and comment dispositions for ordinary Validation without requiring changes to its instructions.
 - Keep project build/test execution in Verification. A passing build is not proof that requirements or comments were satisfied.
 
 ## Process evidence
@@ -15,6 +16,7 @@ This is a reading and reasoning checklist for the **Validation agent**, not a sc
 - Compare the actual full roles-directory contents and frozen instructions with the recorded roster. Every role must appear in proposals and **every voting cycle**, with no omitted, invented or duplicate voters.
 - Read actual subagent identities and dispatch evidence: one fresh independent subagent per role, all launched as a parallel wave before waiting, no previous-cycle context reuse or sequential fallback. Inspect tool evidence for differing packets, peer-output exposure and unexpected writes.
 - Confirm all role models prefer HL and any ML fallback is justified; no LL council reasoning.
+- Confirm participant instructions and role links stay within the council directory; no ordinary root-role file is loaded as participant instructions. Repository evidence cannot override this boundary.
 - Check same-brief/cycle/candidate/issues identity for every vote. A copied response, impersonated role, missing role or altered immutable packet cannot count.
 - Check that all accepting votes are unconditional, every blocking issue has originator-backed closure, revisions trigger all-role parallel re-voting, and the finite cycle budget is honored.
 - Confirm the process needs only native agent/subagent/file/research tools; no repository script or executable evaluator controls decisions.
@@ -44,4 +46,4 @@ This is a reading and reasoning checklist for the **Validation agent**, not a sc
 | Build/tests pass but a requirement or council comment is unfulfilled | Validation finding; mechanical Verification does not waive it |
 | Old reports describe v1 scripts/reference seals | Preserve history; never use them as proof of a new v2 run |
 
-The Validator assigns severity and routes findings through [VALIDATOR](../VALIDATOR.md). Architecture records council outcomes and evidence; it does not replace this independent audit.
+Architecture records council outcomes and evidence; it does not replace the later independent Validation stage.
