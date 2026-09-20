@@ -32,13 +32,12 @@ class BrowserResponseClassifierTest {
         assertEquals(listOf("Unexpected HTTP 401 during AUTHENTICATING: GET $baseUrl/api/wishlist/getMy"), collector.unexpectedErrors())
     }
 
-    /** Keeps a generic console message narrow by requiring the matching observed anonymous response. */
+    /** Allows a generic bootstrap console message only when its source identifies the observed bootstrap endpoint. */
     @Test
-    fun allowsOnlyObservedAnonymousBootstrapConsoleMessage() {
+    fun allowsOnlyAttributedAnonymousBootstrapConsoleMessage() {
         val collector = BrowserErrorCollector(baseUrl)
-        collector.recordConsoleError("Failed to load resource: the server responded with a status of 401", null)
         collector.recordResponse(anonymousBootstrap)
-        collector.recordConsoleError("Failed to load resource: the server responded with a status of 401", null)
+        collector.recordConsoleError("Failed to load resource: the server responded with a status of 401", "$baseUrl/api/wishlist/getMy:0:0")
         collector.recordConsoleError("NoTransformationFoundException", "$baseUrl/api/auth/register")
         assertEquals(
             listOf(
@@ -46,5 +45,36 @@ class BrowserResponseClassifierTest {
             ),
             collector.unexpectedErrors(),
         )
+    }
+
+    /** Rejects an unlocated generic 401 even when the page observed an allowed bootstrap response. */
+    @Test
+    fun rejectsUnlocatedGeneric401AfterObservedBootstrapResponse() {
+        val collector = BrowserErrorCollector(baseUrl)
+        collector.recordResponse(anonymousBootstrap)
+        collector.recordConsoleError("Failed to load resource: the server responded with a status of 401", null)
+        assertEquals(listOf("Failed to load resource: the server responded with a status of 401"), collector.unexpectedErrors())
+    }
+
+    /** Rejects an unlocated transformation error when no exact bootstrap response can attribute it. */
+    @Test
+    fun rejectsUnlocatedTransformationErrorWithoutObservedBootstrapResponse() {
+        val collector = BrowserErrorCollector(baseUrl)
+        collector.recordConsoleError("NoTransformationFoundException", null)
+        assertEquals(
+            listOf(
+                "NoTransformationFoundException",
+            ),
+            collector.unexpectedErrors(),
+        )
+    }
+
+    /** Allows one unlocated client transformation error only for the observed exact bootstrap response. */
+    @Test
+    fun allowsUnlocatedTransformationErrorForObservedBootstrapResponse() {
+        val collector = BrowserErrorCollector(baseUrl)
+        collector.recordResponse(anonymousBootstrap)
+        collector.recordConsoleError("NoTransformationFoundException", "webpack-internal:///./kotlin/kslog.js:634:50")
+        assertTrue(collector.unexpectedErrors().isEmpty())
     }
 }

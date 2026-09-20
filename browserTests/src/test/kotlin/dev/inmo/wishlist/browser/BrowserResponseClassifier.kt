@@ -92,7 +92,7 @@ internal class BrowserErrorCollector(
         errors += "Unexpected HTTP 401 during $phase: ${response.method} ${response.url}"
     }
 
-    /** Records a console error, permitting generic bootstrap messages only after the allowed response was observed. */
+    /** Records a console error for later endpoint-attributed bootstrap classification. */
     fun recordConsoleError(text: String, sourceUrl: String?) {
         consoleErrors += BrowserConsoleError(text, sourceUrl, phase)
     }
@@ -104,22 +104,41 @@ internal class BrowserErrorCollector(
 
     /** Returns a stable snapshot for assertion after page interaction has finished. */
     fun unexpectedErrors(): List<String> {
-        val unexpectedConsoleErrors = consoleErrors
-            .filterNot { isKnownAnonymousBootstrapConsoleError(it) }
+        var remainingBootstrapResponseAttributions = allowedBootstrapResponseCount
+        var remainingUnlocatedTransformationAttributions = allowedBootstrapResponseCount
+        val unexpectedConsoleErrors = consoleErrors.filterNot { error ->
+            val sourceUrl = error.sourceUrl
+                ?.replace(Regex(":\\d+:\\d+$"), "")
+                ?.takeUnless { it.isBlank() || (!it.startsWith("http://") && !it.startsWith("https://")) }
+            val isAttributedBootstrapSource = sourceUrl != null && isExpectedAnonymousBootstrap401(
+                BrowserResponseDetails(method = "GET", url = sourceUrl, status = 401),
+                error.phase,
+                baseUrl,
+            )
+            when {
+                isGenericBootstrap401Message(error.text) && isAttributedBootstrapSource && remainingBootstrapResponseAttributions > 0 -> {
+                    remainingBootstrapResponseAttributions -= 1
+                    true
+                }
+                isTransformationBootstrapMessage(error.text) && sourceUrl == null && remainingUnlocatedTransformationAttributions > 0 -> {
+                    remainingUnlocatedTransformationAttributions -= 1
+                    true
+                }
+                isTransformationBootstrapMessage(error.text) && isAttributedBootstrapSource && remainingBootstrapResponseAttributions > 0 -> {
+                    remainingBootstrapResponseAttributions -= 1
+                    true
+                }
+                else -> false
+            }
+        }
             .map { it.text }
         if (unexpectedConsoleErrors.isEmpty()) return errors.toList()
         return errors + unexpectedConsoleErrors
     }
 
-    private fun isKnownAnonymousBootstrapConsoleError(error: BrowserConsoleError): Boolean {
-        val isBootstrapMessage = error.text.contains("server responded with a status of 401") || error.text.contains("NoTransformationFoundException")
-        if (!isBootstrapMessage || error.phase != BrowserSessionPhase.ANONYMOUS_BOOTSTRAP || allowedBootstrapResponseCount == 0) return false
-        val sourceUrl = error.sourceUrl?.replace(Regex(":\\d+:\\d+$"), "")
-        if (sourceUrl.isNullOrBlank() || !sourceUrl.contains("/api/")) return true
-        return isExpectedAnonymousBootstrap401(
-            BrowserResponseDetails(method = "GET", url = sourceUrl, status = 401),
-            error.phase,
-            baseUrl,
-        )
-    }
+    /** Identifies Chromium's generic resource-load message for an unauthorized response. */
+    private fun isGenericBootstrap401Message(text: String): Boolean = text.contains("server responded with a status of 401")
+
+    /** Identifies the client transformation error emitted after the known anonymous bootstrap response. */
+    private fun isTransformationBootstrapMessage(text: String): Boolean = text.contains("NoTransformationFoundException")
 }
