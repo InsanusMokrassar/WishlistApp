@@ -19,8 +19,9 @@ def digest(value):
 
 def fixture(root="artifacts", round_number=1):
     plan = "accepted implementation with mapped tests"
-    common = ("brief", "instructions", "planning", "source-snapshot")
-    packet = ("brief-1", round_number, digest(plan), digest("candidate issues"))
+    brief = ("brief", digest("frozen requirements"))
+    common = (brief, "instructions", "planning", "source-snapshot")
+    packet = (brief, round_number, digest(plan), digest("candidate issues"))
     review_set = digest("reviews-" + repr(packet))
     resolution = digest("resolution-" + repr(packet))
     records = {
@@ -33,7 +34,7 @@ def fixture(root="artifacts", round_number=1):
         omissions={}, limit=3, round=round_number, terminal_before=False,
         allocations=[(i, "writer-" + str(i)) for i in range(1, 21)],
         reserved_gaps=[], records=records, references=list(records),
-        common=common, proposals={r: dict(brief="brief-1", common=common,
+        common=common, proposals={r: dict(brief=brief, common=common,
             actual=common, reads=common, receipt=True, writer=r) for r in ROLES},
         packet=packet, review_set=review_set, resolution=resolution,
         reviews=[dict(role=r, writer=r, packet=packet, verdict="AGREE",
@@ -73,6 +74,13 @@ def evaluate(t):
             return fail
     if not set(t["references"]) <= set(t["records"]):
         return fail
+    if not {"brief", "plan", "issues"} <= set(t["records"]):
+        return fail
+    brief = ("brief", t["records"]["brief"]["sha256"])
+    packet = t["packet"]
+    if (brief not in t["common"] or packet != (brief, t["round"],
+            t["records"]["plan"]["sha256"], t["records"]["issues"]["sha256"])):
+        return fail
     if set(t["proposals"]) != required:
         return fail
     for role, p in t["proposals"].items():
@@ -91,9 +99,6 @@ def evaluate(t):
         return fail
     if t["missing_fact"]:
         return "NEEDS_INFORMATION"
-    packet = t["packet"]
-    if packet[1] != t["round"] or packet[2] != t["records"]["plan"]["sha256"]:
-        return fail
     reviews = t["reviews"]
     if (len(reviews) != len(required) or {r["role"] for r in reviews} != required
         or any(r["writer"] != r["role"] or r["packet"] != packet or r["malformed"]
@@ -123,10 +128,10 @@ def evaluate(t):
             or c["reviews"] != t["review_set"] or c["resolution"] != t["resolution"]
             or c["verdict"] not in ("CONSENT", "WITHHOLD") or not c["actionable"]):
             return fail
-        if c["verdict"] == "WITHHOLD":
-            if not c.get("objection"):
-                return fail
-            return "IRRECONCILABLE" if t["round"] == t["limit"] else "NEXT_ROUND"
+        if c["verdict"] == "WITHHOLD" and not c.get("objection"):
+            return fail
+    if any(c["verdict"] == "WITHHOLD" for c in consents):
+        return "IRRECONCILABLE" if t["round"] == t["limit"] else "NEXT_ROUND"
     if not t["aggregate"]:
         return fail
     if not t["seal"]:
@@ -206,6 +211,13 @@ bad = fixture(); bad["consents"][0].update(verdict="WITHHOLD", objection="new ev
 check("D06 withheld with budget", bad, "NEXT_ROUND")
 bad["limit"] = 1
 check("D06 withheld at limit", bad, "IRRECONCILABLE")
+for limit in (3, 1):
+    for later in range(1, len(ROLES)):
+        bad = fixture(); bad["limit"] = limit
+        bad["consents"][0].update(verdict="WITHHOLD", objection="new evidenced issue")
+        bad["consents"][later]["writer"] = "facilitator"
+        check("D06 withheld before impersonated consent " + str((limit, later)),
+              bad, "PROCESS_FAILURE")
 for limit in (0, -1, None):
     mutation("D07 invalid limit", "limit", limit)
 bad = fixture(); bad["reviews"][0]["verdict"] = "OBJECT"
@@ -220,6 +232,10 @@ mutation("D08 missing impact", "effect_areas", list(IMPACTS)[:-1])
 mutation("D08 unresolved branch", "ambiguous", True)
 bad = fixture(); bad["records"]["plan"]["bytes"] += "new test expectation"
 check("D08 changed accepted bytes", bad, "PROCESS_FAILURE")
+for record, value in (("issues", "different candidate ledger"), ("brief", "different frozen brief")):
+    bad = fixture(); bad["records"][record]["bytes"] = value
+    bad["records"][record]["sha256"] = digest(value)
+    check("D08 locally rehashed " + record + " with stale acceptance", bad, "PROCESS_FAILURE")
 mutation("D09 older closure violation", "artifacts_before_previous_validation",
          [dict(step=2, isolation=False)])
 for transport in ("local-no-issue", "posting-failed"):
