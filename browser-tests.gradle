@@ -1,0 +1,147 @@
+import groovy.json.JsonOutput
+import org.gradle.api.tasks.testing.Test
+import java.net.InetAddress
+import java.net.ServerSocket
+import java.net.URL
+import java.util.concurrent.TimeUnit
+
+def browserTestsProject = project(":wishlist.browserTests")
+evaluationDependsOn(browserTestsProject.path)
+def serverProject = project(":wishlist.server")
+def clientProject = project(":wishlist.client")
+def browserCache = new File(browserTestsProject.buildDir, "playwright")
+def artifactsRoot = new File(browserTestsProject.buildDir, "artifacts")
+def serverClasspathFile = new File(serverProject.buildDir, "browser-test/runtime-classpath.txt")
+def writeBrowserServerClasspath = serverProject.tasks.register("writeBrowserServerClasspath") {
+    dependsOn(serverProject.tasks.named("classes"))
+    outputs.file(serverClasspathFile)
+    doLast {
+        serverClasspathFile.parentFile.mkdirs()
+        serverClasspathFile.text = serverProject.sourceSets.main.runtimeClasspath.asPath
+    }
+}
+
+def installBrowserChromium = browserTestsProject.tasks.register("installBrowserChromium", JavaExec) {
+    group = "verification"
+    description = "Installs the Chromium revision pinned by the Playwright JVM dependency."
+    dependsOn(browserTestsProject.tasks.named("testClasses"))
+    classpath = browserTestsProject.sourceSets.test.runtimeClasspath
+    mainClass = "com.microsoft.playwright.CLI"
+    args "install", "chromium"
+    environment "PLAYWRIGHT_BROWSERS_PATH", browserCache.absolutePath
+    outputs.dir(browserCache)
+    onlyIf { !(browserCache.listFiles()?.any { it.name.startsWith("chromium-") } ?: false) }
+}
+
+def browserTestTask = tasks.register("browserTest") {
+    group = "verification"
+    description = "Builds the Web bundle and runs served-application Chromium smoke tests against isolated SQLite state."
+    dependsOn(installBrowserChromium)
+    dependsOn(writeBrowserServerClasspath)
+    dependsOn(clientProject.tasks.named("jsBrowserDevelopmentExecutableDistribution"))
+    dependsOn(browserTestsProject.tasks.named("test"))
+}
+
+def browserJUnitTask = browserTestsProject.tasks.named("test", Test)
+browserJUnitTask.configure {
+    dependsOn(installBrowserChromium)
+    dependsOn(writeBrowserServerClasspath)
+    dependsOn(clientProject.tasks.named("jsBrowserDevelopmentExecutableDistribution"))
+    environment "PLAYWRIGHT_BROWSERS_PATH", browserCache.absolutePath
+    environment "PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD", "1"
+    onlyIf { gradle.taskGraph.allTasks.any { it.path == ":browserTest" } }
+
+    doFirst {
+        def invocation = new Date().format("yyyyMMdd-HHmmss-SSS")
+        def artifactsDirectory = new File(artifactsRoot, invocation)
+        def suiteDirectory = new File(temporaryDir, invocation)
+        suiteDirectory.mkdirs()
+        artifactsDirectory.mkdirs()
+        def portSocket = new ServerSocket(0, 50, InetAddress.getByName("127.0.0.1"))
+        def port = portSocket.localPort
+        portSocket.close()
+        def webBundle = new File(clientProject.buildDir, "dist/js/developmentExecutable").absoluteFile
+        if (!webBundle.isDirectory()) {
+            throw new GradleException("Web bundle is missing at ${webBundle}; jsBrowserDevelopmentExecutableDistribution did not produce it.")
+        }
+        def config = [
+            host: "127.0.0.1",
+            port: port,
+            publicHost: "127.0.0.1",
+            publicHttpOrigin: "http://127.0.0.1:${port}",
+            staticFolders: ["": webBundle.absolutePath],
+            database: [url: "jdbc:sqlite:${new File(suiteDirectory, 'browser.db').absolutePath}", driver: "org.sqlite.JDBC"],
+            plugins: [
+                "dev.inmo.wishlist.features.common.server.JVMPlugin", "dev.inmo.wishlist.features.sample.server.JVMPlugin",
+                "dev.inmo.wishlist.features.users.server.JVMPlugin", "dev.inmo.wishlist.features.auth.server.JVMPlugin",
+                "dev.inmo.wishlist.features.wishlist.server.JVMPlugin", "dev.inmo.wishlist.features.files.server.JVMPlugin",
+                "dev.inmo.wishlist.features.admin.server.JVMPlugin", "dev.inmo.wishlist.features.currency.server.JVMPlugin",
+                "dev.inmo.wishlist.features.booking.server.JVMPlugin", "dev.inmo.wishlist.features.email.server.JVMPlugin",
+                "dev.inmo.wishlist.features.deeplinks.server.JVMPlugin", "dev.inmo.wishlist.features.roles.server.JVMPlugin"
+            ],
+            filesFolder: new File(suiteDirectory, "uploads").absolutePath,
+            useCache: true,
+            tokenTtl: "PT15M",
+            refreshTokenTtl: "P7D",
+            enableRegistration: true,
+            requireEmailForRegistration: false,
+            openExchangeRatesAppId: null,
+            openExchangeRatesRefreshTTLMillis: 3600000
+        ]
+        def configFile = new File(suiteDirectory, "browser.config.json")
+        configFile.text = JsonOutput.prettyPrint(JsonOutput.toJson(config))
+        def logFile = new File(artifactsDirectory, "server.log")
+        def command = [org.gradle.internal.jvm.Jvm.current().javaExecutable.absolutePath, "-cp", serverClasspathFile.text, "dev.inmo.micro_utils.startup.launcher.MainKt", configFile.absolutePath]
+        def process = new ProcessBuilder(command).directory(suiteDirectory).redirectErrorStream(true).redirectOutput(logFile).start()
+        def baseUrl = "http://127.0.0.1:${port}"
+        def deadline = System.nanoTime() + TimeUnit.SECONDS.toNanos(45)
+        def ready = false
+        while (System.nanoTime() < deadline && process.isAlive()) {
+            try {
+                def connection = new URL(baseUrl).openConnection()
+                connection.connectTimeout = 1000
+                connection.readTimeout = 1000
+                if (connection.responseCode == 200 && connection.inputStream.text.contains("id=\"content\"")) {
+                    ready = true
+                    break
+                }
+            } catch (IOException ignored) {
+            }
+            Thread.sleep(200)
+        }
+        if (!ready) {
+            process.destroyForcibly()
+            throw new GradleException("Browser test server did not become ready at ${baseUrl}. See ${logFile}.")
+        }
+        extensions.extraProperties.set("browserServerProcess", process)
+        extensions.extraProperties.set("browserSuiteDirectory", suiteDirectory)
+        systemProperty "browser.baseUrl", baseUrl
+        systemProperty "browser.artifactsDir", artifactsDirectory.absolutePath
+        systemProperty "browser.headed", providers.gradleProperty("browserHeaded").getOrElse("false")
+    }
+}
+
+def cleanupBrowserServer = tasks.register("cleanupBrowserTestServer") {
+    doLast {
+        def testTask = browserJUnitTask.get()
+        if (testTask.extensions.extraProperties.has("browserServerProcess")) {
+            def process = testTask.extensions.extraProperties.get("browserServerProcess") as Process
+            process.toHandle().descendants().forEach { it.destroy() }
+            process.destroy()
+            process.waitFor(10, TimeUnit.SECONDS)
+            if (process.isAlive()) process.destroyForcibly()
+        }
+        if (testTask.extensions.extraProperties.has("browserSuiteDirectory")) {
+            def directory = testTask.extensions.extraProperties.get("browserSuiteDirectory") as File
+            directory.deleteDir()
+        }
+    }
+}
+
+browserJUnitTask.configure { finalizedBy(cleanupBrowserServer) }
+gradle.buildFinished { result ->
+    if (browserJUnitTask.get().extensions.extraProperties.has("browserServerProcess")) {
+        def process = browserJUnitTask.get().extensions.extraProperties.get("browserServerProcess") as Process
+        if (process.isAlive()) process.destroyForcibly()
+    }
+}
