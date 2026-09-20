@@ -13,14 +13,12 @@ git checkout master && git pull origin master
 
 Every role MUST make a git commit with the result of its work, UNLESS the prompt gives other direction.
 
-**What each role commits:**
-- **Planning, Architecturing, Verification, Validating**: commit ONLY their step report file (`agents/task/<TASK_ID>/<STEP_NUMBER>.md`).
-- **Coding**: commit BOTH the step report file AND all changed source code files.
+**Commit scope:** commit only the allocated report and any additional changed paths expressly authorized by your invocation. Do not infer another role's permissions.
 
 **What no role may stage:** other roles' step reports, unrelated files, build artifacts, files in gitignore.
 
 **Commit message format:**
-- Normal prose per `AGENTS.md` "Communication Protocol Precedence".
+- Normal prose per the communication policy supplied in the invocation.
 - One-line summary describing the work result.
 - End the commit body with:
   ```
@@ -30,5 +28,4 @@ Every role MUST make a git commit with the result of its work, UNLESS the prompt
 ## Push Rules
 
 - Do NOT push during individual role work — pushing stays with the Orchestrator.
-- Orchestrator pushes after all stages for a cycle complete successfully.
-- Exception: issue-executor explicitly pushes the branch before opening a PR (see `ISSUES_EXECUTION.md`).
+- Delivery authorization is supplied only to root; a role stops after its committed result.

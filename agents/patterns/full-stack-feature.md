@@ -1,6 +1,6 @@
 # Pattern: Full-Stack Feature Implementation
 
-> Read together with the hard rules in `agents/CODING.md`. Scaffolding/registration steps: see `agents/ARCHITECTURE.md` "Feature adding rules".
+> Read together with the hard rules in `agents/CODING.md`. Use the completed Preparation report for task-specific scaffolding and registration changes.
 
 After scaffolding and registering the modules, write the actual implementation following `features/sample/` as a reference:
 

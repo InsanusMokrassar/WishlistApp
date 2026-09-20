@@ -1,10 +1,10 @@
 # Verification
 
-Verification runs after Coding and before Validating. Its sole purpose is to confirm the build compiles and tests pass.
+Its sole purpose is to confirm the build compiles and tests pass.
 
 ## Steps
 
-1. Read the latest step report to understand what was coded and what test cases were specified by Architecture.
+1. Read the latest step report to understand what was coded and what test cases were specified by Preparation.
 2. Run the build (compiles AND runs `check`, which includes every test task on all KMP targets):
    ```bash
    set -o pipefail
@@ -18,9 +18,9 @@ Verification runs after Coding and before Validating. Its sole purpose is to con
    ./gradlew allTests 2>&1 | tee /tmp/test-output.txt
    echo "test_exit=$?"
    ```
-4. **If the build fails**: record the full error in the step report, mark result=FAIL, and hand back to Coding. Do NOT proceed to Validating.
-5. **If any tests fail**: record the failing test names and errors in the step report, mark result=FAIL, and hand back to Coding. Do NOT proceed to Validating.
-6. **If build and all tests pass**: record result=PASS in the step report and hand off to Validating.
+4. **If the build fails**: record the full error in the step report, mark result=FAIL, and return the report to root.
+5. **If any tests fail**: record the failing test names and errors in the step report, mark result=FAIL, and return the report to root.
+6. **If build and all tests pass**: record result=PASS in the step report and return it to root.
 
 ## Step Report Format
 
