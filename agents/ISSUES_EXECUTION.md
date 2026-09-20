@@ -17,11 +17,11 @@ Repo: `InsanusMokrassar/WishlistApp`.
    Treat a PR as linked if its body/title references the issue (`Closes #<N>`, `#<N>`) or its branch matches the pattern.
    - If a linked PR was **merged** → skip this issue (already done).
    - If a linked PR is **open** → skip this issue (in progress).
-   - If linked PRs were **closed without merging** → count them as failed attempts. **3 or more** failed attempts → post `gh issue comment <N> --repo InsanusMokrassar/WishlistApp --body "AGENT ESCALATION: 3 attempts failed, manual intervention required"` and skip the issue. Fewer than 3 → a fresh attempt is allowed.
+   - If linked PRs were **closed without merging** → count failed attempts. **3 or more** → the Orchestrator delivers the failed-attempt escalation under `agents/COUNCIL_ADAPTER.md` and skips the issue. Fewer than 3 → a fresh attempt is allowed.
    - If no linked PR exists → proceed.
 5. Sync with master per `agents/GIT.md` "## Before Branching".
 6. Create branch for fix: `git checkout -b fix/issue-<N>-<slug>`.
-7. Resolve the issue: act as `root` (Orchestrator) yourself per `agents/ORCHESTRATOR.md` — the MAIN SESSION is the root role; do NOT spawn a `root` subagent.
+7. Resolve the issue as the main-session root per `agents/ORCHESTRATOR.md`, using the adapted Architecturing/Council stage and only-CONSENSUS gate for new work. Do NOT spawn a root subagent. Already-started legacy cycles follow the documented adoption exception.
 8. Push branch: `git push origin fix/issue-<N>-<slug>`.
 9. Open PR linked to the issue (body must contain `Closes #<N>`):
    ```
@@ -35,10 +35,6 @@ Repo: `InsanusMokrassar/WishlistApp`.
 
 ## Rules
 
-- One issue at a time. Stage subagents run sequentially per `agents/ORCHESTRATOR.md` (avoids branch/index conflicts).
-- If issue is ambiguous or blocked → stop, ask operator. If no terminal access is available, post a question as a GitHub issue comment:
-  ```
-  gh issue comment <N> --repo InsanusMokrassar/WishlistApp --body "AGENT BLOCKED: <question>"
-  ```
-  Then terminate. On next run, read the issue comments for answers before proceeding.
+- One issue at a time. Stage and council invocations/persistence remain sequential under `agents/COUNCIL_ADAPTER.md` to avoid branch/index conflicts.
+- Ambiguity, blocked outcomes and cycle/attempt escalation use [Operator delivery and escalation](COUNCIL_ADAPTER.md#operator-delivery-and-escalation). Roles only write packages; root handles authorized delivery. Stop until the required answer exists, then read issue comments and preserve answers in new immutable operator-input artifacts before resumption.
 - If operator left a review on the issue's PR → treat it as continuation of the same issue: read ALL review comments (`gh api repos/InsanusMokrassar/WishlistApp/pulls/<PR#>/comments`), fix every comment on the SAME branch, push. Do NOT open a new issue or PR. Continue the issue work where it was left off.

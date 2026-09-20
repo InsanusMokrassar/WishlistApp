@@ -1,5 +1,9 @@
 # Coding Rules
 
+## Entry contract
+
+For new council-governed work, read the explicit final seal, consent aggregate, exact accepted plan and final resolution ledger, not an inferred latest Architecture report. Verify reference digests, required-role coverage, CONSENSUS and unchanged accepted instructions before implementation. Follow the mapped tests and implementation order. Design concerns stop Coding for council re-entry; requirement/evidence changes return through Planning. An already-started legacy cycle may finish its recorded pre-adoption contract, including the issue-86 migration; never fabricate a seal for that exception.
+
 ## Pattern Library (load on demand)
 
 Detailed implementation walkthroughs live in `agents/patterns/`. Do NOT read them all — before coding, read ONLY the pattern file(s) matching the task:
@@ -31,11 +35,11 @@ Update the feature `README.md`:
 - Changed ownership/auth semantics
 - New dependencies between modules
 
-Apply any README delta the Architecture step specified in its step report.
+Apply the intended README delta from the exact sealed plan (or the recorded Architecture contract for an already-started legacy cycle). Never change Operator Notes.
 
 ---
 
-After you are done with changes - you must run required compilation task. In most cases, it is `./gradlew :<MODULE_NAME>:build`. If there are errors in output, you must try to fix them. Do only one cycle of fixing; in new cycles do not fix the same (fully same) issues again but add them in report.
+After source/build-affecting changes, run the required compilation task, usually `./gradlew :<MODULE_NAME>:build`. If errors occur, attempt one fixing cycle; in later cycles do not repeat identical fixes, but record the issues. Documentation-only work runs the contract's static and trace checks with actual pass/fail assertions and records application compilation and ast-index rebuild as not applicable.
 
 ---
 

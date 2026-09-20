@@ -1,24 +1,6 @@
-# Architecture
+# WishlistApp Architecture Evidence
 
-## Best-Practice Research Requirement
-
-Before finalizing an architectural plan, this agent MUST search the internet for current best practices relevant to the task. The agent MUST evaluate the findings against this project's existing architecture and apply the practices by adapting them to the project's modules, conventions, and constraints rather than copying generic solutions. The step report MUST identify the sources consulted and explain how the relevant practices were adapted or why they were rejected.
-
-## Test Planning Requirement
-
-After planning all architectural changes, this agent MUST produce test stubs or test specifications for every planned change:
-
-- For each new or modified function/class/endpoint: describe what test cases must pass (inputs, expected outputs, edge cases).
-- Test stubs must be written into the current step report file (`agents/task/<TASK_ID_FORMAT>/<STEP_NUMBER_FORMAT>.md`) so the Coding agent can implement them alongside the production code.
-- If any planned functionality **cannot** be covered by automated tests (e.g. platform-specific UI rendering, external service integration with no stub possible): this MUST be explicitly flagged in the step report and raised with the operator **before proceeding to the Coding step**. Do not hand off to Coding until the operator has confirmed how untestable functionality should be handled.
-
-## Feature README.md
-
-See `ALL.md` for the full rule. Role-specific additions:
-- This agent MUST NOT edit the README itself (file-edit restriction in `agents/ALL.md`). Instead: write the intended `## Architecture Notes` delta into the current step report, in a dedicated `## README updates` section — design decisions and their rationale, constraints or invariants, dependency notes. The Coding agent applies that delta together with the code changes.
-- Never specify changes to the `## Operator Notes` section.
-
----
+This file supplies project-specific evidence, not a standalone architecture role. The [portable council](council/README.md) owns roles, research evaluation, test planning and intended README deltas. Supply this guidance and applicable local constraints identically through the frozen brief when relevant; never let project guidance weaken isolation, consent or artifact identity. The project guidance below remains unchanged.
 
 ## Overview
 

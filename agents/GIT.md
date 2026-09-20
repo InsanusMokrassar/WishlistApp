@@ -14,8 +14,10 @@ git checkout master && git pull origin master
 Every role MUST make a git commit with the result of its work, UNLESS the prompt gives other direction.
 
 **What each role commits:**
-- **Planning, Architecturing, Verification, Validating**: commit ONLY their step report file (`agents/task/<TASK_ID>/<STEP_NUMBER>.md`).
-- **Coding**: commit BOTH the step report file AND all changed source code files.
+- **Planning, council proposal/review/consent, Facilitator, Sealer, Verification, Validating**: commit ONLY outputs explicitly allocated to that invocation. Legacy Architecturing cycles retain their allocated report under the adoption exception.
+- **Coding**: commit BOTH the step report AND all task-authorized source/resource/documentation changes.
+
+Repository invocations and commits remain sequential to prevent index races. A portable parallel adapter must isolate outputs and serialize persistence. A published/committed artifact is immutable; corrections use new allocations and explicit supersession. Git history supplements embedded provenance and retained evidence, never replaces those records.
 
 **What no role may stage:** other roles' step reports, unrelated files, build artifacts, files in gitignore.
 
