@@ -86,10 +86,10 @@ an empty or partial pinned cache is repaired automatically, while unrelated brow
 revisions are preserved. Repeating the command does not reinstall a healthy matching
 browser. Unrelated Gradle tasks do not provision a browser or start the test server.
 
-Anonymous bootstrap console allowances are bounded by observed exact same-origin
-`GET /api/wishlist/getMy` responses with status 401. Generic or unlocated 401
-messages fail; the unlocated transformation diagnostic is allowed only once per
-matching response. Later or unrelated errors remain failures.
+The browser gate treats every console error, page exception, and HTTP 401 as a
+failure. Anonymous startup must make zero same-origin `GET /api/wishlist/getMy`
+requests; public browsing of an explicitly selected owner's wishlists remains
+available anonymously.
 
 On a failed browser test, inspect `browserTests/build/artifacts/<invocation>/` for
 `server.log` and, for each failed test, `failure.png` and `trace.zip`. CI runs the

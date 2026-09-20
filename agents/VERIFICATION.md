@@ -41,12 +41,12 @@ Chromium runtime libraries. It builds the Web bundle, checks the pinned Chromium
 cache by launching the headless browser, repairs an empty or partial pinned cache
 when needed, starts the application with a fresh loopback SQLite database and
 temporary uploads directory, runs the served page through Chromium, and cleans up
-the server and temporary state. The current suite contains eight tests: two served
+the server and temporary state. The current suite contains six tests: two served
 smoke tests (`rendersApplication` and `registersAndReachesAuthenticatedUi`) plus
-six focused browser-response classifier tests. Console allowances are bounded by
-observed exact same-origin `GET /api/wishlist/getMy` 401 responses; generic or
-unlocated 401 messages fail, and an unlocated transformation diagnostic may consume
-only one allowance per matching response. Headed inspection is available with
+four focused browser-response classifier tests. The collector strictly fails on
+every console error, page exception, and HTTP 401. The anonymous smoke path must
+make zero same-origin `GET /api/wishlist/getMy` requests; public browsing by an
+explicit owner remains available anonymously. Headed inspection is available with
 `./gradlew browserTest -PbrowserHeaded=true`; CI uses headless mode.
 
 The step report must include the exact browser command, its real exit status, the
