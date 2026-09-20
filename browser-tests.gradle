@@ -57,6 +57,7 @@ browserJUnitTask.configure {
         def suiteDirectory = new File(temporaryDir, invocation)
         suiteDirectory.mkdirs()
         artifactsDirectory.mkdirs()
+        extensions.extraProperties.set("browserSuiteDirectory", suiteDirectory)
         def portSocket = new ServerSocket(0, 50, InetAddress.getByName("127.0.0.1"))
         def port = portSocket.localPort
         portSocket.close()
@@ -70,7 +71,7 @@ browserJUnitTask.configure {
             publicHost: "127.0.0.1",
             publicHttpOrigin: "http://127.0.0.1:${port}",
             staticFolders: ["": webBundle.absolutePath],
-            database: [url: "jdbc:sqlite:${new File(suiteDirectory, 'browser.db').absolutePath}", driver: "org.sqlite.JDBC"],
+            database: [url: "jdbc:sqlite:file:${new File(suiteDirectory, 'browser.db').absolutePath}?busy_timeout=30000&journal_mode=WAL&transaction_mode=IMMEDIATE", driver: "org.sqlite.JDBC"],
             plugins: [
                 "dev.inmo.wishlist.features.common.server.JVMPlugin", "dev.inmo.wishlist.features.sample.server.JVMPlugin",
                 "dev.inmo.wishlist.features.users.server.JVMPlugin", "dev.inmo.wishlist.features.auth.server.JVMPlugin",
@@ -93,6 +94,7 @@ browserJUnitTask.configure {
         def logFile = new File(artifactsDirectory, "server.log")
         def command = [org.gradle.internal.jvm.Jvm.current().javaExecutable.absolutePath, "-cp", serverClasspathFile.text, "dev.inmo.micro_utils.startup.launcher.MainKt", configFile.absolutePath]
         def process = new ProcessBuilder(command).directory(suiteDirectory).redirectErrorStream(true).redirectOutput(logFile).start()
+        extensions.extraProperties.set("browserServerProcess", process)
         def baseUrl = "http://127.0.0.1:${port}"
         def deadline = System.nanoTime() + TimeUnit.SECONDS.toNanos(45)
         def ready = false
@@ -113,8 +115,6 @@ browserJUnitTask.configure {
             process.destroyForcibly()
             throw new GradleException("Browser test server did not become ready at ${baseUrl}. See ${logFile}.")
         }
-        extensions.extraProperties.set("browserServerProcess", process)
-        extensions.extraProperties.set("browserSuiteDirectory", suiteDirectory)
         systemProperty "browser.baseUrl", baseUrl
         systemProperty "browser.artifactsDir", artifactsDirectory.absolutePath
         systemProperty "browser.headed", providers.gradleProperty("browserHeaded").getOrElse("false")
