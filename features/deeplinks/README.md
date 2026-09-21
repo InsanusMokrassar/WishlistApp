@@ -10,9 +10,10 @@ Server-only feature. It stores declared deeplink UUIDs together with attached ha
 deeplinks in-process, and resolves an opened `links/{deeplink_uuid}` by dispatching it to the handler
 registered under the stored `DeepLinkHandlerId`.
 
-The email feature provides the first concrete handler: registration verification links carry an
+The email feature provides concrete handlers: registration verification links carry an
 `EmailVerificationPayload`, conditionally approve the referenced account's current exact email, and
-then promote a still-pending `NewUser` to `User` without restoring a revoked role.
+then promote a still-pending `NewUser` to `User` without restoring a revoked role; password-change
+links carry Email's server-only approval payload and redirect read-only to a fixed client route.
 
 The feature ships **zero** concrete handlers — it only declares the `DeepLinkHandler` interface and
 the dispatch infrastructure. Other features provide their own handlers (registered in their own
@@ -26,7 +27,7 @@ with every other feature and compiles.
 
 | Method | Path | Auth | Body / Response | Description |
 |--------|------|------|-----------------|-------------|
-| GET | `/api/links/{deeplink_uuid}` | none | empty `200` for common handling; `302 Location` for redirects; `404` not-found or unhandled; `400` blank/missing id | User-clickable deeplink, served under the standard `/api` prefix via a normal `ApplicationRoutingConfigurator.Element`, auto-wrapped by `InternalApplicationRoutingConfigurator`. |
+| GET | `/api/links/{deeplink_uuid}` | none | empty `200` for common handling; `302 Location` for redirects; `404` not-found or unhandled; `400` blank/missing id | User-clickable deeplink, served under the standard `/api` prefix via a normal `ApplicationRoutingConfigurator.Element`, auto-wrapped by `InternalApplicationRoutingConfigurator`. Every outcome sets `Cache-Control: no-store` and `Referrer-Policy: no-referrer`. |
 
 There is **no HTTP create endpoint**. Creating a deeplink is the in-process
 `DeepLinksService.createDeepLink(handlerId, value)` API, called by other server features (avoids
@@ -86,6 +87,11 @@ Key data types:
   link is not exposed over HTTP to avoid unauthenticated link creation.
 - **Failure cleanup is in-process.** A feature that mints a link and then fails its downstream
   operation removes the link through `removeDeepLink`; public callers cannot delete or mint links.
+- **Exact-id mint cleanup and private inspection:** `DeepLinksService.getDeepLinkInfo(id)` is an
+  in-process read for owning services only; it is not an HTTP inspection endpoint. Once
+  `createDeepLink` allocates an id, a persistence failure or cancellation attempts
+  non-cancellable removal of that exact id and suppresses a cleanup failure onto the original error.
+  Successful minting and generic opaque-id behavior are unchanged.
 - **Required-email invite ownership:** After successful SMTP acceptance, the email feature transfers
   exact-link rollback ownership to a request-local Auth delivery handle. The handle captures only
   the relevant `DeepLinkId` and `DeepLinksService`; no shared user-to-link map, singleton registry,
@@ -96,6 +102,13 @@ Key data types:
   and its polymorphic payload when the email plugin is loaded. The deeplinks core remains generic; the
   handler delegates current-email equality checking, conditional approval, and revocation-safe pending
   role promotion to the email account coordinator.
+- **Email password handler:** `features/email/server` also registers `email.password_change` and its
+  server-only payload through the aggregated polymorphic serializer. Its GET is deliberately
+  repeatable and only returns a fixed `/password-change/{userId}/{sameId}` redirect after current
+  validation. Email consumes that exact record only during an authorized Auth completion POST; the
+  generic dispatcher provides neither universal consumption nor distributed transaction semantics.
 - **Handler-owned redirect safety.** The dispatcher preserves `Handled.Redirect(url)` without parsing
   or rewriting it. A concrete handler owns destination safety; the email handler emits only its fixed
   same-origin root path, never payload-controlled text.
+- **Public GET failures.** Lookup and handler failures are sanitized to HTTP 500 while cancellation,
+  policy headers, and in-process exception propagation remain preserved.

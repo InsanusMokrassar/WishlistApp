@@ -5,8 +5,12 @@ import dev.inmo.wishlist.features.admin.client.AdminFeature
 import dev.inmo.wishlist.features.admin.common.Constants as AdminConstants
 import dev.inmo.wishlist.features.auth.client.AuthCredentialsStorage
 import dev.inmo.wishlist.features.auth.client.ClientAuthFeature
+import dev.inmo.wishlist.features.auth.client.PasswordChangeFeature
 import dev.inmo.wishlist.features.auth.common.models.AuthFeatureUser
+import dev.inmo.wishlist.features.auth.common.models.CompletePasswordChangeRequest
 import dev.inmo.wishlist.features.auth.common.models.Password
+import dev.inmo.wishlist.features.auth.common.models.PasswordChangeEmailRequestResult
+import dev.inmo.wishlist.features.auth.common.models.PasswordChangeResult
 import dev.inmo.wishlist.features.email.client.EmailFeature
 import dev.inmo.wishlist.features.email.common.models.Email
 import dev.inmo.wishlist.features.email.common.models.EmailVerificationRequestResult
@@ -32,6 +36,7 @@ import kotlinx.coroutines.flow.stateIn
  * @param feature Public users capability.
  * @param authFeature Private current-user authentication capability.
  * @param emailFeature Current-user email management capability.
+ * @param passwordChangeFeature Email-authorized password-change capability.
  * @param meState Reactive private current-user record.
  * @param adminFeature Administrative user mutation capability.
  * @param filesService Avatar storage and download service.
@@ -43,6 +48,7 @@ class DefaultUsersModel(
     private val feature: UsersFeature,
     private val authFeature: ClientAuthFeature,
     private val emailFeature: EmailFeature,
+    private val passwordChangeFeature: PasswordChangeFeature,
     private val meState: StateFlow<AuthFeatureUser?>,
     private val adminFeature: AdminFeature,
     private val filesService: FilesClientService,
@@ -95,6 +101,17 @@ class DefaultUsersModel(
     override suspend fun requestMyEmailVerification(
         expectedEmail: Email,
     ): EmailVerificationRequestResult = emailFeature.requestMyEmailVerification(expectedEmail)
+
+    /** @return The exact password-change email result for [expectedEmail]. */
+    override suspend fun requestPasswordChangeEmail(
+        expectedEmail: Email,
+    ): PasswordChangeEmailRequestResult? =
+        passwordChangeFeature.requestPasswordChangeEmail(expectedEmail)
+
+    /** @return The exact password-change completion result for [request]. */
+    override suspend fun completePasswordChange(
+        request: CompletePasswordChangeRequest,
+    ): PasswordChangeResult? = passwordChangeFeature.completePasswordChange(request)
 
     /** @return `true` when user [id] is renamed to [username]. */
     override suspend fun updateUsername(id: UserId, username: Username): Boolean =

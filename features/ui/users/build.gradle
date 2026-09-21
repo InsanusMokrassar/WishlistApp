@@ -11,6 +11,7 @@ apply from: "$mppJvmJsAndroidWithCompose"
 android {
     testOptions {
         unitTests.returnDefaultValues = true
+        unitTests.includeAndroidResources = true
     }
 }
 
@@ -28,10 +29,26 @@ kotlin {
                 api project(":wishlist.features.roles.client")
             }
         }
+        jsTest {
+            dependencies {
+                implementation devNpm("jsdom", "26.1.0")
+            }
+        }
+        androidUnitTest {
+            dependencies {
+                implementation libs.robolectric
+                implementation libs.androidx.compose.ui.test.junit4
+            }
+        }
         jvmTest {
             dependencies {
                 implementation libs.ktor.client.mock
             }
         }
     }
+}
+
+tasks.named("jsNodeTest") {
+    filter.excludeTestsMatching("dev.inmo.wishlist.features.ui.users.ui.PasswordChangeViewBrowserTest")
+    filter.excludeTestsMatching("dev.inmo.wishlist.features.ui.users.ui.UserEditViewBrowserTest")
 }

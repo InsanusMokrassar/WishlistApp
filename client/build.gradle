@@ -47,7 +47,21 @@ kotlin {
                 api project(":wishlist.features.ui.sidebar")
             }
         }
+        commonTest {
+            dependencies {
+                implementation libs.ktor.client.mock
+            }
+        }
+        jsTest {
+            dependencies {
+                implementation devNpm("jsdom", "26.1.0")
+            }
+        }
     }
+}
+
+tasks.named("jsNodeTest") {
+    filter.excludeTestsMatching("dev.inmo.wishlist.client.PasswordChangeNavigationBrowserTest")
 }
 
 compose.desktop {
@@ -78,5 +92,11 @@ project.tasks.configureEach {
 project.tasks.configureEach {
     if (it.name == "jsProductionExecutableCompileSync") {
         it.dependsOn("jsBrowserDevelopmentWebpack")
+    }
+}
+
+project.tasks.configureEach {
+    if (it.name == "jvmTest") {
+        it.systemProperty("passwordChangeHtmlPolicyPath", file("src/jsMain/resources/index.html").absolutePath)
     }
 }
