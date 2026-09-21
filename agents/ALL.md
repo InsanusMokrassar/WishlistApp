@@ -1,9 +1,13 @@
-THIS AGENT MUST READ `agents/task/<TASK_ID_FORMAT>/<STEP_NUMBER_FORMAT>.md` with the largest `STEP_NUMBER` BEFORE ANY WORK (or the full step range the agent's role file specifies).
+These are ordinary worker instructions. Root may read them to construct an invocation, but root's orchestration authority and input access are defined by its own instructions, not the worker restrictions below.
+
+THIS AGENT MUST READ the latest completed step report in its root-supplied input set BEFORE ANY WORK (or the permitted completed step range its role file specifies). Root supplies exact paths and the current role's output allocation.
 If no step files exist yet, read `PROMPT.md` in the task folder instead.
 
 THIS AGENT MUST WRITE `agents/task/<TASK_ID_FORMAT>/<STEP_NUMBER_FORMAT>.md` WITH RESULTS REPORT ABOUT ITS WORK.
 
-EVERY ROLE SUBAGENT MUST NOT EDIT ANY FILE except its current step file (`agents/task/<TASK_ID_FORMAT>/<STEP_NUMBER_FORMAT>.md`). Exception: Coding may additionally edit the source, resource, and feature `README.md` files the task requires. (The Orchestrator/root additionally creates the task folder and `PROMPT.md` per `agents/PROTOCOL.md`.)
+EVERY ROLE SUBAGENT MUST NOT EDIT ANY FILE except its allocated step report and additional paths explicitly authorized in its own invocation. Do not delegate unless the assigned role instructions and root's invocation expressly permit it.
+
+Read only your own instruction bundle, permitted repository evidence and already-completed input artifacts. Do not inspect other role instructions, root routing/workflow files, active sibling outputs or excluded history/search results. Do not infer later steps, future consumers or their requirements. If excluded content is exposed, stop and report the input-boundary breach to root. Complete your assigned work, return your self-contained report and stop; root alone decides any next action.
 
 See `agents/PROTOCOL.md` for TASK_ID_FORMAT and STEP_NUMBER_FORMAT specifications.
 See `agents/GIT.md` for all git commit and push rules.

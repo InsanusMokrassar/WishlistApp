@@ -21,11 +21,11 @@ Example: `07.07.2026_14.30.12-f47ac10b-58cc-4372-a567-0e02b2c3d479`
 Format: `<NNN>-<role-name>`
 
 - `NNN` = 3-digit zero-padded integer (001, 002, ... 999)
-- `<role-name>` = role as named in ORCHESTRATOR.md (planning, architecturing, coding, verification, validating)
+- `<role-name>` = the role name supplied in the invocation; do not inspect a workflow catalog to determine it.
 
-Example: `001-planning`, `002-architecturing`, `010-validating`
+Example: `001-preparation`.
 
-**Numbering is monotonic and never resets** — even when the cycle restarts from Planning, the step number continues from the last used value. This ensures no step file is ever overwritten. No agent may wipe, rename, or overwrite an existing step file.
+**Numbering is monotonic and never resets** — root allocates the next unused number, including on retries. No agent may wipe, rename, or overwrite an existing step file.
 
 ## Task Folder Bootstrap
 
@@ -36,7 +36,7 @@ When starting a new task:
 
 ## Reading the Latest Step
 
-To find the latest step: list all `*.md` files in the task folder (excluding `PROMPT.md`), sort by filename (lexicographic order works correctly with zero-padded numbers), take the last one.
+To find the latest step: use only root's permitted completed input set, exclude `PROMPT.md`, sort by filename and take the last one. Never discover inputs by unrestricted traversal of the task folder. Root supplies the prompt when no completed input exists.
 
 ## Legacy Task Folders
 
