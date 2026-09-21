@@ -1,0 +1,15 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<SmellBaseline>
+  <ManuallySuppressedIssues/>
+  <CurrentIssues>
+    <ID>UndocumentedPublicFunction:EmailFeatureServiceTest.kt:EmailFeatureServiceTest$@Test fun cancelledDeliveryRemovesRequestOwnedLinkBeforePropagatingCancellation</ID>
+    <ID>UndocumentedPublicFunction:EmailFeatureServiceTest.kt:EmailFeatureServiceTest$@Test fun delayedDeliveryApprovedAddressRemovesOnlyRequestOwnedLink</ID>
+    <ID>UndocumentedPublicFunction:EmailFeatureServiceTest.kt:EmailFeatureServiceTest$@Test fun delayedDeliveryChangedAddressRemovesOnlyRequestOwnedLink</ID>
+    <ID>UndocumentedPublicFunction:EmailFeatureServiceTest.kt:EmailFeatureServiceTest$@Test fun delayedDeliveryClearedAddressRemovesOnlyRequestOwnedLink</ID>
+    <ID>UndocumentedPublicFunction:EmailFeatureServiceTest.kt:EmailFeatureServiceTest$@Test fun delayedDeliveryDeletedUserRemovesOnlyRequestOwnedLink</ID>
+    <ID>UndocumentedPublicFunction:EmailFeatureServiceTest.kt:EmailFeatureServiceTest$@Test fun failedDeliveryCleansRequestOwnedLinkAndSameAddressCanRetry</ID>
+    <ID>UndocumentedPublicFunction:EmailRoutingsConfiguratorTest.kt:EmailRoutingsConfiguratorTest$@Test fun verificationRouteRejectsMissingOrInvalidBearerBeforeCallingFeature</ID>
+    <ID>UndocumentedPublicFunction:EmailRoutingsConfiguratorTest.kt:EmailRoutingsConfiguratorTest$@Test fun verificationRouteReturnsBadRequestForMalformedBodyWithoutCallingFeature</ID>
+    <ID>UndocumentedPublicFunction:EmailRoutingsConfiguratorTest.kt:EmailRoutingsConfiguratorTest$@Test fun verificationRouteUsesAuthenticatedCallerAndReturnsEveryDomainResult</ID>
+  </CurrentIssues>
+</SmellBaseline>

@@ -1,0 +1,10 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<SmellBaseline>
+  <ManuallySuppressedIssues/>
+  <CurrentIssues>
+    <ID>UndocumentedPublicFunction:ServerUrlModelTest.kt:ServerUrlModelTest$@Test fun pluginBindsDefaultModelAsOneInterfaceSingleton</ID>
+    <ID>UndocumentedPublicFunction:ServerUrlModelTest.kt:ServerUrlModelTest$@Test fun readsAndSavesUrlsWithoutTrimmingNonblankValues</ID>
+    <ID>UndocumentedPublicProperty:ServerUrlViewModel.kt:ServerUrlViewModel$val loadingState = _loadingState.asStateFlow()</ID>
+    <ID>UndocumentedPublicProperty:ServerUrlViewModel.kt:ServerUrlViewModel$val urlState = _urlState.asStateFlow()</ID>
+  </CurrentIssues>
+</SmellBaseline>
