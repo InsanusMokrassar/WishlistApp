@@ -109,8 +109,7 @@ that role with `NewUser` until email verification promotes the account. The gene
   `FeatureRolesRegistry.Requirement` is contributed with `singleRequirement { ... }` from the
   `setupDI` of the owning feature — `admin.panel` in `admin/server`, `email.sendTest` in
   `email/server`, `files.avatarChangeForOthers` in `files/server` — and its `FunctionalityId` lives in
-  that feature's `Constants` file (see `agents/ARCHITECTURE.md` "Role requirement placement" and
-  `agents/CODING.md` "Roles requirements handling"). `roles/common` `Plugin.setupDI` registers only the
+  that feature's `Constants` file. `roles/common` `Plugin.setupDI` registers only the
   `MapFeatureRolesRegistry(getAllDistinct())` realization and the polymorphic-to-`Any` serializer for
   `Requirement`; it declares no requirements itself. Each of `admin/common`, `email/common`,
   `files/common` therefore now `api`-depends on `roles/common` for the `FunctionalityId` constant.

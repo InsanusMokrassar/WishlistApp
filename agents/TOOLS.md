@@ -4,7 +4,7 @@
 
 Caveman is pre-installed with the project — no setup needed (start rule: `agents/ALL.md`).
 
-Scope of caveman vs normal prose: see `AGENTS.md` "Communication Protocol Precedence".
+Scope of caveman vs normal prose: use the communication policy supplied in the invocation; do not load root routing to obtain it.
 
 ## ast-index
 
@@ -23,4 +23,3 @@ brew install ast-index
 ```
 
 If installation fails after one attempt: fall back to `grep`/`find` for this session and record "ast-index unavailable, used grep fallback" in the step report.
-

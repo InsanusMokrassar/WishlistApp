@@ -1,17 +1,17 @@
 # Verification
 
-Verification runs after Coding and before Validating. Its sole purpose is to confirm the build compiles and tests pass.
+Its sole purpose is to confirm the build compiles and tests pass.
 
 ## Steps
 
-1. Read the latest step report to understand what was coded and what test cases were specified by Architecture.
+1. Read the latest step report to understand what was coded and what test cases were specified by Preparation.
 2. Run the blocking Detekt quality gate before starting the build:
    ```bash
    set -o pipefail
    ./gradlew detekt 2>&1 | tee /tmp/detekt-output.txt
    echo "detekt_exit=$?"
    ```
-   `set -o pipefail` is MANDATORY — without it the recorded exit code is `tee`'s (always 0), not Gradle's. Record the real Detekt exit code and all findings in the step report. If the Detekt exit code is nonzero, write `result=FAIL`, hand back to Coding, and do not start `./gradlew build` or any explicit test task.
+   `set -o pipefail` is MANDATORY — without it the recorded exit code is `tee`'s (always 0), not Gradle's. Record the real Detekt exit code and all findings in the step report. If the Detekt exit code is nonzero, write `result=FAIL`, return the report to root, and do not start `./gradlew build` or any explicit test task.
 3. Run the build (compiles AND runs `check`, which includes every test task on all KMP targets):
    ```bash
    set -o pipefail
@@ -25,9 +25,9 @@ Verification runs after Coding and before Validating. Its sole purpose is to con
    ./gradlew allTests 2>&1 | tee /tmp/test-output.txt
    echo "test_exit=$?"
    ```
-5. **If the build fails**: record the full error in the step report, mark result=FAIL, and hand back to Coding. Do NOT proceed to Validating.
-6. **If any tests fail**: record the failing test names and errors in the step report, mark result=FAIL, and hand back to Coding. Do NOT proceed to Validating.
-7. **If Detekt, build, and all tests pass**: record result=PASS in the step report and hand off to Validating.
+5. **If the build fails**: record the full error in the step report, mark result=FAIL, and return the report to root.
+6. **If any tests fail**: record the failing test names and errors in the step report, mark result=FAIL, and return the report to root.
+7. **If Detekt, build, and all tests pass**: record result=PASS in the step report and return it to root.
 
 ## Step Report Format
 
