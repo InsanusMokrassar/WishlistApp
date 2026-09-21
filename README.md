@@ -52,6 +52,55 @@ See `agents/CODING.md` for the full coding conventions and feature patterns.
 - JDK 17+
 - Docker engine + Docker Compose (for PostgreSQL and the local Mailpit SMTP inbox)
 
+The served Web browser gate supports Linux runners with JDK 17 and the Chromium
+runtime libraries installed. Ubuntu is the supported CI baseline. On Ubuntu, install
+the same libraries used by CI before running the gate: `libnss3`, `libnspr4`,
+`libdbus-1-3`, `libatk1.0-0`, `libatk-bridge2.0-0`, `libatspi2.0-0`,
+`libxcomposite1`, `libxdamage1`, `libxfixes3`, `libxrandr2`, `libgbm1`,
+`libasound2t64`, `libcups2`, `libpango-1.0-0`, `libcairo2`, `libx11-6`, `libxcb1`,
+`libxext6`, and `libxkbcommon0`.
+
+## Served Web browser verification
+
+Run the real-browser smoke suite with the Gradle wrapper:
+
+```bash
+./gradlew browserTest
+```
+
+The gate builds the development Web bundle, provisions the Playwright-managed
+Chromium revision pinned by the Gradle catalog (`com.microsoft.playwright:playwright`
+1.52.0), starts the Ktor server on a loopback ephemeral port, and runs eight JUnit
+tests: two served Chromium smoke tests and six focused browser-response classifier
+tests. The smoke tests check the rendered application, then register a unique
+disposable account and check authenticated wishlist controls.
+The default is headless. Use `./gradlew browserTest -PbrowserHeaded=true` to watch
+the run locally.
+
+Every invocation creates its own temporary SQLite database, upload directory,
+server configuration, and port. Cleanup stops the server and removes that temporary
+state; the operator's database and files under `server/src` are not used. Browser
+installation is cached at `browserTests/build/playwright`. Each gate invocation
+launches the pinned headless browser to validate that cache before the test suite;
+an empty or partial pinned cache is repaired automatically, while unrelated browser
+revisions are preserved. Repeating the command does not reinstall a healthy matching
+browser. Unrelated Gradle tasks do not provision a browser or start the test server.
+
+The browser gate treats every console error, page exception, and HTTP 401 as a
+failure. Anonymous startup must emit zero Playwright `onRequest` events for
+same-origin `GET /api/wishlist/getMy`; counting request events also catches an
+attempt that fails before receiving an HTTP response. Public browsing of an
+explicitly selected owner's wishlists remains available anonymously.
+
+On a failed browser test, inspect `browserTests/build/artifacts/<invocation>/` for
+`server.log` and, for each failed test, `failure.png` and `trace.zip`. CI runs the
+same `./gradlew browserTest` command after installing the Chromium runtime libraries
+and uploads `browserTests/build/artifacts/**` when the job fails.
+
+`jsBrowserTest` checks Kotlin/JS browser-unit behavior. `browserTest` checks the
+served Web application through the real Ktor server and managed Chromium; both
+checks cover different layers.
+
 ## Running the server (with the web client)
 
 The server also serves the compiled web client as static files, so a single `run` brings up

@@ -1,0 +1,285 @@
+import groovy.json.JsonOutput
+import org.gradle.api.tasks.testing.Test
+import org.gradle.process.ExecOperations
+import java.net.InetAddress
+import java.net.ServerSocket
+import java.net.URL
+import java.io.ByteArrayOutputStream
+import java.util.UUID
+import java.util.concurrent.TimeUnit
+
+def browserTestsProject = project(":wishlist.browserTests")
+def execOperations = browserTestsProject.services.get(ExecOperations)
+evaluationDependsOn(browserTestsProject.path)
+def serverProject = project(":wishlist.server")
+def clientProject = project(":wishlist.client")
+def browserCache = new File(browserTestsProject.buildDir, "playwright")
+def artifactsRoot = new File(browserTestsProject.buildDir, "artifacts")
+def serverClasspathFile = new File(serverProject.buildDir, "browser-test/runtime-classpath.txt")
+def writeBrowserServerClasspath = serverProject.tasks.register("writeBrowserServerClasspath") {
+    dependsOn(serverProject.tasks.named("classes"))
+    outputs.file(serverClasspathFile)
+    doLast {
+        serverClasspathFile.parentFile.mkdirs()
+        serverClasspathFile.text = serverProject.sourceSets.main.runtimeClasspath.asPath
+    }
+}
+
+def runBrowserJava = { String mainClassName, List<String> arguments, boolean skipBrowserDownload ->
+    def output = new ByteArrayOutputStream()
+    def result = execOperations.javaexec {
+        classpath = browserTestsProject.sourceSets.test.runtimeClasspath
+        mainClass = mainClassName
+        args arguments
+        environment "PLAYWRIGHT_BROWSERS_PATH", browserCache.absolutePath
+        if (skipBrowserDownload) environment "PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD", "1"
+        standardOutput = output
+        errorOutput = output
+        ignoreExitValue = true
+    }
+    [exitValue: result.exitValue, output: output.toString("UTF-8")]
+}
+
+def pinnedBrowserDirectories = {
+    def pathProbe = runBrowserJava("dev.inmo.wishlist.browser.ChromiumProbe", ["--print-executable"], true)
+    if (pathProbe.exitValue != 0) {
+        throw new GradleException("Cannot determine the Playwright 1.52.0 Chromium path in private cache ${browserCache}. Probe output:\n${pathProbe.output}")
+    }
+    def executableLine = pathProbe.output.readLines().find { it.startsWith("PLAYWRIGHT_CHROMIUM_EXECUTABLE=") }
+    if (executableLine == null) {
+        throw new GradleException("The Playwright 1.52.0 path probe did not report its Chromium executable. Probe output:\n${pathProbe.output}")
+    }
+    def executable = new File(executableLine.substring("PLAYWRIGHT_CHROMIUM_EXECUTABLE=".length()))
+    def chromiumDirectory = executable.parentFile?.parentFile
+    if (chromiumDirectory == null || !chromiumDirectory.name.startsWith("chromium-")) {
+        throw new GradleException("The Playwright 1.52.0 executable path has no pinned Chromium directory: ${executable}")
+    }
+    def revision = chromiumDirectory.name.substring("chromium-".length())
+    [chromiumDirectory, new File(browserCache, "chromium_headless_shell-${revision}")]
+}
+
+def installBrowserChromium = browserTestsProject.tasks.register("installBrowserChromium") {
+    group = "verification"
+    description = "Probes and repairs the Chromium installation pinned by the Playwright JVM dependency."
+    dependsOn(browserTestsProject.tasks.named("testClasses"))
+    inputs.files(browserTestsProject.sourceSets.test.runtimeClasspath)
+    outputs.upToDateWhen { false }
+    onlyIf { gradle.taskGraph.allTasks.any { it.path == ":browserTest" } }
+    doLast {
+        def firstProbe = runBrowserJava("dev.inmo.wishlist.browser.ChromiumProbe", [], true)
+        if (firstProbe.exitValue == 0) {
+            logger.lifecycle("Playwright Chromium cache hit: pinned executable launched headlessly from ${browserCache}.")
+            return
+        }
+        def repairDirectories = pinnedBrowserDirectories()
+        repairDirectories.each { directory ->
+            if (directory.exists()) {
+                logger.lifecycle("Removing incomplete pinned Playwright browser directory ${directory} before reinstall.")
+                if (!directory.deleteDir()) {
+                    throw new GradleException("Cannot remove incomplete pinned Playwright browser directory ${directory}.")
+                }
+            }
+        }
+        def preservedDirectory = new File(browserCache.parentFile, "playwright-preserved-${UUID.randomUUID()}")
+        def preservedBrowsers = []
+        try {
+            browserCache.listFiles()?.findAll { candidate ->
+                (candidate.name.startsWith("chromium-") || candidate.name.startsWith("chromium_headless_shell-")) && !repairDirectories.contains(candidate)
+            }?.each { candidate ->
+                preservedDirectory.mkdirs()
+                def preservedCandidate = new File(preservedDirectory, candidate.name)
+                if (!candidate.renameTo(preservedCandidate)) {
+                    throw new GradleException("Cannot preserve unrelated private Playwright browser directory ${candidate} before repairing the pinned revision.")
+                }
+                preservedBrowsers += [original: candidate, preserved: preservedCandidate]
+            }
+            def install = runBrowserJava("com.microsoft.playwright.CLI", ["install", "chromium"], false)
+            def finalProbe = runBrowserJava("dev.inmo.wishlist.browser.ChromiumProbe", [], true)
+            if (install.exitValue != 0 || finalProbe.exitValue != 0) {
+                throw new GradleException("Playwright 1.52.0 could not launch pinned Chromium from private cache ${browserCache} after repair. Check browser OS dependencies for this runner. Initial probe:\n${firstProbe.output}\nInstaller:\n${install.output}\nFinal probe:\n${finalProbe.output}")
+            }
+        } finally {
+            preservedBrowsers.reverseEach { entry ->
+                if (entry.preserved.exists() && !entry.preserved.renameTo(entry.original)) {
+                    throw new GradleException("Cannot restore unrelated private Playwright browser directory ${entry.original} after repairing the pinned revision.")
+                }
+            }
+            if (preservedDirectory.exists() && !preservedDirectory.deleteDir()) {
+                throw new GradleException("Cannot remove temporary private Playwright preservation directory ${preservedDirectory}.")
+            }
+        }
+        logger.lifecycle("Playwright Chromium private cache repaired and validated by a headless launch from ${browserCache}.")
+    }
+}
+
+def browserTestTask = tasks.register("browserTest") {
+    group = "verification"
+    description = "Builds the Web bundle and runs served-application Chromium smoke tests against isolated SQLite state."
+    dependsOn(installBrowserChromium)
+    dependsOn(writeBrowserServerClasspath)
+    dependsOn(clientProject.tasks.named("jsBrowserDevelopmentExecutableDistribution"))
+    dependsOn(browserTestsProject.tasks.named("test"))
+}
+
+def browserJUnitTask = browserTestsProject.tasks.named("test", Test)
+def browserCleanupLock = new Object()
+def browserCleanupState = [completed: false, failure: null]
+def stopBrowserServerTree = { Process process, File suiteDirectory, File logFile ->
+    synchronized (browserCleanupLock) {
+        if (browserCleanupState.completed) {
+            if (browserCleanupState.failure != null) throw browserCleanupState.failure
+            return
+        }
+        Throwable cleanupFailure = null
+        try {
+            def handlesByPid = new LinkedHashMap<Long, ProcessHandle>()
+            def depthsByPid = new LinkedHashMap<Long, Integer>()
+            def captureTree
+            captureTree = { ProcessHandle handle, int depth ->
+                handle.children().forEach { child -> captureTree(child, depth + 1) }
+                handlesByPid[handle.pid()] = handle
+                depthsByPid[handle.pid()] = Math.max(depthsByPid[handle.pid()] ?: 0, depth)
+            }
+            def rootHandle = process?.toHandle()
+            def captureLiveTree = {
+                if (rootHandle != null && rootHandle.isAlive()) captureTree(rootHandle, 0)
+            }
+            captureLiveTree()
+            captureLiveTree()
+            def liveHandles = {
+                handlesByPid.values().findAll { it.isAlive() }.sort { left, right -> (depthsByPid[right.pid()] ?: 0) <=> (depthsByPid[left.pid()] ?: 0) }
+            }
+            def waitForExit = { long timeoutMillis ->
+                def deadline = System.nanoTime() + TimeUnit.MILLISECONDS.toNanos(timeoutMillis)
+                while (System.nanoTime() < deadline) {
+                    captureLiveTree()
+                    if (liveHandles().isEmpty()) return
+                    Thread.sleep(50)
+                }
+            }
+            liveHandles().each { it.destroy() }
+            waitForExit(5_000)
+            liveHandles().each { it.destroyForcibly() }
+            waitForExit(5_000)
+            def survivors = liveHandles()
+            if (!survivors.isEmpty()) {
+                throw new GradleException("Browser test server cleanup left live process PIDs ${survivors.collect { it.pid() }}. Retained suite ${suiteDirectory} and server log ${logFile}.")
+            }
+            if (suiteDirectory != null && suiteDirectory.exists() && !suiteDirectory.deleteDir()) {
+                throw new GradleException("Browser test server cleanup could not remove suite directory ${suiteDirectory}. Server log: ${logFile}.")
+            }
+        } catch (Throwable failure) {
+            cleanupFailure = failure
+            throw failure
+        } finally {
+            browserCleanupState.completed = true
+            browserCleanupState.failure = cleanupFailure
+        }
+    }
+}
+browserJUnitTask.configure {
+    dependsOn(installBrowserChromium)
+    dependsOn(writeBrowserServerClasspath)
+    dependsOn(clientProject.tasks.named("jsBrowserDevelopmentExecutableDistribution"))
+    environment "PLAYWRIGHT_BROWSERS_PATH", browserCache.absolutePath
+    environment "PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD", "1"
+    onlyIf { gradle.taskGraph.allTasks.any { it.path == ":browserTest" } }
+
+    doFirst {
+        def invocation = new Date().format("yyyyMMdd-HHmmss-SSS")
+        def artifactsDirectory = new File(artifactsRoot, invocation)
+        def suiteDirectory = new File(temporaryDir, invocation)
+        suiteDirectory.mkdirs()
+        artifactsDirectory.mkdirs()
+        extensions.extraProperties.set("browserSuiteDirectory", suiteDirectory)
+        def portSocket = new ServerSocket(0, 50, InetAddress.getByName("127.0.0.1"))
+        def port = portSocket.localPort
+        portSocket.close()
+        def webBundle = new File(clientProject.buildDir, "dist/js/developmentExecutable").absoluteFile
+        if (!webBundle.isDirectory()) {
+            throw new GradleException("Web bundle is missing at ${webBundle}; jsBrowserDevelopmentExecutableDistribution did not produce it.")
+        }
+        def config = [
+            host: "127.0.0.1",
+            port: port,
+            publicHost: "127.0.0.1",
+            publicHttpOrigin: "http://127.0.0.1:${port}",
+            staticFolders: ["": webBundle.absolutePath],
+            database: [url: "jdbc:sqlite:file:${new File(suiteDirectory, 'browser.db').absolutePath}?busy_timeout=30000&journal_mode=WAL&transaction_mode=IMMEDIATE", driver: "org.sqlite.JDBC"],
+            plugins: [
+                "dev.inmo.wishlist.features.common.server.JVMPlugin", "dev.inmo.wishlist.features.sample.server.JVMPlugin",
+                "dev.inmo.wishlist.features.users.server.JVMPlugin", "dev.inmo.wishlist.features.auth.server.JVMPlugin",
+                "dev.inmo.wishlist.features.wishlist.server.JVMPlugin", "dev.inmo.wishlist.features.files.server.JVMPlugin",
+                "dev.inmo.wishlist.features.admin.server.JVMPlugin", "dev.inmo.wishlist.features.currency.server.JVMPlugin",
+                "dev.inmo.wishlist.features.booking.server.JVMPlugin", "dev.inmo.wishlist.features.email.server.JVMPlugin",
+                "dev.inmo.wishlist.features.deeplinks.server.JVMPlugin", "dev.inmo.wishlist.features.roles.server.JVMPlugin"
+            ],
+            filesFolder: new File(suiteDirectory, "uploads").absolutePath,
+            useCache: true,
+            tokenTtl: "PT15M",
+            refreshTokenTtl: "P7D",
+            enableRegistration: true,
+            requireEmailForRegistration: false,
+            openExchangeRatesAppId: null,
+            openExchangeRatesRefreshTTLMillis: 3600000
+        ]
+        def configFile = new File(suiteDirectory, "browser.config.json")
+        configFile.text = JsonOutput.prettyPrint(JsonOutput.toJson(config))
+        def logFile = new File(artifactsDirectory, "server.log")
+        def command = [org.gradle.internal.jvm.Jvm.current().javaExecutable.absolutePath, "-cp", serverClasspathFile.text, "dev.inmo.micro_utils.startup.launcher.MainKt", configFile.absolutePath]
+        def process = new ProcessBuilder(command).directory(suiteDirectory).redirectErrorStream(true).redirectOutput(logFile).start()
+        extensions.extraProperties.set("browserServerProcess", process)
+        extensions.extraProperties.set("browserServerLog", logFile)
+        def baseUrl = "http://127.0.0.1:${port}"
+        def deadline = System.nanoTime() + TimeUnit.SECONDS.toNanos(45)
+        def ready = false
+        while (System.nanoTime() < deadline && process.isAlive()) {
+            try {
+                def connection = new URL(baseUrl).openConnection()
+                connection.connectTimeout = 1000
+                connection.readTimeout = 1000
+                if (connection.responseCode == 200 && connection.inputStream.text.contains("id=\"content\"")) {
+                    ready = true
+                    break
+                }
+            } catch (IOException ignored) {
+            }
+            Thread.sleep(200)
+        }
+        if (!ready) {
+            def readinessFailure = new GradleException("Browser test server did not become ready at ${baseUrl}. See ${logFile}.")
+            try {
+                stopBrowserServerTree(process, suiteDirectory, logFile)
+            } catch (Throwable cleanupFailure) {
+                readinessFailure.addSuppressed(cleanupFailure)
+            }
+            throw readinessFailure
+        }
+        systemProperty "browser.baseUrl", baseUrl
+        systemProperty "browser.artifactsDir", artifactsDirectory.absolutePath
+        systemProperty "browser.headed", providers.gradleProperty("browserHeaded").getOrElse("false")
+    }
+}
+
+def cleanupBrowserServer = tasks.register("cleanupBrowserTestServer") {
+    doLast {
+        def testTask = browserJUnitTask.get()
+        def process = testTask.extensions.extraProperties.has("browserServerProcess") ? testTask.extensions.extraProperties.get("browserServerProcess") as Process : null
+        def directory = testTask.extensions.extraProperties.has("browserSuiteDirectory") ? testTask.extensions.extraProperties.get("browserSuiteDirectory") as File : null
+        def logFile = testTask.extensions.extraProperties.has("browserServerLog") ? testTask.extensions.extraProperties.get("browserServerLog") as File : null
+        stopBrowserServerTree(process, directory, logFile)
+    }
+}
+
+browserJUnitTask.configure { finalizedBy(cleanupBrowserServer) }
+gradle.buildFinished { result ->
+    def testTask = browserJUnitTask.get()
+    def process = testTask.extensions.extraProperties.has("browserServerProcess") ? testTask.extensions.extraProperties.get("browserServerProcess") as Process : null
+    def directory = testTask.extensions.extraProperties.has("browserSuiteDirectory") ? testTask.extensions.extraProperties.get("browserSuiteDirectory") as File : null
+    def logFile = testTask.extensions.extraProperties.has("browserServerLog") ? testTask.extensions.extraProperties.get("browserServerLog") as File : null
+    try {
+        stopBrowserServerTree(process, directory, logFile)
+    } catch (Throwable cleanupFailure) {
+        logger.error("Browser test server cleanup failed during build finalization.", cleanupFailure)
+    }
+}
