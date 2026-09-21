@@ -1,6 +1,7 @@
 package dev.inmo.wishlist.features.email.server
 
 import dev.inmo.wishlist.features.email.common.models.Email
+import dev.inmo.wishlist.features.email.common.models.EmailProfile
 import dev.inmo.wishlist.features.email.common.models.EmailVerificationRequestResult
 import dev.inmo.wishlist.features.users.common.models.UserId
 
@@ -23,6 +24,18 @@ interface EmailFeature {
     suspend fun isFeatureEnabled(): Boolean
 
     /**
+     * Reads the authenticated owner's current email-feature state.
+     *
+     * The returned state is an email-owned projection read freshly from persistence; it intentionally
+     * does not expose a user, authentication, or administration model. An existing account without
+     * an address returns an empty profile, while a missing account returns `null`.
+     *
+     * @param callerId Authenticated owner whose email state is read.
+     * @return Fresh email profile for an existing owner, or `null` when the owner no longer exists.
+     */
+    suspend fun getMyEmail(callerId: UserId): EmailProfile?
+
+    /**
      * Sends a test email to [recipient] on behalf of [callerId].
      *
      * Implementations must verify that [callerId] is the root user and return `false` when it is
@@ -37,7 +50,9 @@ interface EmailFeature {
     /**
      * Updates or clears the email address stored for [callerId].
      *
-     * Self-service — no elevated privilege required. Returns `false` when [callerId] is not found.
+     * Self-service — no elevated privilege required. A replacement or clear can be rejected by the
+     * persisted post-approval cooldown; approval leaves the latest approved address current until
+     * a pending replacement is approved. Returns `false` when [callerId] is not found.
      *
      * @param callerId Authenticated caller whose email address is being changed.
      * @param email New address to store, or `null` to clear the current address.
@@ -45,11 +60,15 @@ interface EmailFeature {
      *   update failed.
      * @throws dev.inmo.wishlist.features.users.common.repo.exceptions.DuplicateUserFieldException
      *   when [email] is already stored for a different user.
+     * @throws dev.inmo.wishlist.features.users.common.repo.exceptions.EmailChangeCooldownException
+     *   when a state-changing request arrives before the persisted deadline.
      */
     suspend fun setMyEmail(callerId: UserId, email: Email?): Boolean
 
     /**
-     * Requests verification of the caller's current address only when it still equals [expectedEmail].
+     * Requests verification of the caller's current verification candidate only when it still equals
+     * [expectedEmail]. The pending replacement has priority over the retained approved current;
+     * an unapproved first address is the candidate when no replacement exists.
      *
      * @param callerId Authenticated caller whose current address is considered.
      * @param expectedEmail Address the caller saw before asking for delivery.

@@ -1,6 +1,7 @@
 package dev.inmo.wishlist.features.email.server
 
 import dev.inmo.wishlist.features.email.common.models.Email
+import dev.inmo.wishlist.features.email.server.utils.validatedCooldownMillis
 import kotlinx.serialization.SerializationException
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonNull
@@ -114,5 +115,23 @@ class EmailConfigTest {
         assertTrue(smtp.getValue("useTls").jsonPrimitive.content.toBoolean())
         assertFalse(smtp.getValue("useSsl").jsonPrimitive.content.toBoolean())
         assertFalse(smtp.getValue("unsafeSsl").jsonPrimitive.content.toBoolean())
+    }
+
+    /** The checked-in server sample explicitly selects the one-day root cooldown policy. */
+    @Test
+    fun sampleConfigDecodesExplicitOneDayCooldown() {
+        val sampleFile = generateSequence(java.io.File(System.getProperty("user.dir")).canonicalFile) {
+            it.parentFile
+        }.map {
+            java.io.File(it, "server/sample.config.json")
+        }.firstOrNull {
+            it.isFile
+        } ?: error("server/sample.config.json not found")
+
+        val config = json.parseToJsonElement(sampleFile.readText()).jsonObject
+        val policy = Json { ignoreUnknownKeys = true }
+            .decodeFromJsonElement(EmailChangePolicyConfig.serializer(), config)
+
+        assertEquals(86_400_000L, policy.validatedCooldownMillis(nowMillis = 1_000L))
     }
 }

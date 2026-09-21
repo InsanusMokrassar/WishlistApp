@@ -17,6 +17,7 @@ import dev.inmo.wishlist.features.email.server.services.SmtpEmailService
 import dev.inmo.wishlist.features.email.server.services.EmailRegistrationInviteSender
 import dev.inmo.wishlist.features.email.server.services.EmailVerificationDeepLinkHandler
 import dev.inmo.wishlist.features.email.server.models.EmailVerificationPayload
+import dev.inmo.wishlist.features.email.server.utils.validatedCooldownMillis
 import dev.inmo.wishlist.features.roles.common.FeatureRolesRegistry
 import dev.inmo.wishlist.features.roles.common.models.SuperAdminRole
 import dev.inmo.wishlist.features.roles.common.utils.singleRequirement
@@ -61,6 +62,9 @@ object Plugin : StartPlugin {
         val emailConfigElement = emailConfigElementOrNull(config)
         val serverConfig = Json { ignoreUnknownKeys = true }
             .decodeFromJsonElement(ServerConfig.serializer(), config)
+        val policy = Json { ignoreUnknownKeys = true }
+            .decodeFromJsonElement(EmailChangePolicyConfig.serializer(), config)
+        val cooldownMillis = policy.validatedCooldownMillis()
         if (emailConfigElement != null) {
             single { get<Json>().decodeFromJsonElement(EmailConfig.serializer(), emailConfigElement) }
             single { SmtpEmailService(get<EmailConfig>()) }
@@ -70,6 +74,7 @@ object Plugin : StartPlugin {
             EmailVerificationAccountCoordinator(
                 usersRepo = get<UsersRepo>(),
                 rolesRepo = get<RolesRepo>(),
+                cooldownMillis = cooldownMillis,
             )
         }
         single<EmailFeature> {

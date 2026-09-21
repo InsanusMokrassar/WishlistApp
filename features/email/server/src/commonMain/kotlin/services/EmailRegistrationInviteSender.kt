@@ -4,10 +4,12 @@ import dev.inmo.wishlist.features.auth.server.CompensableRegistrationEmailSender
 import dev.inmo.wishlist.features.auth.server.RegistrationEmailDeliveryHandle
 import dev.inmo.wishlist.features.deeplinks.common.models.DeepLinkId
 import dev.inmo.wishlist.features.deeplinks.server.services.DeepLinksService
+import dev.inmo.wishlist.features.email.common.models.Email
 import dev.inmo.wishlist.features.email.server.EmailsService
 import dev.inmo.wishlist.features.email.server.models.EmailVerification
 import dev.inmo.wishlist.features.email.server.models.EmailVerificationPayload
 import dev.inmo.wishlist.features.users.common.models.RegisteredUser
+import dev.inmo.wishlist.features.users.common.models.UserId
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.withContext
@@ -45,20 +47,40 @@ class EmailRegistrationInviteSender(
 
     /**
      * Mints the verification deeplink and returns rollback ownership only after SMTP accepts the
-     * matching invite.
+     * unapproved current-address invite. Pending replacements are intentionally excluded from the
+     * registration adapter and use [sendVerificationEmailWithCompensation] directly.
      *
-     * @param user Newly persisted account.
+     * @param user Newly persisted account whose current address is considered only when unapproved.
      * @return A handle for the exact delivered deeplink, or `null` when delivery cannot complete.
      */
     override suspend fun sendRegistrationEmailWithCompensation(
         user: RegisteredUser,
     ): RegistrationEmailDeliveryHandle? {
-        val recipient = user.email ?: return null
+        val recipient = user.email?.takeUnless { user.emailApproved } ?: return null
+        return sendVerificationEmailWithCompensation(user.id, recipient)
+    }
+
+    /**
+     * Mints and delivers one verification invite for the exact [recipient] owned by [userId].
+     *
+     * The returned handle owns only the deeplink minted for this invocation. It removes that link
+     * after failed delivery and under [NonCancellable] before propagating cancellation, preserving
+     * request-local compensation without constructing a synthetic user projection.
+     *
+     * @param userId Owner encoded in the verification payload.
+     * @param recipient Exact address encoded in the payload and used for SMTP delivery.
+     * @return A handle for the delivered link, or `null` when dependencies are unavailable or SMTP
+     *   delivery fails.
+     */
+    suspend fun sendVerificationEmailWithCompensation(
+        userId: UserId,
+        recipient: Email,
+    ): RegistrationEmailDeliveryHandle? {
         val links = deepLinksService ?: return null
         val emails = emailsService ?: return null
         val deeplinkId = links.createDeepLink(
             EmailVerification.handlerId,
-            EmailVerificationPayload(user.id, recipient)
+            EmailVerificationPayload(userId, recipient)
         )
         val url = buildEmailVerificationUrl(publicHttpOrigin, deeplinkId)
         val delivered = try {

@@ -8,13 +8,17 @@ import dev.inmo.wishlist.features.users.common.models.UserId
 import dev.inmo.wishlist.features.users.common.models.Username
 
 interface UsersManagementFeature {
+    /** Returns all users as reduced admin feature models without pending email lifecycle state. */
     suspend fun getAll(): List<AdminUser>
+    /** Returns one reduced admin feature model, or `null` when [id] is absent. */
     suspend fun getById(id: UserId): AdminUser?
+    /** Creates a user and returns its reduced admin feature model, or `null` on failure. */
     suspend fun create(newUser: NewUserWithPassword): AdminUser?
+    /** Updates identity/email-owned storage without returning pending email state. */
     suspend fun update(id: UserId, newUser: NewUser): Boolean
 
     /**
-     * Replaces only a user's username without writing an email field.
+     * Replaces only a user's username without writing an email field or returning email lifecycle state.
      *
      * @param id User to rename.
      * @param username Validated replacement username.

@@ -13,10 +13,11 @@ import kotlinx.serialization.Serializable
  * [dev.inmo.wishlist.features.auth.client.meStateFlow] state — the authenticated caller's own record.
  *
  * Deliberately keeps [email]: this is a self-service, own-record surface (the caller reading their own
- * profile), not the public listing that leaked email in issue #67 point 1. A future "show/edit my
- * email" screen can read it directly from this model without a further "me" projection. Do not
- * interpret the presence of [email] here as a regression of the point-1 fix — [UsersFeatureUser] (the
- * public, unauthenticated listing) is the surface that must never carry it.
+ * profile), not the public listing that leaked email in issue #67 point 1. Pending verification
+ * lifecycle data belongs exclusively to [dev.inmo.wishlist.features.email.common.models.EmailProfile]
+ * and is read through the email feature. Do not interpret the presence of [email] here as a regression
+ * of the point-1 fix — [UsersFeatureUser] (the public, unauthenticated listing) is the surface that
+ * must never carry it.
  *
  * @property id Database-assigned identifier of the authenticated user.
  * @property username Unique login name of the authenticated user.
@@ -30,12 +31,13 @@ data class AuthFeatureUser(
     val id: UserId,
     val username: Username,
     val email: Email?,
-    val emailApproved: Boolean = false
+    val emailApproved: Boolean = false,
 )
 
 /**
- * Projects this [RegisteredUser] onto [AuthFeatureUser], carrying every field through unchanged
- * (including [RegisteredUser.email] — see [AuthFeatureUser] KDoc for why this surface keeps it).
+ * Projects this [RegisteredUser] onto [AuthFeatureUser], retaining caller identity and current email
+ * approval only. Pending email, requested-at, and cooldown state is intentionally email-owned and
+ * cannot be recovered from this mapper.
  *
  * @return An [AuthFeatureUser] mirroring this user's [RegisteredUser.id], [RegisteredUser.username]
  *   and [RegisteredUser.email].
@@ -44,13 +46,13 @@ fun RegisteredUser.asAuthFeatureUser(): AuthFeatureUser = AuthFeatureUser(
     id = id,
     username = username,
     email = email,
-    emailApproved = emailApproved
+    emailApproved = emailApproved,
 )
 
 /**
- * Projects this [AuthFeatureUser] back onto the persistence-layer [RegisteredUser], carrying every
- * field through unchanged (including [AuthFeatureUser.email] — this feature model mirrors the base
- * verbatim, so no extra arguments are required).
+ * Projects this [AuthFeatureUser] back onto the reduced persistence-layer [RegisteredUser], retaining
+ * identity, current email, and approval only. Email-owned pending/request/deadline state is not
+ * accepted as an argument and is never reconstructed through auth.
  *
  * @return A [RegisteredUser] mirroring this model's [AuthFeatureUser.id], [AuthFeatureUser.username]
  *   and [AuthFeatureUser.email].
@@ -59,5 +61,5 @@ fun AuthFeatureUser.asRegisteredUser(): RegisteredUser = RegisteredUser(
     id = id,
     username = username,
     email = email,
-    emailApproved = emailApproved
+    emailApproved = emailApproved,
 )

@@ -16,6 +16,7 @@ import dev.inmo.wishlist.features.auth.server.RegistrationRoleLifecycle
 import dev.inmo.wishlist.features.auth.server.UserRoleAuthorization
 import dev.inmo.wishlist.features.auth.server.repo.PasswordsRepo
 import dev.inmo.wishlist.features.email.common.models.Email
+import dev.inmo.wishlist.features.email.common.models.EmailProfile
 import dev.inmo.wishlist.features.users.common.models.NewUser
 import dev.inmo.wishlist.features.users.common.models.RegisteredUser
 import dev.inmo.wishlist.features.users.common.models.UserId
@@ -26,7 +27,6 @@ import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitCancellation
-import kotlinx.coroutines.cancel
 import kotlinx.coroutines.test.runTest
 import kotlinx.coroutines.withTimeout
 import kotlin.test.Test
@@ -46,20 +46,36 @@ import kotlin.time.Duration.Companion.minutes
  * access too, since [AuthFeatureService.register] and the fixtures below create users).
  *
  * @param initialUsers Users the repo is pre-seeded with, keyed by their [UserId].
+ * @param initialEmailProfiles Email-owned state seeded independently from reduced user fixtures.
  */
 internal class FakeUsersRepo(
-    initialUsers: Map<UserId, RegisteredUser> = emptyMap()
+    initialUsers: Map<UserId, RegisteredUser> = emptyMap(),
+    initialEmailProfiles: Map<UserId, EmailProfile> = emptyMap(),
 ) : UsersRepo, MapCRUDRepo<RegisteredUser, UserId, NewUser>(initialUsers.toMutableMap()) {
 
     /** Next identifier assigned to a newly created fixture user. */
     private var nextId: Long = (initialUsers.keys.maxOfOrNull { it.long } ?: 0L) + 1L
 
-    override suspend fun updateObject(newValue: NewUser, id: UserId, old: RegisteredUser): RegisteredUser =
-        old.copy(
+    /** Email verification state deliberately stored outside reduced fixture users. */
+    private val emailProfiles = initialUsers.mapValues { (_, user) -> user.asEmailProfile() }
+        .toMutableMap()
+        .also { it.putAll(initialEmailProfiles) }
+
+    override suspend fun updateObject(newValue: NewUser, id: UserId, old: RegisteredUser): RegisteredUser {
+        val currentProfile = emailProfiles[id] ?: old.asEmailProfile()
+        val profile = when {
+            newValue.email == null -> EmailProfile(userId = id.long)
+            newValue.email == currentProfile.email || newValue.email == currentProfile.pendingEmail -> currentProfile
+            currentProfile.emailApproved && currentProfile.email != null -> currentProfile.copy(pendingEmail = newValue.email)
+            else -> EmailProfile(userId = id.long, email = newValue.email)
+        }
+        emailProfiles[id] = profile
+        return old.copy(
             username = newValue.username,
-            email = newValue.email,
-            emailApproved = newValue.email != null && old.email == newValue.email && old.emailApproved,
+            email = profile.email,
+            emailApproved = profile.emailApproved,
         )
+    }
 
     override suspend fun createObject(newValue: NewUser): Pair<UserId, RegisteredUser> {
         if (map.values.any { it.username == newValue.username }) {
@@ -69,18 +85,69 @@ internal class FakeUsersRepo(
             throw DuplicateUserFieldException()
         }
         val id = UserId(nextId++)
-        return id to RegisteredUser(id, newValue.username, newValue.email)
+        val user = RegisteredUser(id, newValue.username, newValue.email)
+        emailProfiles[id] = user.asEmailProfile()
+        return id to user
     }
 
     override suspend fun getUserByUsername(username: Username): RegisteredUser? =
         getAll().values.firstOrNull { it.username == username }
 
-    override suspend fun approveEmail(id: UserId, expectedEmail: Email): RegisteredUser? =
+    /** Returns independent email-owned state for callers that explicitly request it. */
+    override suspend fun getEmailProfileFresh(id: UserId): EmailProfile? =
+        map[id]?.let { emailProfiles[id] ?: it.asEmailProfile() }
+
+    override suspend fun setEmail(id: UserId, email: Email?): RegisteredUser? = locker.withWriteLock {
+        val current = map[id] ?: return@withWriteLock null
+        val profile = emailProfiles[id] ?: current.asEmailProfile()
+        val updatedProfile = when {
+            email == null -> EmailProfile(userId = id.long)
+            email == profile.email || email == profile.pendingEmail -> profile
+            profile.emailApproved && profile.email != null -> profile.copy(pendingEmail = email)
+            else -> EmailProfile(userId = id.long, email = email)
+        }
+        emailProfiles[id] = updatedProfile
+        current.withEmailProfile(updatedProfile).also { map[id] = it }
+    }?.also { _updatedObjectsFlow.emit(it) }
+
+    override suspend fun updateUsername(id: UserId, username: Username): RegisteredUser? = locker.withWriteLock {
+        map[id]?.copy(username = username)?.also { map[id] = it }
+    }?.also { _updatedObjectsFlow.emit(it) }
+
+    override suspend fun approveEmail(id: UserId, expectedEmail: Email, cooldownMillis: Long): RegisteredUser? =
         locker.withWriteLock {
             val current = map[id] ?: return@withWriteLock null
-            if (current.email != expectedEmail) return@withWriteLock null
-            current.copy(emailApproved = true).also { map[id] = it }
+            val profile = emailProfiles[id] ?: current.asEmailProfile()
+            val approvedProfile = when {
+                profile.pendingEmail == expectedEmail -> profile.copy(
+                    email = expectedEmail,
+                    emailApproved = true,
+                    pendingEmail = null,
+                    emailChangeAllowedAt = cooldownMillis.takeIf { it > 0L },
+                )
+                profile.email == expectedEmail && !profile.emailApproved && profile.pendingEmail == null -> profile.copy(
+                    emailApproved = true,
+                    emailChangeAllowedAt = cooldownMillis.takeIf { it > 0L },
+                )
+                profile.email == expectedEmail && profile.emailApproved && profile.pendingEmail == null -> profile
+                else -> return@withWriteLock null
+            }
+            emailProfiles[id] = approvedProfile
+            current.withEmailProfile(approvedProfile).also { map[id] = it }
         }?.also { _updatedObjectsFlow.emit(it) }
+
+    /** Maps reduced fixture identity to email-owned state. */
+    private fun RegisteredUser.asEmailProfile(): EmailProfile = EmailProfile(
+        userId = id.long,
+        email = email,
+        emailApproved = emailApproved,
+    )
+
+    /** Synchronizes only current email identity from an email-owned fixture profile. */
+    private fun RegisteredUser.withEmailProfile(profile: EmailProfile): RegisteredUser = copy(
+        email = profile.email,
+        emailApproved = profile.emailApproved,
+    )
 }
 
 /**
@@ -389,6 +456,44 @@ class AuthFeatureServiceTest {
         registrationRoleLifecycle = registrationRoleLifecycle,
         userRoleAuthorization = userRoleAuthorization,
     )
+
+    /** Full fixture updates clear explicit null addresses before nullable same-slot no-op checks. */
+    @Test
+    fun fakeFullUpdateClearsLifecycleAndRetainsSameAddressNoOps() = runTest {
+        val unapproved = RegisteredUser(UserId(71L), Username("fake-unapproved"), Email("fake-unapproved@example.com"))
+        val approved = RegisteredUser(UserId(72L), Username("fake-approved"), Email("fake-approved@example.com"), true)
+        val unapprovedProfile = EmailProfile(
+            userId = unapproved.id.long,
+            email = unapproved.email,
+            emailChangeRequestedAt = 10L,
+        )
+        val approvedProfile = EmailProfile(
+            userId = approved.id.long,
+            email = approved.email,
+            emailApproved = true,
+            emailChangeAllowedAt = 20L,
+        )
+        val usersRepo = FakeUsersRepo(
+            initialUsers = mapOf(unapproved.id to unapproved, approved.id to approved),
+            initialEmailProfiles = mapOf(unapproved.id to unapprovedProfile, approved.id to approvedProfile),
+        )
+
+        assertEquals(listOf(unapproved), usersRepo.update(listOf(unapproved.id to NewUser(unapproved.username, unapproved.email))))
+        assertEquals(unapprovedProfile, usersRepo.getEmailProfileFresh(unapproved.id))
+        assertEquals(listOf(approved), usersRepo.update(listOf(approved.id to NewUser(approved.username, approved.email))))
+        assertEquals(approvedProfile, usersRepo.getEmailProfileFresh(approved.id))
+
+        assertEquals(
+            listOf(RegisteredUser(unapproved.id, unapproved.username)),
+            usersRepo.update(listOf(unapproved.id to NewUser(unapproved.username, null))),
+        )
+        assertEquals(EmailProfile(userId = unapproved.id.long), usersRepo.getEmailProfileFresh(unapproved.id))
+        assertEquals(
+            listOf(RegisteredUser(approved.id, approved.username)),
+            usersRepo.update(listOf(approved.id to NewUser(approved.username, null))),
+        )
+        assertEquals(EmailProfile(userId = approved.id.long), usersRepo.getEmailProfileFresh(approved.id))
+    }
 
     /** Auth config exposes both registration flags without server-only types. */
     @Test

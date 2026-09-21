@@ -4,11 +4,11 @@ import dev.inmo.micro_utils.common.MPPFile
 import dev.inmo.wishlist.features.admin.client.AdminFeature
 import dev.inmo.wishlist.features.admin.common.Constants as AdminConstants
 import dev.inmo.wishlist.features.auth.client.AuthCredentialsStorage
-import dev.inmo.wishlist.features.auth.client.ClientAuthFeature
 import dev.inmo.wishlist.features.auth.common.models.AuthFeatureUser
 import dev.inmo.wishlist.features.auth.common.models.Password
 import dev.inmo.wishlist.features.email.client.EmailFeature
 import dev.inmo.wishlist.features.email.common.models.Email
+import dev.inmo.wishlist.features.email.common.models.EmailProfile
 import dev.inmo.wishlist.features.email.common.models.EmailVerificationRequestResult
 import dev.inmo.wishlist.features.files.client.FilesClientService
 import dev.inmo.wishlist.features.files.common.Constants as FilesConstants
@@ -30,9 +30,8 @@ import kotlinx.coroutines.flow.stateIn
  * Default outside-world implementation shared by the users list, profile, and editor screens.
  *
  * @param feature Public users capability.
- * @param authFeature Private current-user authentication capability.
- * @param emailFeature Current-user email management capability.
- * @param meState Reactive private current-user record.
+ * @param emailFeature Current-user email capability, including the owner-profile read.
+ * @param meState Reactive auth record used only for caller identity and authorization state.
  * @param adminFeature Administrative user mutation capability.
  * @param filesService Avatar storage and download service.
  * @param scope Lifetime used for derived state flows.
@@ -41,7 +40,6 @@ import kotlinx.coroutines.flow.stateIn
  */
 class DefaultUsersModel(
     private val feature: UsersFeature,
-    private val authFeature: ClientAuthFeature,
     private val emailFeature: EmailFeature,
     private val meState: StateFlow<AuthFeatureUser?>,
     private val adminFeature: AdminFeature,
@@ -82,13 +80,17 @@ class DefaultUsersModel(
             }
             .stateIn(scope, SharingStarted.Eagerly, false)
 
-    /** @return The authenticated caller's private profile, or `null` when unavailable. */
-    override suspend fun getMyProfile() = authFeature.getMe()
+    /**
+     * Reads the complete owner profile from the email feature without using auth's user model.
+     *
+     * @return Fresh email-owned state for authenticated caller, or `null` for a missing account.
+     */
+    override suspend fun getMyEmailProfile(): EmailProfile? = emailFeature.getMyEmail()
 
     /** @return `true` when SMTP-backed email operations are enabled. */
     override suspend fun isEmailFeatureEnabled(): Boolean = emailFeature.isFeatureEnabled()
 
-    /** @return `true` when [email] is stored for the authenticated caller. */
+    /** @return `true` when [email] is stored for the authenticated caller; may throw a typed cooldown exception. */
     override suspend fun setMyEmail(email: Email?): Boolean = emailFeature.setMyEmail(email)
 
     /** @return Verification-request result for the caller's [expectedEmail]. */

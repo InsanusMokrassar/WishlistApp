@@ -2,9 +2,9 @@ package dev.inmo.wishlist.features.email.server.services
 
 import dev.inmo.kroles.repos.RolesRepo
 import dev.inmo.wishlist.features.email.common.models.Email
+import dev.inmo.wishlist.features.email.common.models.EmailProfile
 import dev.inmo.wishlist.features.roles.server.promoteNewUserToUser
 import dev.inmo.wishlist.features.users.common.models.NewUser
-import dev.inmo.wishlist.features.users.common.models.RegisteredUser
 import dev.inmo.wishlist.features.users.common.models.Username
 import dev.inmo.wishlist.features.users.common.models.UserId
 import dev.inmo.wishlist.features.users.common.repo.UsersRepo
@@ -27,6 +27,7 @@ import kotlinx.coroutines.sync.withLock
 class EmailVerificationAccountCoordinator(
     private val usersRepo: UsersRepo,
     private val rolesRepo: RolesRepo,
+    private val cooldownMillis: Long = 0,
 ) {
     /** Process-local serialization boundary shared by mutation and verification. */
     private val mutex = Mutex()
@@ -41,8 +42,7 @@ class EmailVerificationAccountCoordinator(
      * when [email] belongs to another user; the repository exception propagates unchanged.
      */
     suspend fun updateStoredEmail(userId: UserId, email: Email?): Boolean = mutex.withLock {
-        val user = usersRepo.getById(userId) ?: return@withLock false
-        usersRepo.update(userId, NewUser(user.username, email)) != null
+        usersRepo.setEmail(userId, email) != null
     }
 
     /**
@@ -53,11 +53,10 @@ class EmailVerificationAccountCoordinator(
      *
      * @param userId User to replace.
      * @param user Replacement username/address values.
-     * @return `true` when persisted, `false` on an unexpected failed update, or `null` when absent.
+     * @return `true` when persisted or `null` when no such user exists.
      */
     suspend fun updateUser(userId: UserId, user: NewUser): Boolean? = mutex.withLock {
-        if (usersRepo.getById(userId) == null) return@withLock null
-        usersRepo.update(userId, user) != null
+        usersRepo.update(userId, user)?.let { true }
     }
 
     /**
@@ -65,24 +64,24 @@ class EmailVerificationAccountCoordinator(
      *
      * @param userId User whose username changes.
      * @param username New username.
-     * @return `true` when persisted, `false` on an unexpected failed update, or `null` when absent.
+     * @return `true` when persisted or `null` when no such user exists.
      */
     suspend fun updateUsername(userId: UserId, username: Username): Boolean? = mutex.withLock {
-        val user = usersRepo.getById(userId) ?: return@withLock null
-        usersRepo.update(userId, NewUser(username, user.email)) != null
+        usersRepo.updateUsername(userId, username)?.let { true }
     }
 
     /**
-     * Returns the current private record for [userId] under the shared account mutex.
+     * Returns fresh email-owned state for [userId] under the shared account mutex.
      *
-     * The caller must still compare the returned record after asynchronous delivery because SMTP is
-     * intentionally outside this lock.
+     * This deliberately uses [UsersRepo.getEmailProfileFresh] instead of a user projection so
+     * pending verification state cannot be observed through a cache or a user-owned model. SMTP
+     * remains outside this mutex, so callers that deliver asynchronously must re-read afterward.
      *
-     * @param userId Authenticated account to inspect.
-     * @return The current private user record, or `null` when no account remains.
+     * @param userId Authenticated owner whose state is inspected.
+     * @return Fresh email profile for an existing owner, or `null` when the account no longer exists.
      */
-    suspend fun getCurrentUser(userId: UserId): RegisteredUser? = mutex.withLock {
-        usersRepo.getById(userId)
+    suspend fun getCurrentEmailProfile(userId: UserId): EmailProfile? = mutex.withLock {
+        usersRepo.getEmailProfileFresh(userId)
     }
 
     /**
@@ -100,9 +99,7 @@ class EmailVerificationAccountCoordinator(
     suspend fun verifyInvitedEmailAndPromote(userId: UserId, invitedEmail: Email?): Boolean =
         mutex.withLock {
             val expectedEmail = invitedEmail ?: return@withLock false
-            val user = usersRepo.getById(userId) ?: return@withLock false
-            if (user.email != expectedEmail) return@withLock false
-            if (usersRepo.approveEmail(userId, expectedEmail) == null) return@withLock false
+            if (usersRepo.approveEmail(userId, expectedEmail, cooldownMillis) == null) return@withLock false
             promoteNewUserToUser(rolesRepo, userId)
         }
 }

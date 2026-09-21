@@ -1,6 +1,7 @@
 package dev.inmo.wishlist.features.email.server.services
 
 import dev.inmo.wishlist.features.email.common.models.Email
+import dev.inmo.wishlist.features.email.common.models.EmailProfile
 import dev.inmo.wishlist.features.email.common.models.EmailVerificationRequestResult
 import dev.inmo.wishlist.features.email.server.EmailFeature
 import dev.inmo.wishlist.features.users.common.models.UserId
@@ -33,6 +34,15 @@ class DisabledEmailFeature(
     override suspend fun isFeatureEnabled(): Boolean = false
 
     /**
+     * Reads the caller's email state even though SMTP delivery is disabled.
+     *
+     * @param callerId Authenticated owner whose state is read.
+     * @return Fresh email profile, or `null` when the owner no longer exists.
+     */
+    override suspend fun getMyEmail(callerId: UserId): EmailProfile? =
+        accountCoordinator.getCurrentEmailProfile(callerId)
+
+    /**
      * Always returns `false` — there is no SMTP transport to send a test message through.
      *
      * @param callerId Ignored.
@@ -53,6 +63,8 @@ class DisabledEmailFeature(
      * @throws dev.inmo.wishlist.features.users.common.repo.exceptions.DuplicateUserFieldException
      *   when [email] is already stored for a different user; propagates unchanged from
      *   [EmailVerificationAccountCoordinator.updateStoredEmail] — this method does not catch it.
+     * @throws dev.inmo.wishlist.features.users.common.repo.exceptions.EmailChangeCooldownException
+     *   when a replacement or clear is attempted before the persisted deadline.
      */
     override suspend fun setMyEmail(callerId: UserId, email: Email?): Boolean =
         accountCoordinator.updateStoredEmail(callerId, email)

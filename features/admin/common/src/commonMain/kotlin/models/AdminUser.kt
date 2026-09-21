@@ -19,18 +19,21 @@ import kotlinx.serialization.Serializable
  * @property username Unique login name of the user.
  * @property email Stored email of the user, or `null` when unset. Kept intentionally — see class KDoc.
  * @property emailApproved Whether the current stored email has been approved. This private root-only
- *   field mirrors storage so administrative mapping never silently discards approval evidence.
+ *   field mirrors current identity state. Pending verification lifecycle state is owned by
+ *   [dev.inmo.wishlist.features.email.common.models.EmailProfile] and is never returned by admin APIs.
  */
 @Serializable
 data class AdminUser(
     val id: UserId,
     val username: Username,
     val email: Email?,
-    val emailApproved: Boolean = false
+    val emailApproved: Boolean = false,
 )
 
 /**
- * Projects this [RegisteredUser] onto [AdminUser], carrying every field through unchanged.
+ * Projects this [RegisteredUser] onto [AdminUser], retaining identity, current email, and approval.
+ * Email-owned pending/request/deadline state is never accepted by this mapper or returned through
+ * admin APIs.
  *
  * @return An [AdminUser] mirroring this user's [RegisteredUser.id], [RegisteredUser.username] and
  *   [RegisteredUser.email].
@@ -39,13 +42,13 @@ fun RegisteredUser.asAdminUser(): AdminUser = AdminUser(
     id = id,
     username = username,
     email = email,
-    emailApproved = emailApproved
+    emailApproved = emailApproved,
 )
 
 /**
- * Projects this [AdminUser] back onto the persistence-layer [RegisteredUser], carrying every field
- * through unchanged (including [AdminUser.email] — this feature model mirrors the base verbatim, so
- * no extra arguments are required).
+ * Projects this [AdminUser] back onto the reduced persistence-layer [RegisteredUser], retaining
+ * identity, current email, and approval only. Email-owned pending/request/deadline state is not
+ * accepted as an argument and is never reconstructed through admin models.
  *
  * @return A [RegisteredUser] mirroring this model's [AdminUser.id], [AdminUser.username] and
  *   [AdminUser.email].
@@ -54,5 +57,5 @@ fun AdminUser.asRegisteredUser(): RegisteredUser = RegisteredUser(
     id = id,
     username = username,
     email = email,
-    emailApproved = emailApproved
+    emailApproved = emailApproved,
 )

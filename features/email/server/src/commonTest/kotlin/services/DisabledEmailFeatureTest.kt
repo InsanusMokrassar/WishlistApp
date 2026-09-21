@@ -1,6 +1,7 @@
 package dev.inmo.wishlist.features.email.server.services
 
 import dev.inmo.wishlist.features.email.common.models.Email
+import dev.inmo.wishlist.features.email.common.models.EmailProfile
 import dev.inmo.wishlist.features.users.common.models.RegisteredUser
 import dev.inmo.wishlist.features.users.common.models.UserId
 import dev.inmo.wishlist.features.users.common.models.Username
@@ -40,6 +41,28 @@ class DisabledEmailFeatureTest {
     fun isFeatureEnabledReturnsFalse() = runTest {
         val feature = createFeature()
         assertFalse(feature.isFeatureEnabled())
+    }
+
+    /** SMTP-disabled wiring still exposes the independently stored fresh profile without delivery. */
+    @Test
+    fun getMyEmailReturnsFreshEmailOwnedProfileOrNull() = runTest {
+        val profile = EmailProfile(
+            userId = plainUser.id.long,
+            email = Email("approved@example.com"),
+            emailApproved = true,
+            pendingEmail = Email("pending@example.com"),
+            emailChangeRequestedAt = 100L,
+            emailChangeAllowedAt = 200L,
+        )
+        val repo = FakeUsersRepo(
+            initialUsers = mapOf(plainUser.id to plainUser),
+            initialEmailProfiles = mapOf(plainUser.id to profile),
+        )
+        val feature = createFeature(repo)
+
+        assertEquals(profile, feature.getMyEmail(plainUser.id))
+        assertNull(feature.getMyEmail(UserId(999L)))
+        assertEquals(listOf(plainUser.id, UserId(999L)), repo.emailProfileReadCalls)
     }
 
     /** `false` even for a caller who genuinely is root — there is no SMTP transport to use. */

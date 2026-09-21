@@ -36,6 +36,7 @@ class UsersManagementFeature(
     private val wishlistItemRepo: WishlistItemRepo,
     private val accountCoordinator: EmailVerificationAccountCoordinator,
 ) {
+    /** Returns all root-visible users as reduced [AdminUser] feature models without email lifecycle state. */
     suspend fun getAll(): List<AdminUser> =
         usersRepo.getAll().values.map { it.asAdminUser() }
 
@@ -55,7 +56,9 @@ class UsersManagementFeature(
     }
 
     /**
-     * Replaces the stored username/email of user [id].
+     * Replaces the stored username/email of user [id] through the shared email-owned lifecycle
+     * coordinator. The return value is a success flag, not a user model, so pending email state is
+     * never returned by this capability.
      *
      * @param id User to update.
      * @param newUser Replacement username/email pair.

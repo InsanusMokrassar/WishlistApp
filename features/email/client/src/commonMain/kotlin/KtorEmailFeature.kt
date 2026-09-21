@@ -3,12 +3,16 @@ package dev.inmo.wishlist.features.email.client
 import dev.inmo.wishlist.features.email.common.EmailConstants
 import dev.inmo.wishlist.features.email.client.EmailFeature
 import dev.inmo.wishlist.features.email.common.models.Email
+import dev.inmo.wishlist.features.email.common.models.EmailProfile
 import dev.inmo.wishlist.features.email.common.models.SetEmailRequest
 import dev.inmo.wishlist.features.email.common.models.TestEmailRequest
 import dev.inmo.wishlist.features.email.common.models.EmailVerificationRequest
 import dev.inmo.wishlist.features.email.common.models.EmailVerificationRequestResult
+import dev.inmo.wishlist.features.email.common.models.EmailChangeCooldown
+import dev.inmo.wishlist.features.email.common.models.EmailChangeCooldownException
 import io.ktor.client.HttpClient
 import io.ktor.client.call.body
+import io.ktor.client.plugins.ClientRequestException
 import io.ktor.client.plugins.expectSuccess
 import io.ktor.client.request.get
 import io.ktor.client.request.post
@@ -17,6 +21,7 @@ import io.ktor.client.request.setBody
 import io.ktor.http.ContentType
 import io.ktor.http.contentType
 import io.ktor.http.isSuccess
+import io.ktor.http.HttpStatusCode
 
 /**
  * HTTP-only [dev.inmo.wishlist.features.email.client.EmailFeature] implementation that forwards
@@ -58,6 +63,27 @@ class KtorEmailFeature(private val client: HttpClient) : EmailFeature {
     }
 
     /**
+     * Fetches the authenticated owner's email profile from `GET /email/myEmail`.
+     *
+     * Only an explicit `404 Not Found` becomes `null`. Every other failed status is enforced by
+     * Ktor's per-request `expectSuccess`, and a malformed successful body remains a decoding
+     * failure rather than being mistaken for an absent profile.
+     *
+     * @return Fresh email profile, or `null` only when the account is missing.
+     */
+    override suspend fun getMyEmail(): EmailProfile? = try {
+        client.get(myEmailPath) {
+            expectSuccess = true
+        }.body<EmailProfile>()
+    } catch (error: ClientRequestException) {
+        if (error.response.status == HttpStatusCode.NotFound) {
+            null
+        } else {
+            throw error
+        }
+    }
+
+    /**
      * Requests a test email delivery to [recipient] from the server.
      *
      * @param recipient Target address for the test message.
@@ -74,13 +100,21 @@ class KtorEmailFeature(private val client: HttpClient) : EmailFeature {
     /**
      * Stores or clears the authenticated caller's own email address on the server.
      *
+     * The HTTP implementation only translates the request and status: a well-formed authenticated
+     * `429` becomes [EmailChangeCooldownException] with the server deadline; malformed or unrelated
+     * failures remain ordinary transport/protocol failures.
      * @param email New address to persist, or `null` to clear.
      * @return `true` when the update was accepted; `false` on failure.
+     * @throws EmailChangeCooldownException when the server returns a valid cooldown body.
      */
     override suspend fun setMyEmail(email: Email?): Boolean {
         val response = client.put(myEmailPath) {
+            expectSuccess = false
             contentType(ContentType.Application.Json)
             setBody(SetEmailRequest(email))
+        }
+        if (response.status == HttpStatusCode.TooManyRequests) {
+            throw EmailChangeCooldownException(response.body<EmailChangeCooldown>())
         }
         return response.status.isSuccess()
     }

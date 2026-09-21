@@ -2,7 +2,9 @@ package dev.inmo.wishlist.features.email.server.services
 
 import dev.inmo.wishlist.features.email.common.EmailConstants
 import dev.inmo.wishlist.features.email.common.models.Email
+import dev.inmo.wishlist.features.email.common.models.EmailProfile
 import dev.inmo.wishlist.features.email.common.models.EmailVerificationRequestResult
+import dev.inmo.wishlist.features.email.common.utils.verificationCandidate
 import dev.inmo.wishlist.features.email.server.EmailFeature
 import dev.inmo.wishlist.features.email.server.EmailsService
 import dev.inmo.wishlist.features.auth.server.RegistrationEmailDeliveryHandle
@@ -48,6 +50,15 @@ class EmailFeatureService(
     override suspend fun isFeatureEnabled(): Boolean = true
 
     /**
+     * Reads the caller's email-owned state through the shared coordinator.
+     *
+     * @param callerId Authenticated owner whose state is read.
+     * @return Fresh email profile, or `null` when the owner no longer exists.
+     */
+    override suspend fun getMyEmail(callerId: UserId): EmailProfile? =
+        accountCoordinator.getCurrentEmailProfile(callerId)
+
+    /**
      * Sends a test email to [recipient] if [callerId] may access the `email.sendTest` functionality.
      *
      * @param callerId Caller checked against [rolesFeature].
@@ -76,12 +87,17 @@ class EmailFeatureService(
      * @throws dev.inmo.wishlist.features.users.common.repo.exceptions.DuplicateUserFieldException
      *   when [email] is already stored for a different user; propagates unchanged from
      *   [EmailVerificationAccountCoordinator.updateStoredEmail] — this method does not catch it.
+     * @throws dev.inmo.wishlist.features.users.common.repo.exceptions.EmailChangeCooldownException
+     *   when a replacement or clear is attempted before the persisted deadline.
      */
     override suspend fun setMyEmail(callerId: UserId, email: Email?): Boolean =
         accountCoordinator.updateStoredEmail(callerId, email)
 
     /**
-     * Delivers a verification link only for the caller's exact, pending current address.
+     * Delivers a verification link only for the caller's exact verification candidate: pending
+     * replacement first, otherwise an unapproved current address. An approved current address is
+     * reported as [EmailVerificationRequestResult.AlreadyApproved] only when it equals the expected
+     * address.
      *
      * SMTP and deeplink work intentionally occur outside the coordinator mutex. The record is checked
      * again afterward; if a concurrent write made the delivered link stale, only the request-local
@@ -95,28 +111,46 @@ class EmailFeatureService(
         callerId: UserId,
         expectedEmail: Email,
     ): EmailVerificationRequestResult {
-        val initial = accountCoordinator.getCurrentUser(callerId)
+        val initial = accountCoordinator.getCurrentEmailProfile(callerId)
             ?: return EmailVerificationRequestResult.NoEmail
-        val currentEmail = initial.email ?: return EmailVerificationRequestResult.NoEmail
+        val currentEmail = initial.verificationCandidate()
+        if (currentEmail == null) {
+            return when {
+                initial.emailApproved && initial.pendingEmail == null && initial.email == expectedEmail -> {
+                    EmailVerificationRequestResult.AlreadyApproved
+                }
+                initial.emailApproved && initial.pendingEmail == null && initial.email != null -> {
+                    EmailVerificationRequestResult.EmailChanged
+                }
+                else -> EmailVerificationRequestResult.NoEmail
+            }
+        }
         if (currentEmail != expectedEmail) return EmailVerificationRequestResult.EmailChanged
-        if (initial.emailApproved) return EmailVerificationRequestResult.AlreadyApproved
 
         val sender = inviteSender ?: return EmailVerificationRequestResult.Unavailable
-        val delivery = sender.sendRegistrationEmailWithCompensation(initial)
+        val delivery = sender.sendVerificationEmailWithCompensation(callerId, currentEmail)
             ?: return EmailVerificationRequestResult.DeliveryFailed
-        val current = accountCoordinator.getCurrentUser(callerId)
+        val current = accountCoordinator.getCurrentEmailProfile(callerId)
         return when {
-            current == null || current.email == null -> {
+            current == null -> {
                 rollbackDelivery(delivery)
                 EmailVerificationRequestResult.NoEmail
             }
-            current.email != expectedEmail -> {
+            current.verificationCandidate() == null -> {
+                rollbackDelivery(delivery)
+                when {
+                    current.emailApproved && current.pendingEmail == null && current.email == expectedEmail -> {
+                        EmailVerificationRequestResult.AlreadyApproved
+                    }
+                    current.emailApproved && current.pendingEmail == null && current.email != null -> {
+                        EmailVerificationRequestResult.EmailChanged
+                    }
+                    else -> EmailVerificationRequestResult.NoEmail
+                }
+            }
+            current.verificationCandidate() != expectedEmail -> {
                 rollbackDelivery(delivery)
                 EmailVerificationRequestResult.EmailChanged
-            }
-            current.emailApproved -> {
-                rollbackDelivery(delivery)
-                EmailVerificationRequestResult.AlreadyApproved
             }
             else -> EmailVerificationRequestResult.Sent
         }
