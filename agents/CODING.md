@@ -31,7 +31,7 @@ Update the feature `README.md`:
 - Changed ownership/auth semantics
 - New dependencies between modules
 
-Apply any README delta the Architecture step specified in its step report.
+Apply any README delta the completed Preparation report specified.
 
 ---
 
