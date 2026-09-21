@@ -1,4 +1,12 @@
-Use `agents/SHORTCUTS.md` for instructions.
+## Execution classes
+
+Root must label each invocation as root, an ordinary stage role or a council participant before loading role instructions. The routing paragraphs below are root-only: root supplies each worker only its own instruction bundle, permitted repository evidence and completed input artifacts, not this routing catalog or its private conversation.
+
+- **Root**: use `agents/SHORTCUTS.md` to select the instruction bundle. Only root reads the workflow order and transition rules in `agents/ORCHESTRATOR.md`.
+- **Ordinary stage roles**: receive `agents/ALL.md`, applicable shared instructions and only their assigned role instructions. Root supplies the communication policy below without the routing catalog. Do not read other role instructions or root workflow files.
+- **Council participants**: follow `agents/council/COMMON.md`, `agents/council/PROTOCOL.md`, `agents/council/MODELS.md`, their assigned role file, and the frozen task packet. They may inspect repository evidence and permitted completed task history, but not other participants' current-wave outputs or ordinary role/root workflow instructions, including copies in searches/history. Do not supply the remaining sections of this file as participant instructions.
+
+Preparation is the coordinator defined in `agents/PREPARATION.md`. Root grants it the explicit exception to launch all council roles as fresh parallel subagents and persist allocated council evidence with its final report after all workers stop. Root alone manages stage order, transitions and handoffs. Workers receive no future-stage identities, consumers or requirements; they must not discover those through repository searches or history. Root filters instruction files and historical reports accordingly, providing relevant completed evidence excerpts where necessary without altering the original records.
 
 ## Communication Protocol Precedence
 
