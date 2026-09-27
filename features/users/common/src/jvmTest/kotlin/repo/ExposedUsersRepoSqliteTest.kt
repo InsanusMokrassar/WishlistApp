@@ -39,6 +39,69 @@ import kotlin.test.assertTrue
 /** Verifies approval migration and duplicate-field translation through the real Exposed/Xerial SQLite stack. */
 @OptIn(kotlinx.coroutines.ExperimentalCoroutinesApi::class)
 class ExposedUsersRepoSqliteTest {
+    /** SQLite rejects corrupt lifecycle storage while leaving complete rows and failed-operation events untouched. */
+    @Test
+    fun storedCorruptionMatrixPreservesRawRows() = runTest {
+        withFileBackedSqliteUsersRepos { url, repo, _ ->
+            val events = mutableListOf<RegisteredUser>()
+            val collector = backgroundScope.launch(start = CoroutineStart.UNDISPATCHED) {
+                repo.updatedObjectsFlow.collect(events::add)
+            }
+            try {
+                verifyStoredCorruptionMatrix(url, repo, events) { advanceUntilIdle() }
+            } finally {
+                collector.cancel()
+            }
+        }
+    }
+
+    /** The actual default repository clock records bounded whole-millisecond request and approval instants. */
+    @Test
+    fun defaultClockPersistsCurrentWholeMilliseconds() = runTest {
+        withFileBackedSqliteUsersRepos { url, fixture, _ ->
+            val repo = ExposedUsersRepo(fixture.database)
+            val beforeCreate = System.currentTimeMillis() - 1_000L
+            val email = Email("default-clock@example.com")
+            val user = repo.create(NewUser(Username("default-clock"), email)).single()
+            val afterCreate = System.currentTimeMillis() + 1_000L
+            val requested = checkNotNull(rawUsersSnapshot(url).single { it.id == user.id.long }.requestedAt)
+            assertTrue(requested in beforeCreate..afterCreate)
+            assertTrue(requested in -4_503_599_627_370_496L..4_503_599_627_370_496L)
+            val beforeApproval = System.currentTimeMillis() - 1_000L
+            checkNotNull(repo.approveEmail(user.id, email, cooldownMillis = 10L))
+            val afterApproval = System.currentTimeMillis() + 1_010L
+            val allowed = checkNotNull(rawUsersSnapshot(url).single { it.id == user.id.long }.allowedAt)
+            assertTrue(allowed in beforeApproval..afterApproval)
+            assertNull(rawUsersSnapshot(url).single { it.id == user.id.long }.requestedAt)
+        }
+    }
+
+    /** The SQLite adapter rejects every invalid changing sample before mutation or publication. */
+    @Test
+    fun invalidClockMatrixPreservesRawRows() = runTest {
+        val clock = EmailTestClock()
+        withFileBackedSqliteUsersRepos(firstNow = clock::sample) { url, repo, _ ->
+            val events = mutableListOf<RegisteredUser>()
+            val collector = backgroundScope.launch(start = CoroutineStart.UNDISPATCHED) {
+                repo.updatedObjectsFlow.collect(events::add)
+            }
+            try {
+                verifyInvalidEmailClockMatrix(url, repo, clock, events) { advanceUntilIdle() }
+                verifyApplicationTimestampEndpoints(url, repo, clock, events) { advanceUntilIdle() }
+            } finally {
+                collector.cancel()
+            }
+        }
+    }
+
+    /** The documented SQLite release predicate counts only unsupported raw values. */
+    @Test
+    fun emailTimestampScanPredicateCountsDistinctAffectedRows() = runTest {
+        withFileBackedSqliteUsersRepos { url, repo, _ ->
+            verifyEmailTimestampScanPredicate(url, repo)
+        }
+    }
+
     /** A duplicate username maps to the repository's existing duplicate-field contract. */
     @Test
     fun createDuplicateUsernameMapsToDuplicateUserFieldException() = runTest {
@@ -169,14 +232,14 @@ class ExposedUsersRepoSqliteTest {
     /** A one-row fresh projection retains complete email lifecycle state outside the cache. */
     @Test
     fun freshEmailProfileReturnsCompleteSingleRow() = runTest {
-        var now = 1_000L
-        withInMemorySqliteUsersRepo(nowMillis = { now }) { repo ->
+        var now = DateTime.fromUnixMillis(1_000L)
+        withInMemorySqliteUsersRepo(now = { now }) { repo ->
             val current = Email("profile-current@example.com")
             val pending = Email("profile-pending@example.com")
             val created = repo.create(NewUser(Username("profile"), current)).single()
-            now = 1_200L
+            now = DateTime.fromUnixMillis(1_200L)
             checkNotNull(repo.approveEmail(created.id, current, cooldownMillis = 300L))
-            now = 1_500L
+            now = DateTime.fromUnixMillis(1_500L)
             checkNotNull(repo.setEmail(created.id, pending))
 
             assertEquals(
@@ -199,31 +262,31 @@ class ExposedUsersRepoSqliteTest {
     /** Request time changes only for accepted candidate writes and clears with approval or explicit clear. */
     @Test
     fun requestedTimeTracksCandidateLifecycleWithoutBackfill() = runTest {
-        var now = 1_000L
-        withInMemorySqliteUsersRepo(nowMillis = { now }) { repo ->
+        var now = DateTime.fromUnixMillis(1_000L)
+        withInMemorySqliteUsersRepo(now = { now }) { repo ->
             val first = Email("requested-first@example.com")
             val replacement = Email("requested-replacement@example.com")
             val secondReplacement = Email("requested-second@example.com")
             val created = repo.create(NewUser(Username("requested"), first)).single()
-            assertEquals(1_000L, repo.getEmailProfileFresh(created.id)?.emailChangeRequestedAt)
+            assertEquals(DateTime.fromUnixMillis(1_000L), repo.getEmailProfileFresh(created.id)?.emailChangeRequestedAt)
 
-            now = 1_100L
+            now = DateTime.fromUnixMillis(1_100L)
             checkNotNull(repo.updateUsername(created.id, Username("requested-renamed")))
             checkNotNull(repo.setEmail(created.id, first))
-            assertEquals(1_000L, repo.getEmailProfileFresh(created.id)?.emailChangeRequestedAt)
+            assertEquals(DateTime.fromUnixMillis(1_000L), repo.getEmailProfileFresh(created.id)?.emailChangeRequestedAt)
 
-            now = 1_200L
+            now = DateTime.fromUnixMillis(1_200L)
             checkNotNull(repo.approveEmail(created.id, first, cooldownMillis = 0L))
             assertNull(repo.getEmailProfileFresh(created.id)?.emailChangeRequestedAt)
 
-            now = 1_300L
+            now = DateTime.fromUnixMillis(1_300L)
             checkNotNull(repo.setEmail(created.id, replacement))
-            assertEquals(1_300L, repo.getEmailProfileFresh(created.id)?.emailChangeRequestedAt)
-            now = 1_400L
+            assertEquals(DateTime.fromUnixMillis(1_300L), repo.getEmailProfileFresh(created.id)?.emailChangeRequestedAt)
+            now = DateTime.fromUnixMillis(1_400L)
             checkNotNull(repo.setEmail(created.id, replacement))
-            assertEquals(1_300L, repo.getEmailProfileFresh(created.id)?.emailChangeRequestedAt)
+            assertEquals(DateTime.fromUnixMillis(1_300L), repo.getEmailProfileFresh(created.id)?.emailChangeRequestedAt)
             checkNotNull(repo.setEmail(created.id, secondReplacement))
-            assertEquals(1_400L, repo.getEmailProfileFresh(created.id)?.emailChangeRequestedAt)
+            assertEquals(DateTime.fromUnixMillis(1_400L), repo.getEmailProfileFresh(created.id)?.emailChangeRequestedAt)
 
             checkNotNull(repo.setEmail(created.id, null))
             assertEquals(EmailProfile(userId = created.id.long), repo.getEmailProfileFresh(created.id))
@@ -323,13 +386,13 @@ class ExposedUsersRepoSqliteTest {
         val url = "jdbc:sqlite:${databaseFile.toAbsolutePath()}"
         val email = Email("durable@example.com")
         try {
-            var now = 1_000L
+            var now = DateTime.fromUnixMillis(1_000L)
             val firstDatabase = Database.connect(url = url, driver = "org.sqlite.JDBC")
             val userId = try {
-                val repo = ExposedUsersRepo(firstDatabase, now = { DateTime.fromUnixMillis(now) })
+                val repo = ExposedUsersRepo(firstDatabase, now = { now })
                 val created = repo.create(NewUser(Username("durable"), email)).single()
                 val approved = checkNotNull(repo.approveEmail(created.id, email, cooldownMillis = 500))
-                now = checkNotNull(repo.getEmailProfileFresh(approved.id)?.emailChangeAllowedAt).unixMillis.toLong()
+                now = checkNotNull(repo.getEmailProfileFresh(approved.id)?.emailChangeAllowedAt)
                 val pending = checkNotNull(repo.setEmail(created.id, Email("durable-pending@example.com")))
                 assertEquals(Email("durable-pending@example.com"), repo.getEmailProfileFresh(pending.id)?.pendingEmail)
                 created.id
@@ -344,8 +407,8 @@ class ExposedUsersRepoSqliteTest {
                 assertEquals(email, reopened.email)
                 assertTrue(reopened.emailApproved)
                 assertEquals(Email("durable-pending@example.com"), profile.pendingEmail)
-                assertEquals(1_500L, profile.emailChangeAllowedAt)
-                assertEquals(1_500L, profile.emailChangeRequestedAt)
+                assertEquals(DateTime.fromUnixMillis(1_500L), profile.emailChangeAllowedAt)
+                assertEquals(DateTime.fromUnixMillis(1_500L), profile.emailChangeRequestedAt)
             } finally {
                 TransactionManager.closeAndUnregister(reopenedDatabase)
             }
@@ -396,12 +459,12 @@ class ExposedUsersRepoSqliteTest {
     /** A later cross-slot conflict rolls back earlier batch mutations and emits no speculative update event. */
     @Test
     fun failedBulkUpdateRollsBackEarlierMutationAndEvents() = runTest {
-        var now = 1_000L
-        withInMemorySqliteUsersRepo(nowMillis = { now }) { repo ->
+        var now = DateTime.fromUnixMillis(1_000L)
+        withInMemorySqliteUsersRepo(now = { now }) { repo ->
             val occupied = repo.create(NewUser(Username("occupied"), Email("occupied@example.com"))).single()
             val first = repo.create(NewUser(Username("first"), Email("first@example.com"))).single()
             val second = repo.create(NewUser(Username("second"), Email("second@example.com"))).single()
-            now = 2_000L
+            now = DateTime.fromUnixMillis(2_000L)
             val events = mutableListOf<RegisteredUser>()
             val collector = backgroundScope.launch(start = CoroutineStart.UNDISPATCHED) {
                 repo.updatedObjectsFlow.collect(events::add)
@@ -418,8 +481,8 @@ class ExposedUsersRepoSqliteTest {
                 advanceUntilIdle()
                 assertEquals(first, repo.getById(first.id))
                 assertEquals(second, repo.getById(second.id))
-                assertEquals(1_000L, repo.getEmailProfileFresh(first.id)?.emailChangeRequestedAt)
-                assertEquals(1_000L, repo.getEmailProfileFresh(second.id)?.emailChangeRequestedAt)
+                assertEquals(DateTime.fromUnixMillis(1_000L), repo.getEmailProfileFresh(first.id)?.emailChangeRequestedAt)
+                assertEquals(DateTime.fromUnixMillis(1_000L), repo.getEmailProfileFresh(second.id)?.emailChangeRequestedAt)
                 assertEquals(emptyList(), events)
             } finally {
                 collector.cancel()
@@ -430,29 +493,29 @@ class ExposedUsersRepoSqliteTest {
     /** A locked injected clock rejects before duplicate disclosure and approval replay preserves the issued deadline. */
     @Test
     fun cooldownIsExactAndApprovalReplaySafe() = runTest {
-        var now = 1_000L
-        withInMemorySqliteUsersRepo(nowMillis = { now }) { repo ->
+        var now = DateTime.fromUnixMillis(1_000L)
+        withInMemorySqliteUsersRepo(now = { now }) { repo ->
             val initial = Email("cooldown-initial@example.com")
             val replacement = Email("cooldown-replacement@example.com")
             val occupied = Email("cooldown-occupied@example.com")
             val user = repo.create(NewUser(Username("cooldown"), initial)).single()
             repo.create(NewUser(Username("occupied"), occupied))
             val approved = checkNotNull(repo.approveEmail(user.id, initial, cooldownMillis = 500))
-            assertEquals(1_500L, repo.getEmailProfileFresh(approved.id)?.emailChangeAllowedAt)
+            assertEquals(DateTime.fromUnixMillis(1_500L), repo.getEmailProfileFresh(approved.id)?.emailChangeAllowedAt)
 
             val blocked = assertFailsWith<EmailChangeCooldownException> {
                 repo.setEmail(user.id, occupied)
             }
-            assertEquals(1_500L, blocked.emailChangeAllowedAt)
+            assertEquals(DateTime.fromUnixMillis(1_500L), blocked.emailChangeAllowedAt)
             assertEquals(approved, repo.getById(user.id))
 
-            now = 1_500L
+            now = DateTime.fromUnixMillis(1_500L)
             val pending = checkNotNull(repo.setEmail(user.id, replacement))
             assertEquals(replacement, repo.getEmailProfileFresh(pending.id)?.pendingEmail)
             val promoted = checkNotNull(repo.approveEmail(user.id, replacement, cooldownMillis = 500))
-            assertEquals(2_000L, repo.getEmailProfileFresh(promoted.id)?.emailChangeAllowedAt)
+            assertEquals(DateTime.fromUnixMillis(2_000L), repo.getEmailProfileFresh(promoted.id)?.emailChangeAllowedAt)
 
-            now = 9_000L
+            now = DateTime.fromUnixMillis(9_000L)
             assertEquals(promoted, repo.approveEmail(user.id, replacement, cooldownMillis = 999))
         }
     }
@@ -584,7 +647,7 @@ class ExposedUsersRepoSqliteTest {
                 val repo = ExposedUsersRepo(firstDatabase, now = { DateTime.fromUnixMillis(1_000L) })
                 assertEquals(approvedCurrent, repo.getEmailProfileFresh(approvedId)?.email)
                 assertEquals(approvedPending, repo.getEmailProfileFresh(approvedId)?.pendingEmail)
-                assertEquals(900L, repo.getEmailProfileFresh(approvedId)?.emailChangeAllowedAt)
+                assertEquals(DateTime.fromUnixMillis(900L), repo.getEmailProfileFresh(approvedId)?.emailChangeAllowedAt)
                 assertNull(repo.getEmailProfileFresh(approvedId)?.emailChangeRequestedAt)
                 assertEquals(firstCurrent, repo.getEmailProfileFresh(firstId)?.email)
                 assertNull(repo.getEmailProfileFresh(firstId)?.emailChangeRequestedAt)
@@ -627,7 +690,7 @@ class ExposedUsersRepoSqliteTest {
                 val reopenedTwice = ExposedUsersRepo(reopenedTwiceDatabase, now = { DateTime.fromUnixMillis(1_000L) })
                 val replaced = checkNotNull(reopenedTwice.setEmail(firstId, firstReplacement))
                 assertEquals(firstReplacement, replaced.email)
-                assertEquals(1_000L, reopenedTwice.getEmailProfileFresh(firstId)?.emailChangeRequestedAt)
+                assertEquals(DateTime.fromUnixMillis(1_000L), reopenedTwice.getEmailProfileFresh(firstId)?.emailChangeRequestedAt)
                 assertRawLifecycle(firstReplacement, 1_000L)
             } finally {
                 TransactionManager.closeAndUnregister(reopenedTwiceDatabase)
@@ -787,17 +850,17 @@ class ExposedUsersRepoSqliteTest {
     /** A candidate created after a native lock wait receives the post-acquisition clock value. */
     @Test
     fun blockedCandidateCreateUsesClockAfterObservedLockWait() = runBlocking {
-        var now = 1_000L
+        var now = DateTime.fromUnixMillis(1_000L)
         val holderLocked = CountDownLatch(1)
         val releaseHolder = CountDownLatch(1)
         val busy = SqliteBusyObservation()
         withFileBackedSqliteUsersRepos(
-            firstNowMillis = { now },
+            firstNow = { now },
             firstAfterWriteLock = {
                 holderLocked.countDown()
                 check(releaseHolder.await(15, TimeUnit.SECONDS)) { "SQLite candidate holder was not released" }
             },
-            secondNowMillis = { now },
+            secondNow = { now },
             secondBusyObservation = busy,
         ) { _, first, second ->
             val holderWorker = BoundedTestWorker("SQLite candidate holder") {
@@ -815,37 +878,37 @@ class ExposedUsersRepoSqliteTest {
                 contenderWorker.start()
                 assertTrue(busy.awaitBusyEntry())
                 busy.assertHealthy()
-                now = 2_000L
+                now = DateTime.fromUnixMillis(2_000L)
             }
             busy.assertHealthy()
             val contender = contenderWorker.result().getOrThrow()
-            assertEquals(2_000L, first.getEmailProfileFresh(contender.id)?.emailChangeRequestedAt)
+            assertEquals(DateTime.fromUnixMillis(2_000L), first.getEmailProfileFresh(contender.id)?.emailChangeRequestedAt)
         }
     }
 
     /** A mutation begun before expiry samples the injected clock only after the observed lock wait ends. */
     @Test
     fun blockedMutationUsesClockAfterLockAtExactExpiry() = runBlocking {
-        var now = 500L
+        var now = DateTime.fromUnixMillis(500L)
         val holderLocked = CountDownLatch(1)
         val releaseHolder = CountDownLatch(1)
         val blockHolder = AtomicBoolean(false)
         val busy = SqliteBusyObservation()
         withFileBackedSqliteUsersRepos(
-            firstNowMillis = { now },
+            firstNow = { now },
             firstAfterWriteLock = {
                 if (blockHolder.get()) {
                     holderLocked.countDown()
                     check(releaseHolder.await(15, TimeUnit.SECONDS)) { "SQLite expiry holder was not released" }
                 }
             },
-            secondNowMillis = { now },
+            secondNow = { now },
             secondBusyObservation = busy,
         ) { url, first, second ->
             val address = Email("blocked-expiry@example.com")
             val owner = first.create(NewUser(Username("blocked-expiry"), address)).single()
             checkNotNull(first.approveEmail(owner.id, address, cooldownMillis = 500L))
-            now = 999L
+            now = DateTime.fromUnixMillis(999L)
             blockHolder.set(true)
             val holderWorker = BoundedTestWorker("SQLite expiry holder") {
                 first.create(NewUser(Username("blocked-expiry-holder"), Email("blocked-expiry-holder@example.com")))
@@ -862,7 +925,7 @@ class ExposedUsersRepoSqliteTest {
                 contenderWorker.start()
                 assertTrue(busy.awaitBusyEntry())
                 busy.assertHealthy()
-                now = 1_000L
+                now = DateTime.fromUnixMillis(1_000L)
             }
             busy.assertHealthy()
             holderWorker.result().getOrThrow()
@@ -874,20 +937,20 @@ class ExposedUsersRepoSqliteTest {
     /** Approval calculates its persisted deadline from the post-lock clock, not the call-start clock. */
     @Test
     fun blockedApprovalIssuesDeadlineFromPostLockClock() = runBlocking {
-        var now = 1_000L
+        var now = DateTime.fromUnixMillis(1_000L)
         val holderLocked = CountDownLatch(1)
         val releaseHolder = CountDownLatch(1)
         val blockHolder = AtomicBoolean(false)
         val busy = SqliteBusyObservation()
         withFileBackedSqliteUsersRepos(
-            firstNowMillis = { now },
+            firstNow = { now },
             firstAfterWriteLock = {
                 if (blockHolder.get()) {
                     holderLocked.countDown()
                     check(releaseHolder.await(15, TimeUnit.SECONDS)) { "SQLite approval holder was not released" }
                 }
             },
-            secondNowMillis = { now },
+            secondNow = { now },
             secondBusyObservation = busy,
         ) { _, first, second ->
             val address = Email("blocked-approval@example.com")
@@ -907,12 +970,12 @@ class ExposedUsersRepoSqliteTest {
                 assertTrue(holderLocked.await(10, TimeUnit.SECONDS))
                 contenderWorker.start()
                 assertTrue(busy.awaitBusyEntry())
-                now = 2_000L
+                now = DateTime.fromUnixMillis(2_000L)
             }
             busy.assertHealthy()
             holderWorker.result().getOrThrow()
             checkNotNull(contenderWorker.result().getOrThrow())
-            assertEquals(2_500L, second.getEmailProfileFresh(owner.id)?.emailChangeAllowedAt)
+            assertEquals(DateTime.fromUnixMillis(2_500L), second.getEmailProfileFresh(owner.id)?.emailChangeAllowedAt)
         }
     }
 
@@ -968,20 +1031,20 @@ class ExposedUsersRepoSqliteTest {
     /** A positive-cooldown approval which commits first rejects the blocked replacement without partial state. */
     @Test
     fun approvalFirstRejectsConcurrentReplacementDuringPositiveCooldown() = runBlocking {
-        var now = 1_000L
+        var now = DateTime.fromUnixMillis(1_000L)
         val holderLocked = CountDownLatch(1)
         val releaseHolder = CountDownLatch(1)
         val blockHolder = AtomicBoolean(false)
         val busy = SqliteBusyObservation()
         withFileBackedSqliteUsersRepos(
-            firstNowMillis = { now },
+            firstNow = { now },
             firstAfterWriteLock = {
                 if (blockHolder.get()) {
                     holderLocked.countDown()
                     check(releaseHolder.await(15, TimeUnit.SECONDS)) { "SQLite cooldown approval holder was not released" }
                 }
             },
-            secondNowMillis = { now },
+            secondNow = { now },
             secondBusyObservation = busy,
         ) { url, first, second ->
             val initial = Email("approval-first-initial@example.com")
@@ -1012,7 +1075,7 @@ class ExposedUsersRepoSqliteTest {
             val stored = checkNotNull(second.getById(owner.id))
             assertEquals(candidate, stored.email)
             assertNull(second.getEmailProfileFresh(owner.id)?.pendingEmail)
-            assertEquals(1_500L, second.getEmailProfileFresh(owner.id)?.emailChangeAllowedAt)
+            assertEquals(DateTime.fromUnixMillis(1_500L), second.getEmailProfileFresh(owner.id)?.emailChangeAllowedAt)
             assertRawSqliteAddressHasOneClaim(url, candidate)
             assertRawSqliteAddressHasNoClaim(url, replacement)
         }
@@ -1166,8 +1229,8 @@ class ExposedUsersRepoSqliteTest {
     /** Explicit clears reject before mutation during cooldown and reset every lifecycle field at expiry. */
     @Test
     fun clearLifecycleHonorsDeadlineAcrossMutationEntryPoints() = runTest {
-        var now = 1_000L
-        withInMemorySqliteUsersRepo(nowMillis = { now }) { repo ->
+        var now = DateTime.fromUnixMillis(1_000L)
+        withInMemorySqliteUsersRepo(now = { now }) { repo ->
             val address = Email("clear-policy@example.com")
             val user = repo.create(NewUser(Username("clear-policy"), address)).single()
             val approved = checkNotNull(repo.approveEmail(user.id, address, cooldownMillis = 500L))
@@ -1178,7 +1241,7 @@ class ExposedUsersRepoSqliteTest {
             }
             assertEquals(approved, repo.getById(user.id))
 
-            now = 1_500L
+            now = DateTime.fromUnixMillis(1_500L)
             val cleared = checkNotNull(repo.update(user.id, NewUser(Username("cleared"), null)))
             assertEquals(Username("cleared"), cleared.username)
             assertNull(cleared.email)
@@ -1193,8 +1256,8 @@ class ExposedUsersRepoSqliteTest {
     /** A restricted later bulk clear rolls back an earlier rename and publishes no update events. */
     @Test
     fun batchClearRejectionRollsBackEarlierMutationAndEvents() = runTest {
-        var now = 1_000L
-        withInMemorySqliteUsersRepo(nowMillis = { now }) { repo ->
+        var now = DateTime.fromUnixMillis(1_000L)
+        withInMemorySqliteUsersRepo(now = { now }) { repo ->
             val first = repo.create(NewUser(Username("clear-first"))).single()
             val address = Email("clear-batch@example.com")
             val restricted = repo.create(NewUser(Username("clear-restricted"), address)).single()
@@ -1225,8 +1288,8 @@ class ExposedUsersRepoSqliteTest {
     /** A non-representable approval deadline rolls back the row and emits no speculative event. */
     @Test
     fun approvalDeadlineOverflowRollsBackWithoutPublishingAnEvent() = runTest {
-        var now = 1_000L
-        withInMemorySqliteUsersRepo(nowMillis = { now }) { repo ->
+        var now = DateTime.fromUnixMillis(1_000L)
+        withInMemorySqliteUsersRepo(now = { now }) { repo ->
             val email = Email("approval-overflow@example.com")
             val user = repo.create(NewUser(Username("approval-overflow"), email)).single()
             val before = checkNotNull(repo.getById(user.id))
@@ -1235,7 +1298,7 @@ class ExposedUsersRepoSqliteTest {
                 repo.updatedObjectsFlow.collect(events::add)
             }
             try {
-                now = 4_503_599_627_370_491L
+                now = DateTime.fromUnixMillis(4_503_599_627_370_491L)
                 assertFailsWith<ArithmeticException> {
                     repo.approveEmail(user.id, email, cooldownMillis = 10L)
                 }
@@ -1252,8 +1315,8 @@ class ExposedUsersRepoSqliteTest {
     /** An invalid injected clock is rejected after valid setup without changing rows or events. */
     @Test
     fun unsupportedApprovalClockRollsBackWithoutPublishingAnEvent() = runTest {
-        var now = 1_000L
-        withInMemorySqliteUsersRepo(nowMillis = { now }) { repo ->
+        var now = DateTime.fromUnixMillis(1_000L)
+        withInMemorySqliteUsersRepo(now = { now }) { repo ->
             val email = Email("invalid-clock@example.com")
             val user = repo.create(NewUser(Username("invalid-clock"), email)).single()
             val before = checkNotNull(repo.getById(user.id))
@@ -1262,7 +1325,7 @@ class ExposedUsersRepoSqliteTest {
                 repo.updatedObjectsFlow.collect(events::add)
             }
             try {
-                now = Long.MAX_VALUE
+                now = DateTime(Long.MAX_VALUE.toDouble())
                 assertFailsWith<IllegalArgumentException> {
                     repo.approveEmail(user.id, email, cooldownMillis = 10L)
                 }

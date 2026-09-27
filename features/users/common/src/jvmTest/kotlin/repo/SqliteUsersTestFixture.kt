@@ -17,9 +17,9 @@ import java.util.concurrent.TimeUnit
 import java.util.concurrent.atomic.AtomicBoolean
 import java.util.concurrent.atomic.AtomicReference
 
-/** Runs [block] against an isolated in-memory SQLite users repository using [nowMillis] for lifecycle deadlines. */
+/** Runs [block] against an isolated in-memory SQLite users repository using [now] for lifecycle deadlines. */
 internal suspend fun withInMemorySqliteUsersRepo(
-    nowMillis: () -> Long = System::currentTimeMillis,
+    now: () -> DateTime = { DateTime.fromUnixMillis(System.currentTimeMillis()) },
     block: suspend (ExposedUsersRepo) -> Unit,
 ) {
     val url = "jdbc:sqlite:file:users-${UUID.randomUUID()}?mode=memory&cache=shared"
@@ -32,7 +32,7 @@ internal suspend fun withInMemorySqliteUsersRepo(
     }
 
     try {
-        block(ExposedUsersRepo(database, now = { DateTime.fromUnixMillis(nowMillis()) }))
+        block(ExposedUsersRepo(database, now = now))
     } finally {
         try {
             TransactionManager.closeAndUnregister(database)
@@ -45,16 +45,16 @@ internal suspend fun withInMemorySqliteUsersRepo(
 /**
  * Runs [block] with independent Exposed databases and repositories connected to one fixture-owned SQLite file.
  *
- * @param firstNowMillis Clock supplied to the first repository.
+ * @param firstNow Clock supplied to the first repository.
  * @param firstAfterWriteLock Barrier callback invoked by the first repository immediately after lock acquisition.
- * @param secondNowMillis Clock supplied to the second repository.
+ * @param secondNow Clock supplied to the second repository.
  * @param secondAfterWriteLock Barrier callback invoked by the second repository immediately after lock acquisition.
  * @param block Test body receiving the file JDBC URL and the independent repositories.
  */
 internal suspend fun withFileBackedSqliteUsersRepos(
-    firstNowMillis: () -> Long = System::currentTimeMillis,
+    firstNow: () -> DateTime = { DateTime.fromUnixMillis(System.currentTimeMillis()) },
     firstAfterWriteLock: (() -> Unit)? = null,
-    secondNowMillis: () -> Long = System::currentTimeMillis,
+    secondNow: () -> DateTime = { DateTime.fromUnixMillis(System.currentTimeMillis()) },
     secondAfterWriteLock: (() -> Unit)? = null,
     secondBusyObservation: SqliteBusyObservation? = null,
     block: suspend (String, ExposedUsersRepo, ExposedUsersRepo) -> Unit,
@@ -75,8 +75,8 @@ internal suspend fun withFileBackedSqliteUsersRepos(
     try {
         block(
             url,
-            ExposedUsersRepo(firstDatabase, now = { DateTime.fromUnixMillis(firstNowMillis()) }, afterWriteLock = firstAfterWriteLock),
-            ExposedUsersRepo(secondDatabase, now = { DateTime.fromUnixMillis(secondNowMillis()) }, afterWriteLock = secondAfterWriteLock),
+            ExposedUsersRepo(firstDatabase, now = firstNow, afterWriteLock = firstAfterWriteLock),
+            ExposedUsersRepo(secondDatabase, now = secondNow, afterWriteLock = secondAfterWriteLock),
         )
     } finally {
         try {

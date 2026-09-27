@@ -45,6 +45,21 @@ User identity storage and public read-only API. Provides the `UsersRepo` CRUD re
   exact deadline equality permits mutation. Deployments use counts-only raw-BIGINT range scans; no schema
   rewrite or automatic repair occurs.
 
+  Application and test clocks use DateTime; no Long-clock compatibility API remains. Every changing email mutation validates its single post-lock clock sample before cooldown admission, duplicate checks or writes, including clear. Invalid injected samples fail without mutation or publication; no-op operations do not sample.
+
+  Before deployment, run a read-only counts-only scan over raw BIGINT email_change_requested_at and email_change_allowed_at values. The supported range is inclusive [-4503599627370496, 4503599627370496]; null values and exact endpoints are valid. Report one invalid-value count per column and one combined affected-row count, counting a row with either unsupported value once. All three counts must be zero. Any nonzero count blocks deployment until separately authorized data repair or compatible recovery resolves the unsupported values and the scan returns zero. Do not round, clear, restamp or automatically rewrite timestamps. Do not report mailbox values or row identifiers. Preserve the required backup, stopped old writers, matching server/UI deployment, old-web-asset invalidation and compatible-backport or stopped-write backup-restoration recovery procedure.
+
+  Read-only scan (all three returned values must equal zero before deployment):
+
+  ```sql
+  SELECT
+    COUNT(CASE WHEN email_change_requested_at < -4503599627370496 OR email_change_requested_at > 4503599627370496 THEN 1 END) AS invalid_requested_at_count,
+    COUNT(CASE WHEN email_change_allowed_at < -4503599627370496 OR email_change_allowed_at > 4503599627370496 THEN 1 END) AS invalid_allowed_at_count,
+    COUNT(CASE WHEN (email_change_requested_at < -4503599627370496 OR email_change_requested_at > 4503599627370496)
+                 OR (email_change_allowed_at < -4503599627370496 OR email_change_allowed_at > 4503599627370496) THEN 1 END) AS affected_row_count
+  FROM users;
+  ```
+
 - **Server-side:** `UsersFeature` interface defines `getAll()` method returning all registered users, projected onto `UsersFeatureUser`. `UsersService` implements this interface, delegates to `ReadUsersRepo`, and maps each stored `RegisteredUser` via `asUsersFeatureUser()` before returning — this is what keeps `email` off the public listing. `UsersRoutingsConfigurator` (JVM) registers public endpoint `GET /users/getAll` (path constants: `usersPrefixPathPart = "users"`, `usersGetAllPathPart = "getAll"` in `features/users/common/Constants.kt`).
 - **Feature Interface Return Model Rule (issue #67):** `UsersFeature.getAll()` (both server and client) returns `UsersFeatureUser`, not the `RegisteredUser` persistence entity — see `agents/CODING.md`'s "Feature Interface Return Model Rule" section for the repo-wide rule this fix established. `UsersFeatureUser` lives in `features/users/common/src/commonMain/kotlin/models/UsersFeatureUser.kt` alongside its `RegisteredUser.asUsersFeatureUser()` mapper.
 - **Client-side:** Mirror `UsersFeature` interface + `KtorUsersFeature` implementation in `features/users/client/src/commonMain/kotlin/`, registered in `client/Plugin.kt` (consumed by `features/ui/users`).

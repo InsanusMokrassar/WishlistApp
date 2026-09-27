@@ -34,6 +34,83 @@ import kotlin.test.assertTrue
 
 /** Verifies the email lifecycle against a disposable PostgreSQL schema. */
 class PostgresUsersRepoTest {
+    /** Failed PostgreSQL mutation and approval preserve the warmed cache and its write count. */
+    @Test
+    fun invalidClockFailurePreservesWarmedCacheAndWriteCount() = runTest {
+        val clock = EmailTestClock()
+        withBoundedPostgresUsersRepos(firstNow = clock::sample) { url, backing, _ ->
+            val current = Email("postgres-cache-current@example.com")
+            val pending = Email("postgres-cache-pending@example.com")
+            val user = backing.create(NewUser(Username("postgres-cache"), current)).single()
+            checkNotNull(backing.approveEmail(user.id, current, cooldownMillis = 0L))
+            checkNotNull(backing.setEmail(user.id, pending))
+            val storage = CountingUsersCache()
+            val cache = CacheUsersRepo(backing, backgroundScope, kvCache = storage)
+            advanceUntilIdle()
+            val before = rawUsersSnapshot(url)
+            val cached = cache.getById(user.id)
+            val writes = storage.setCalls
+            val events = mutableListOf<RegisteredUser>()
+            val collector = backgroundScope.launch(start = CoroutineStart.UNDISPATCHED) {
+                backing.updatedObjectsFlow.collect(events::add)
+            }
+            try {
+                clock.value = DateTime(Double.NaN)
+                assertFailsWith<IllegalArgumentException> { cache.setEmail(user.id, null) }
+                assertFailsWith<IllegalArgumentException> { cache.approveEmail(user.id, pending, cooldownMillis = 10L) }
+                advanceUntilIdle()
+                assertEquals(before, rawUsersSnapshot(url))
+                assertEquals(cached, cache.getById(user.id))
+                assertEquals(writes, storage.setCalls)
+                assertTrue(events.isEmpty())
+            } finally {
+                collector.cancel()
+            }
+        }
+    }
+
+    /** PostgreSQL rejects corrupt lifecycle storage while leaving complete rows and failed-operation events untouched. */
+    @Test
+    fun storedCorruptionMatrixPreservesRawRows() = runTest {
+        withBoundedPostgresUsersRepos { url, repo, _ ->
+            val events = mutableListOf<RegisteredUser>()
+            val collector = backgroundScope.launch(start = CoroutineStart.UNDISPATCHED) {
+                repo.updatedObjectsFlow.collect(events::add)
+            }
+            try {
+                verifyStoredCorruptionMatrix(url, repo, events) { advanceUntilIdle() }
+            } finally {
+                collector.cancel()
+            }
+        }
+    }
+
+    /** The disposable PostgreSQL adapter rejects every invalid changing sample before mutation or publication. */
+    @Test
+    fun invalidClockMatrixPreservesRawRows() = runTest {
+        val clock = EmailTestClock()
+        withBoundedPostgresUsersRepos(firstNow = clock::sample) { url, repo, _ ->
+            val events = mutableListOf<RegisteredUser>()
+            val collector = backgroundScope.launch(start = CoroutineStart.UNDISPATCHED) {
+                repo.updatedObjectsFlow.collect(events::add)
+            }
+            try {
+                verifyInvalidEmailClockMatrix(url, repo, clock, events) { advanceUntilIdle() }
+                verifyApplicationTimestampEndpoints(url, repo, clock, events) { advanceUntilIdle() }
+            } finally {
+                collector.cancel()
+            }
+        }
+    }
+
+    /** The documented PostgreSQL release predicate counts only unsupported raw values. */
+    @Test
+    fun emailTimestampScanPredicateCountsDistinctAffectedRows() = runTest {
+        withBoundedPostgresUsersRepos { url, repo, _ ->
+            verifyEmailTimestampScanPredicate(url, repo)
+        }
+    }
+
     /** Unsupported BIGINT lifecycle data blocks private projection and mutation without rewriting rows. */
     @Test
     fun invalidRawLifecycleFailsWithoutMutationOrEvent() = runTest {
@@ -104,11 +181,11 @@ class PostgresUsersRepoTest {
     /** PostgreSQL uses the same guarded clear lifecycle for dedicated, generic, and bulk writes. */
     @Test
     fun clearLifecycleHonorsDeadlineAcrossMutationEntryPoints() = runTest {
-        var now = 1_000L
+        var now = DateTime.fromUnixMillis(1_000L)
         withPostgresUsersSchema { schemaUrl ->
             val database = Database.connect(url = schemaUrl, driver = "org.postgresql.Driver")
             try {
-                val repo = ExposedUsersRepo(database, now = { DateTime.fromUnixMillis(now) })
+                val repo = ExposedUsersRepo(database, now = { now })
                 val address = Email("postgres-clear@example.com")
                 val user = repo.create(NewUser(Username("postgres-clear"), address)).single()
                 checkNotNull(repo.approveEmail(user.id, address, cooldownMillis = 500L))
@@ -119,7 +196,7 @@ class PostgresUsersRepoTest {
                 }
                 assertEquals(Username("postgres-clear"), repo.getById(user.id)?.username)
 
-                now = 1_500L
+                now = DateTime.fromUnixMillis(1_500L)
                 val cleared = checkNotNull(repo.update(listOf(user.id to NewUser(Username("postgres-cleared"), null))).single())
                 assertEquals(Username("postgres-cleared"), cleared.username)
                 assertNull(cleared.email)
@@ -307,18 +384,18 @@ class PostgresUsersRepoTest {
     /** A PostgreSQL candidate write samples request time only after a verified singleton-row lock wait. */
     @Test
     fun blockedCandidateCreateUsesClockAfterObservedPostgresLockWait() = runBlockingPostgresTest {
-        var now = 1_000L
+        var now = DateTime.fromUnixMillis(1_000L)
         val holderLocked = CountDownLatch(1)
         val releaseHolder = CountDownLatch(1)
         val contenderLocked = CountDownLatch(1)
         val backendPids = PostgresBackendPids()
         withBoundedPostgresUsersRepos(
-            firstNowMillis = { now },
+            firstNow = { now },
             firstAfterWriteLock = {
                 holderLocked.countDown()
                 check(releaseHolder.await(15, TimeUnit.SECONDS)) { "PostgreSQL candidate holder was not released" }
             },
-            secondNowMillis = { now },
+            secondNow = { now },
             secondAfterWriteLock = { contenderLocked.countDown() },
             captureBackendPids = backendPids,
         ) { schemaUrl, first, second ->
@@ -338,10 +415,10 @@ class PostgresUsersRepoTest {
                 contenderWorker.start()
                 assertPostgresContenderBlockedOnUsersWriteLock(schemaUrl, backendPids)
                 assertEquals(1, contenderLocked.count)
-                now = 2_000L
+                now = DateTime.fromUnixMillis(2_000L)
             }
             val contender = contenderWorker.result().getOrThrow()
-            assertEquals(2_000L, first.getEmailProfileFresh(contender.id)?.emailChangeRequestedAt)
+            assertEquals(DateTime.fromUnixMillis(2_000L), first.getEmailProfileFresh(contender.id)?.emailChangeRequestedAt)
         }
     }
 
@@ -381,7 +458,7 @@ class PostgresUsersRepoTest {
                 assertEquals(approvedCurrent, approved.email)
                 assertTrue(approved.emailApproved)
                 assertEquals(approvedPending, repo.getEmailProfileFresh(approvedId)?.pendingEmail)
-                assertEquals(900L, repo.getEmailProfileFresh(approvedId)?.emailChangeAllowedAt)
+                assertEquals(DateTime.fromUnixMillis(900L), repo.getEmailProfileFresh(approvedId)?.emailChangeAllowedAt)
                 assertNull(repo.getEmailProfileFresh(approvedId)?.emailChangeRequestedAt)
                 assertEquals(firstCurrent, repo.getEmailProfileFresh(firstId)?.email)
                 assertNull(repo.getEmailProfileFresh(firstId)?.emailChangeRequestedAt)
@@ -413,7 +490,7 @@ class PostgresUsersRepoTest {
                 val reopened = ExposedUsersRepo(reopenedDatabase, now = { DateTime.fromUnixMillis(1_000L) })
                 assertEquals(approvedCurrent, reopened.getEmailProfileFresh(approvedId)?.email)
                 assertEquals(approvedPending, reopened.getEmailProfileFresh(approvedId)?.pendingEmail)
-                assertEquals(900L, reopened.getEmailProfileFresh(approvedId)?.emailChangeAllowedAt)
+                assertEquals(DateTime.fromUnixMillis(900L), reopened.getEmailProfileFresh(approvedId)?.emailChangeAllowedAt)
                 assertNull(reopened.getEmailProfileFresh(approvedId)?.emailChangeRequestedAt)
                 assertEquals(firstCurrent, reopened.getEmailProfileFresh(firstId)?.email)
                 assertNull(reopened.getEmailProfileFresh(firstId)?.emailChangeRequestedAt)
@@ -427,7 +504,7 @@ class PostgresUsersRepoTest {
                 val reopenedTwice = ExposedUsersRepo(reopenedTwiceDatabase, now = { DateTime.fromUnixMillis(1_000L) })
                 val replaced = checkNotNull(reopenedTwice.setEmail(firstId, firstReplacement))
                 assertEquals(firstReplacement, replaced.email)
-                assertEquals(1_000L, reopenedTwice.getEmailProfileFresh(firstId)?.emailChangeRequestedAt)
+                assertEquals(DateTime.fromUnixMillis(1_000L), reopenedTwice.getEmailProfileFresh(firstId)?.emailChangeRequestedAt)
                 assertPopulatedLegacyLifecycle(schemaUrl, firstReplacement, 1_000L)
             } finally {
                 TransactionManager.closeAndUnregister(reopenedTwiceDatabase)
@@ -440,9 +517,9 @@ class PostgresUsersRepoTest {
 
     /** Builds two independently bounded PostgreSQL repositories inside one fixture-owned schema. */
     private suspend fun withBoundedPostgresUsersRepos(
-        firstNowMillis: () -> Long = System::currentTimeMillis,
+        firstNow: () -> DateTime = { DateTime.fromUnixMillis(System.currentTimeMillis()) },
         firstAfterWriteLock: (() -> Unit)? = null,
-        secondNowMillis: () -> Long = System::currentTimeMillis,
+        secondNow: () -> DateTime = { DateTime.fromUnixMillis(System.currentTimeMillis()) },
         secondAfterWriteLock: (() -> Unit)? = null,
         captureBackendPids: PostgresBackendPids? = null,
         block: suspend (String, ExposedUsersRepo, ExposedUsersRepo) -> Unit,
@@ -467,8 +544,8 @@ class PostgresUsersRepoTest {
         try {
             block(
                 schemaUrl,
-                ExposedUsersRepo(firstDatabase, now = { DateTime.fromUnixMillis(firstNowMillis()) }, afterWriteLock = firstAfterWriteLock),
-                ExposedUsersRepo(secondDatabase, now = { DateTime.fromUnixMillis(secondNowMillis()) }, afterWriteLock = secondAfterWriteLock),
+                ExposedUsersRepo(firstDatabase, now = { firstNow() }, afterWriteLock = firstAfterWriteLock),
+                ExposedUsersRepo(secondDatabase, now = { secondNow() }, afterWriteLock = secondAfterWriteLock),
             )
         } finally {
             try {

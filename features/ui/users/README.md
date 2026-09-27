@@ -54,6 +54,8 @@ email storage, and verification request), `features/admin/client` (root-only use
 
 ## Architecture Notes
 
+The advisory clock constructor accepts DateTime directly; legacy Long-clock overloads are not supported.
+
 - **Email timestamps:** Owner-email snapshots, cooldown restriction state, and the advisory clock use
   `korlibs.time.DateTime`. The UTC formatter consumes DateTime directly and retains displayed text.
   DateTime comparison preserves before-active/equality-allowed cooldown behavior, including Refresh and

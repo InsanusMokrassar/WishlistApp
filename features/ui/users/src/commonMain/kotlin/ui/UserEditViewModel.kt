@@ -78,21 +78,6 @@ class UserEditViewModel(
     private val dispatcher: CoroutineDispatcher = Dispatchers.Main.immediate,
     private val now: () -> DateTime = DateTime::now,
 ) : ViewModel<ViewConfig>(node) {
-    /** Compatibility constructor adapting a primitive UI clock at the view-model boundary. */
-    constructor(
-        node: NavigationNode<UserEditViewConfig, ViewConfig>,
-        model: UsersModel,
-        interactor: UserEditViewInteractor,
-        dispatcher: CoroutineDispatcher = Dispatchers.Main.immediate,
-        nowMillis: () -> Long,
-        compatibility: Unit = Unit,
-    ) : this(
-        node = node,
-        model = model,
-        interactor = interactor,
-        dispatcher = dispatcher,
-        now = { DateTime.fromUnixMillis(nowMillis()) },
-    )
     /**
      * UI-confined child scope with the ViewModel lifecycle [Job] inherited from [scope].
      *

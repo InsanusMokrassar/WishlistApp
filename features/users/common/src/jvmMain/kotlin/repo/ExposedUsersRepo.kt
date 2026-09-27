@@ -8,6 +8,7 @@ import dev.inmo.wishlist.features.email.common.models.EmailProfile
 import dev.inmo.wishlist.features.email.common.utils.emailApprovalDeadline
 import dev.inmo.wishlist.features.email.common.utils.emailTimestampFromStorage
 import dev.inmo.wishlist.features.email.common.utils.emailTimestampToStorage
+import dev.inmo.wishlist.features.email.common.utils.requireValidEmailTimestamp
 import dev.inmo.wishlist.features.common.common.utils.isUniqueViolation
 import dev.inmo.wishlist.features.users.common.models.NewUser
 import dev.inmo.wishlist.features.users.common.models.RegisteredUser
@@ -82,12 +83,6 @@ class ExposedUsersRepo internal constructor(
         now: () -> DateTime = { DateTime.fromUnixMillis(DateTime.now().unixMillis.toLong()) },
     ) : this(database, now, null)
 
-    /** Compatibility constructor adapting a primitive clock at the repository's explicit storage boundary. */
-    constructor(
-        database: Database,
-        nowMillis: () -> Long,
-        compatibility: Unit = Unit,
-    ) : this(database, now = { DateTime.fromUnixMillis(nowMillis()) }, afterWriteLock = null)
     /** Auto-increment primary key column. */
     private val idColumn = long("id").autoIncrement()
 
@@ -426,7 +421,7 @@ class ExposedUsersRepo internal constructor(
         } else {
             null
         }
-        val mutationNow = if (changingEmail) now() else null
+        val mutationNow = if (changingEmail) requireValidEmailTimestamp(now()) else null
         if (changingEmail && deadline != null && checkNotNull(mutationNow) < deadline) {
             throw EmailChangeCooldownException(deadline)
         }

@@ -49,13 +49,13 @@ class EmailFeatureServiceTest {
 
     /** Runs an SMTP service proof over a fixture-owned Exposed SQLite repository. */
     private suspend fun withSqliteUsersRepo(
-        nowMillis: () -> Long,
+        now: () -> DateTime,
         block: suspend (ExposedUsersRepo) -> Unit,
     ) {
         val file = Files.createTempFile("wishlist-email-service", ".sqlite")
         val database = Database.connect(url = "jdbc:sqlite:${file.toAbsolutePath()}", driver = "org.sqlite.JDBC")
         try {
-            block(ExposedUsersRepo(database, nowMillis))
+            block(ExposedUsersRepo(database, now))
         } finally {
             try {
                 TransactionManager.closeAndUnregister(database)
@@ -271,8 +271,8 @@ class EmailFeatureServiceTest {
     /** A durable positive-policy rejection happens before this service can mint a link or invoke SMTP. */
     @Test
     fun positivePolicyRejectsMutationBeforeAnyDeliveryOrLinkCreation() = runTest {
-        var now = 1_000L
-        withSqliteUsersRepo(nowMillis = { now }) { usersRepo ->
+        val now = DateTime.fromUnixMillis(1_000L)
+        withSqliteUsersRepo(now = { now }) { usersRepo ->
             val addressA = Email("service-policy-a@example.com")
             val addressB = Email("service-policy-b@example.com")
             val user = usersRepo.create(listOf(NewUser(Username("service-policy"), addressA))).single()

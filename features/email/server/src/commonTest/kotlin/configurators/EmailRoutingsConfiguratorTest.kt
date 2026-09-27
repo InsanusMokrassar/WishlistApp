@@ -57,8 +57,8 @@ class EmailRoutingsConfiguratorTest {
         val file = Files.createTempFile("wishlist-email-route", ".sqlite")
         val database = Database.connect(url = "jdbc:sqlite:${file.toAbsolutePath()}", driver = "org.sqlite.JDBC")
         try {
-            var now = 1_000L
-            val cachedBacking = ExposedUsersRepo(database, nowMillis = { now })
+            var now = DateTime.fromUnixMillis(1_000L)
+            val cachedBacking = ExposedUsersRepo(database, now = { now })
             val approved = Email("approved@example.com")
             val replacement = Email("replacement@example.com")
             val created = cachedBacking.create(listOf(NewUser(Username("owner"), approved))).single()
@@ -66,9 +66,9 @@ class EmailRoutingsConfiguratorTest {
             advanceUntilIdle()
             assertEquals(created, cache.getById(created.id))
 
-            val independent = ExposedUsersRepo(database, nowMillis = { now })
+            val independent = ExposedUsersRepo(database, now = { now })
             assertTrue(independent.approveEmail(created.id, approved) != null)
-            now = 1_010L
+            now = DateTime.fromUnixMillis(1_010L)
             assertTrue(independent.update(created.id, NewUser(created.username, replacement)) != null)
             assertEquals(created, cache.getById(created.id))
 

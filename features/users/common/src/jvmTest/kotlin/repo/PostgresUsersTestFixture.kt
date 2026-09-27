@@ -106,9 +106,9 @@ private const val postgresFixtureTimeoutSeconds = 25
  * @param block Test body receiving the schema JDBC URL and independent repositories.
  */
 internal suspend fun withPostgresUsersRepos(
-    firstNowMillis: () -> Long = System::currentTimeMillis,
+    firstNow: () -> DateTime = { DateTime.fromUnixMillis(System.currentTimeMillis()) },
     firstAfterWriteLock: (() -> Unit)? = null,
-    secondNowMillis: () -> Long = System::currentTimeMillis,
+    secondNow: () -> DateTime = { DateTime.fromUnixMillis(System.currentTimeMillis()) },
     secondAfterWriteLock: (() -> Unit)? = null,
     captureBackendPids: PostgresBackendPids? = null,
     block: suspend (String, ExposedUsersRepo, ExposedUsersRepo) -> Unit,
@@ -126,8 +126,8 @@ internal suspend fun withPostgresUsersRepos(
     try {
         block(
             schemaUrl,
-            ExposedUsersRepo(firstDatabase, now = { DateTime.fromUnixMillis(firstNowMillis()) }, afterWriteLock = firstAfterWriteLock),
-            ExposedUsersRepo(secondDatabase, now = { DateTime.fromUnixMillis(secondNowMillis()) }, afterWriteLock = secondAfterWriteLock),
+            ExposedUsersRepo(firstDatabase, now = firstNow, afterWriteLock = firstAfterWriteLock),
+            ExposedUsersRepo(secondDatabase, now = secondNow, afterWriteLock = secondAfterWriteLock),
         )
     } finally {
         try {

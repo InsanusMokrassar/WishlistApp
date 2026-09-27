@@ -230,13 +230,13 @@ class EmailVerificationAccountCoordinatorTest {
 
     /** Runs a real repository over a fixture-owned SQLite file and always unregisters its database. */
     private suspend fun withSqliteUsersRepo(
-        nowMillis: () -> Long,
+        now: () -> DateTime,
         block: suspend (ExposedUsersRepo) -> Unit,
     ) {
         val file = Files.createTempFile("wishlist-email-coordinator", ".sqlite")
         val database = Database.connect(url = "jdbc:sqlite:${file.toAbsolutePath()}", driver = "org.sqlite.JDBC")
         try {
-            block(ExposedUsersRepo(database, nowMillis))
+            block(ExposedUsersRepo(database, now))
         } finally {
             try {
                 TransactionManager.closeAndUnregister(database)
@@ -462,8 +462,8 @@ class EmailVerificationAccountCoordinatorTest {
     @Test
     fun positivePolicyFromPluginGuardsEnabledAndDisabledRealRepositories() = runTest {
         listOf(false, true).forEach { smtpEnabled ->
-            var now = 1_000L
-            withSqliteUsersRepo(nowMillis = { now }) { usersRepo ->
+            var now = DateTime.fromUnixMillis(1_000L)
+            withSqliteUsersRepo(now = { now }) { usersRepo ->
                 val addressA = Email("plugin-${smtpEnabled}-a@example.com")
                 val addressB = Email("plugin-${smtpEnabled}-b@example.com")
                 val created = usersRepo.create(listOf(NewUser(Username("plugin-$smtpEnabled"), addressA))).single()
@@ -485,7 +485,7 @@ class EmailVerificationAccountCoordinatorTest {
                     assertEquals(true, coordinator.updateUsername(created.id, Username("plugin-renamed-$smtpEnabled")))
                     assertEquals(approved.copy(username = Username("plugin-renamed-$smtpEnabled")), usersRepo.getById(created.id))
 
-                    now = 1_010L
+                    now = DateTime.fromUnixMillis(1_010L)
                     assertTrue(feature.setMyEmail(created.id, addressB))
                     assertEquals(
                         approved.copy(username = Username("plugin-renamed-$smtpEnabled")),

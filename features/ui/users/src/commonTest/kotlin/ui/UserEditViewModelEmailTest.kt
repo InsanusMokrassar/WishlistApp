@@ -2710,7 +2710,7 @@ class UserEditViewModelEmailTest {
     /** Re-evaluates the deadline on refresh even when the private profile itself is equal. */
     @Test
     fun refreshAtDeadlineReenablesEmailChangeForEqualProfile() = runTest {
-        var now = 999L
+        var now = DateTime.fromUnixMillis(999L)
         val profile = owner.copy(email = Email("approved@example.com"), emailApproved = true, emailChangeAllowedAt = DateTime.fromUnixMillis(1000L))
         val model = UserEditTestUsersModel(ownerId, profile)
         val viewModel = UserEditViewModel(
@@ -2718,13 +2718,13 @@ class UserEditViewModelEmailTest {
             model,
             RecordingUserEditInteractor(),
             StandardTestDispatcher(testScheduler),
-            nowMillis = { now },
+            now = { now },
         )
         try {
             advanceUntilIdle()
             assertFalse(viewModel.canMutateOwnEmailState.value)
             assertEquals(DateTime.fromUnixMillis(1000L), viewModel.emailChangeRestrictionState.value)
-            now = 1000L
+            now = DateTime.fromUnixMillis(1000L)
             viewModel.onRefreshEmail()
             advanceUntilIdle()
             assertTrue(viewModel.canMutateOwnEmailState.value)
@@ -2753,7 +2753,7 @@ class UserEditViewModelEmailTest {
             model,
             RecordingUserEditInteractor(),
             StandardTestDispatcher(testScheduler),
-            nowMillis = { 10_000L },
+            now = { DateTime.fromUnixMillis(10_000L) },
         )
         try {
             advanceUntilIdle()
@@ -2926,7 +2926,7 @@ class UserEditViewModelEmailTest {
                 model,
                 RecordingUserEditInteractor(),
                 StandardTestDispatcher(testScheduler),
-                nowMillis = { deadline - 1L },
+                now = { DateTime.fromUnixMillis(deadline - 1L) },
             )
             try {
                 advanceUntilIdle()
@@ -3011,7 +3011,7 @@ class UserEditViewModelEmailTest {
     fun typedCooldownFailedReconciliationPreservesRestrictionUntilCheckedExpiry() = runTest {
         val replacement = Email("replacement@example.com")
         val deadline = 20_000L
-        var now = deadline - 1L
+        var now = DateTime.fromUnixMillis(deadline - 1L)
         var failReconciliation = false
         val model = UserEditTestUsersModel(
             ownerId,
@@ -3031,7 +3031,7 @@ class UserEditViewModelEmailTest {
             model,
             RecordingUserEditInteractor(),
             StandardTestDispatcher(testScheduler),
-            nowMillis = { now },
+            now = { now },
         )
         try {
             advanceUntilIdle()
@@ -3048,7 +3048,7 @@ class UserEditViewModelEmailTest {
             assertNull(viewModel.emailSavedState.value)
             assertNull(viewModel.emailVerificationResultState.value)
 
-            now = deadline
+            now = DateTime.fromUnixMillis(deadline)
             failReconciliation = false
             viewModel.onRefreshEmail()
             advanceUntilIdle()
@@ -3078,7 +3078,7 @@ class UserEditViewModelEmailTest {
                 model,
                 RecordingUserEditInteractor(),
                 StandardTestDispatcher(testScheduler),
-                nowMillis = { 30_000L },
+                now = { DateTime.fromUnixMillis(30_000L) },
             )
             try {
                 advanceUntilIdle()

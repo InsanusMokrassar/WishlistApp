@@ -7,21 +7,60 @@ import korlibs.time.DateTime
 import dev.inmo.wishlist.features.users.common.models.NewUser
 import dev.inmo.wishlist.features.users.common.models.RegisteredUser
 import dev.inmo.wishlist.features.users.common.models.Username
+import kotlinx.coroutines.CoroutineStart
+import kotlinx.coroutines.flow.collect
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.test.advanceUntilIdle
 import kotlinx.coroutines.test.runTest
 import kotlin.test.Test
 import kotlin.test.assertNull
 import kotlin.test.assertTrue
+import kotlin.test.assertFailsWith
 
 /** Exercises the production full-cache wrapper over the real SQLite repository. */
 @OptIn(ExperimentalCoroutinesApi::class)
 class CacheUsersRepoSqliteTest {
+    /** A failed mutation or approval cannot issue even a redundant cache write. */
+    @Test
+    fun invalidClockFailurePreservesWarmedCacheAndWriteCount() = runTest {
+        val clock = EmailTestClock()
+        withFileBackedSqliteUsersRepos(firstNow = clock::sample) { url, backing, _ ->
+            val current = Email("cache-invalid-current@example.com")
+            val pending = Email("cache-invalid-pending@example.com")
+            val user = backing.create(NewUser(Username("cache-invalid"), current)).single()
+            checkNotNull(backing.approveEmail(user.id, current, cooldownMillis = 0L))
+            checkNotNull(backing.setEmail(user.id, pending))
+            val storage = CountingUsersCache()
+            val cache = CacheUsersRepo(backing, backgroundScope, kvCache = storage)
+            advanceUntilIdle()
+            val before = rawUsersSnapshot(url)
+            val cached = cache.getById(user.id)
+            val writes = storage.setCalls
+            val events = mutableListOf<RegisteredUser>()
+            val collector = backgroundScope.launch(start = CoroutineStart.UNDISPATCHED) {
+                backing.updatedObjectsFlow.collect(events::add)
+            }
+            try {
+                clock.value = DateTime(Double.NaN)
+                assertFailsWith<IllegalArgumentException> { cache.setEmail(user.id, null) }
+                assertFailsWith<IllegalArgumentException> { cache.approveEmail(user.id, pending, cooldownMillis = 10L) }
+                advanceUntilIdle()
+                assertEquals(before, rawUsersSnapshot(url))
+                assertEquals(cached, cache.getById(user.id))
+                assertEquals(writes, storage.setCalls)
+                assertEquals(emptyList(), events)
+            } finally {
+                collector.cancel()
+            }
+        }
+    }
+
     /** A fresh read bypasses a warmed cache after another file-backed repository changes lifecycle state. */
     @Test
     fun freshReadBypassesCacheAfterIndependentRepositoryMutation() = runTest {
-        var now = 1_000L
-        withFileBackedSqliteUsersRepos(firstNowMillis = { now }, secondNowMillis = { now }) { _, first, second ->
+        var now = DateTime.fromUnixMillis(1_000L)
+        withFileBackedSqliteUsersRepos(firstNow = { now }, secondNow = { now }) { _, first, second ->
             val current = Email("approved@example.com")
             val pending = Email("pending@example.com")
             val created = first.create(NewUser(Username("cached"), current)).single()
@@ -30,7 +69,7 @@ class CacheUsersRepoSqliteTest {
             assertEquals(created, cache.getById(created.id))
 
             checkNotNull(second.approveEmail(created.id, current, cooldownMillis = 10L))
-            now = 1_010L
+            now = DateTime.fromUnixMillis(1_010L)
             val newer = checkNotNull(second.update(created.id, NewUser(created.username, pending)))
 
             assertEquals(created, cache.getById(created.id))

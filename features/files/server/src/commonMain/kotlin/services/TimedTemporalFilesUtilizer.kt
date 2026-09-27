@@ -19,9 +19,9 @@ import kotlinx.coroutines.sync.withLock
  * never finalized within [ttlMillis], bounding disk and in-memory growth caused by abandoned uploads.
  *
  * The utilizer shipped by default with [TemporalFilesRoutingConfigurator] performs no cleanup, so a
- * never-finalized upload would survive until process exit. This implementation records the first-seen
- * latest observed time of every temporal file id emitted by the configurator and, on each [checkIntervalMillis] tick,
- * removes from the shared map (and deletes from disk) every entry older than [ttlMillis].
+ * never-finalized upload would survive until process exit. This implementation records the latest
+ * observed time of every temporal file id emitted by the configurator and, on each check interval,
+ * removes from the shared map and deletes from disk every unfinalized entry whose age is at least the TTL.
  *
  * Finalized files are removed from the shared map by the configurator itself; their leftover timestamp
  * entries are dropped on the next sweep without touching disk.

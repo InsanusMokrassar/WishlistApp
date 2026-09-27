@@ -156,7 +156,7 @@ class UserEditEmailRenderTest {
             model,
             RecordingUserEditInteractor(),
             StandardTestDispatcher(viewModelScheduler),
-            nowMillis = { deadline - 1L },
+            now = { DateTime.fromUnixMillis(deadline - 1L) },
         )
         try {
             runDesktopComposeUiTest(
@@ -746,7 +746,7 @@ class UserEditEmailRenderTest {
     fun cooldownPanelDisablesMutationKeepsRefreshAndExpiresOnEqualProfile() {
         val ownerId = UserId(7L)
         val deadline = 1_798_761_600_000L
-        var now = deadline - 1L
+        var now = DateTime.fromUnixMillis(deadline - 1L)
         val compositionScheduler = TestCoroutineScheduler()
         val testBodyScheduler = TestCoroutineScheduler()
         val viewModelScheduler = TestCoroutineScheduler()
@@ -765,7 +765,7 @@ class UserEditEmailRenderTest {
             model,
             RecordingUserEditInteractor(),
             StandardTestDispatcher(viewModelScheduler),
-            nowMillis = { now },
+            now = { now },
         )
         try {
             runDesktopComposeUiTest(
@@ -784,7 +784,7 @@ class UserEditEmailRenderTest {
                 onNodeWithText(UsersListStrings.refreshEmailButton.translation()).assertIsEnabled()
                 onNodeWithText(UsersListStrings.resendEmailVerificationButton.translation()).assertDoesNotExist()
 
-                now = deadline
+                now = DateTime.fromUnixMillis(deadline)
                 onNodeWithText(UsersListStrings.refreshEmailButton.translation()).performClick()
                 runOnUiThread { viewModelScheduler.advanceUntilIdle() }
                 awaitIdle()
@@ -815,7 +815,7 @@ class UserEditEmailRenderTest {
             model,
             RecordingUserEditInteractor(),
             StandardTestDispatcher(viewModelScheduler),
-            nowMillis = { deadline - 1L },
+            now = { DateTime.fromUnixMillis(deadline - 1L) },
         )
         try {
             runDesktopComposeUiTest(
