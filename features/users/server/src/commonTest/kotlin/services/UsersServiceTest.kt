@@ -9,6 +9,7 @@ import dev.inmo.wishlist.features.users.common.models.UserId
 import dev.inmo.wishlist.features.users.common.models.UsersFeatureUser
 import dev.inmo.wishlist.features.users.common.models.Username
 import dev.inmo.wishlist.features.users.common.repo.ReadUsersRepo
+import korlibs.time.DateTime
 import kotlinx.coroutines.test.runTest
 import kotlinx.serialization.builtins.ListSerializer
 import kotlinx.serialization.json.Json
@@ -67,8 +68,8 @@ class UsersServiceTest {
         email = userWithEmail.email,
         emailApproved = true,
         pendingEmail = Email("pending@example.com"),
-        emailChangeRequestedAt = 1_798_761_500_000L,
-        emailChangeAllowedAt = 1_798_761_600_000L,
+        emailChangeRequestedAt = DateTime.fromUnixMillis(1_798_761_500_000L),
+        emailChangeAllowedAt = DateTime.fromUnixMillis(1_798_761_600_000L),
     )
 
     /** A seeded user with a non-null email is returned as a [UsersFeatureUser] with only id/username. */
