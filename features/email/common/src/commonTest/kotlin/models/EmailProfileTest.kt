@@ -2,6 +2,7 @@ package dev.inmo.wishlist.features.email.common.models
 
 import dev.inmo.wishlist.features.email.common.utils.emailDraftBaseline
 import dev.inmo.wishlist.features.email.common.utils.verificationCandidate
+import korlibs.time.DateTime
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.decodeFromJsonElement
 import kotlinx.serialization.json.encodeToJsonElement
@@ -21,8 +22,8 @@ class EmailProfileTest {
             email = Email("approved@example.com"),
             emailApproved = true,
             pendingEmail = Email("replacement@example.com"),
-            emailChangeRequestedAt = 1_700_000_000_000L,
-            emailChangeAllowedAt = 1_700_000_060_000L,
+            emailChangeRequestedAt = DateTime.fromUnixMillis(1_700_000_000_000L),
+            emailChangeAllowedAt = DateTime.fromUnixMillis(1_700_000_060_000L),
         )
 
         val encoded = Json.encodeToJsonElement(EmailProfile.serializer(), profile)

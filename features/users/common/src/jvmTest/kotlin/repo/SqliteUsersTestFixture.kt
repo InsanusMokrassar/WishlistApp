@@ -1,5 +1,6 @@
 package dev.inmo.wishlist.features.users.common.repo
 
+import korlibs.time.DateTime
 import org.jetbrains.exposed.v1.jdbc.Database
 import org.jetbrains.exposed.v1.jdbc.transactions.TransactionManager
 import org.sqlite.BusyHandler
@@ -31,7 +32,7 @@ internal suspend fun withInMemorySqliteUsersRepo(
     }
 
     try {
-        block(ExposedUsersRepo(database, nowMillis))
+        block(ExposedUsersRepo(database, now = { DateTime.fromUnixMillis(nowMillis()) }))
     } finally {
         try {
             TransactionManager.closeAndUnregister(database)
@@ -74,8 +75,8 @@ internal suspend fun withFileBackedSqliteUsersRepos(
     try {
         block(
             url,
-            ExposedUsersRepo(firstDatabase, firstNowMillis, firstAfterWriteLock),
-            ExposedUsersRepo(secondDatabase, secondNowMillis, secondAfterWriteLock),
+            ExposedUsersRepo(firstDatabase, now = { DateTime.fromUnixMillis(firstNowMillis()) }, afterWriteLock = firstAfterWriteLock),
+            ExposedUsersRepo(secondDatabase, now = { DateTime.fromUnixMillis(secondNowMillis()) }, afterWriteLock = secondAfterWriteLock),
         )
     } finally {
         try {

@@ -9,6 +9,7 @@ import dev.inmo.wishlist.features.users.common.models.UserId
 import dev.inmo.wishlist.features.users.common.models.Username
 import dev.inmo.wishlist.features.users.common.repo.exceptions.DuplicateUserFieldException
 import dev.inmo.wishlist.features.users.common.repo.exceptions.EmailChangeCooldownException
+import korlibs.time.DateTime
 import kotlinx.coroutines.test.runTest
 import org.jetbrains.exposed.v1.exceptions.ExposedSQLException
 import org.jetbrains.exposed.v1.jdbc.Database
@@ -20,7 +21,6 @@ import java.util.concurrent.TimeUnit
 import java.util.concurrent.atomic.AtomicBoolean
 import java.util.concurrent.atomic.AtomicReference
 import kotlin.test.Test
-import kotlin.test.assertEquals
 import kotlin.test.assertFalse
 import kotlin.test.assertFailsWith
 import kotlin.test.assertIs
@@ -64,7 +64,7 @@ class PostgresUsersRepoTest {
         withPostgresUsersSchema { schemaUrl ->
             val database = Database.connect(url = schemaUrl, driver = "org.postgresql.Driver")
             try {
-                val repo = ExposedUsersRepo(database, nowMillis = { now })
+                val repo = ExposedUsersRepo(database, now = { DateTime.fromUnixMillis(now) })
                 val address = Email("postgres-clear@example.com")
                 val user = repo.create(NewUser(Username("postgres-clear"), address)).single()
                 checkNotNull(repo.approveEmail(user.id, address, cooldownMillis = 500L))
@@ -330,7 +330,7 @@ class PostgresUsersRepoTest {
             }
             val firstDatabase = Database.connect(url = schemaUrl, driver = "org.postgresql.Driver")
             try {
-                val repo = ExposedUsersRepo(firstDatabase, nowMillis = { 1_000L })
+                val repo = ExposedUsersRepo(firstDatabase, now = { DateTime.fromUnixMillis(1_000L) })
                 val approved = checkNotNull(repo.getById(approvedId))
                 val first = checkNotNull(repo.getById(firstId))
                 val empty = checkNotNull(repo.getById(emptyId))
@@ -366,7 +366,7 @@ class PostgresUsersRepoTest {
 
             val reopenedDatabase = Database.connect(url = schemaUrl, driver = "org.postgresql.Driver")
             try {
-                val reopened = ExposedUsersRepo(reopenedDatabase, nowMillis = { 1_000L })
+                val reopened = ExposedUsersRepo(reopenedDatabase, now = { DateTime.fromUnixMillis(1_000L) })
                 assertEquals(approvedCurrent, reopened.getEmailProfileFresh(approvedId)?.email)
                 assertEquals(approvedPending, reopened.getEmailProfileFresh(approvedId)?.pendingEmail)
                 assertEquals(900L, reopened.getEmailProfileFresh(approvedId)?.emailChangeAllowedAt)
@@ -380,7 +380,7 @@ class PostgresUsersRepoTest {
 
             val reopenedTwiceDatabase = Database.connect(url = schemaUrl, driver = "org.postgresql.Driver")
             try {
-                val reopenedTwice = ExposedUsersRepo(reopenedTwiceDatabase, nowMillis = { 1_000L })
+                val reopenedTwice = ExposedUsersRepo(reopenedTwiceDatabase, now = { DateTime.fromUnixMillis(1_000L) })
                 val replaced = checkNotNull(reopenedTwice.setEmail(firstId, firstReplacement))
                 assertEquals(firstReplacement, replaced.email)
                 assertEquals(1_000L, reopenedTwice.getEmailProfileFresh(firstId)?.emailChangeRequestedAt)
@@ -423,8 +423,8 @@ class PostgresUsersRepoTest {
         try {
             block(
                 schemaUrl,
-                ExposedUsersRepo(firstDatabase, firstNowMillis, firstAfterWriteLock),
-                ExposedUsersRepo(secondDatabase, secondNowMillis, secondAfterWriteLock),
+                ExposedUsersRepo(firstDatabase, now = { DateTime.fromUnixMillis(firstNowMillis()) }, afterWriteLock = firstAfterWriteLock),
+                ExposedUsersRepo(secondDatabase, now = { DateTime.fromUnixMillis(secondNowMillis()) }, afterWriteLock = secondAfterWriteLock),
             )
         } finally {
             try {

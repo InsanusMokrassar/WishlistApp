@@ -3,6 +3,7 @@ package dev.inmo.wishlist.features.users.common.repo
 import dev.inmo.micro_utils.repos.create
 import dev.inmo.wishlist.features.email.common.models.Email
 import dev.inmo.wishlist.features.email.common.models.EmailProfile
+import korlibs.time.DateTime
 import dev.inmo.wishlist.features.users.common.models.NewUser
 import dev.inmo.wishlist.features.users.common.models.RegisteredUser
 import dev.inmo.wishlist.features.users.common.models.Username
@@ -10,7 +11,6 @@ import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.test.advanceUntilIdle
 import kotlinx.coroutines.test.runTest
 import kotlin.test.Test
-import kotlin.test.assertEquals
 import kotlin.test.assertNull
 import kotlin.test.assertTrue
 
@@ -51,8 +51,8 @@ class CacheUsersRepoSqliteTest {
                     email = current,
                     emailApproved = true,
                     pendingEmail = pending,
-                    emailChangeRequestedAt = 1_010L,
-                    emailChangeAllowedAt = 1_010L,
+                    emailChangeRequestedAt = DateTime.fromUnixMillis(1_010L),
+                    emailChangeAllowedAt = DateTime.fromUnixMillis(1_010L),
                 ),
                 cache.getEmailProfileFresh(created.id),
             )

@@ -68,7 +68,7 @@ import korlibs.time.DateTime
  * @param interactor Navigation delegate for this screen.
  * @param dispatcher UI dispatcher for lifecycle and owner-email transitions. Production uses
  *   [Dispatchers.Main.immediate]; deterministic tests inject a shared serial test dispatcher.
- * @param nowMillis Epoch-millisecond clock used only for advisory cooldown presentation and immediate
+ * @param now Clock used only for advisory cooldown presentation and immediate
  *   callback admission. The server remains the authorization source of truth.
  */
 class UserEditViewModel(
@@ -76,8 +76,23 @@ class UserEditViewModel(
     private val model: UsersModel,
     private val interactor: UserEditViewInteractor,
     private val dispatcher: CoroutineDispatcher = Dispatchers.Main.immediate,
-    private val nowMillis: () -> Long = DateTime::nowUnixMillisLong,
+    private val now: () -> DateTime = DateTime::now,
 ) : ViewModel<ViewConfig>(node) {
+    /** Compatibility constructor adapting a primitive UI clock at the view-model boundary. */
+    constructor(
+        node: NavigationNode<UserEditViewConfig, ViewConfig>,
+        model: UsersModel,
+        interactor: UserEditViewInteractor,
+        dispatcher: CoroutineDispatcher = Dispatchers.Main.immediate,
+        nowMillis: () -> Long,
+        compatibility: Unit = Unit,
+    ) : this(
+        node = node,
+        model = model,
+        interactor = interactor,
+        dispatcher = dispatcher,
+        now = { DateTime.fromUnixMillis(nowMillis()) },
+    )
     /**
      * UI-confined child scope with the ViewModel lifecycle [Job] inherited from [scope].
      *
@@ -209,10 +224,10 @@ class UserEditViewModel(
     val emailOperationInterruptedState: StateFlow<Boolean> =
         _emailOperationInterruptedState.asStateFlow()
 
-    private val _emailChangeRestrictionState = MutableRedeliverStateFlow<Long?>(null)
+    private val _emailChangeRestrictionState = MutableRedeliverStateFlow<DateTime?>(null)
 
     /** Authoritative cooldown deadline currently preventing a local save, or `null` when allowed. */
-    val emailChangeRestrictionState: StateFlow<Long?> = _emailChangeRestrictionState.asStateFlow()
+    val emailChangeRestrictionState: StateFlow<DateTime?> = _emailChangeRestrictionState.asStateFlow()
 
     private val _emailChangeAllowedState = MutableRedeliverStateFlow(true)
 
@@ -585,7 +600,7 @@ class UserEditViewModel(
         if (emailVerificationSnapshot != snapshot) {
             clearEmailVerificationFeedback()
         }
-        val activeDeadline = profile.emailChangeAllowedAt?.takeIf { nowMillis() < it }
+        val activeDeadline = profile.emailChangeAllowedAt?.takeIf { now() < it }
         _emailChangeAllowedState.value = activeDeadline == null
         if (_emailChangeRestrictionState.value != activeDeadline) {
             clearEmailCooldownFeedback()
@@ -603,11 +618,11 @@ class UserEditViewModel(
 
     /** Publishes a server-supplied cooldown deadline without guessing from a generic failed response. */
     private fun publishEmailCooldown(
-        deadline: Long,
+        deadline: DateTime,
         profile: EmailProfile? = _ownEmailProfileState.value,
     ) {
         _emailChangeRestrictionState.value = deadline
-        _emailChangeAllowedState.value = nowMillis() >= deadline
+        _emailChangeAllowedState.value = now() >= deadline
         emailCooldownSnapshot = profile?.let {
             EmailFeedbackSnapshot(
                 email = it.email,
@@ -629,7 +644,7 @@ class UserEditViewModel(
         if (requireEnabledSmtp && capability != EmailCapabilityState.Enabled) return null
         if (_emailLoadFailedState.value || _emailLoadingState.value || _emailBusyState.value) return null
         val profile = _ownEmailProfileState.value?.takeIf { it.userId == userId.long } ?: return null
-        profile.emailChangeAllowedAt?.takeIf { nowMillis() < it }?.let {
+        profile.emailChangeAllowedAt?.takeIf { now() < it }?.let {
             publishEmailCooldown(it, profile)
             return null
         }
@@ -650,7 +665,7 @@ class UserEditViewModel(
         if (requireEnabledSmtp && capability != EmailCapabilityState.Enabled) return null
         if (_ownEmailProfileState.value?.userId != userId.long) return null
         if (_emailLoadFailedState.value || _emailLoadingState.value || _emailBusyState.value) return null
-        _ownEmailProfileState.value?.emailChangeAllowedAt?.takeIf { nowMillis() < it }?.let {
+        _ownEmailProfileState.value?.emailChangeAllowedAt?.takeIf { now() < it }?.let {
             publishEmailCooldown(it)
             return null
         }
@@ -1159,8 +1174,8 @@ private data class EmailFeedbackSnapshot(
     val email: Email?,
     val emailApproved: Boolean,
     val pendingEmail: Email?,
-    val emailChangeRequestedAt: Long?,
-    val emailChangeAllowedAt: Long?,
+    val emailChangeRequestedAt: DateTime?,
+    val emailChangeAllowedAt: DateTime?,
 )
 
 /**

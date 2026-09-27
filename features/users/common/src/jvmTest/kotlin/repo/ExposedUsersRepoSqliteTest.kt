@@ -9,6 +9,7 @@ import dev.inmo.wishlist.features.users.common.models.UserId
 import dev.inmo.wishlist.features.users.common.models.Username
 import dev.inmo.wishlist.features.users.common.repo.exceptions.DuplicateUserFieldException
 import dev.inmo.wishlist.features.users.common.repo.exceptions.EmailChangeCooldownException
+import korlibs.time.DateTime
 import kotlinx.coroutines.CoroutineStart
 import kotlinx.coroutines.flow.collect
 import kotlinx.coroutines.launch
@@ -29,7 +30,6 @@ import java.util.concurrent.TimeUnit
 import java.util.concurrent.atomic.AtomicBoolean
 import java.util.concurrent.atomic.AtomicReference
 import kotlin.test.Test
-import kotlin.test.assertEquals
 import kotlin.test.assertFalse
 import kotlin.test.assertFailsWith
 import kotlin.test.assertIs
@@ -185,8 +185,8 @@ class ExposedUsersRepoSqliteTest {
                     email = current,
                     emailApproved = true,
                     pendingEmail = pending,
-                    emailChangeRequestedAt = 1_500L,
-                    emailChangeAllowedAt = 1_500L,
+                    emailChangeRequestedAt = DateTime.fromUnixMillis(1_500L),
+                    emailChangeAllowedAt = DateTime.fromUnixMillis(1_500L),
                 ),
                 repo.getEmailProfileFresh(created.id),
             )
@@ -237,7 +237,7 @@ class ExposedUsersRepoSqliteTest {
         val url = "jdbc:sqlite:${databaseFile.toAbsolutePath()}"
         val database = Database.connect(url = url, driver = "org.sqlite.JDBC")
         try {
-            val repo = ExposedUsersRepo(database, nowMillis = { 1_000L })
+            val repo = ExposedUsersRepo(database, now = { DateTime.fromUnixMillis(1_000L) })
             val created = repo.create(NewUser(Username("request-residue"))).single()
             DriverManager.getConnection(url).use { connection ->
                 connection.createStatement().use { statement ->
@@ -326,10 +326,10 @@ class ExposedUsersRepoSqliteTest {
             var now = 1_000L
             val firstDatabase = Database.connect(url = url, driver = "org.sqlite.JDBC")
             val userId = try {
-                val repo = ExposedUsersRepo(firstDatabase, nowMillis = { now })
+                val repo = ExposedUsersRepo(firstDatabase, now = { DateTime.fromUnixMillis(now) })
                 val created = repo.create(NewUser(Username("durable"), email)).single()
                 val approved = checkNotNull(repo.approveEmail(created.id, email, cooldownMillis = 500))
-                now = checkNotNull(repo.getEmailProfileFresh(approved.id)?.emailChangeAllowedAt)
+                now = checkNotNull(repo.getEmailProfileFresh(approved.id)?.emailChangeAllowedAt).unixMillis.toLong()
                 val pending = checkNotNull(repo.setEmail(created.id, Email("durable-pending@example.com")))
                 assertEquals(Email("durable-pending@example.com"), repo.getEmailProfileFresh(pending.id)?.pendingEmail)
                 created.id
@@ -581,7 +581,7 @@ class ExposedUsersRepoSqliteTest {
 
             val firstDatabase = Database.connect(url = url, driver = "org.sqlite.JDBC")
             try {
-                val repo = ExposedUsersRepo(firstDatabase, nowMillis = { 1_000L })
+                val repo = ExposedUsersRepo(firstDatabase, now = { DateTime.fromUnixMillis(1_000L) })
                 assertEquals(approvedCurrent, repo.getEmailProfileFresh(approvedId)?.email)
                 assertEquals(approvedPending, repo.getEmailProfileFresh(approvedId)?.pendingEmail)
                 assertEquals(900L, repo.getEmailProfileFresh(approvedId)?.emailChangeAllowedAt)
@@ -612,7 +612,7 @@ class ExposedUsersRepoSqliteTest {
 
             val reopenedDatabase = Database.connect(url = url, driver = "org.sqlite.JDBC")
             try {
-                val reopened = ExposedUsersRepo(reopenedDatabase, nowMillis = { 1_000L })
+                val reopened = ExposedUsersRepo(reopenedDatabase, now = { DateTime.fromUnixMillis(1_000L) })
                 assertEquals(approvedPending, reopened.getEmailProfileFresh(approvedId)?.pendingEmail)
                 assertNull(reopened.getEmailProfileFresh(approvedId)?.emailChangeRequestedAt)
                 assertEquals(firstCurrent, reopened.getEmailProfileFresh(firstId)?.email)
@@ -624,7 +624,7 @@ class ExposedUsersRepoSqliteTest {
 
             val reopenedTwiceDatabase = Database.connect(url = url, driver = "org.sqlite.JDBC")
             try {
-                val reopenedTwice = ExposedUsersRepo(reopenedTwiceDatabase, nowMillis = { 1_000L })
+                val reopenedTwice = ExposedUsersRepo(reopenedTwiceDatabase, now = { DateTime.fromUnixMillis(1_000L) })
                 val replaced = checkNotNull(reopenedTwice.setEmail(firstId, firstReplacement))
                 assertEquals(firstReplacement, replaced.email)
                 assertEquals(1_000L, reopenedTwice.getEmailProfileFresh(firstId)?.emailChangeRequestedAt)

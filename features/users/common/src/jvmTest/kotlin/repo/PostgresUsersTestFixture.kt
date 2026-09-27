@@ -1,5 +1,6 @@
 package dev.inmo.wishlist.features.users.common.repo
 
+import korlibs.time.DateTime
 import org.jetbrains.exposed.v1.jdbc.Database
 import org.jetbrains.exposed.v1.jdbc.transactions.TransactionManager
 import org.postgresql.PGConnection
@@ -125,8 +126,8 @@ internal suspend fun withPostgresUsersRepos(
     try {
         block(
             schemaUrl,
-            ExposedUsersRepo(firstDatabase, firstNowMillis, firstAfterWriteLock),
-            ExposedUsersRepo(secondDatabase, secondNowMillis, secondAfterWriteLock),
+            ExposedUsersRepo(firstDatabase, now = { DateTime.fromUnixMillis(firstNowMillis()) }, afterWriteLock = firstAfterWriteLock),
+            ExposedUsersRepo(secondDatabase, now = { DateTime.fromUnixMillis(secondNowMillis()) }, afterWriteLock = secondAfterWriteLock),
         )
     } finally {
         try {

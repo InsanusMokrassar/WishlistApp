@@ -5,6 +5,9 @@ import dev.inmo.micro_utils.repos.exposed.AbstractExposedCRUDRepo
 import dev.inmo.micro_utils.repos.exposed.initTable
 import dev.inmo.wishlist.features.email.common.models.Email
 import dev.inmo.wishlist.features.email.common.models.EmailProfile
+import dev.inmo.wishlist.features.email.common.utils.emailApprovalDeadline
+import dev.inmo.wishlist.features.email.common.utils.emailTimestampFromStorage
+import dev.inmo.wishlist.features.email.common.utils.emailTimestampToStorage
 import dev.inmo.wishlist.features.common.common.utils.isUniqueViolation
 import dev.inmo.wishlist.features.users.common.models.NewUser
 import dev.inmo.wishlist.features.users.common.models.RegisteredUser
@@ -32,6 +35,7 @@ import org.jetbrains.exposed.v1.jdbc.insert
 import org.jetbrains.exposed.v1.jdbc.insertIgnore
 import org.jetbrains.exposed.v1.jdbc.transactions.transaction
 import org.jetbrains.exposed.v1.jdbc.update as exposedUpdate
+import korlibs.time.DateTime
 
 /**
  * Singleton database-owned mutex for all participating users writers.
@@ -64,19 +68,26 @@ private object UsersWriteLockTable : Table("users_write_lock") {
  * transaction commits. Other constraint and database failures retain their original type.
  *
  * @param database Exposed [Database] instance (provided by the common server plugin).
- * @param nowMillis Clock sampled inside locked transactions when a lifecycle deadline is needed.
+ * @param now Clock sampled inside locked transactions when a lifecycle instant is needed.
  */
 class ExposedUsersRepo internal constructor(
     override val database: Database,
-    private val nowMillis: () -> Long,
+    private val now: () -> DateTime,
     /** Friend-test-only seam invoked after durable singleton-lock acquisition. */
     private val afterWriteLock: (() -> Unit)?,
 ) : UsersRepo, AbstractExposedCRUDRepo<RegisteredUser, UserId, NewUser>(tableName = "users") {
     /** Production-compatible constructor; lock-observation hooks remain internal to JVM friend tests. */
     constructor(
         database: Database,
-        nowMillis: () -> Long = System::currentTimeMillis,
-    ) : this(database, nowMillis, null)
+        now: () -> DateTime = { DateTime.fromUnixMillis(DateTime.now().unixMillis.toLong()) },
+    ) : this(database, now, null)
+
+    /** Compatibility constructor adapting a primitive clock at the repository's explicit storage boundary. */
+    constructor(
+        database: Database,
+        nowMillis: () -> Long,
+        compatibility: Unit = Unit,
+    ) : this(database, now = { DateTime.fromUnixMillis(nowMillis()) }, afterWriteLock = null)
     /** Auto-increment primary key column. */
     private val idColumn = long("id").autoIncrement()
 
@@ -140,8 +151,8 @@ class ExposedUsersRepo internal constructor(
                 email = email,
                 emailApproved = email != null && get(emailApprovedColumn),
                 pendingEmail = get(pendingEmailColumn)?.let { Email.parse(it).getOrNull() },
-                emailChangeRequestedAt = get(emailChangeRequestedAtColumn),
-                emailChangeAllowedAt = get(emailChangeAllowedAtColumn),
+                emailChangeRequestedAt = checkedStoredTimestamp("requested", get(emailChangeRequestedAtColumn)),
+                emailChangeAllowedAt = checkedStoredTimestamp("allowed", get(emailChangeAllowedAtColumn)),
             )
         }
 
@@ -268,7 +279,7 @@ class ExposedUsersRepo internal constructor(
                     ensureEmailAvailable(email = value.email, excludedId = null)
                     insert { statement ->
                         update(id = null, value = value, it = statement)
-                        statement[emailChangeRequestedAtColumn] = value.email?.let { nowMillis() }
+                        statement[emailChangeRequestedAtColumn] = value.email?.let { emailTimestampToStorage(now()) }
                     }.asObject(value)
                 }
             }
@@ -335,7 +346,7 @@ class ExposedUsersRepo internal constructor(
             val current = currentRow.asEmailProfile
             when {
                 current.pendingEmail == expectedEmail -> {
-                    val deadline = if (cooldownMillis == 0L) null else Math.addExact(nowMillis(), cooldownMillis)
+                    val deadline = if (cooldownMillis == 0L) null else emailTimestampToStorage(emailApprovalDeadline(now(), cooldownMillis))
                     this@ExposedUsersRepo.exposedUpdate({ idColumn eq id.long }) {
                         it[emailColumn] = expectedEmail.string
                         it[pendingEmailColumn] = null
@@ -346,7 +357,7 @@ class ExposedUsersRepo internal constructor(
                     selectUser(id)?.let { true to it }
                 }
                 current.email == expectedEmail && !current.emailApproved && current.pendingEmail == null -> {
-                    val deadline = if (cooldownMillis == 0L) null else Math.addExact(nowMillis(), cooldownMillis)
+                    val deadline = if (cooldownMillis == 0L) null else emailTimestampToStorage(emailApprovalDeadline(now(), cooldownMillis))
                     this@ExposedUsersRepo.exposedUpdate({ idColumn eq id.long }) {
                         it[emailApprovedColumn] = true
                         it[emailChangeRequestedAtColumn] = null
@@ -394,7 +405,7 @@ class ExposedUsersRepo internal constructor(
     /**
      * Applies a lifecycle mutation after the caller has acquired [UsersWriteLockTable]'s row.
      *
-     * A different accepted candidate receives one post-lock [nowMillis] sample in the same
+     * A different accepted candidate receives one post-lock [now] sample in the same
      * transaction. Same-current/same-pending saves, username-only writes, and failed operations do
      * not restamp [emailChangeRequestedAt]; approval and explicit clear remove it.
      */
@@ -409,9 +420,14 @@ class ExposedUsersRepo internal constructor(
             null -> !currentRow.hasEmptyEmailLifecycle()
             else -> currentRow[emailColumn] != email.string && currentRow[pendingEmailColumn] != email.string
         }
-        val deadline = currentRow[emailChangeAllowedAtColumn]
-        val mutationNowMillis = if (changingEmail) nowMillis() else null
-        if (changingEmail && deadline != null && checkNotNull(mutationNowMillis) < deadline) {
+        val deadline = if (changingEmail) {
+            currentRow.requireValidLifecycleTimestamps()
+            checkedStoredTimestamp("allowed", currentRow[emailChangeAllowedAtColumn])
+        } else {
+            null
+        }
+        val mutationNow = if (changingEmail) now() else null
+        if (changingEmail && deadline != null && checkNotNull(mutationNow) < deadline) {
             throw EmailChangeCooldownException(deadline)
         }
         if (changingEmail) ensureEmailAvailable(email = email, excludedId = id)
@@ -437,7 +453,7 @@ class ExposedUsersRepo internal constructor(
                 this@ExposedUsersRepo.exposedUpdate({ idColumn eq id.long }) {
                     if (username != null) it[usernameColumn] = username.string
                     it[pendingEmailColumn] = email.string
-                    it[emailChangeRequestedAtColumn] = mutationNowMillis
+                    it[emailChangeRequestedAtColumn] = emailTimestampToStorage(checkNotNull(mutationNow))
                 }
             }
             else -> {
@@ -446,7 +462,7 @@ class ExposedUsersRepo internal constructor(
                     it[emailColumn] = email.string
                     it[pendingEmailColumn] = null
                     it[emailApprovedColumn] = false
-                    it[emailChangeRequestedAtColumn] = mutationNowMillis
+                    it[emailChangeRequestedAtColumn] = emailTimestampToStorage(checkNotNull(mutationNow))
                     it[emailChangeAllowedAtColumn] = null
                 }
             }
@@ -461,6 +477,21 @@ class ExposedUsersRepo internal constructor(
             !get(emailApprovedColumn) &&
             get(emailChangeRequestedAtColumn) == null &&
             get(emailChangeAllowedAtColumn) == null
+
+    /** Converts one raw lifecycle value and marks unsupported persisted data as corruption. */
+    private fun checkedStoredTimestamp(field: String, value: Long?): DateTime? = value?.let {
+        try {
+            emailTimestampFromStorage(it)
+        } catch (error: IllegalArgumentException) {
+            throw IllegalStateException("Unsupported persisted email $field timestamp", error)
+        }
+    }
+
+    /** Validates both raw lifecycle values before a changing mutation can write or publish anything. */
+    private fun ResultRow.requireValidLifecycleTimestamps() {
+        checkedStoredTimestamp("requested", get(emailChangeRequestedAtColumn))
+        checkedStoredTimestamp("allowed", get(emailChangeAllowedAtColumn))
+    }
 
     /** Updates the durable lock row before any users-table query. */
     private fun JdbcTransaction.acquireWriteLock() {

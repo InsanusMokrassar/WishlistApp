@@ -4,6 +4,6 @@ import korlibs.time.DateFormat
 import korlibs.time.DateTime
 import korlibs.time.minutes
 
-/** Formats a server-supplied epoch-millisecond email-change deadline as a stable UTC timestamp. */
-fun emailChangeDeadlineText(epochMillis: Long): String =
-    "${DateFormat("yyyy-MM-dd HH:mm:ss").format(DateTime.fromUnixMillis(epochMillis).toOffsetUnadjusted(0.minutes))} UTC"
+/** Formats a server-supplied email-change deadline as a stable UTC timestamp. */
+fun emailChangeDeadlineText(deadline: DateTime): String =
+    "${DateFormat("yyyy-MM-dd HH:mm:ss").format(deadline.toOffsetUnadjusted(0.minutes))} UTC"

@@ -1,6 +1,8 @@
 package dev.inmo.wishlist.features.email.server.utils
 
 import dev.inmo.wishlist.features.email.server.EmailChangePolicyConfig
+import dev.inmo.wishlist.features.email.common.utils.emailApprovalDeadline
+import korlibs.time.DateTime
 import kotlin.time.Duration.Companion.milliseconds
 
 /**
@@ -10,12 +12,12 @@ import kotlin.time.Duration.Companion.milliseconds
  * immediately-expired restriction. The returned value is checked against [nowMillis] because every
  * approved address must be able to receive a representable deadline.
  *
- * @param nowMillis Server epoch milliseconds used for startup representability validation.
+ * @param now Server instant used for startup representability validation.
  * @return Zero for a disabled policy, otherwise the checked positive cooldown in milliseconds.
  * @throws IllegalArgumentException When the configured duration cannot issue a durable deadline.
  */
 internal fun EmailChangePolicyConfig.validatedCooldownMillis(
-    nowMillis: Long = System.currentTimeMillis(),
+    now: DateTime = DateTime.now(),
 ): Long {
     val duration = emailChangeCooldown
     require(duration.isFinite() && !duration.isNegative()) {
@@ -35,8 +37,10 @@ internal fun EmailChangePolicyConfig.validatedCooldownMillis(
         }
         truncatedMillis + 1
     }
-    if (nowMillis > Long.MAX_VALUE - cooldownMillis) {
-        throw IllegalArgumentException("emailChangeCooldown cannot issue a representable deadline")
+    try {
+        emailApprovalDeadline(now, cooldownMillis)
+    } catch (error: ArithmeticException) {
+        throw IllegalArgumentException("emailChangeCooldown cannot issue a representable deadline", error)
     }
     return cooldownMillis
 }

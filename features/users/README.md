@@ -36,6 +36,15 @@ User identity storage and public read-only API. Provides the `UsersRepo` CRUD re
 
 ## Architecture Notes
 
+- **Email lifecycle timestamps:** `ExposedUsersRepo` accepts a `DateTime` clock and keeps lifecycle
+  timestamps as `DateTime` in application logic while nullable BIGINT columns remain physical
+  epoch-millisecond storage. Checked adapters validate raw integers before conversion and validate
+  DateTime before writes. Deadline arithmetic fits inclusive ±2^52 whole milliseconds. Invalid stored
+  lifecycle values fail email reads or changes without mutation, cache publication, or events; reduced
+  reads and username-only writes need not decode them. Clock sampling stays after the durable lock and
+  exact deadline equality permits mutation. Deployments use counts-only raw-BIGINT range scans; no schema
+  rewrite or automatic repair occurs.
+
 - **Server-side:** `UsersFeature` interface defines `getAll()` method returning all registered users, projected onto `UsersFeatureUser`. `UsersService` implements this interface, delegates to `ReadUsersRepo`, and maps each stored `RegisteredUser` via `asUsersFeatureUser()` before returning — this is what keeps `email` off the public listing. `UsersRoutingsConfigurator` (JVM) registers public endpoint `GET /users/getAll` (path constants: `usersPrefixPathPart = "users"`, `usersGetAllPathPart = "getAll"` in `features/users/common/Constants.kt`).
 - **Feature Interface Return Model Rule (issue #67):** `UsersFeature.getAll()` (both server and client) returns `UsersFeatureUser`, not the `RegisteredUser` persistence entity — see `agents/CODING.md`'s "Feature Interface Return Model Rule" section for the repo-wide rule this fix established. `UsersFeatureUser` lives in `features/users/common/src/commonMain/kotlin/models/UsersFeatureUser.kt` alongside its `RegisteredUser.asUsersFeatureUser()` mapper.
 - **Client-side:** Mirror `UsersFeature` interface + `KtorUsersFeature` implementation in `features/users/client/src/commonMain/kotlin/`, registered in `client/Plugin.kt` (consumed by `features/ui/users`).

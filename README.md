@@ -45,6 +45,17 @@ Multiplatform codebase.
 - **Client MVVM** — `dev.inmo:navigation.mvvm` + Koin DI, with the
   `ViewConfig / ViewModel / View / Model / Interactor` pattern shared across all three clients.
 
+### Timestamp rules
+
+Application timestamps representing instants use `korlibs.time.DateTime`. Serializable DateTime
+properties use `dev.inmo.micro_utils.common.DateTimeSerializer`. Durations, monotonic elapsed
+measurements, IDs, counters, sizes, and monetary values retain their appropriate existing types.
+Primitive epoch values are permitted only at explicit checked storage or external-format boundaries.
+JSON timestamps remain numeric epoch milliseconds; the serializer writes Double numbers, so consumers
+must not depend on integer lexical formatting. Existing nullable history stays null. Durable email
+lifecycle instants are finite whole milliseconds in the inclusive range
+`[-4503599627370496, 4503599627370496]`; conversion outside that range fails without rewriting data.
+
 See `agents/CODING.md` for the full coding conventions and feature patterns.
 
 ## Prerequisites

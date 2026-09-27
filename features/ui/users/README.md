@@ -54,6 +54,12 @@ email storage, and verification request), `features/admin/client` (root-only use
 
 ## Architecture Notes
 
+- **Email timestamps:** Owner-email snapshots, cooldown restriction state, and the advisory clock use
+  `korlibs.time.DateTime`. The UTC formatter consumes DateTime directly and retains displayed text.
+  DateTime comparison preserves before-active/equality-allowed cooldown behavior, including Refresh and
+  synchronous IME admission. Requested-at remains snapshot identity only, without a timestamp widget.
+  Owner confinement, retarget/logout state removal, draft preservation, and feedback reconciliation remain unchanged.
+
 - All views use the shared `ScreenTitle` / `BackButton` / `ListRow` components from `features/common/client` (`ui.components`).
 - All three screens' interactors are implemented in `client/ClientPlugin` (intra-feature push/pop). `onOpenProfile`/`UserViewInteractor.onEditUser` push `UserViewConfig`/`UserEditViewConfig` onto `node.chain`.
 - `build.gradle` deps: `features/auth/client` (caller/me state), `features/admin/client` (`AdminFeature`), `features/email/client` (`EmailFeature`), `features/files/client` (`FilesClientService`).
