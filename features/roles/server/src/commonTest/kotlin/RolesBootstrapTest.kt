@@ -20,6 +20,7 @@ import kotlinx.coroutines.test.UnconfinedTestDispatcher
 import kotlinx.coroutines.test.advanceUntilIdle
 import kotlinx.coroutines.test.runCurrent
 import kotlinx.coroutines.test.runTest
+import korlibs.time.DateTime
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
@@ -50,13 +51,13 @@ class RolesBootstrapTest {
         val unapprovedProfile = EmailProfile(
             userId = unapproved.id.long,
             email = unapproved.email,
-            emailChangeRequestedAt = 10L,
+            emailChangeRequestedAt = DateTime.fromUnixMillis(10L),
         )
         val approvedProfile = EmailProfile(
             userId = approved.id.long,
             email = approved.email,
             emailApproved = true,
-            emailChangeAllowedAt = 20L,
+            emailChangeAllowedAt = DateTime.fromUnixMillis(20L),
         )
         val usersRepo = FakeUsersRepo(
             initialUsers = mapOf(unapproved.id to unapproved, approved.id to approved),

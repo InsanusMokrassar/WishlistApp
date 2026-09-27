@@ -14,6 +14,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.test.runTest
+import korlibs.time.DateTime
 import org.jetbrains.exposed.v1.jdbc.Database
 import org.jetbrains.exposed.v1.jdbc.transactions.TransactionManager
 import java.nio.file.Files
@@ -39,7 +40,7 @@ class AuthFeatureServiceSqliteTest {
     fun authenticatedPrivateReadBypassesLiveIndependentlyStaleCache() = runTest {
         val current = Email("approved@example.com")
         val pending = Email("pending@example.com")
-        var now = 1_000L
+        var now = DateTime.fromUnixMillis(1_000L)
         val databaseFile = Files.createTempFile("wishlist-auth-users", ".sqlite")
         val firstDatabase = Database.connect(
             url = "jdbc:sqlite:${databaseFile.toAbsolutePath()}",
@@ -51,8 +52,8 @@ class AuthFeatureServiceSqliteTest {
         )
         val cacheScope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
         try {
-            val firstRepo = ExposedUsersRepo(firstDatabase, nowMillis = { now })
-            val secondRepo = ExposedUsersRepo(secondDatabase, nowMillis = { now })
+            val firstRepo = ExposedUsersRepo(firstDatabase, now = { now })
+            val secondRepo = ExposedUsersRepo(secondDatabase, now = { now })
             val initial = firstRepo.create(listOf(NewUser(Username("bob"), current))).single()
             val cache = CacheUsersRepo(firstRepo, cacheScope)
             val service = AuthFeatureService(
@@ -66,7 +67,7 @@ class AuthFeatureServiceSqliteTest {
 
             assertEquals(initial, cache.getById(initial.id))
             val approved = checkNotNull(secondRepo.approveEmail(initial.id, current, cooldownMillis = 5L))
-            assertEquals(1_005L, secondRepo.getEmailProfileFresh(approved.id)?.emailChangeAllowedAt)
+            assertEquals(DateTime.fromUnixMillis(1_005L), secondRepo.getEmailProfileFresh(approved.id)?.emailChangeAllowedAt)
             now = checkNotNull(secondRepo.getEmailProfileFresh(approved.id)?.emailChangeAllowedAt)
             val replacement = checkNotNull(secondRepo.setEmail(initial.id, pending))
 
@@ -87,8 +88,8 @@ class AuthFeatureServiceSqliteTest {
                     email = current,
                     emailApproved = true,
                     pendingEmail = pending,
-                    emailChangeRequestedAt = 1_005L,
-                    emailChangeAllowedAt = 1_005L,
+                    emailChangeRequestedAt = DateTime.fromUnixMillis(1_005L),
+                    emailChangeAllowedAt = DateTime.fromUnixMillis(1_005L),
                 ),
                 cache.getEmailProfileFresh(initial.id),
             )

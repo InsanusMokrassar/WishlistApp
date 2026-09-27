@@ -29,6 +29,7 @@ import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitCancellation
 import kotlinx.coroutines.test.runTest
 import kotlinx.coroutines.withTimeout
+import korlibs.time.DateTime
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFailsWith
@@ -123,11 +124,11 @@ internal class FakeUsersRepo(
                     email = expectedEmail,
                     emailApproved = true,
                     pendingEmail = null,
-                    emailChangeAllowedAt = cooldownMillis.takeIf { it > 0L },
+                    emailChangeAllowedAt = cooldownMillis.takeIf { it > 0L }?.let(DateTime::fromUnixMillis),
                 )
                 profile.email == expectedEmail && !profile.emailApproved && profile.pendingEmail == null -> profile.copy(
                     emailApproved = true,
-                    emailChangeAllowedAt = cooldownMillis.takeIf { it > 0L },
+                    emailChangeAllowedAt = cooldownMillis.takeIf { it > 0L }?.let(DateTime::fromUnixMillis),
                 )
                 profile.email == expectedEmail && profile.emailApproved && profile.pendingEmail == null -> profile
                 else -> return@withWriteLock null
@@ -465,13 +466,13 @@ class AuthFeatureServiceTest {
         val unapprovedProfile = EmailProfile(
             userId = unapproved.id.long,
             email = unapproved.email,
-            emailChangeRequestedAt = 10L,
+            emailChangeRequestedAt = DateTime.fromUnixMillis(10L),
         )
         val approvedProfile = EmailProfile(
             userId = approved.id.long,
             email = approved.email,
             emailApproved = true,
-            emailChangeAllowedAt = 20L,
+            emailChangeAllowedAt = DateTime.fromUnixMillis(20L),
         )
         val usersRepo = FakeUsersRepo(
             initialUsers = mapOf(unapproved.id to unapproved, approved.id to approved),

@@ -9,6 +9,7 @@ import dev.inmo.wishlist.features.users.common.models.RegisteredUser
 import dev.inmo.wishlist.features.users.common.models.UserId
 import dev.inmo.wishlist.features.users.common.models.Username
 import dev.inmo.wishlist.features.users.common.repo.UsersRepo
+import korlibs.time.DateTime
 
 /**
  * In-memory [UsersRepo] test double backed by [MapCRUDRepo] — same composition shape as
@@ -86,11 +87,11 @@ internal class FakeUsersRepo(
                     email = expectedEmail,
                     emailApproved = true,
                     pendingEmail = null,
-                    emailChangeAllowedAt = cooldownMillis.takeIf { it > 0L },
+                    emailChangeAllowedAt = cooldownMillis.takeIf { it > 0L }?.let(DateTime::fromUnixMillis),
                 )
                 profile.email == expectedEmail && !profile.emailApproved && profile.pendingEmail == null -> profile.copy(
                     emailApproved = true,
-                    emailChangeAllowedAt = cooldownMillis.takeIf { it > 0L },
+                    emailChangeAllowedAt = cooldownMillis.takeIf { it > 0L }?.let(DateTime::fromUnixMillis),
                 )
                 profile.email == expectedEmail && profile.emailApproved && profile.pendingEmail == null -> profile
                 else -> return@withWriteLock null
