@@ -34,6 +34,7 @@ import dev.inmo.wishlist.features.wishlist.common.models.WishlistId
 import dev.inmo.wishlist.features.wishlist.common.models.WishlistItemId
 import dev.inmo.wishlist.features.wishlist.common.repo.WishlistItemRepo
 import dev.inmo.wishlist.features.wishlist.common.repo.WishlistRepo
+import korlibs.time.DateTime
 import kotlinx.coroutines.test.runTest
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.emptyFlow
@@ -118,11 +119,11 @@ internal class FakeUsersRepo(
                     email = expectedEmail,
                     emailApproved = true,
                     pendingEmail = null,
-                    emailChangeAllowedAt = cooldownMillis.takeIf { it > 0L },
+                    emailChangeAllowedAt = cooldownMillis.takeIf { it > 0L }?.let(DateTime::fromUnixMillis),
                 )
                 profile.email == expectedEmail && !profile.emailApproved && profile.pendingEmail == null -> profile.copy(
                     emailApproved = true,
-                    emailChangeAllowedAt = cooldownMillis.takeIf { it > 0L },
+                    emailChangeAllowedAt = cooldownMillis.takeIf { it > 0L }?.let(DateTime::fromUnixMillis),
                 )
                 profile.email == expectedEmail && profile.emailApproved && profile.pendingEmail == null -> profile
                 else -> return@withWriteLock null
@@ -237,13 +238,13 @@ class UsersManagementFeatureTest {
         val unapprovedProfile = EmailProfile(
             userId = unapproved.id.long,
             email = unapproved.email,
-            emailChangeRequestedAt = 10L,
+            emailChangeRequestedAt = DateTime.fromUnixMillis(10L),
         )
         val approvedProfile = EmailProfile(
             userId = approved.id.long,
             email = approved.email,
             emailApproved = true,
-            emailChangeAllowedAt = 20L,
+            emailChangeAllowedAt = DateTime.fromUnixMillis(20L),
         )
         val usersRepo = FakeUsersRepo(
             initialUsers = mapOf(unapproved.id to unapproved, approved.id to approved),
@@ -269,13 +270,13 @@ class UsersManagementFeatureTest {
 
     /** Runs an admin feature test against a fixture-owned Exposed SQLite repository. */
     private suspend fun withSqliteUsersRepo(
-        nowMillis: () -> Long,
+        now: () -> DateTime,
         block: suspend (ExposedUsersRepo) -> Unit,
     ) {
         val file = Files.createTempFile("wishlist-admin-users", ".sqlite")
         val database = Database.connect(url = "jdbc:sqlite:${file.toAbsolutePath()}", driver = "org.sqlite.JDBC")
         try {
-            block(ExposedUsersRepo(database, nowMillis))
+            block(ExposedUsersRepo(database, now))
         } finally {
             try {
                 TransactionManager.closeAndUnregister(database)
@@ -330,8 +331,8 @@ class UsersManagementFeatureTest {
     /** Full updates share the real lifecycle gate, while the dedicated rename remains independently allowed. */
     @Test
     fun realRepositoryRejectsFullUpdateWithoutPartialRename() = runTest {
-        var now = 1_000L
-        withSqliteUsersRepo(nowMillis = { now }) { usersRepo ->
+        var now = DateTime.fromUnixMillis(1_000L)
+        withSqliteUsersRepo(now = { now }) { usersRepo ->
             val addressA = Email("admin-real-a@example.com")
             val addressB = Email("admin-real-b@example.com")
             val created = usersRepo.create(listOf(NewUser(Username("admin-real"), addressA))).single()
@@ -342,7 +343,7 @@ class UsersManagementFeatureTest {
             val rejection = assertFailsWith<EmailChangeCooldownException> {
                 feature.update(created.id, NewUser(Username("must-not-rename"), addressB))
             }
-            assertEquals(1_010L, rejection.emailChangeAllowedAt)
+            assertEquals(DateTime.fromUnixMillis(1_010L), rejection.emailChangeAllowedAt)
             assertEquals(approved, usersRepo.getById(created.id))
             assertFailsWith<EmailChangeCooldownException> {
                 feature.update(created.id, NewUser(Username("must-not-clear"), null))
@@ -352,7 +353,7 @@ class UsersManagementFeatureTest {
             assertEquals(true, feature.updateUsername(created.id, Username("admin-real-renamed")))
             assertEquals(approved.copy(username = Username("admin-real-renamed")), usersRepo.getById(created.id))
 
-            now = 1_010L
+            now = DateTime.fromUnixMillis(1_010L)
             assertEquals(true, feature.update(created.id, NewUser(Username("admin-real-expired"), addressB)))
             assertEquals(
                 approved.copy(username = Username("admin-real-expired")),

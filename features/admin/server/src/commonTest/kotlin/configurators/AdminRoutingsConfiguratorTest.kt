@@ -9,6 +9,7 @@ import dev.inmo.wishlist.features.admin.server.NoopRolesRepo
 import dev.inmo.wishlist.features.admin.server.UsersManagementFeature
 import dev.inmo.wishlist.features.auth.server.services.AuthFeatureService
 import dev.inmo.wishlist.features.email.common.models.Email
+import dev.inmo.wishlist.features.email.common.models.EmailChangeCooldown
 import dev.inmo.wishlist.features.email.server.services.EmailVerificationAccountCoordinator
 import dev.inmo.wishlist.features.roles.common.models.FunctionalityId
 import dev.inmo.wishlist.features.roles.server.RolesFeature
@@ -38,6 +39,7 @@ import io.ktor.server.routing.routing
 import io.ktor.server.testing.ApplicationTestBuilder
 import io.ktor.server.testing.testApplication
 import io.ktor.serialization.kotlinx.json.json
+import korlibs.time.DateTime
 import kotlinx.serialization.json.Json
 import kotlinx.coroutines.runBlocking
 import org.jetbrains.exposed.v1.jdbc.Database
@@ -133,7 +135,10 @@ class AdminRoutingsConfiguratorTest {
         }
 
         assertEquals(HttpStatusCode.TooManyRequests, response.status)
-        assertEquals("{\"emailChangeAllowedAt\":123456789}", response.bodyAsText())
+        assertEquals(
+            EmailChangeCooldown(DateTime.fromUnixMillis(123456789L)),
+            Json.decodeFromString(EmailChangeCooldown.serializer(), response.bodyAsText()),
+        )
         assertEquals(user, backing.getById(user.id))
     }
 
@@ -143,8 +148,8 @@ class AdminRoutingsConfiguratorTest {
         val file = Files.createTempFile("wishlist-admin-routes", ".sqlite")
         val database = Database.connect(url = "jdbc:sqlite:${file.toAbsolutePath()}", driver = "org.sqlite.JDBC")
         try {
-            var now = 1_000L
-            val users = ExposedUsersRepo(database, nowMillis = { now })
+            var now = DateTime.fromUnixMillis(1_000L)
+            val users = ExposedUsersRepo(database, now = { now })
             val addressA = Email("route-real-a@example.com")
             val addressB = Email("route-real-b@example.com")
             val duplicate = Email("route-real-duplicate@example.com")
@@ -165,7 +170,10 @@ class AdminRoutingsConfiguratorTest {
                     setBody(updateBody)
                 }
                 assertEquals(HttpStatusCode.TooManyRequests, rootRejected.status)
-                assertEquals("{\"emailChangeAllowedAt\":1010}", rootRejected.bodyAsText())
+                assertEquals(
+                    EmailChangeCooldown(DateTime.fromUnixMillis(1_010L)),
+                    Json.decodeFromString(EmailChangeCooldown.serializer(), rootRejected.bodyAsText()),
+                )
                 assertEquals(approved, users.getById(target.id))
 
                 listOf(null, "Bearer other").forEach { authorization ->
@@ -189,7 +197,7 @@ class AdminRoutingsConfiguratorTest {
                 assertEquals(HttpStatusCode.OK, rename.status)
                 assertEquals(approved.copy(username = Username("route-renamed")), users.getById(target.id))
 
-                now = 1_010L
+                now = DateTime.fromUnixMillis(1_010L)
                 val replacement = client.put("/api/admin/users/update/${target.id.long}") {
                     header(HttpHeaders.Authorization, "Bearer root")
                     contentType(ContentType.Application.Json)
@@ -274,7 +282,7 @@ class AdminRoutingsConfiguratorTest {
     /** Simulates the repository-owned durable deadline rejection at the full-update boundary. */
     private class CooldownOnUpdateUsersRepo(private val delegate: UsersRepo) : UsersRepo by delegate {
         override suspend fun update(id: UserId, value: NewUser): RegisteredUser? {
-            throw EmailChangeCooldownException(123456789L)
+            throw EmailChangeCooldownException(DateTime.fromUnixMillis(123456789L))
         }
     }
 }
