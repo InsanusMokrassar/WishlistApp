@@ -23,6 +23,7 @@ import dev.inmo.wishlist.features.users.common.repo.UsersRepo
 import dev.inmo.wishlist.features.users.common.repo.exceptions.DuplicateUserFieldException
 import dev.inmo.wishlist.features.users.common.repo.exceptions.EmailChangeCooldownException
 import dev.inmo.wishlist.features.users.common.repo.ExposedUsersRepo
+import korlibs.time.DateTime
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.async
@@ -137,13 +138,13 @@ class EmailVerificationAccountCoordinatorTest {
         val unapprovedProfile = EmailProfile(
             userId = unapproved.id.long,
             email = unapproved.email,
-            emailChangeRequestedAt = 10L,
+            emailChangeRequestedAt = DateTime.fromUnixMillis(10L),
         )
         val approvedProfile = EmailProfile(
             userId = approved.id.long,
             email = approved.email,
             emailApproved = true,
-            emailChangeAllowedAt = 20L,
+            emailChangeAllowedAt = DateTime.fromUnixMillis(20L),
         )
         val usersRepo = FakeUsersRepo(
             initialUsers = mapOf(unapproved.id to unapproved, approved.id to approved),
@@ -297,7 +298,7 @@ class EmailVerificationAccountCoordinatorTest {
         val profile = EmailProfile(
             userId = user.id.long,
             email = invitedEmail,
-            emailChangeRequestedAt = 100L,
+            emailChangeRequestedAt = DateTime.fromUnixMillis(100L),
         )
         val usersRepo = FakeUsersRepo(
             initialUsers = mapOf(user.id to user),
@@ -353,8 +354,8 @@ class EmailVerificationAccountCoordinatorTest {
             email = invitedEmail,
             emailApproved = true,
             pendingEmail = changedEmail,
-            emailChangeRequestedAt = 100L,
-            emailChangeAllowedAt = 200L,
+            emailChangeRequestedAt = DateTime.fromUnixMillis(100L),
+            emailChangeAllowedAt = DateTime.fromUnixMillis(200L),
         )
         val fake = FakeUsersRepo(
             initialUsers = mapOf(user.id to user),
@@ -474,7 +475,7 @@ class EmailVerificationAccountCoordinatorTest {
                     val feature = application.koin.get<EmailFeature>()
                     assertTrue(coordinator.verifyInvitedEmailAndPromote(created.id, addressA))
                     val approved = checkNotNull(usersRepo.getById(created.id))
-                    assertEquals(1_010L, usersRepo.getEmailProfileFresh(created.id)?.emailChangeAllowedAt)
+                    assertEquals(DateTime.fromUnixMillis(1_010L), usersRepo.getEmailProfileFresh(created.id)?.emailChangeAllowedAt)
 
                     assertFailsWith<EmailChangeCooldownException> { feature.setMyEmail(created.id, addressB) }
                     assertFailsWith<EmailChangeCooldownException> { feature.setMyEmail(created.id, null) }

@@ -10,7 +10,11 @@ import dev.inmo.wishlist.features.users.common.models.Username
 import dev.inmo.wishlist.features.users.common.repo.exceptions.DuplicateUserFieldException
 import dev.inmo.wishlist.features.users.common.repo.exceptions.EmailChangeCooldownException
 import korlibs.time.DateTime
+import kotlinx.coroutines.CoroutineStart
+import kotlinx.coroutines.flow.collect
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.test.runTest
+import kotlinx.coroutines.test.advanceUntilIdle
 import org.jetbrains.exposed.v1.exceptions.ExposedSQLException
 import org.jetbrains.exposed.v1.jdbc.Database
 import org.jetbrains.exposed.v1.jdbc.transactions.TransactionManager
@@ -30,6 +34,46 @@ import kotlin.test.assertTrue
 
 /** Verifies the email lifecycle against a disposable PostgreSQL schema. */
 class PostgresUsersRepoTest {
+    /** Unsupported BIGINT lifecycle data blocks private projection and mutation without rewriting rows. */
+    @Test
+    fun invalidRawLifecycleFailsWithoutMutationOrEvent() = runTest {
+        withBoundedPostgresUsersRepos { schemaUrl, repo, _ ->
+            val original = Email("postgres-invalid-raw@example.com")
+            val user = repo.create(NewUser(Username("postgres-invalid-raw"), original)).single()
+            val events = mutableListOf<RegisteredUser>()
+            val collector = backgroundScope.launch(start = CoroutineStart.UNDISPATCHED) {
+                repo.updatedObjectsFlow.collect(events::add)
+            }
+            try {
+                listOf(-4_503_599_627_370_497L, 4_503_599_627_370_497L).forEach { raw ->
+                    openBoundedPostgresConnection(schemaUrl).use { connection ->
+                        connection.prepareStatement("UPDATE users SET email_change_allowed_at = ? WHERE id = ?").use { statement ->
+                            statement.setLong(1, raw)
+                            statement.setLong(2, user.id.long)
+                            statement.executeUpdate()
+                        }
+                    }
+                    assertFailsWith<IllegalStateException> { repo.getEmailProfileFresh(user.id) }
+                    assertFailsWith<IllegalStateException> { repo.setEmail(user.id, Email("postgres-other@example.com")) }
+                    assertEquals(original, repo.getById(user.id)?.email)
+                    openBoundedPostgresConnection(schemaUrl).use { connection ->
+                        connection.prepareStatement("SELECT email_change_allowed_at FROM users WHERE id = ?").use { statement ->
+                            statement.setLong(1, user.id.long)
+                            statement.executeQuery().use { result ->
+                                assertTrue(result.next())
+                                assertEquals(raw, result.getLong(1))
+                            }
+                        }
+                    }
+                }
+                advanceUntilIdle()
+                assertTrue(events.isEmpty())
+            } finally {
+                collector.cancel()
+            }
+        }
+    }
+
     /** PostgreSQL writers retain approval, protect both slots, and atomically promote the candidate. */
     @Test
     fun retainedApprovalAndCrossSlotUniqueness() = runTest {

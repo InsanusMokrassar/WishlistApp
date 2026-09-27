@@ -44,6 +44,7 @@ import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.test.runCurrent
+import korlibs.time.DateTime
 import kotlinx.coroutines.test.runTest
 import kotlinx.serialization.json.JsonObject
 import org.koin.core.context.startKoin
@@ -148,8 +149,8 @@ class UsersModelTest {
                 userId = profile.id.long,
                 email = Email("owner@example.com"),
                 pendingEmail = Email("replacement@example.com"),
-                emailChangeRequestedAt = 1_000L,
-                emailChangeAllowedAt = 2_000L,
+                emailChangeRequestedAt = DateTime.fromUnixMillis(1_000L),
+                emailChangeAllowedAt = DateTime.fromUnixMillis(2_000L),
             )
             email.profile = emailProfile
             assertEquals(emailProfile, model.getMyEmailProfile())

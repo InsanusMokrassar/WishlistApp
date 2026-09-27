@@ -1225,7 +1225,8 @@ class ExposedUsersRepoSqliteTest {
     /** A non-representable approval deadline rolls back the row and emits no speculative event. */
     @Test
     fun approvalDeadlineOverflowRollsBackWithoutPublishingAnEvent() = runTest {
-        withInMemorySqliteUsersRepo(nowMillis = { Long.MAX_VALUE - 5L }) { repo ->
+        var now = 1_000L
+        withInMemorySqliteUsersRepo(nowMillis = { now }) { repo ->
             val email = Email("approval-overflow@example.com")
             val user = repo.create(NewUser(Username("approval-overflow"), email)).single()
             val before = checkNotNull(repo.getById(user.id))
@@ -1234,6 +1235,7 @@ class ExposedUsersRepoSqliteTest {
                 repo.updatedObjectsFlow.collect(events::add)
             }
             try {
+                now = 4_503_599_627_370_491L
                 assertFailsWith<ArithmeticException> {
                     repo.approveEmail(user.id, email, cooldownMillis = 10L)
                 }
@@ -1241,6 +1243,105 @@ class ExposedUsersRepoSqliteTest {
                 advanceUntilIdle()
                 assertEquals(before, repo.getById(user.id))
                 assertTrue(events.isEmpty())
+            } finally {
+                collector.cancel()
+            }
+        }
+    }
+
+    /** An invalid injected clock is rejected after valid setup without changing rows or events. */
+    @Test
+    fun unsupportedApprovalClockRollsBackWithoutPublishingAnEvent() = runTest {
+        var now = 1_000L
+        withInMemorySqliteUsersRepo(nowMillis = { now }) { repo ->
+            val email = Email("invalid-clock@example.com")
+            val user = repo.create(NewUser(Username("invalid-clock"), email)).single()
+            val before = checkNotNull(repo.getById(user.id))
+            val events = mutableListOf<RegisteredUser>()
+            val collector = backgroundScope.launch(start = CoroutineStart.UNDISPATCHED) {
+                repo.updatedObjectsFlow.collect(events::add)
+            }
+            try {
+                now = Long.MAX_VALUE
+                assertFailsWith<IllegalArgumentException> {
+                    repo.approveEmail(user.id, email, cooldownMillis = 10L)
+                }
+                advanceUntilIdle()
+                assertEquals(before, repo.getById(user.id))
+                assertTrue(events.isEmpty())
+            } finally {
+                collector.cancel()
+            }
+        }
+    }
+
+    /** Unsupported raw lifecycle values stay untouched while reduced reads and username edits work. */
+    @Test
+    fun invalidRawLifecycleFailsOwnerReadsAndEmailWritesWithoutMutation() = runTest {
+        withFileBackedSqliteUsersRepos { url, repo, _ ->
+            val original = Email("raw-lifecycle@example.com")
+            val user = repo.create(NewUser(Username("raw-lifecycle"), original)).single()
+            val events = mutableListOf<RegisteredUser>()
+            val collector = backgroundScope.launch(start = CoroutineStart.UNDISPATCHED) {
+                repo.updatedObjectsFlow.collect(events::add)
+            }
+            try {
+                listOf(-4_503_599_627_370_497L, 4_503_599_627_370_497L).forEach { raw ->
+                    DriverManager.getConnection(url).use { connection ->
+                        connection.prepareStatement("UPDATE users SET email_change_requested_at = ? WHERE id = ?").use { statement ->
+                            statement.setLong(1, raw)
+                            statement.setLong(2, user.id.long)
+                            statement.executeUpdate()
+                        }
+                    }
+                    assertFailsWith<IllegalStateException> { repo.getEmailProfileFresh(user.id) }
+                    assertFailsWith<IllegalStateException> {
+                        repo.setEmail(user.id, Email("replacement@example.com"))
+                    }
+                    assertEquals(original, repo.getById(user.id)?.email)
+                    DriverManager.getConnection(url).use { connection ->
+                        connection.prepareStatement("SELECT email_change_requested_at FROM users WHERE id = ?").use { statement ->
+                            statement.setLong(1, user.id.long)
+                            statement.executeQuery().use { result ->
+                                assertTrue(result.next())
+                                assertEquals(raw, result.getLong(1))
+                            }
+                        }
+                    }
+                }
+                repo.updateUsername(user.id, Username("raw-lifecycle-renamed"))
+                assertEquals(Username("raw-lifecycle-renamed"), repo.getById(user.id)?.username)
+                DriverManager.getConnection(url).use { connection ->
+                    connection.createStatement().use { statement ->
+                        statement.executeQuery(
+                            """SELECT
+                                SUM(CASE WHEN email_change_requested_at IS NOT NULL AND (email_change_requested_at < -4503599627370496 OR email_change_requested_at > 4503599627370496) THEN 1 ELSE 0 END),
+                                SUM(CASE WHEN email_change_allowed_at IS NOT NULL AND (email_change_allowed_at < -4503599627370496 OR email_change_allowed_at > 4503599627370496) THEN 1 ELSE 0 END),
+                                SUM(CASE WHEN (email_change_requested_at IS NOT NULL AND (email_change_requested_at < -4503599627370496 OR email_change_requested_at > 4503599627370496)) OR (email_change_allowed_at IS NOT NULL AND (email_change_allowed_at < -4503599627370496 OR email_change_allowed_at > 4503599627370496)) THEN 1 ELSE 0 END)
+                                FROM users""",
+                        ).use { result ->
+                            assertTrue(result.next())
+                            assertEquals(1, result.getInt(1))
+                            assertEquals(0, result.getInt(2))
+                            assertEquals(1, result.getInt(3))
+                        }
+                    }
+                }
+                DriverManager.getConnection(url).use { connection ->
+                    connection.prepareStatement(
+                        "UPDATE users SET email_change_requested_at = ?, email_change_allowed_at = ? WHERE id = ?",
+                    ).use { statement ->
+                        statement.setLong(1, -4_503_599_627_370_496L)
+                        statement.setLong(2, 4_503_599_627_370_496L)
+                        statement.setLong(3, user.id.long)
+                        statement.executeUpdate()
+                    }
+                }
+                val bounded = checkNotNull(repo.getEmailProfileFresh(user.id))
+                assertEquals(DateTime.fromUnixMillis(-4_503_599_627_370_496L), bounded.emailChangeRequestedAt)
+                assertEquals(DateTime.fromUnixMillis(4_503_599_627_370_496L), bounded.emailChangeAllowedAt)
+                advanceUntilIdle()
+                assertEquals(1, events.size)
             } finally {
                 collector.cancel()
             }

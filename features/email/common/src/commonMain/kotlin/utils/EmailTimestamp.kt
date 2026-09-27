@@ -60,5 +60,5 @@ fun emailApprovalDeadline(approvedAt: DateTime, cooldownMillis: Long): DateTime 
     if (cooldownMillis > maxEmailTimestampMillis - approvedMillis) {
         throw ArithmeticException("Email approval deadline is outside the supported range")
     }
-    return emailTimestampFromStorage(Math.addExact(approvedMillis, cooldownMillis))
+    return emailTimestampFromStorage(approvedMillis + cooldownMillis)
 }

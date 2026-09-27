@@ -10,6 +10,7 @@ import dev.inmo.wishlist.features.users.common.models.UserId
 import dev.inmo.wishlist.features.users.common.models.Username
 import dev.inmo.wishlist.features.users.common.repo.UsersRepo
 import dev.inmo.wishlist.features.users.common.repo.exceptions.DuplicateUserFieldException
+import korlibs.time.DateTime
 
 /**
  * In-memory [UsersRepo] test double backed by [MapCRUDRepo] (`dev.inmo:micro_utils.repos.inmemory`,
@@ -181,12 +182,12 @@ internal class FakeUsersRepo(
                     emailApproved = true,
                     pendingEmail = null,
                     emailChangeRequestedAt = null,
-                    emailChangeAllowedAt = if (cooldownMillis == 0L) null else cooldownMillis,
+                    emailChangeAllowedAt = if (cooldownMillis == 0L) null else DateTime.fromUnixMillis(cooldownMillis),
                 )
                 currentProfile.email == expectedEmail && !currentProfile.emailApproved && currentProfile.pendingEmail == null -> currentProfile.copy(
                     emailApproved = true,
                     emailChangeRequestedAt = null,
-                    emailChangeAllowedAt = if (cooldownMillis == 0L) null else cooldownMillis,
+                    emailChangeAllowedAt = if (cooldownMillis == 0L) null else DateTime.fromUnixMillis(cooldownMillis),
                 )
                 currentProfile.email == expectedEmail && currentProfile.emailApproved && currentProfile.pendingEmail == null -> currentProfile
                 else -> return@withWriteLock null

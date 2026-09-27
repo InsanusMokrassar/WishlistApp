@@ -1,6 +1,7 @@
 package dev.inmo.wishlist.features.email.server.configurators
 
 import dev.inmo.wishlist.features.email.common.models.Email
+import dev.inmo.wishlist.features.email.common.models.EmailChangeCooldown
 import dev.inmo.wishlist.features.email.common.models.EmailProfile
 import dev.inmo.wishlist.features.email.common.models.EmailVerificationRequestResult
 import dev.inmo.wishlist.features.email.server.EmailFeature
@@ -34,6 +35,7 @@ import io.ktor.server.routing.route
 import io.ktor.server.routing.routing
 import io.ktor.server.testing.testApplication
 import io.ktor.serialization.kotlinx.json.json
+import korlibs.time.DateTime
 import kotlinx.serialization.json.Json
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.test.advanceUntilIdle
@@ -89,7 +91,7 @@ class EmailRoutingsConfiguratorTest {
                         email = approved,
                         emailApproved = true,
                         pendingEmail = replacement,
-                        emailChangeRequestedAt = 1_010L,
+                        emailChangeRequestedAt = DateTime.fromUnixMillis(1_010L),
                     ),
                     Json.decodeFromString(EmailProfile.serializer(), response.bodyAsText()),
                 )
@@ -124,8 +126,8 @@ class EmailRoutingsConfiguratorTest {
             email = Email("approved@example.com"),
             emailApproved = true,
             pendingEmail = Email("pending@example.com"),
-            emailChangeRequestedAt = 101L,
-            emailChangeAllowedAt = 202L,
+            emailChangeRequestedAt = DateTime.fromUnixMillis(101L),
+            emailChangeAllowedAt = DateTime.fromUnixMillis(202L),
         )
         val otherProfile = EmailProfile(userId = 2L, email = Email("other@example.com"))
         val feature = RecordingEmailFeature(
@@ -250,7 +252,7 @@ class EmailRoutingsConfiguratorTest {
 
     @Test
     fun setEmailMapsCooldownToTypedDeadlineBody() = testApplication {
-        val feature = RecordingEmailFeature(setEmailFailure = EmailChangeCooldownException(123456789L))
+        val feature = RecordingEmailFeature(setEmailFailure = EmailChangeCooldownException(DateTime.fromUnixMillis(123456789L)))
         installEmailRoutes(feature)
 
         val response = client.put("/api/email/myEmail") {
@@ -260,7 +262,10 @@ class EmailRoutingsConfiguratorTest {
         }
 
         assertEquals(HttpStatusCode.TooManyRequests, response.status)
-        assertEquals("{\"emailChangeAllowedAt\":123456789}", response.bodyAsText())
+        assertEquals(
+            EmailChangeCooldown(DateTime.fromUnixMillis(123456789L)),
+            Json.decodeFromString(EmailChangeCooldown.serializer(), response.bodyAsText()),
+        )
         val expectedCalls: List<Pair<UserId, Email?>> = listOf(UserId(1L) to Email("replacement@example.com"))
         assertEquals(expectedCalls, feature.setEmailCalls)
     }

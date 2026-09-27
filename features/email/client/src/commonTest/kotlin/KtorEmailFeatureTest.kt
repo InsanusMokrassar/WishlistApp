@@ -16,6 +16,7 @@ import io.ktor.http.HttpStatusCode
 import io.ktor.http.content.OutgoingContent
 import io.ktor.http.headersOf
 import io.ktor.serialization.kotlinx.json.json
+import korlibs.time.DateTime
 import kotlinx.coroutines.test.runTest
 import kotlinx.coroutines.CancellationException
 import kotlinx.serialization.json.Json
@@ -37,8 +38,8 @@ class KtorEmailFeatureTest {
                 email = Email("approved@example.com"),
                 emailApproved = true,
                 pendingEmail = Email("pending@example.com"),
-                emailChangeRequestedAt = 101L,
-                emailChangeAllowedAt = 202L,
+                emailChangeRequestedAt = DateTime.fromUnixMillis(101L),
+                emailChangeAllowedAt = DateTime.fromUnixMillis(202L),
             ),
             EmailProfile(userId = 8L),
         ).forEach { expected ->
@@ -209,12 +210,12 @@ class KtorEmailFeatureTest {
             val failure = assertFailsWith<EmailChangeCooldownException> {
                 KtorEmailFeature(client).setMyEmail(Email("replacement@example.com"))
             }
-            assertEquals(123456789L, failure.cooldown.emailChangeAllowedAt)
+            assertEquals(DateTime.fromUnixMillis(123456789L), failure.cooldown.emailChangeAllowedAt)
         } finally {
             client.close()
         }
 
-        listOf("", "{}", "not-json").forEach { body ->
+        listOf("", "{}", "not-json", """{"emailChangeAllowedAt":0.5}""", """{"emailChangeAllowedAt":4503599627370497}""").forEach { body ->
             val malformedClient = jsonClient { respondJson(body, HttpStatusCode.TooManyRequests) }
             try {
                 val failure = assertFailsWith<Throwable> {

@@ -7,6 +7,7 @@ import dev.inmo.wishlist.features.email.common.models.EmailChangeCooldownExcepti
 import dev.inmo.wishlist.features.email.common.models.EmailProfile
 import dev.inmo.wishlist.features.email.common.models.EmailVerificationRequestResult
 import dev.inmo.wishlist.features.users.common.models.UserId
+import korlibs.time.DateTime
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.cancel
@@ -533,7 +534,7 @@ class UserEditViewModelEmailTest {
             saveEmailHandler = { savedEmail ->
                 profileState.value = profileState.value?.copy(
                     pendingEmail = savedEmail,
-                    emailChangeRequestedAt = 10_000L,
+                    emailChangeRequestedAt = DateTime.fromUnixMillis(10_000L),
                 )
                 throw IllegalStateException("response lost after commit")
             }
@@ -1880,7 +1881,7 @@ class UserEditViewModelEmailTest {
                 email = Email("saved@example.com"),
                 emailApproved = true,
                 pendingEmail = Email("pending@example.com"),
-                emailChangeAllowedAt = 1L,
+                emailChangeAllowedAt = DateTime.fromUnixMillis(1L),
             ),
         ).apply {
             saveEmailHandler = { email ->
@@ -2710,7 +2711,7 @@ class UserEditViewModelEmailTest {
     @Test
     fun refreshAtDeadlineReenablesEmailChangeForEqualProfile() = runTest {
         var now = 999L
-        val profile = owner.copy(email = Email("approved@example.com"), emailApproved = true, emailChangeAllowedAt = 1000L)
+        val profile = owner.copy(email = Email("approved@example.com"), emailApproved = true, emailChangeAllowedAt = DateTime.fromUnixMillis(1000L))
         val model = UserEditTestUsersModel(ownerId, profile)
         val viewModel = UserEditViewModel(
             userEditTestNode(ownerId),
@@ -2722,7 +2723,7 @@ class UserEditViewModelEmailTest {
         try {
             advanceUntilIdle()
             assertFalse(viewModel.canMutateOwnEmailState.value)
-            assertEquals(1000L, viewModel.emailChangeRestrictionState.value)
+            assertEquals(DateTime.fromUnixMillis(1000L), viewModel.emailChangeRestrictionState.value)
             now = 1000L
             viewModel.onRefreshEmail()
             advanceUntilIdle()
@@ -2743,8 +2744,8 @@ class UserEditViewModelEmailTest {
             owner.copy(email = Email("approved@example.com"), emailApproved = true),
         ).apply {
             saveEmailHandler = {
-                profileState.value = profileState.value?.copy(emailChangeAllowedAt = deadline)
-                throw EmailChangeCooldownException(EmailChangeCooldown(deadline))
+                profileState.value = profileState.value?.copy(emailChangeAllowedAt = DateTime.fromUnixMillis(deadline))
+                throw EmailChangeCooldownException(EmailChangeCooldown(DateTime.fromUnixMillis(deadline)))
             }
         }
         val viewModel = UserEditViewModel(
@@ -2760,7 +2761,7 @@ class UserEditViewModelEmailTest {
             viewModel.onSaveEmail()
             advanceUntilIdle()
             assertEquals(replacement.string, viewModel.emailInputState.value)
-            assertEquals(deadline, viewModel.emailChangeRestrictionState.value)
+            assertEquals(DateTime.fromUnixMillis(deadline), viewModel.emailChangeRestrictionState.value)
             assertTrue(model.requestedEmails.isEmpty())
             assertEquals(2, model.profileReads)
         } finally {
@@ -2915,7 +2916,7 @@ class UserEditViewModelEmailTest {
                     email = Email("approved-$boundary@example.com"),
                     emailApproved = true,
                     pendingEmail = pending,
-                    emailChangeAllowedAt = deadline,
+                    emailChangeAllowedAt = DateTime.fromUnixMillis(deadline),
                 ),
             ).apply {
                 rootState.value = boundary == "root-other"
@@ -2930,7 +2931,7 @@ class UserEditViewModelEmailTest {
             try {
                 advanceUntilIdle()
                 assertEquals(pending.string, viewModel.emailInputState.value, boundary)
-                assertEquals(deadline, viewModel.emailChangeRestrictionState.value, boundary)
+                assertEquals(DateTime.fromUnixMillis(deadline), viewModel.emailChangeRestrictionState.value, boundary)
                 model.emailEvents.clear()
                 when (boundary) {
                     "identity" -> model.currentUserIdState.value = UserId(99L)
@@ -3018,7 +3019,7 @@ class UserEditViewModelEmailTest {
         ).apply {
             saveEmailHandler = {
                 failReconciliation = true
-                throw EmailChangeCooldownException(EmailChangeCooldown(deadline))
+                throw EmailChangeCooldownException(EmailChangeCooldown(DateTime.fromUnixMillis(deadline)))
             }
             profileHandler = {
                 if (failReconciliation) throw IllegalStateException("private read failed")
@@ -3039,7 +3040,7 @@ class UserEditViewModelEmailTest {
             viewModel.onSaveEmail()
             advanceUntilIdle()
             assertEquals(replacement.string, viewModel.emailInputState.value)
-            assertEquals(deadline, viewModel.emailChangeRestrictionState.value)
+            assertEquals(DateTime.fromUnixMillis(deadline), viewModel.emailChangeRestrictionState.value)
             assertTrue(viewModel.emailLoadFailedState.value)
             assertEquals(EmailEditorError.LoadFailed, viewModel.emailErrorState.value)
             assertEquals(listOf("PUT:${replacement.string}", "GET"), model.emailEvents)
@@ -3067,7 +3068,7 @@ class UserEditViewModelEmailTest {
                 email = Email("approved-$changedField@example.com"),
                 emailApproved = true,
                 pendingEmail = pending,
-                emailChangeAllowedAt = 20_000L,
+                emailChangeAllowedAt = DateTime.fromUnixMillis(20_000L),
             )
             val model = UserEditTestUsersModel(ownerId, profile).apply {
                 requestHandler = { EmailVerificationRequestResult.Sent }
@@ -3086,7 +3087,7 @@ class UserEditViewModelEmailTest {
                 assertEquals(EmailVerificationRequestResult.Sent, viewModel.emailVerificationResultState.value, changedField)
                 model.profileState.value = when (changedField) {
                     "pending" -> profile.copy(pendingEmail = Email("other-$changedField@example.com"))
-                    else -> profile.copy(emailChangeAllowedAt = 20_001L)
+                    else -> profile.copy(emailChangeAllowedAt = DateTime.fromUnixMillis(20_001L))
                 }
                 viewModel.onRefreshEmail()
                 advanceUntilIdle()
@@ -3108,7 +3109,7 @@ class UserEditViewModelEmailTest {
             email = approved,
             emailApproved = true,
             pendingEmail = pending,
-            emailChangeRequestedAt = 1_000L,
+            emailChangeRequestedAt = DateTime.fromUnixMillis(1_000L),
         )
         val model = UserEditTestUsersModel(ownerId, initialProfile).apply {
             requestHandler = { EmailVerificationRequestResult.Sent }
@@ -3127,7 +3128,7 @@ class UserEditViewModelEmailTest {
             assertEquals(EmailVerificationRequestResult.Sent, viewModel.emailVerificationResultState.value)
             assertTrue(viewModel.isDirtyState.value)
 
-            model.profileState.value = initialProfile.copy(emailChangeRequestedAt = 1_001L)
+            model.profileState.value = initialProfile.copy(emailChangeRequestedAt = DateTime.fromUnixMillis(1_001L))
             viewModel.onRefreshEmail()
             advanceUntilIdle()
 
@@ -3163,7 +3164,7 @@ class UserEditViewModelEmailTest {
             assertEquals(EmailVerificationRequestResult.Sent, viewModel.emailVerificationResultState.value)
 
             model.profileState.value = checkNotNull(model.profileState.value).copy(
-                emailChangeRequestedAt = 10_001L,
+                emailChangeRequestedAt = DateTime.fromUnixMillis(10_001L),
             )
             viewModel.onRefreshEmail()
             advanceUntilIdle()

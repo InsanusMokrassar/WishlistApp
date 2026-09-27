@@ -16,5 +16,10 @@ kotlin {
                 api libs.microutils.ktor.server
             }
         }
+        commonTest {
+            dependencies {
+                implementation libs.kotlin.coroutines.test
+            }
+        }
     }
 }

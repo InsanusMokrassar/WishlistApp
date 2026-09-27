@@ -22,6 +22,7 @@ import dev.inmo.wishlist.features.users.common.repo.exceptions.DuplicateUserFiel
 import dev.inmo.wishlist.features.users.common.repo.exceptions.EmailChangeCooldownException
 import dev.inmo.wishlist.features.roles.common.models.NewUserRole
 import dev.inmo.kroles.repos.BaseRoleSubject
+import korlibs.time.DateTime
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.async
@@ -169,8 +170,8 @@ class EmailFeatureServiceTest {
             email = Email("approved@example.com"),
             emailApproved = true,
             pendingEmail = Email("pending@example.com"),
-            emailChangeRequestedAt = 100L,
-            emailChangeAllowedAt = 200L,
+            emailChangeRequestedAt = DateTime.fromUnixMillis(100L),
+            emailChangeAllowedAt = DateTime.fromUnixMillis(200L),
         )
         val emails = FakeEmailsService()
         val repo = FakeUsersRepo(
@@ -376,7 +377,7 @@ class EmailFeatureServiceTest {
             email = approved,
             emailApproved = true,
             pendingEmail = replacement,
-            emailChangeRequestedAt = 100L,
+            emailChangeRequestedAt = DateTime.fromUnixMillis(100L),
         )
         val emails = FakeEmailsService(result = true)
         val repo = FakeUsersRepo(

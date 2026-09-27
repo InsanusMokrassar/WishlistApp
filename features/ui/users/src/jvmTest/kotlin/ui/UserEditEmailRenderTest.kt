@@ -19,6 +19,7 @@ import dev.inmo.wishlist.features.email.common.models.EmailProfile
 import dev.inmo.wishlist.features.email.common.models.EmailVerificationRequestResult
 import dev.inmo.wishlist.features.ui.users.UsersListStrings
 import dev.inmo.wishlist.features.users.common.models.UserId
+import korlibs.time.DateTime
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.cancel
@@ -145,7 +146,7 @@ class UserEditEmailRenderTest {
                 email = savedEmail,
                 emailApproved = true,
                 pendingEmail = pendingEmail,
-                emailChangeAllowedAt = deadline,
+                emailChangeAllowedAt = DateTime.fromUnixMillis(deadline),
             ),
         ).apply {
             requestResult = EmailVerificationRequestResult.Sent
@@ -180,7 +181,7 @@ class UserEditEmailRenderTest {
                 assertTrue(viewModel.canManageOwnEmailState.value)
                 assertEquals(savedEmail, viewModel.ownEmailProfileState.value?.email)
                 assertEquals(pendingEmail, viewModel.ownEmailProfileState.value?.pendingEmail)
-                assertEquals(deadline, viewModel.emailChangeRestrictionState.value)
+                assertEquals(DateTime.fromUnixMillis(deadline), viewModel.emailChangeRestrictionState.value)
 
                 runOnUiThread { node.retarget(otherId) }
                 awaitIdle()
@@ -188,7 +189,7 @@ class UserEditEmailRenderTest {
                 assertTrue(viewModel.canManageOwnEmailState.value)
                 assertEquals(savedEmail, viewModel.ownEmailProfileState.value?.email)
                 assertEquals(pendingEmail, viewModel.ownEmailProfileState.value?.pendingEmail)
-                assertEquals(deadline, viewModel.emailChangeRestrictionState.value)
+                assertEquals(DateTime.fromUnixMillis(deadline), viewModel.emailChangeRestrictionState.value)
                 onNodeWithTag("settings-email-saved").assertDoesNotExist()
                 onNodeWithTag("settings-email-pending").assertDoesNotExist()
                 onNodeWithTag("settings-email").assertDoesNotExist()
@@ -367,7 +368,7 @@ class UserEditEmailRenderTest {
                 email = Email("private@example.com"),
                 emailApproved = true,
                 pendingEmail = Email("pending-private@example.com"),
-                emailChangeAllowedAt = 20_000L,
+                emailChangeAllowedAt = DateTime.fromUnixMillis(20_000L),
             ),
         ).apply {
             rootState.value = true
@@ -620,7 +621,7 @@ class UserEditEmailRenderTest {
             saveEmailHandler = { email ->
                 profileState.value = profileState.value?.copy(
                     pendingEmail = email,
-                    emailChangeRequestedAt = 10_000L,
+                    emailChangeRequestedAt = DateTime.fromUnixMillis(10_000L),
                 )
                 if (suspendPut) {
                     putEntered.complete(Unit)
@@ -756,7 +757,7 @@ class UserEditEmailRenderTest {
                 userId = ownerId.long,
                 email = Email("approved@example.com"),
                 emailApproved = true,
-                emailChangeAllowedAt = deadline,
+                emailChangeAllowedAt = DateTime.fromUnixMillis(deadline),
             ),
         )
         val viewModel = UserEditViewModel(
@@ -834,7 +835,7 @@ class UserEditEmailRenderTest {
                     .fetchSemanticsNode()
                     .config[SemanticsActions.OnImeAction]
                     .action.let(::assertNotNull)
-                model.profileState.value = model.profileState.value?.copy(emailChangeAllowedAt = deadline)
+                model.profileState.value = model.profileState.value?.copy(emailChangeAllowedAt = DateTime.fromUnixMillis(deadline))
                 model.emailEvents.clear()
                 onNodeWithText(UsersListStrings.refreshEmailButton.translation()).performClick()
                 runOnUiThread {
@@ -847,7 +848,7 @@ class UserEditEmailRenderTest {
                 assertTrue(model.savedEmails.isEmpty())
                 assertTrue(model.requestedEmails.isEmpty())
                 assertTrue(model.emailEvents.none { it.startsWith("PUT:") || it.startsWith("POST:") })
-                assertEquals(deadline, viewModel.emailChangeRestrictionState.value)
+                assertEquals(DateTime.fromUnixMillis(deadline), viewModel.emailChangeRestrictionState.value)
             }
         } finally {
             viewModel.scope.cancel()

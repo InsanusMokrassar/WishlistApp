@@ -14,6 +14,7 @@ import dev.inmo.wishlist.features.files.common.models.FileId
 import dev.inmo.wishlist.features.users.common.models.UserId
 import dev.inmo.wishlist.features.users.common.models.Username
 import dev.inmo.wishlist.features.users.common.models.UsersFeatureUser
+import korlibs.time.DateTime
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 
@@ -52,13 +53,13 @@ internal class UserEditTestUsersModel(
                     email == profile.email || email == profile.pendingEmail -> profile
                     profile.emailApproved -> profile.copy(
                         pendingEmail = email,
-                        emailChangeRequestedAt = nextEmailChangeRequestedAt++,
+                        emailChangeRequestedAt = DateTime.fromUnixMillis(nextEmailChangeRequestedAt++),
                     )
                     else -> profile.copy(
                         email = email,
                         emailApproved = false,
                         pendingEmail = null,
-                        emailChangeRequestedAt = nextEmailChangeRequestedAt++,
+                        emailChangeRequestedAt = DateTime.fromUnixMillis(nextEmailChangeRequestedAt++),
                     )
                 }
             }

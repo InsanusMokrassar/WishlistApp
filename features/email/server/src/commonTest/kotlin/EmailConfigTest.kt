@@ -2,6 +2,7 @@ package dev.inmo.wishlist.features.email.server
 
 import dev.inmo.wishlist.features.email.common.models.Email
 import dev.inmo.wishlist.features.email.server.utils.validatedCooldownMillis
+import korlibs.time.DateTime
 import kotlinx.serialization.SerializationException
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonNull
@@ -132,6 +133,6 @@ class EmailConfigTest {
         val policy = Json { ignoreUnknownKeys = true }
             .decodeFromJsonElement(EmailChangePolicyConfig.serializer(), config)
 
-        assertEquals(86_400_000L, policy.validatedCooldownMillis(nowMillis = 1_000L))
+        assertEquals(86_400_000L, policy.validatedCooldownMillis(now = DateTime.fromUnixMillis(1_000L)))
     }
 }

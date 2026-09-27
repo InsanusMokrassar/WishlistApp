@@ -32,32 +32,6 @@ data class EmailProfile(
     @Serializable(with = DateTimeSerializer::class)
     val emailChangeAllowedAt: DateTime? = null,
 ) {
-    /**
-     * Compatibility constructor for callers at an explicit primitive epoch-millisecond boundary.
-     *
-     * @param userId Persistent owner identifier.
-     * @param email Current address.
-     * @param emailApproved Approval state of [email].
-     * @param pendingEmail Replacement candidate.
-     * @param emailChangeRequestedAt Raw request timestamp, or `null`.
-     * @param emailChangeAllowedAt Raw cooldown deadline, or `null`.
-     */
-    constructor(
-        userId: Long,
-        email: Email? = null,
-        emailApproved: Boolean = false,
-        pendingEmail: Email? = null,
-        emailChangeRequestedAt: Long?,
-        emailChangeAllowedAt: Long?,
-    ) : this(
-        userId = userId,
-        email = email,
-        emailApproved = emailApproved,
-        pendingEmail = pendingEmail,
-        emailChangeRequestedAt = emailChangeRequestedAt?.let { DateTime(it.toDouble()) },
-        emailChangeAllowedAt = emailChangeAllowedAt?.let { DateTime(it.toDouble()) },
-    )
-
     init {
         emailChangeRequestedAt?.let(::requireValidEmailTimestamp)
         emailChangeAllowedAt?.let(::requireValidEmailTimestamp)

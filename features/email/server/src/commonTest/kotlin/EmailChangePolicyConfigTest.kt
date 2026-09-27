@@ -21,8 +21,10 @@ class EmailChangePolicyConfigTest {
     /** Positive fractional milliseconds round up rather than becoming an ineffective zero delay. */
     @Test
     fun positiveFractionalMillisecondsRoundUp() {
+        assertEquals(10L, EmailChangePolicyConfig(10.milliseconds).validatedCooldownMillis(now = DateTime.EPOCH))
         assertEquals(1L, EmailChangePolicyConfig(1.nanoseconds).validatedCooldownMillis(now = DateTime.fromUnixMillis(1L)))
         assertEquals(2L, EmailChangePolicyConfig(1_500_000.nanoseconds).validatedCooldownMillis(now = DateTime.fromUnixMillis(1L)))
+        assertEquals(5L, EmailChangePolicyConfig(5.milliseconds).validatedCooldownMillis(now = DateTime.fromUnixMillis(4_503_599_627_370_491L)))
     }
 
     /** Negative, infinite, and deadline-overflow policies are refused before server startup completes. */
@@ -36,6 +38,12 @@ class EmailChangePolicyConfigTest {
         }
         assertFailsWith<IllegalArgumentException> {
             EmailChangePolicyConfig(1.milliseconds).validatedCooldownMillis(now = DateTime.fromUnixMillis(4_503_599_627_370_496L))
+        }
+        assertFailsWith<IllegalArgumentException> {
+            EmailChangePolicyConfig(1.milliseconds).validatedCooldownMillis(now = DateTime(0.5))
+        }
+        assertFailsWith<IllegalArgumentException> {
+            EmailChangePolicyConfig(Long.MAX_VALUE.milliseconds).validatedCooldownMillis(now = DateTime.EPOCH)
         }
     }
 }

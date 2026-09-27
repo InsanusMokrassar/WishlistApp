@@ -10,7 +10,7 @@ class EmailTimestampTest {
     /** Accepted whole-millisecond instants retain their exact durable representation. */
     @Test
     fun acceptsExactSupportedInstants() {
-        listOf(0L, 1_700_000_000_000L, -1L, -maxEmailTimestampMillis, maxEmailTimestampMillis).forEach { millis ->
+        listOf(0L, 1_700_000_000_000L, -1L, -maxEmailTimestampMillis, -maxEmailTimestampMillis + 1, maxEmailTimestampMillis - 1, maxEmailTimestampMillis).forEach { millis ->
             val instant = emailTimestampFromStorage(millis)
             assertEquals(millis, emailTimestampToStorage(instant))
             assertEquals(instant, requireValidEmailTimestamp(instant))
@@ -28,7 +28,7 @@ class EmailTimestampTest {
     /** Non-integral and non-finite application values are never rounded or saturated. */
     @Test
     fun rejectsInvalidApplicationValues() {
-        listOf(DateTime(0.5), DateTime(Double.NaN), DateTime(Double.POSITIVE_INFINITY), DateTime(Double.NEGATIVE_INFINITY)).forEach {
+        listOf(DateTime(0.5), DateTime(Double.NaN), DateTime(Double.POSITIVE_INFINITY), DateTime(Double.NEGATIVE_INFINITY), DateTime((maxEmailTimestampMillis + 1).toDouble())).forEach {
             assertFailsWith<IllegalArgumentException> { requireValidEmailTimestamp(it) }
         }
     }
@@ -37,10 +37,16 @@ class EmailTimestampTest {
     @Test
     fun checksApprovalDeadlineArithmetic() {
         assertEquals(DateTime.fromUnixMillis(10L), emailApprovalDeadline(DateTime.fromUnixMillis(5L), 5L))
+        assertEquals(DateTime.fromUnixMillis(-5L), emailApprovalDeadline(DateTime.fromUnixMillis(-10L), 5L))
+        assertEquals(DateTime.fromUnixMillis(maxEmailTimestampMillis), emailApprovalDeadline(DateTime.fromUnixMillis(maxEmailTimestampMillis - 5L), 5L))
         assertEquals(DateTime.fromUnixMillis(maxEmailTimestampMillis), emailApprovalDeadline(DateTime.fromUnixMillis(maxEmailTimestampMillis), 0L))
         assertFailsWith<IllegalArgumentException> { emailApprovalDeadline(DateTime.EPOCH, -1L) }
         assertFailsWith<ArithmeticException> {
             emailApprovalDeadline(DateTime.fromUnixMillis(maxEmailTimestampMillis), 1L)
         }
+        assertFailsWith<ArithmeticException> {
+            emailApprovalDeadline(DateTime.fromUnixMillis(maxEmailTimestampMillis - 5L), 10L)
+        }
+        assertFailsWith<ArithmeticException> { emailApprovalDeadline(DateTime.EPOCH, Long.MAX_VALUE) }
     }
 }

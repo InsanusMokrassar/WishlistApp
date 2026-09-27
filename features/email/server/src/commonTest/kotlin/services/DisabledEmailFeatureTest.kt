@@ -6,6 +6,7 @@ import dev.inmo.wishlist.features.users.common.models.RegisteredUser
 import dev.inmo.wishlist.features.users.common.models.UserId
 import dev.inmo.wishlist.features.users.common.models.Username
 import dev.inmo.wishlist.features.users.common.repo.exceptions.DuplicateUserFieldException
+import korlibs.time.DateTime
 import kotlinx.coroutines.test.runTest
 import kotlin.test.Test
 import kotlin.test.assertEquals
@@ -51,8 +52,8 @@ class DisabledEmailFeatureTest {
             email = Email("approved@example.com"),
             emailApproved = true,
             pendingEmail = Email("pending@example.com"),
-            emailChangeRequestedAt = 100L,
-            emailChangeAllowedAt = 200L,
+            emailChangeRequestedAt = DateTime.fromUnixMillis(100L),
+            emailChangeAllowedAt = DateTime.fromUnixMillis(200L),
         )
         val repo = FakeUsersRepo(
             initialUsers = mapOf(plainUser.id to plainUser),

@@ -20,7 +20,7 @@ import kotlinx.coroutines.sync.withLock
  *
  * The utilizer shipped by default with [TemporalFilesRoutingConfigurator] performs no cleanup, so a
  * never-finalized upload would survive until process exit. This implementation records the first-seen
- * time of every temporal file id emitted by the configurator and, on each [checkIntervalMillis] tick,
+ * latest observed time of every temporal file id emitted by the configurator and, on each [checkIntervalMillis] tick,
  * removes from the shared map (and deletes from disk) every entry older than [ttlMillis].
  *
  * Finalized files are removed from the shared map by the configurator itself; their leftover timestamp

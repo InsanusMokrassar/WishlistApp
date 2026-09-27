@@ -12,9 +12,6 @@ data class EmailChangeCooldown(
     @Serializable(with = DateTimeSerializer::class)
     val emailChangeAllowedAt: DateTime,
 ) {
-    /** Converts an explicit primitive epoch-millisecond transport boundary into a DateTime deadline. */
-    constructor(emailChangeAllowedAt: Long) : this(DateTime(emailChangeAllowedAt.toDouble()))
-
     init {
         requireValidEmailTimestamp(emailChangeAllowedAt)
     }

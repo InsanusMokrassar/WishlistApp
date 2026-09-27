@@ -7,6 +7,7 @@ import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.decodeFromJsonElement
 import kotlinx.serialization.json.encodeToJsonElement
 import kotlinx.serialization.json.jsonObject
+import kotlinx.serialization.json.jsonPrimitive
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFails
@@ -88,5 +89,28 @@ class EmailProfileTest {
         val replacement = EmailProfile(userId = 1L, email = approved, emailApproved = true, pendingEmail = pending)
         assertEquals(pending, replacement.verificationCandidate())
         assertEquals(pending, replacement.emailDraftBaseline())
+    }
+
+    /** Nullable lifecycle history accepts omitted, explicit null, and legacy integer values. */
+    @Test
+    fun nullableTimestampWireCompatibility() {
+        val explicitNull = Json.decodeFromString(
+            EmailProfile.serializer(),
+            """{"userId":9,"emailChangeRequestedAt":null,"emailChangeAllowedAt":null}""",
+        )
+        assertNull(explicitNull.emailChangeRequestedAt)
+        assertNull(explicitNull.emailChangeAllowedAt)
+        listOf(-4_503_599_627_370_496L, 4_503_599_627_370_496L).forEach { millis ->
+            val decoded = Json.decodeFromString(
+                EmailProfile.serializer(),
+                """{"userId":9,"emailChangeRequestedAt":$millis,"emailChangeAllowedAt":$millis}""",
+            )
+            assertEquals(DateTime.fromUnixMillis(millis), decoded.emailChangeRequestedAt)
+            val encoded = Json.encodeToJsonElement(EmailProfile.serializer(), decoded).jsonObject
+            assertEquals(millis.toDouble(), encoded.getValue("emailChangeAllowedAt").jsonPrimitive.content.toDouble())
+            assertEquals(decoded, Json.decodeFromJsonElement(EmailProfile.serializer(), Json.encodeToJsonElement(EmailProfile.serializer(), decoded)))
+            assertFails { decoded.copy(emailChangeAllowedAt = DateTime(millis.toDouble() + if (millis < 0) -1 else 1)) }
+        }
+        assertFails { Json.decodeFromString(EmailProfile.serializer(), """{"userId":9,"emailChangeRequestedAt":0.5}""") }
     }
 }

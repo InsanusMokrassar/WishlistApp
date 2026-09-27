@@ -9,7 +9,7 @@ import kotlin.time.Duration.Companion.milliseconds
  * Validates a configured cooldown and converts it to the durable epoch-millisecond representation.
  *
  * Positive fractional milliseconds round up so a positive policy cannot silently become an
- * immediately-expired restriction. The returned value is checked against [nowMillis] because every
+ * immediately-expired restriction. The returned value is checked against [now] because every
  * approved address must be able to receive a representable deadline.
  *
  * @param now Server instant used for startup representability validation.
