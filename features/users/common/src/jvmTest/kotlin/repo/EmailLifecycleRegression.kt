@@ -288,6 +288,36 @@ internal suspend fun verifyWarmedCacheFailureMatrix(
         assertEquals(emptyList(), backingEvents)
         assertEquals(emptyList(), cacheEvents)
 
+        clock.value = DateTime.fromUnixMillis(1_000L)
+        clock.reset()
+        val firstEmail = Email("cache-first-overflow@example.com")
+        val firstUser = cache.create(NewUser(Username("cache-first-overflow"), firstEmail)).single()
+        settle()
+        val beforeFirstOverflow = rawUsersSnapshot(url)
+        val cachedFirstOverflow = cache.getAll()
+        val firstOverflowWrites = storage.setCalls
+        val firstRow = beforeFirstOverflow.single { it.id == firstUser.id.long }
+        assertEquals(firstEmail.string, firstRow.email, "first-candidate overflow current email")
+        assertEquals(false, firstRow.emailApproved, "first-candidate overflow approval state")
+        assertNull(firstRow.pendingEmail, "first-candidate overflow pending email")
+        assertEquals(1_000L, firstRow.requestedAt, "first-candidate overflow request time")
+        assertNull(firstRow.allowedAt, "first-candidate overflow cooldown deadline")
+        assertEquals(firstUser, cachedFirstOverflow[firstUser.id], "first-candidate overflow warmed cache")
+        backingEvents.clear()
+        cacheEvents.clear()
+        clock.value = DateTime((4_503_599_627_370_496L - 5L).toDouble())
+        clock.reset()
+        assertFailsWith<ArithmeticException> {
+            cache.approveEmail(firstUser.id, firstEmail, cooldownMillis = 10L)
+        }
+        assertEquals(1, clock.samples, "first-candidate overflow clock samples")
+        settle()
+        assertEquals(beforeFirstOverflow, rawUsersSnapshot(url), "first-candidate overflow raw rows")
+        assertEquals(cachedFirstOverflow, cache.getAll(), "first-candidate overflow cached users")
+        assertEquals(firstOverflowWrites, storage.setCalls, "first-candidate overflow cache writes")
+        assertEquals(emptyList(), backingEvents, "first-candidate overflow backing events")
+        assertEquals(emptyList(), cacheEvents, "first-candidate overflow cache events")
+
         val current = Email("cache-overflow-current@example.com")
         val pending = Email("cache-overflow-pending@example.com")
         clock.value = DateTime.fromUnixMillis(1_000L)
