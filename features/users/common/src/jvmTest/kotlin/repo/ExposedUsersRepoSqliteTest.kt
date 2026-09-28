@@ -82,14 +82,19 @@ class ExposedUsersRepoSqliteTest {
         val clock = EmailTestClock()
         withFileBackedSqliteUsersRepos(firstNow = clock::sample) { url, repo, _ ->
             val events = mutableListOf<RegisteredUser>()
+            val creationEvents = mutableListOf<RegisteredUser>()
             val collector = backgroundScope.launch(start = CoroutineStart.UNDISPATCHED) {
                 repo.updatedObjectsFlow.collect(events::add)
             }
+            val creationCollector = backgroundScope.launch(start = CoroutineStart.UNDISPATCHED) {
+                repo.newObjectsFlow.collect(creationEvents::add)
+            }
             try {
-                verifyInvalidEmailClockMatrix(url, repo, clock, events) { advanceUntilIdle() }
+                verifyInvalidEmailClockMatrix(url, repo, clock, events, creationEvents) { advanceUntilIdle() }
                 verifyApplicationTimestampEndpoints(url, repo, clock, events) { advanceUntilIdle() }
             } finally {
                 collector.cancel()
+                creationCollector.cancel()
             }
         }
     }

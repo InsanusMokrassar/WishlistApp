@@ -6,6 +6,10 @@ import dev.inmo.wishlist.features.users.common.models.NewUser
 import dev.inmo.wishlist.features.users.common.models.RegisteredUser
 import dev.inmo.wishlist.features.users.common.models.Username
 import korlibs.time.DateTime
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.CoroutineStart
+import kotlinx.coroutines.flow.collect
+import kotlinx.coroutines.launch
 import kotlin.test.assertEquals
 import kotlin.test.assertFailsWith
 import kotlin.test.assertNotNull
@@ -52,6 +56,7 @@ internal suspend fun verifyInvalidEmailClockMatrix(
     repo: ExposedUsersRepo,
     clock: EmailTestClock,
     events: List<RegisteredUser>,
+    creationEvents: List<RegisteredUser>,
     settle: suspend () -> Unit,
 ) {
     val occupied = Email("matrix-occupied@example.com")
@@ -168,6 +173,7 @@ internal suspend fun verifyInvalidEmailClockMatrix(
         clock.reset()
         val beforeCreate = rawUsersSnapshot(url)
         val priorEvents = events.size
+        val priorCreationEvents = creationEvents.size
         assertFailsWith<IllegalArgumentException> {
             repo.create(NewUser(Username("matrix-invalid-create-$index"), Email("matrix-invalid-create-$index@example.com")))
         }
@@ -175,6 +181,138 @@ internal suspend fun verifyInvalidEmailClockMatrix(
         settle()
         assertEquals(beforeCreate, rawUsersSnapshot(url))
         assertEquals(priorEvents, events.size)
+        assertEquals(priorCreationEvents, creationEvents.size)
+    }
+}
+
+/** Exercises every invalid changing path through a warmed instrumented cache on one SQL engine. */
+internal suspend fun verifyWarmedCacheFailureMatrix(
+    url: String,
+    backing: ExposedUsersRepo,
+    clock: EmailTestClock,
+    scope: CoroutineScope,
+    settle: suspend () -> Unit,
+) {
+    val storage = CountingUsersCache()
+    val cache = CacheUsersRepo(backing, scope, kvCache = storage)
+    settle()
+    val backingEvents = mutableListOf<RegisteredUser>()
+    val cacheEvents = mutableListOf<RegisteredUser>()
+    val backingCollector = scope.launch(start = CoroutineStart.UNDISPATCHED) {
+        backing.updatedObjectsFlow.collect(backingEvents::add)
+    }
+    val cacheCollector = scope.launch(start = CoroutineStart.UNDISPATCHED) {
+        cache.updatedObjectsFlow.collect(cacheEvents::add)
+    }
+    try {
+        clock.value = DateTime.fromUnixMillis(1_000L)
+        val occupied = Email("cache-matrix-occupied@example.com")
+        cache.create(NewUser(Username("cache-matrix-occupied"), occupied))
+        for (approved in listOf(false, true)) {
+            for (futureDeadline in listOf(false, true)) {
+                for ((index, invalid) in invalidEmailClockSamples.withIndex()) {
+                    val suffix = "$approved-$futureDeadline-$index"
+                    val current = Email("cache-matrix-current-$suffix@example.com")
+                    val pending = Email("cache-matrix-pending-$suffix@example.com")
+                    clock.value = DateTime.fromUnixMillis(1_000L)
+                    clock.reset()
+                    val user = cache.create(NewUser(Username("cache-matrix-$suffix"), current)).single()
+                    if (approved) {
+                        assertNotNull(cache.approveEmail(user.id, current, if (futureDeadline) 5_000L else 0L))
+                        clock.value = DateTime.fromUnixMillis(6_000L)
+                        assertNotNull(cache.setEmail(user.id, pending))
+                    } else if (futureDeadline) {
+                        setRawLifecycle(url, user.id.long, requestedAt = 1_000L, allowedAt = 6_000L)
+                    }
+                    settle()
+                    val before = rawUsersSnapshot(url)
+                    val cached = cache.getAll()
+                    val writes = storage.setCalls
+                    backingEvents.clear()
+                    cacheEvents.clear()
+                    clock.value = invalid
+                    for (mutation in 0..3) {
+                        clock.reset()
+                        assertFailsWith<IllegalArgumentException> {
+                            when (mutation) {
+                                0 -> cache.setEmail(user.id, null)
+                                1 -> cache.setEmail(user.id, Email("cache-matrix-new-$suffix@example.com"))
+                                2 -> cache.setEmail(user.id, occupied)
+                                else -> cache.update(user.id, NewUser(Username("cache-matrix-renamed-$suffix"), null))
+                            }
+                        }
+                        assertEquals(1, clock.samples)
+                        settle()
+                        assertEquals(before, rawUsersSnapshot(url))
+                        assertEquals(cached, cache.getAll())
+                        assertEquals(writes, storage.setCalls)
+                        assertEquals(emptyList(), backingEvents)
+                        assertEquals(emptyList(), cacheEvents)
+                    }
+                    clock.reset()
+                    assertFailsWith<IllegalArgumentException> {
+                        cache.approveEmail(user.id, if (approved) pending else current, cooldownMillis = 10L)
+                    }
+                    assertEquals(1, clock.samples)
+                    settle()
+                    assertEquals(before, rawUsersSnapshot(url))
+                    assertEquals(cached, cache.getAll())
+                    assertEquals(writes, storage.setCalls)
+                    assertEquals(emptyList(), backingEvents)
+                    assertEquals(emptyList(), cacheEvents)
+                }
+            }
+        }
+
+        clock.value = DateTime.fromUnixMillis(1_000L)
+        val first = cache.create(NewUser(Username("cache-batch-first"), Email("cache-batch-first@example.com"))).single()
+        val second = cache.create(NewUser(Username("cache-batch-second"), Email("cache-batch-second@example.com"))).single()
+        settle()
+        val beforeBatch = rawUsersSnapshot(url)
+        val cachedBatch = cache.getAll()
+        val batchWrites = storage.setCalls
+        backingEvents.clear()
+        cacheEvents.clear()
+        clock.reset(listOf(DateTime.fromUnixMillis(7_000L), DateTime(7_000.5)))
+        assertFailsWith<IllegalArgumentException> {
+            cache.update(listOf(
+                first.id to NewUser(Username("cache-batch-first-renamed"), Email("cache-batch-first-new@example.com")),
+                second.id to NewUser(Username("cache-batch-second-renamed"), Email("cache-batch-second-new@example.com")),
+            ))
+        }
+        assertEquals(2, clock.samples)
+        settle()
+        assertEquals(beforeBatch, rawUsersSnapshot(url))
+        assertEquals(cachedBatch, cache.getAll())
+        assertEquals(batchWrites, storage.setCalls)
+        assertEquals(emptyList(), backingEvents)
+        assertEquals(emptyList(), cacheEvents)
+
+        val current = Email("cache-overflow-current@example.com")
+        val pending = Email("cache-overflow-pending@example.com")
+        clock.value = DateTime.fromUnixMillis(1_000L)
+        val user = cache.create(NewUser(Username("cache-overflow"), current)).single()
+        assertNotNull(cache.approveEmail(user.id, current, cooldownMillis = 0L))
+        assertNotNull(cache.setEmail(user.id, pending))
+        settle()
+        val beforeOverflow = rawUsersSnapshot(url)
+        val cachedOverflow = cache.getAll()
+        val overflowWrites = storage.setCalls
+        backingEvents.clear()
+        cacheEvents.clear()
+        clock.value = DateTime((4_503_599_627_370_496L - 5L).toDouble())
+        clock.reset()
+        assertFailsWith<ArithmeticException> { cache.approveEmail(user.id, pending, cooldownMillis = 10L) }
+        assertEquals(1, clock.samples)
+        settle()
+        assertEquals(beforeOverflow, rawUsersSnapshot(url))
+        assertEquals(cachedOverflow, cache.getAll())
+        assertEquals(overflowWrites, storage.setCalls)
+        assertEquals(emptyList(), backingEvents)
+        assertEquals(emptyList(), cacheEvents)
+    } finally {
+        backingCollector.cancel()
+        cacheCollector.cancel()
     }
 }
 
@@ -195,6 +333,7 @@ internal suspend fun verifyApplicationTimestampEndpoints(
         val user = repo.create(NewUser(Username("endpoint-$name"), email)).single()
         assertEquals(1, clock.samples)
         assertEquals(endpoint, rawUsersSnapshot(url).single { it.id == user.id.long }.requestedAt)
+        assertEquals(DateTime(endpoint.toDouble()), repo.getEmailProfileFresh(user.id)?.emailChangeRequestedAt)
         clock.reset()
         assertNotNull(repo.approveEmail(user.id, email, cooldownMillis = 0L))
         assertEquals(0, clock.samples)
@@ -223,9 +362,51 @@ internal suspend fun verifyApplicationTimestampEndpoints(
     clock.reset()
     assertNotNull(repo.approveEmail(overflowUser.id, overflowEmail, cooldownMillis = 10L))
     settle()
-    assertEquals(maximum, rawUsersSnapshot(url).single { it.id == overflowUser.id.long }.allowedAt)
+    assertEquals(before.single { it.id == overflowUser.id.long }.copy(
+        emailApproved = true,
+        requestedAt = null,
+        allowedAt = maximum,
+    ), rawUsersSnapshot(url).single { it.id == overflowUser.id.long })
+    assertEquals(DateTime(maximum.toDouble()), repo.getEmailProfileFresh(overflowUser.id)?.emailChangeAllowedAt)
     assertEquals(1, clock.samples)
     assertEquals(eventCount + 1, events.size)
+    assertEquals(repo.getById(overflowUser.id), events.last())
+
+    val pendingCurrent = Email("endpoint-pending-current@example.com")
+    val pendingReplacement = Email("endpoint-pending-replacement@example.com")
+    clock.value = DateTime.fromUnixMillis(1_000L)
+    val pendingUser = repo.create(NewUser(Username("endpoint-pending"), pendingCurrent)).single()
+    assertNotNull(repo.approveEmail(pendingUser.id, pendingCurrent, cooldownMillis = 0L))
+    assertNotNull(repo.setEmail(pendingUser.id, pendingReplacement))
+    settle()
+    val beforePending = rawUsersSnapshot(url)
+    val pendingEventCount = events.size
+    clock.value = DateTime((maximum - 5L).toDouble())
+    clock.reset()
+    assertFailsWith<ArithmeticException> {
+        repo.approveEmail(pendingUser.id, pendingReplacement, cooldownMillis = 10L)
+    }
+    assertEquals(1, clock.samples)
+    settle()
+    assertEquals(beforePending, rawUsersSnapshot(url))
+    assertEquals(pendingEventCount, events.size)
+
+    clock.value = DateTime((maximum - 10L).toDouble())
+    clock.reset()
+    assertNotNull(repo.approveEmail(pendingUser.id, pendingReplacement, cooldownMillis = 10L))
+    assertEquals(1, clock.samples)
+    settle()
+    val expectedPending = beforePending.single { it.id == pendingUser.id.long }.copy(
+        email = pendingReplacement.string,
+        emailApproved = true,
+        pendingEmail = null,
+        requestedAt = null,
+        allowedAt = maximum,
+    )
+    assertEquals(beforePending.map { if (it.id == pendingUser.id.long) expectedPending else it }, rawUsersSnapshot(url))
+    assertEquals(DateTime(maximum.toDouble()), repo.getEmailProfileFresh(pendingUser.id)?.emailChangeAllowedAt)
+    assertEquals(pendingEventCount + 1, events.size)
+    assertEquals(repo.getById(pendingUser.id), events.last())
 }
 
 /** Writes raw lifecycle fields for corruption and release-predicate tests. */
@@ -256,6 +437,8 @@ internal suspend fun verifyEmailTimestampScanPredicate(url: String, repo: Expose
     setRawLifecycle(url, maximum.id.long, 4_503_599_627_370_496L, 4_503_599_627_370_496L)
     assertEquals(Triple(0L, 0L, 0L), invalidEmailTimestampCounts(url))
     assertEquals(DateTime(-4_503_599_627_370_496.0), repo.getEmailProfileFresh(minimum.id)?.emailChangeRequestedAt)
+    assertEquals(DateTime(-4_503_599_627_370_496.0), repo.getEmailProfileFresh(minimum.id)?.emailChangeAllowedAt)
+    assertEquals(DateTime(4_503_599_627_370_496.0), repo.getEmailProfileFresh(maximum.id)?.emailChangeRequestedAt)
     assertEquals(DateTime(4_503_599_627_370_496.0), repo.getEmailProfileFresh(maximum.id)?.emailChangeAllowedAt)
     setRawLifecycle(url, requested.id.long, -4_503_599_627_370_497L, null)
     setRawLifecycle(url, allowed.id.long, null, 4_503_599_627_370_497L)

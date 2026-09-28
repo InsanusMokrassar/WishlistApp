@@ -21,38 +21,12 @@ import kotlin.test.assertFailsWith
 /** Exercises the production full-cache wrapper over the real SQLite repository. */
 @OptIn(ExperimentalCoroutinesApi::class)
 class CacheUsersRepoSqliteTest {
-    /** A failed mutation or approval cannot issue even a redundant cache write. */
+    /** Every invalid changing path preserves complete storage and warmed cache state. */
     @Test
     fun invalidClockFailurePreservesWarmedCacheAndWriteCount() = runTest {
         val clock = EmailTestClock()
         withFileBackedSqliteUsersRepos(firstNow = clock::sample) { url, backing, _ ->
-            val current = Email("cache-invalid-current@example.com")
-            val pending = Email("cache-invalid-pending@example.com")
-            val user = backing.create(NewUser(Username("cache-invalid"), current)).single()
-            checkNotNull(backing.approveEmail(user.id, current, cooldownMillis = 0L))
-            checkNotNull(backing.setEmail(user.id, pending))
-            val storage = CountingUsersCache()
-            val cache = CacheUsersRepo(backing, backgroundScope, kvCache = storage)
-            advanceUntilIdle()
-            val before = rawUsersSnapshot(url)
-            val cached = cache.getById(user.id)
-            val writes = storage.setCalls
-            val events = mutableListOf<RegisteredUser>()
-            val collector = backgroundScope.launch(start = CoroutineStart.UNDISPATCHED) {
-                backing.updatedObjectsFlow.collect(events::add)
-            }
-            try {
-                clock.value = DateTime(Double.NaN)
-                assertFailsWith<IllegalArgumentException> { cache.setEmail(user.id, null) }
-                assertFailsWith<IllegalArgumentException> { cache.approveEmail(user.id, pending, cooldownMillis = 10L) }
-                advanceUntilIdle()
-                assertEquals(before, rawUsersSnapshot(url))
-                assertEquals(cached, cache.getById(user.id))
-                assertEquals(writes, storage.setCalls)
-                assertEquals(emptyList(), events)
-            } finally {
-                collector.cancel()
-            }
+            verifyWarmedCacheFailureMatrix(url, backing, clock, backgroundScope) { advanceUntilIdle() }
         }
     }
 

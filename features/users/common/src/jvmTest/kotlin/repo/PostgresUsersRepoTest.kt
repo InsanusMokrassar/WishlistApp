@@ -34,38 +34,12 @@ import kotlin.test.assertTrue
 
 /** Verifies the email lifecycle against a disposable PostgreSQL schema. */
 class PostgresUsersRepoTest {
-    /** Failed PostgreSQL mutation and approval preserve the warmed cache and its write count. */
+    /** Every invalid changing path preserves complete PostgreSQL rows and warmed cache state. */
     @Test
     fun invalidClockFailurePreservesWarmedCacheAndWriteCount() = runTest {
         val clock = EmailTestClock()
         withBoundedPostgresUsersRepos(firstNow = clock::sample) { url, backing, _ ->
-            val current = Email("postgres-cache-current@example.com")
-            val pending = Email("postgres-cache-pending@example.com")
-            val user = backing.create(NewUser(Username("postgres-cache"), current)).single()
-            checkNotNull(backing.approveEmail(user.id, current, cooldownMillis = 0L))
-            checkNotNull(backing.setEmail(user.id, pending))
-            val storage = CountingUsersCache()
-            val cache = CacheUsersRepo(backing, backgroundScope, kvCache = storage)
-            advanceUntilIdle()
-            val before = rawUsersSnapshot(url)
-            val cached = cache.getById(user.id)
-            val writes = storage.setCalls
-            val events = mutableListOf<RegisteredUser>()
-            val collector = backgroundScope.launch(start = CoroutineStart.UNDISPATCHED) {
-                backing.updatedObjectsFlow.collect(events::add)
-            }
-            try {
-                clock.value = DateTime(Double.NaN)
-                assertFailsWith<IllegalArgumentException> { cache.setEmail(user.id, null) }
-                assertFailsWith<IllegalArgumentException> { cache.approveEmail(user.id, pending, cooldownMillis = 10L) }
-                advanceUntilIdle()
-                assertEquals(before, rawUsersSnapshot(url))
-                assertEquals(cached, cache.getById(user.id))
-                assertEquals(writes, storage.setCalls)
-                assertTrue(events.isEmpty())
-            } finally {
-                collector.cancel()
-            }
+            verifyWarmedCacheFailureMatrix(url, backing, clock, backgroundScope) { advanceUntilIdle() }
         }
     }
 
@@ -91,14 +65,19 @@ class PostgresUsersRepoTest {
         val clock = EmailTestClock()
         withBoundedPostgresUsersRepos(firstNow = clock::sample) { url, repo, _ ->
             val events = mutableListOf<RegisteredUser>()
+            val creationEvents = mutableListOf<RegisteredUser>()
             val collector = backgroundScope.launch(start = CoroutineStart.UNDISPATCHED) {
                 repo.updatedObjectsFlow.collect(events::add)
             }
+            val creationCollector = backgroundScope.launch(start = CoroutineStart.UNDISPATCHED) {
+                repo.newObjectsFlow.collect(creationEvents::add)
+            }
             try {
-                verifyInvalidEmailClockMatrix(url, repo, clock, events) { advanceUntilIdle() }
+                verifyInvalidEmailClockMatrix(url, repo, clock, events, creationEvents) { advanceUntilIdle() }
                 verifyApplicationTimestampEndpoints(url, repo, clock, events) { advanceUntilIdle() }
             } finally {
                 collector.cancel()
+                creationCollector.cancel()
             }
         }
     }
