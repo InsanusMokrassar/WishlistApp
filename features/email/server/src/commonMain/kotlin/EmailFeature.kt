@@ -1,7 +1,7 @@
 package dev.inmo.wishlist.features.email.server
 
 import dev.inmo.wishlist.features.email.common.models.Email
-import dev.inmo.wishlist.features.email.common.models.EmailProfile
+import dev.inmo.wishlist.features.users.common.models.EmailProfile
 import dev.inmo.wishlist.features.email.common.models.EmailVerificationRequestResult
 import dev.inmo.wishlist.features.users.common.models.UserId
 
@@ -24,10 +24,10 @@ interface EmailFeature {
     suspend fun isFeatureEnabled(): Boolean
 
     /**
-     * Reads the authenticated owner's current email-feature state.
+     * Reads the authenticated owner's current users-feature email profile.
      *
-     * The returned state is an email-owned projection read freshly from persistence; it intentionally
-     * does not expose a user, authentication, or administration model. An existing account without
+     * The returned state is a users-feature-owned projection read freshly from persistence; it intentionally
+     * does not expose a reduced identity, authentication, or administration model. An existing account without
      * an address returns an empty profile, while a missing account returns `null`.
      *
      * @param callerId Authenticated owner whose email state is read.

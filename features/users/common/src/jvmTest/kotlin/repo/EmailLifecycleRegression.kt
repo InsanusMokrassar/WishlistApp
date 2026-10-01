@@ -477,7 +477,7 @@ internal suspend fun verifyEmailTimestampScanPredicate(url: String, repo: Expose
     assertEquals(null, rawUsersSnapshot(url).single { it.id == nullRow.id.long }.requestedAt)
 }
 
-/** Exercises raw corruption without decoding it through the email-owned projection. */
+/** Exercises raw corruption without decoding it through the users-feature-owned projection. */
 internal suspend fun verifyStoredCorruptionMatrix(
     url: String,
     repo: ExposedUsersRepo,

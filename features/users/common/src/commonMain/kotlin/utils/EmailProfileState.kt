@@ -1,7 +1,7 @@
-package dev.inmo.wishlist.features.email.common.utils
+package dev.inmo.wishlist.features.users.common.utils
 
 import dev.inmo.wishlist.features.email.common.models.Email
-import dev.inmo.wishlist.features.email.common.models.EmailProfile
+import dev.inmo.wishlist.features.users.common.models.EmailProfile
 
 /**
  * Returns the exact address that currently needs verification, preferring a replacement candidate

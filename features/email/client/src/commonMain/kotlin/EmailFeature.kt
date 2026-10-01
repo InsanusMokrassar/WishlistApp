@@ -1,7 +1,7 @@
 package dev.inmo.wishlist.features.email.client
 
 import dev.inmo.wishlist.features.email.common.models.Email
-import dev.inmo.wishlist.features.email.common.models.EmailProfile
+import dev.inmo.wishlist.features.users.common.models.EmailProfile
 import dev.inmo.wishlist.features.email.common.models.EmailVerificationRequestResult
 
 /**
@@ -26,7 +26,7 @@ interface EmailFeature {
     suspend fun isFeatureEnabled(): Boolean
 
     /**
-     * Reads the authenticated caller's own email-feature state.
+     * Reads the authenticated caller's own users-feature email profile.
      *
      * An existing account with no address returns an empty profile. `null` means only that the
      * server returned `404 Not Found` after authenticating the caller; transport, authorization,

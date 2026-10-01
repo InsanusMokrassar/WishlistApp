@@ -8,7 +8,7 @@ import dev.inmo.wishlist.features.auth.common.models.AuthFeatureUser
 import dev.inmo.wishlist.features.auth.common.models.Password
 import dev.inmo.wishlist.features.email.client.EmailFeature
 import dev.inmo.wishlist.features.email.common.models.Email
-import dev.inmo.wishlist.features.email.common.models.EmailProfile
+import dev.inmo.wishlist.features.users.common.models.EmailProfile
 import dev.inmo.wishlist.features.email.common.models.EmailVerificationRequestResult
 import dev.inmo.wishlist.features.files.client.FilesClientService
 import dev.inmo.wishlist.features.files.common.Constants as FilesConstants
@@ -83,7 +83,7 @@ class DefaultUsersModel(
     /**
      * Reads the complete owner profile from the email feature without using auth's user model.
      *
-     * @return Fresh email-owned state for authenticated caller, or `null` for a missing account.
+     * @return Fresh users-feature-owned state for authenticated caller, or `null` for a missing account.
      */
     override suspend fun getMyEmailProfile(): EmailProfile? = emailFeature.getMyEmail()
 

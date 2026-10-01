@@ -12,10 +12,10 @@ import dev.inmo.wishlist.features.auth.common.models.Password
 import dev.inmo.wishlist.features.common.client.models.ViewConfig
 import dev.inmo.wishlist.features.email.common.models.Email
 import dev.inmo.wishlist.features.email.common.models.EmailChangeCooldownException
-import dev.inmo.wishlist.features.email.common.models.EmailProfile
+import dev.inmo.wishlist.features.users.common.models.EmailProfile
 import dev.inmo.wishlist.features.email.common.models.EmailVerificationRequestResult
-import dev.inmo.wishlist.features.email.common.utils.emailDraftBaseline
-import dev.inmo.wishlist.features.email.common.utils.verificationCandidate
+import dev.inmo.wishlist.features.users.common.utils.emailDraftBaseline
+import dev.inmo.wishlist.features.users.common.utils.verificationCandidate
 import dev.inmo.wishlist.features.common.client.utils.subscribeOnLoggedOut
 import dev.inmo.wishlist.features.files.common.models.FileId
 import dev.inmo.wishlist.features.users.common.models.UserId
@@ -164,7 +164,7 @@ class UserEditViewModel(
 
     private val _ownEmailProfileState = MutableRedeliverStateFlow<EmailProfile?>(null)
 
-    /** Private current-owner email state used only by owner-email controls. */
+    /** Private users-feature current-owner email projection used only by owner-email controls. */
     val ownEmailProfileState: StateFlow<EmailProfile?> = _ownEmailProfileState.asStateFlow()
 
     private val _emailInputState = MutableRedeliverStateFlow("")

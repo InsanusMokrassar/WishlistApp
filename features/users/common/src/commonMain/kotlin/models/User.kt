@@ -41,8 +41,8 @@ data class NewUser(
  * Stored identity entity returned after creation or lookup.
  *
  * [email] defaults to `null` for back-compatibility with existing serialized payloads that omit the field.
- * Pending email, accepted-candidate time, and cooldown deadline belong to the email-owned
- * [dev.inmo.wishlist.features.email.common.models.EmailProfile] projection and are deliberately not
+ * Pending email, accepted-candidate time, and cooldown deadline belong to the users-feature-owned
+ * [dev.inmo.wishlist.features.users.common.models.EmailProfile] projection and are deliberately not
  * carried by this users model.
  *
  * @property id Database-assigned identifier.

@@ -17,7 +17,7 @@ import dev.inmo.wishlist.features.email.common.models.Email
  * retain the latest approved address in `email`, use `pendingEmail` for a replacement until exact
  * verification approval, record accepted-candidate time separately from the approval-rooted
  * deadline, and enforce the persisted post-approval deadline. The lifecycle state is returned via
- * the email-owned fresh profile projection rather than [RegisteredUser]. See that exception's KDoc
+ * the users-feature-owned fresh profile projection rather than [RegisteredUser]. See that exception's KDoc
  * for the full propagation path.
  */
 interface WriteUsersRepo : WriteCRUDRepo<RegisteredUser, UserId, NewUser> {

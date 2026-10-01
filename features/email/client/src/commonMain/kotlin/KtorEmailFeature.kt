@@ -3,7 +3,7 @@ package dev.inmo.wishlist.features.email.client
 import dev.inmo.wishlist.features.email.common.EmailConstants
 import dev.inmo.wishlist.features.email.client.EmailFeature
 import dev.inmo.wishlist.features.email.common.models.Email
-import dev.inmo.wishlist.features.email.common.models.EmailProfile
+import dev.inmo.wishlist.features.users.common.models.EmailProfile
 import dev.inmo.wishlist.features.email.common.models.SetEmailRequest
 import dev.inmo.wishlist.features.email.common.models.TestEmailRequest
 import dev.inmo.wishlist.features.email.common.models.EmailVerificationRequest
@@ -63,7 +63,7 @@ class KtorEmailFeature(private val client: HttpClient) : EmailFeature {
     }
 
     /**
-     * Fetches the authenticated owner's email profile from `GET /email/myEmail`.
+     * Fetches the authenticated owner's users-feature email profile from `GET /email/myEmail`.
      *
      * Only an explicit `404 Not Found` becomes `null`. Every other failed status is enforced by
      * Ktor's per-request `expectSuccess`, and a malformed successful body remains a decoding

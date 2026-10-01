@@ -3,7 +3,7 @@ package dev.inmo.wishlist.features.roles.server
 import dev.inmo.micro_utils.repos.MapCRUDRepo
 import dev.inmo.micro_utils.coroutines.withWriteLock
 import dev.inmo.wishlist.features.email.common.models.Email
-import dev.inmo.wishlist.features.email.common.models.EmailProfile
+import dev.inmo.wishlist.features.users.common.models.EmailProfile
 import dev.inmo.wishlist.features.users.common.models.NewUser
 import dev.inmo.wishlist.features.users.common.models.RegisteredUser
 import dev.inmo.wishlist.features.users.common.models.UserId
@@ -57,7 +57,7 @@ internal class FakeUsersRepo(
     override suspend fun getUserByUsername(username: Username): RegisteredUser? =
         getAll().values.firstOrNull { it.username == username }
 
-    /** Returns independent email-owned lifecycle state. */
+    /** Returns independent users-feature-owned lifecycle state. */
     override suspend fun getEmailProfileFresh(id: UserId): EmailProfile? =
         map[id]?.let { emailProfiles[id] ?: it.asEmailProfile() }
 
@@ -100,14 +100,14 @@ internal class FakeUsersRepo(
             current.withEmailProfile(approvedProfile).also { map[id] = it }
         }?.also { _updatedObjectsFlow.emit(it) }
 
-    /** Maps reduced fixture identity to email-owned state. */
+    /** Maps reduced fixture identity to users-feature-owned state. */
     private fun RegisteredUser.asEmailProfile(): EmailProfile = EmailProfile(
         userId = id.long,
         email = email,
         emailApproved = emailApproved,
     )
 
-    /** Synchronizes only current email identity from an email-owned profile. */
+    /** Synchronizes only current email identity from an users-feature-owned profile. */
     private fun RegisteredUser.withEmailProfile(profile: EmailProfile): RegisteredUser = copy(
         email = profile.email,
         emailApproved = profile.emailApproved,

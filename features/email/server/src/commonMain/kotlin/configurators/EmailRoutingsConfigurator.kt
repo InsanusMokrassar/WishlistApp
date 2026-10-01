@@ -30,7 +30,7 @@ import io.ktor.server.routing.route
  * - `POST /email/sendTest`  — bearer; the caller identity is passed to [feature] which enforces
  *   root-only access.
  * - `GET  /email/myEmail`   — bearer (self-service); returns only the bearer owner's fresh
- *   email-feature profile, `404` when that account disappeared, and never accepts a target id.
+ *   users-feature owner profile, `404` when that account disappeared, and never accepts a target id.
  * - `PUT  /email/myEmail`   — bearer (self-service); the caller identity is passed to [feature]
  *   which persists the address, responding `409 Conflict` when the address is already stored for
  *   a different user

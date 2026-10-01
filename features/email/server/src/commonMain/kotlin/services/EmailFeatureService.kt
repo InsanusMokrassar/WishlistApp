@@ -2,9 +2,9 @@ package dev.inmo.wishlist.features.email.server.services
 
 import dev.inmo.wishlist.features.email.common.EmailConstants
 import dev.inmo.wishlist.features.email.common.models.Email
-import dev.inmo.wishlist.features.email.common.models.EmailProfile
+import dev.inmo.wishlist.features.users.common.models.EmailProfile
 import dev.inmo.wishlist.features.email.common.models.EmailVerificationRequestResult
-import dev.inmo.wishlist.features.email.common.utils.verificationCandidate
+import dev.inmo.wishlist.features.users.common.utils.verificationCandidate
 import dev.inmo.wishlist.features.email.server.EmailFeature
 import dev.inmo.wishlist.features.email.server.EmailsService
 import dev.inmo.wishlist.features.auth.server.RegistrationEmailDeliveryHandle
@@ -50,7 +50,7 @@ class EmailFeatureService(
     override suspend fun isFeatureEnabled(): Boolean = true
 
     /**
-     * Reads the caller's email-owned state through the shared coordinator.
+     * Reads the caller's users-feature-owned state through the shared coordinator.
      *
      * @param callerId Authenticated owner whose state is read.
      * @return Fresh email profile, or `null` when the owner no longer exists.

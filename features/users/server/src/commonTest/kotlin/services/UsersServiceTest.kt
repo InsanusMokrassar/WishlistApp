@@ -3,7 +3,7 @@ package dev.inmo.wishlist.features.users.server.services
 import dev.inmo.micro_utils.repos.ReadCRUDRepo
 import dev.inmo.micro_utils.repos.ReadMapCRUDRepo
 import dev.inmo.wishlist.features.email.common.models.Email
-import dev.inmo.wishlist.features.email.common.models.EmailProfile
+import dev.inmo.wishlist.features.users.common.models.EmailProfile
 import dev.inmo.wishlist.features.users.common.models.RegisteredUser
 import dev.inmo.wishlist.features.users.common.models.UserId
 import dev.inmo.wishlist.features.users.common.models.UsersFeatureUser
@@ -43,7 +43,7 @@ internal class FakeUsersRepo(
     override suspend fun getUserByUsername(username: Username): RegisteredUser? =
         getAll().values.firstOrNull { it.username == username }
 
-    /** Returns independently seeded email-owned lifecycle state. */
+    /** Returns independently seeded users-feature-owned lifecycle state. */
     override suspend fun getEmailProfileFresh(id: UserId): EmailProfile? =
         emailProfiles[id]
 }

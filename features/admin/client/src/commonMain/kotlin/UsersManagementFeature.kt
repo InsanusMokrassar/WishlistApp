@@ -14,7 +14,7 @@ interface UsersManagementFeature {
     suspend fun getById(id: UserId): AdminUser?
     /** Creates a user and returns its reduced admin feature model, or `null` on failure. */
     suspend fun create(newUser: NewUserWithPassword): AdminUser?
-    /** Updates identity/email-owned storage without returning pending email state. */
+    /** Updates identity/users-feature-owned storage without returning pending email state. */
     suspend fun update(id: UserId, newUser: NewUser): Boolean
 
     /**

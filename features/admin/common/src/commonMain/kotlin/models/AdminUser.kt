@@ -20,7 +20,7 @@ import kotlinx.serialization.Serializable
  * @property email Stored email of the user, or `null` when unset. Kept intentionally — see class KDoc.
  * @property emailApproved Whether the current stored email has been approved. This private root-only
  *   field mirrors current identity state. Pending verification lifecycle state is owned by
- *   [dev.inmo.wishlist.features.email.common.models.EmailProfile] and is never returned by admin APIs.
+ *   [dev.inmo.wishlist.features.users.common.models.EmailProfile] and is never returned by admin APIs.
  */
 @Serializable
 data class AdminUser(
@@ -32,7 +32,7 @@ data class AdminUser(
 
 /**
  * Projects this [RegisteredUser] onto [AdminUser], retaining identity, current email, and approval.
- * Email-owned pending/request/deadline state is never accepted by this mapper or returned through
+ * Users-feature-owned pending/request/deadline state is never accepted by this mapper or returned through
  * admin APIs.
  *
  * @return An [AdminUser] mirroring this user's [RegisteredUser.id], [RegisteredUser.username] and
@@ -47,7 +47,7 @@ fun RegisteredUser.asAdminUser(): AdminUser = AdminUser(
 
 /**
  * Projects this [AdminUser] back onto the reduced persistence-layer [RegisteredUser], retaining
- * identity, current email, and approval only. Email-owned pending/request/deadline state is not
+ * identity, current email, and approval only. Users-feature-owned pending/request/deadline state is not
  * accepted as an argument and is never reconstructed through admin models.
  *
  * @return A [RegisteredUser] mirroring this model's [AdminUser.id], [AdminUser.username] and

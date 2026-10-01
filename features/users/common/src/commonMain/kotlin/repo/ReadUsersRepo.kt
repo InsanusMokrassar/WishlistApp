@@ -1,7 +1,7 @@
 package dev.inmo.wishlist.features.users.common.repo
 
 import dev.inmo.micro_utils.repos.ReadCRUDRepo
-import dev.inmo.wishlist.features.email.common.models.EmailProfile
+import dev.inmo.wishlist.features.users.common.models.EmailProfile
 import dev.inmo.wishlist.features.users.common.models.RegisteredUser
 import dev.inmo.wishlist.features.users.common.models.UserId
 import dev.inmo.wishlist.features.users.common.models.Username
@@ -17,7 +17,7 @@ interface ReadUsersRepo : ReadCRUDRepo<RegisteredUser, UserId> {
     suspend fun getByIdFresh(id: UserId): RegisteredUser? = getById(id)
 
     /**
-     * Reads the email feature's complete owner state directly from persistent storage.
+     * Reads the users feature's complete private owner state directly from persistent storage.
      *
      * Implementations must not derive this profile from [RegisteredUser], because cached or reduced
      * user projections do not own the pending verification lifecycle. The read is mandatory so a

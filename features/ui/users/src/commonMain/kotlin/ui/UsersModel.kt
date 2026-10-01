@@ -2,7 +2,7 @@ package dev.inmo.wishlist.features.ui.users.ui
 
 import dev.inmo.micro_utils.common.MPPFile
 import dev.inmo.wishlist.features.email.common.models.Email
-import dev.inmo.wishlist.features.email.common.models.EmailProfile
+import dev.inmo.wishlist.features.users.common.models.EmailProfile
 import dev.inmo.wishlist.features.email.common.models.EmailVerificationRequestResult
 import dev.inmo.wishlist.features.auth.common.models.Password
 import dev.inmo.wishlist.features.files.common.models.FileId
@@ -70,7 +70,7 @@ interface UsersModel {
     val canChangeAvatarForOthersFlow: StateFlow<Boolean>
 
     /**
-     * Resolves authenticated caller email state owned by the email feature.
+     * Resolves authenticated caller email profile owned by the users feature and transported by the email feature.
      *
      * This must never be substituted with auth state or public users listing. Email lifecycle state
      * is private to its owner and is served by

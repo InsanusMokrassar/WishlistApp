@@ -11,7 +11,7 @@ import dev.inmo.micro_utils.coroutines.withWriteLock
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import dev.inmo.wishlist.features.email.common.models.Email
-import dev.inmo.wishlist.features.email.common.models.EmailProfile
+import dev.inmo.wishlist.features.users.common.models.EmailProfile
 import dev.inmo.wishlist.features.users.common.models.NewUser
 import dev.inmo.wishlist.features.users.common.models.RegisteredUser
 import dev.inmo.wishlist.features.users.common.models.UserId
@@ -58,7 +58,7 @@ class CacheUsersRepo(
 
     override suspend fun getByIdFresh(id: UserId): RegisteredUser? = originalRepo.getByIdFresh(id)
 
-    /** Delegates an email-owned fresh read without observing, refreshing, or updating the user cache. */
+    /** Delegates an users-feature-owned fresh read without observing, refreshing, or updating the user cache. */
     override suspend fun getEmailProfileFresh(id: UserId): EmailProfile? = originalRepo.getEmailProfileFresh(id)
 
     override suspend fun setEmail(id: UserId, email: Email?): RegisteredUser? =

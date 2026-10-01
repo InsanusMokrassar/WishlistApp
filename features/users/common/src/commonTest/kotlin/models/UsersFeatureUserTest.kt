@@ -47,6 +47,13 @@ class UsersFeatureUserTest {
         )
     }
 
+    /** Creation accepts ordinary username/address fields and never accepts owner lifecycle state. */
+    @Test
+    fun newUserDescriptorExposesOnlyOrdinaryInput() {
+        val descriptor = NewUser.serializer().descriptor
+        assertEquals(setOf("username", "email"), (0 until descriptor.elementsCount).map(descriptor::getElementName).toSet())
+    }
+
     /** A [RegisteredUser] with no email still maps id/username correctly. */
     @Test
     fun mapperHandlesNullEmail() {

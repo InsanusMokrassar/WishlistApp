@@ -1,7 +1,7 @@
 package dev.inmo.wishlist.features.email.client
 
 import dev.inmo.wishlist.features.email.common.models.Email
-import dev.inmo.wishlist.features.email.common.models.EmailProfile
+import dev.inmo.wishlist.features.users.common.models.EmailProfile
 import dev.inmo.wishlist.features.email.common.models.EmailVerificationRequestResult
 import dev.inmo.wishlist.features.email.common.models.EmailChangeCooldownException
 import io.ktor.client.HttpClient
@@ -47,7 +47,12 @@ class KtorEmailFeatureTest {
                 assertEquals(HttpMethod.Get, request.method)
                 assertEquals("/email/myEmail", request.url.encodedPath)
                 assertTrue(request.url.parameters.isEmpty())
-                respondJson(Json.encodeToString(EmailProfile.serializer(), expected))
+                respondJson(
+                    when (expected.userId) {
+                        7L -> """{"userId":7,"email":"approved@example.com","emailApproved":true,"pendingEmail":"pending@example.com","emailChangeRequestedAt":101,"emailChangeAllowedAt":202}"""
+                        else -> """{"userId":8}"""
+                    },
+                )
             }
             try {
                 assertEquals(expected, KtorEmailFeature(client).getMyEmail())

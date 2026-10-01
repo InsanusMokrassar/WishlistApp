@@ -44,7 +44,7 @@ fun RegisteredUser.asUsersFeatureUser(): UsersFeatureUser = UsersFeatureUser(
  * receiver: the caller MUST supply both fields explicitly. The parameters have NO default values on
  * purpose — a silent default would let a caller accidentally reconstruct a user with private data
  * erased, the same data-integrity trap (in the opposite direction) that issue #67 fixed. Pending
- * email, accepted-candidate time, and cooldown state are email-owned and cannot be reconstructed
+ * email, accepted-candidate time, and cooldown state are users-feature-owned and cannot be reconstructed
  * here at all.
  *
  * @param email Email address to restore onto the rebuilt [RegisteredUser] (typically taken from the

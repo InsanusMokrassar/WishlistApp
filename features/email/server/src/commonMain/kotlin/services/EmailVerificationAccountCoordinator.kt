@@ -2,7 +2,7 @@ package dev.inmo.wishlist.features.email.server.services
 
 import dev.inmo.kroles.repos.RolesRepo
 import dev.inmo.wishlist.features.email.common.models.Email
-import dev.inmo.wishlist.features.email.common.models.EmailProfile
+import dev.inmo.wishlist.features.users.common.models.EmailProfile
 import dev.inmo.wishlist.features.roles.server.promoteNewUserToUser
 import dev.inmo.wishlist.features.users.common.models.NewUser
 import dev.inmo.wishlist.features.users.common.models.Username
@@ -71,10 +71,10 @@ class EmailVerificationAccountCoordinator(
     }
 
     /**
-     * Returns fresh email-owned state for [userId] under the shared account mutex.
+     * Returns fresh users-feature-owned state for [userId] under the shared account mutex.
      *
      * This deliberately uses [UsersRepo.getEmailProfileFresh] instead of a user projection so
-     * pending verification state cannot be observed through a cache or a user-owned model. SMTP
+     * pending verification state cannot be observed through a cache or a reduced identity model. SMTP
      * remains outside this mutex, so callers that deliver asynchronously must re-read afterward.
      *
      * @param userId Authenticated owner whose state is inspected.

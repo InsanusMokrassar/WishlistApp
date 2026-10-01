@@ -83,7 +83,7 @@ class AuthFeatureServiceSqliteTest {
             )
             assertEquals(replacement, cache.getByIdFresh(initial.id))
             assertEquals(
-                dev.inmo.wishlist.features.email.common.models.EmailProfile(
+                dev.inmo.wishlist.features.users.common.models.EmailProfile(
                     userId = initial.id.long,
                     email = current,
                     emailApproved = true,

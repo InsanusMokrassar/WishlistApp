@@ -4,7 +4,7 @@ import dev.inmo.navigation.core.NavigationNodeState
 import dev.inmo.wishlist.features.email.common.models.Email
 import dev.inmo.wishlist.features.email.common.models.EmailChangeCooldown
 import dev.inmo.wishlist.features.email.common.models.EmailChangeCooldownException
-import dev.inmo.wishlist.features.email.common.models.EmailProfile
+import dev.inmo.wishlist.features.users.common.models.EmailProfile
 import dev.inmo.wishlist.features.email.common.models.EmailVerificationRequestResult
 import dev.inmo.wishlist.features.users.common.models.UserId
 import korlibs.time.DateTime
@@ -3099,7 +3099,7 @@ class UserEditViewModelEmailTest {
         }
     }
 
-    /** Retires positive feedback when only the email-owned request time changes without replacing a draft. */
+    /** Retires positive feedback when only the users-feature-owned request time changes without replacing a draft. */
     @Test
     fun requestedAtOnlyRefreshRetiresPositiveFeedbackAndKeepsDirtyDraft() = runTest {
         val approved = Email("approved@example.com")

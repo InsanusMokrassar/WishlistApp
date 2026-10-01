@@ -3,7 +3,7 @@ package dev.inmo.wishlist.features.email.server.services
 import dev.inmo.micro_utils.repos.MapCRUDRepo
 import dev.inmo.micro_utils.coroutines.withWriteLock
 import dev.inmo.wishlist.features.email.common.models.Email
-import dev.inmo.wishlist.features.email.common.models.EmailProfile
+import dev.inmo.wishlist.features.users.common.models.EmailProfile
 import dev.inmo.wishlist.features.users.common.models.NewUser
 import dev.inmo.wishlist.features.users.common.models.RegisteredUser
 import dev.inmo.wishlist.features.users.common.models.UserId
@@ -212,7 +212,7 @@ internal class FakeUsersRepo(
         if (occupied) throw DuplicateUserFieldException()
     }
 
-    /** Creates an email-owned projection from a reduced user fixture. */
+    /** Creates an users-feature-owned projection from a reduced user fixture. */
     private fun RegisteredUser.asEmailProfile(): EmailProfile = EmailProfile(
         userId = id.long,
         email = email,

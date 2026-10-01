@@ -1,7 +1,7 @@
 package dev.inmo.wishlist.features.email.server.services
 
 import dev.inmo.wishlist.features.email.common.models.Email
-import dev.inmo.wishlist.features.email.common.models.EmailProfile
+import dev.inmo.wishlist.features.users.common.models.EmailProfile
 import dev.inmo.wishlist.features.email.common.models.EmailVerificationRequestResult
 import dev.inmo.wishlist.features.email.server.EmailFeature
 import dev.inmo.wishlist.features.users.common.models.UserId
@@ -34,7 +34,7 @@ class DisabledEmailFeature(
     override suspend fun isFeatureEnabled(): Boolean = false
 
     /**
-     * Reads the caller's email state even though SMTP delivery is disabled.
+     * Reads the caller's users-feature owner profile even though SMTP delivery is disabled.
      *
      * @param callerId Authenticated owner whose state is read.
      * @return Fresh email profile, or `null` when the owner no longer exists.

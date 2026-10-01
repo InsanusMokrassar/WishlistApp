@@ -4,7 +4,7 @@ import dev.inmo.micro_utils.repos.UpdatedValuePair
 import dev.inmo.micro_utils.repos.exposed.AbstractExposedCRUDRepo
 import dev.inmo.micro_utils.repos.exposed.initTable
 import dev.inmo.wishlist.features.email.common.models.Email
-import dev.inmo.wishlist.features.email.common.models.EmailProfile
+import dev.inmo.wishlist.features.users.common.models.EmailProfile
 import dev.inmo.wishlist.features.email.common.utils.emailApprovalDeadline
 import dev.inmo.wishlist.features.email.common.utils.emailTimestampFromStorage
 import dev.inmo.wishlist.features.email.common.utils.emailTimestampToStorage
@@ -137,7 +137,7 @@ class ExposedUsersRepo internal constructor(
             )
         }
 
-    /** Maps one raw users row to the email feature's complete owner-state projection. */
+    /** Maps one raw users row to the users feature's complete private owner-state projection. */
     private val ResultRow.asEmailProfile: EmailProfile
         get() {
             val email = get(emailColumn)?.let { Email.parse(it).getOrNull() }
