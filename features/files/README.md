@@ -40,6 +40,15 @@ Generic binary file storage with metadata. Stores file payloads on disk and meta
 
 ## Architecture Notes
 
+- **Temporal cleanup timestamps:** `TimedTemporalFilesUtilizer` stores upload tracking instants as
+  `korlibs.time.DateTime` and accepts a defaulted DateTime clock for deterministic tests. TTL and sweep
+  interval remain Long durations. Expiry uses elapsed DateTime differences and includes equality; map
+  removal remains mutex-protected and disk deletion follows removal. Finalized files are not deleted by
+  cleanup, and cancelling the lifecycle job stops collection and sweeping. No persisted timestamp, route,
+  upload authentication, or finalization contract changes.
+
+  Each repeated temporal-file notification replaces the tracked instant with the latest observation; expiry includes exact TTL equality.
+
 - **Two-step upload**: Client uploads bytes to `/temp_upload` (shared `TemporalFilesRoutingConfigurator` from MicroUtils; JS implementation uses XMLHttpRequest for large-file support), receives `TemporalFileId`, then calls `/files/finalize` referencing that id.
 - **Binary storage**: `DiskFilesRepo` persists payloads on disk under a directory from `FilesConfig.filesFolder` (decoded from root server config JSON; key `filesFolder`, default `./uploaded_files`). Guarded by `SmartRWLocker`.
 - **Metadata storage**: `ExposedFilesMetaInfoRepo` (Exposed-backed `KeyValueRepo`) persists `RegisteredFileMetaInfo` as JSON text in the `files_meta` table (`file_id` text PK, `meta_json` text); mirrors `ExposedPasswordsRepo` pattern.

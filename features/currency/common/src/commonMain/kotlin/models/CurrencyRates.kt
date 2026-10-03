@@ -1,5 +1,7 @@
 package dev.inmo.wishlist.features.currency.common.models
 
+import dev.inmo.micro_utils.common.DateTimeSerializer
+import korlibs.time.DateTime
 import kotlinx.serialization.Serializable
 
 /**
@@ -11,13 +13,14 @@ import kotlinx.serialization.Serializable
  *
  * @property base Base currency all [rates] are expressed against.
  * @property rates Map of ISO currency code (upper-case string) to the base→code multiplier.
- * @property fetchedAtMillis Unix epoch milliseconds when this snapshot was retrieved; used for TTL.
+ * @property fetchedAtMillis Retrieval instant; historical property name remains for wire compatibility.
  */
 @Serializable
 data class CurrencyRates(
     val base: CurrencyCode,
     val rates: Map<String, Double>,
-    val fetchedAtMillis: Long
+    @Serializable(with = DateTimeSerializer::class)
+    val fetchedAtMillis: DateTime,
 ) {
     /**
      * Returns the base→[code] multiplier, or `null` when the currency is not present in this snapshot.

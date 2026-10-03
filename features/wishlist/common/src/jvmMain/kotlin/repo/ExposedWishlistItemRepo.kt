@@ -34,8 +34,10 @@ import org.jetbrains.exposed.v1.jdbc.transactions.transaction
  * - `wishlist_id` — BIGINT → parent [WishlistId]
  * - `title` — TEXT
  * - `amount` — INT, defaults to `1` → desired quantity of the item
- * - `approx_price_int` — BIGINT NULL → [Amount.integerPart]
+ * - `approx_price_int` — BIGINT NULL → [Amount.integerPart] stored as signed Long bits
  * - `approx_price_dec` — BIGINT NULL → [Amount.decimalPart] stored as signed Long bits
+ * - `approx_price_negative` — BOOLEAN NULL → [Amount.negative]
+ * - `approx_price_decimal_places` — INT NULL → [Amount.decimalPlaces]
  * - `price_units` — TEXT
  * - `description` — TEXT
  * - `priority_weight` — BIGINT, defaults to [Priority.Medium] weight (`50`) → [Priority]
@@ -45,7 +47,8 @@ import org.jetbrains.exposed.v1.jdbc.transactions.transaction
  * removal of the corresponding link rows automatically.
  *
  * [Amount] is `null` when both price columns are `null`.
- * [Amount.decimalPart] ([ULong]) is stored as its [Long] bit pattern and reconstructed with [Long.toULong].
+ * Both unsigned parts are stored as [Long] bit patterns and reconstructed with [Long.toULong].
+ * Null sign and scale columns identify legacy rows, whose signed integer part encoded the sign.
  *
  * @param database Exposed [Database] instance injected from Koin.
  */
@@ -58,6 +61,8 @@ class ExposedWishlistItemRepo(
     private val amountColumn = integer("amount").default(1)
     private val approxPriceIntColumn = long("approx_price_int").nullable()
     private val approxPriceDecColumn = long("approx_price_dec").nullable()
+    private val approxPriceNegativeColumn = bool("approx_price_negative").nullable()
+    private val approxPriceDecimalPlacesColumn = integer("approx_price_decimal_places").nullable()
     private val priceUnitsColumn = text("price_units")
     private val descriptionColumn = text("description")
     private val priorityWeightColumn = long("priority_weight").default(Priority.Medium.weight.toLong())
@@ -112,7 +117,20 @@ class ExposedWishlistItemRepo(
     private fun ResultRow.amountOrNull(): Amount? {
         val intPart = get(approxPriceIntColumn) ?: return null
         val decPart = get(approxPriceDecColumn) ?: return null
-        return Amount(intPart, decPart.toULong())
+        val negative = get(approxPriceNegativeColumn)
+        val decimalPlaces = get(approxPriceDecimalPlacesColumn)
+        require((negative == null) == (decimalPlaces == null)) { "Incomplete price metadata" }
+        val decimal = decPart.toULong()
+        return if (negative == null) {
+            // Legacy rows used a signed integer part and did not record leading fractional zeroes.
+            Amount(
+                integerPart = if (intPart < 0) 0uL - intPart.toULong() else intPart.toULong(),
+                decimalPart = decimal,
+                negative = intPart < 0,
+            )
+        } else {
+            Amount(intPart.toULong(), decimal, negative, checkNotNull(decimalPlaces))
+        }
     }
 
     /**
@@ -175,8 +193,10 @@ class ExposedWishlistItemRepo(
         it[wishlistIdColumn] = value.wishlistId.long
         it[titleColumn] = value.title
         it[amountColumn] = value.amount.toInt()
-        it[approxPriceIntColumn] = value.approximatePrice?.integerPart
+        it[approxPriceIntColumn] = value.approximatePrice?.integerPart?.toLong()
         it[approxPriceDecColumn] = value.approximatePrice?.decimalPart?.toLong()
+        it[approxPriceNegativeColumn] = value.approximatePrice?.negative
+        it[approxPriceDecimalPlacesColumn] = value.approximatePrice?.decimalPlaces
         it[priceUnitsColumn] = value.priceUnits
         it[descriptionColumn] = value.description
         it[priorityWeightColumn] = value.priority.weight.toLong()

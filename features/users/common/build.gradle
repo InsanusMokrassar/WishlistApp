@@ -17,7 +17,30 @@ kotlin {
         jvmTest {
             dependencies {
                 implementation libs.xerial.sql
+                implementation libs.psql
             }
+        }
+    }
+}
+
+tasks.named("jvmTest", Test) {
+    filter {
+        excludeTestsMatching "*.PostgresUsersRepoTest"
+    }
+}
+
+tasks.register("postgresEmailLifecycleTest", Test) {
+    group = "verification"
+    description = "Runs users email lifecycle tests against the disposable PostgreSQL JDBC URL."
+    dependsOn tasks.named("jvmTestClasses")
+    testClassesDirs = tasks.named("jvmTest", Test).get().testClassesDirs
+    classpath = tasks.named("jvmTest", Test).get().classpath
+    filter {
+        includeTestsMatching "*.PostgresUsersRepoTest"
+    }
+    doFirst {
+        if (System.getenv("WISHLIST_POSTGRES_TEST_JDBC_URL")?.isBlank() != false) {
+            throw new GradleException("postgresEmailLifecycleTest requires WISHLIST_POSTGRES_TEST_JDBC_URL for a disposable PostgreSQL database")
         }
     }
 }

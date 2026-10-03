@@ -31,11 +31,13 @@ import kotlin.collections.plus
  * @param appId Open Exchange Rates App ID; `null` or blank disables the feature.
  * @param httpClient HTTP client used to call OXR. Content negotiation (JSON) must be installed on it.
  * @param ttlMillis Cache lifetime in milliseconds; defaults to one hour.
+ * @param now Clock used for retrieval instants and deterministic cache tests.
  */
 class OpenExchangeRatesService(
     private val appId: String?,
     private val httpClient: HttpClient,
-    private val ttlMillis: Long = 60L * 60L * 1000L
+    private val ttlMillis: Long = 60L * 60L * 1000L,
+    private val now: () -> DateTime = { DateTime.fromUnixMillis(DateTime.now().unixMillis.toLong()) },
 ) : CurrencyFeature {
     /** Wire-format DTO for the OXR `latest.json` response (only the parts the feature needs). */
     @Serializable
@@ -49,7 +51,7 @@ class OpenExchangeRatesService(
 
     private val currenciesMutex = Mutex()
     private var cachedCurrencies: List<CurrencyInfo>? = null
-    private var currenciesFetchedAtMillis: Long = 0L
+    private var currenciesFetchedAtMillis: DateTime = DateTime.EPOCH
 
     private val baseUrl = "https://openexchangerates.org/api"
 
@@ -72,7 +74,7 @@ class OpenExchangeRatesService(
         if (!isFeatureEnabled()) return emptyList()
         return currenciesMutex.withLock {
             val cached = cachedCurrencies
-            if (cached != null && (DateTime.now().unixMillisLong - currenciesFetchedAtMillis) < ttlMillis) {
+            if (cached != null && (now() - currenciesFetchedAtMillis).inWholeMilliseconds < ttlMillis) {
                 cached
             } else {
                 val fetched = runCatchingLogging {
@@ -87,7 +89,7 @@ class OpenExchangeRatesService(
                 }.getOrNull()
                 if (fetched != null) {
                     cachedCurrencies = fetched
-                    currenciesFetchedAtMillis = DateTime.now().unixMillisLong
+                    currenciesFetchedAtMillis = now()
                     fetched
                 } else {
                     cached ?: emptyList()
@@ -105,7 +107,7 @@ class OpenExchangeRatesService(
         if (!isFeatureEnabled()) return null
         return ratesMutex.withLock {
             val cached = cachedRates
-            if (cached != null && (DateTime.now().unixMillisLong - cached.fetchedAtMillis) < ttlMillis) {
+            if (cached != null && (now() - cached.fetchedAtMillis).inWholeMilliseconds < ttlMillis) {
                 cached
             } else {
                 val fetched = runCatchingLogging {
@@ -117,7 +119,7 @@ class OpenExchangeRatesService(
                     CurrencyRates(
                         base = CurrencyCode.of(latest.base),
                         rates = latest.rates,
-                        fetchedAtMillis = DateTime.now().unixMillisLong
+                        fetchedAtMillis = now(),
                     )
                 }.getOrNull()
                 if (fetched != null) {
