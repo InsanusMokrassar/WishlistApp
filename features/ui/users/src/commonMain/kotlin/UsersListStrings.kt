@@ -128,8 +128,10 @@ object UsersListStrings {
     }
 
     /** Status shown when the owner has not stored an email yet. */
-    val emailMissing = buildStringResource("Add an email address to receive a verification link.") {
-        IetfLang.Russian("Добавьте email-адрес, чтобы получить ссылку для подтверждения.")
+    val emailMissing = buildStringResource(
+        "Add an email address to save it; verification is available when email delivery is enabled."
+    ) {
+        IetfLang.Russian("Добавьте email-адрес, чтобы сохранить его; подтверждение доступно при включённой отправке email.")
     }
 
     /** Status shown for an email that still awaits verification. */
@@ -145,6 +147,47 @@ object UsersListStrings {
     /** Saves a new owner email and immediately requests verification. */
     val saveEmailAndVerifyButton = buildStringResource("Save and send verification") {
         IetfLang.Russian("Сохранить и отправить подтверждение")
+    }
+
+    /** Saves the owner email without promising verification delivery. */
+    val saveEmailButton = buildStringResource("Save email") {
+        IetfLang.Russian("Сохранить email")
+    }
+
+    /** Confirmation shown only after storage and the authoritative private refresh agree. */
+    val emailSaved = buildStringResource("Email saved.") {
+        IetfLang.Russian("Email сохранён.")
+    }
+
+    /** Label separating the authoritative current address from an editable replacement draft. */
+    val savedEmailLabel = buildStringResource("Current email") {
+        IetfLang.Russian("Текущий email")
+    }
+
+    /** Label for a stored replacement address that is not active until approval. */
+    val pendingEmailLabel = buildStringResource("Pending email replacement") {
+        IetfLang.Russian("Новый email ожидает подтверждения")
+    }
+
+    /** Explains that the approved address remains usable during replacement verification. */
+    val emailReplacementNeedsVerification = buildStringResource(
+        "Your current approved address remains active until the replacement is verified."
+    ) {
+        IetfLang.Russian("Текущий подтверждённый адрес остаётся активным до подтверждения нового.")
+    }
+
+    /** Explains the durable cooldown and tells the owner how to recheck eligibility. */
+    val emailChangeCooldown = buildStringResource(
+        "You can change your email after %s UTC. Refresh the status after that time."
+    ) {
+        IetfLang.Russian("Вы сможете изменить email после %s UTC. После этого обновите статус.")
+    }
+
+    /** Explains why an active owner-email operation stopped before publication. */
+    val emailOperationInterrupted = buildStringResource(
+        "The email operation was interrupted because the account or profile changed."
+    ) {
+        IetfLang.Russian("Операция с email прервана из-за смены аккаунта или профиля.")
     }
 
     /** Requests another verification message for the saved pending email. */
@@ -198,7 +241,7 @@ object UsersListStrings {
         IetfLang.Russian("Этот email-адрес уже подтверждён.")
     }
 
-    /** Server result: SMTP delivery is unavailable. */
+    /** Confirmed Disabled delivery capability or server result: SMTP delivery is unavailable. */
     val emailVerificationUnavailable = buildStringResource("Email delivery is unavailable.") {
         IetfLang.Russian("Отправка email недоступна.")
     }

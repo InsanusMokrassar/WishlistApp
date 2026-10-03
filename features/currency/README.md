@@ -62,8 +62,13 @@ Utilities (`features/currency/common/utils`):
   entry is invalidated once the TTL (`openExchangeRatesRefreshTTLMillis`, default `3_600_000` ms / one hour) has elapsed since its own last
   successful retrieval (`fetchedAtMillis` for rates; a private timestamp for currencies), so the next
   access triggers a fresh fetch. Fetches are guarded by a `Mutex` and timestamped via
-  `korlibs.time.DateTime.now().unixMillisLong`. Upstream failures are logged and fall back to the last
-  good cache (or empty/`null`), so an OXR outage never crashes the server.
+  `korlibs.time.DateTime.now()`. `CurrencyRates.fetchedAtMillis` retains its historical property name but
+  is a DateTime serialized with `DateTimeSerializer`; legacy integer input remains supported and new output
+  is Double numeric epoch milliseconds. The dictionary retrieval instant is also DateTime. TTL remains a
+  Long duration, elapsed comparisons use DateTime differences, equality expires entries, and a defaulted
+  DateTime clock enables deterministic tests. Upstream failures are logged and fall back to the last
+  good cache (or empty/`null`), so an OXR outage never crashes the server. Independent mutexes,
+  successful-fetch-only timestamps, and stale fallback remain unchanged; no monotonic-clock redesign is included.
 - **OXR endpoints used:** `GET /api/latest.json?app_id=<id>` (base `USD` on the free plan) and
   `GET /api/currencies.json?app_id=<id>`.
 - **Server HTTP client:** registered in the server `Plugin` as a dedicated OkHttp `HttpClient` (named
