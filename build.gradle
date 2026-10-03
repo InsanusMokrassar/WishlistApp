@@ -26,4 +26,5 @@ allprojects {
 }
 
 apply from: "./extensions.gradle"
+apply from: "./browser-tests.gradle"
 // apply from: "./github_release.gradle"

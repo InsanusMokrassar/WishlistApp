@@ -1,0 +1,1 @@
+Synchronize PR #88 (fix/issue-85-browser-verification) with master commit 0b7bf58649a0a8844af710078d9d04c3cd75c1c4 by merge; verify full build and served-browser gate; push the source branch without merging the PR.

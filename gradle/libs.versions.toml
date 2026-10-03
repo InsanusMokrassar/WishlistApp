@@ -31,6 +31,9 @@ dokka = "2.2.0"
 
 dexcount = "4.0.0"
 junit_version = "4.12"
+junit-jupiter = "5.11.4"
+junit-platform = "1.11.4"
+playwright = "1.52.0"
 test_ext_junit_version = "1.3.0"
 espresso_core = "3.7.0"
 
@@ -49,6 +52,9 @@ kotlin-coroutines-debug = { module = "org.jetbrains.kotlinx:kotlinx-coroutines-d
 kotlin-coroutines-test = { module = "org.jetbrains.kotlinx:kotlinx-coroutines-test", version.ref = "kotlin-coroutines" }
 android-test-junit = { module = "androidx.test.ext:junit", version.ref = "test_ext_junit_version" }
 android-test-espresso = { module = "androidx.test.espresso:espresso-core", version.ref = "espresso_core" }
+junit-jupiter = { module = "org.junit.jupiter:junit-jupiter", version.ref = "junit-jupiter" }
+junit-platform-launcher = { module = "org.junit.platform:junit-platform-launcher", version.ref = "junit-platform" }
+playwright = { module = "com.microsoft.playwright:playwright", version.ref = "playwright" }
 
 # Material
 
