@@ -6,7 +6,8 @@
 
 ## Overview
 
-User-facing screens for browsing and managing user profiles. Three screens share one navigation
+User-facing screens for browsing and managing user profiles. The users list, profile, editor, and
+password-change form share one navigation
 chain (the scaffold main slot). On JS the list + profile views render **Calm Studio** markup (the
 Discover people grid `.people`/`.person`, the profile `.pagehead` header; class names mirror the
 design skill's `ui_kits/calm-studio` reference so the phase-1 shell CSS styles them); the profile
@@ -26,7 +27,9 @@ design skill's `ui_kits/calm-studio` reference so the phase-1 shell CSS styles t
   and approval status remain separate from the editable replacement draft. SMTP enables verification
   delivery, but disabled SMTP still permits storage. A SuperAdmin may edit the username, set a new
   password (with a confirmation field that must match), upload an avatar, and **delete** the user.
-  The user id is never editable. User *creation* is not done here (admin panel).
+   The user id is never editable. User *creation* is not done here (admin panel). The owner can request
+   a password-change email for the approved current address, including while a replacement is pending;
+   a pending replacement is never used as the authorization address.
 
 No auth required to view the users list or a profile.
 
@@ -44,7 +47,8 @@ email storage, and verification request), `features/admin/client` (root-only use
 | `UsersListViewConfig` | Empty `@Serializable class` — main slot root identifier |
 | `UserViewConfig` | `data class(userId: UserId)` — public profile detail |
 | `UserEditViewConfig` | `data class(userId: UserId)` — profile edit (owner/root) |
-| `UsersModel` | Single feature model (renamed from `UsersListModel`). Wraps `UsersFeature.getAll()` (returns `UsersFeatureUser` — no email, see `features/users/README.md`), auth's `meState` only for caller identity/authorization, `EmailFeature.getMyEmail()` for the private email-owned `EmailProfile` (`email`, `emailApproved`, `pendingEmail`, `emailChangeRequestedAt`, `emailChangeAllowedAt`), admin `AdminFeature.usersManagement` (`updateUsername`, `setPassword`, `deleteUser`), and `FilesClientService` (`getAvatar`, `uploadAvatar`, `imageUrl`, `loadImageBytes`). The public list and auth `getMe` model are never used to read or reconstruct pending email state. |
+| `PasswordChangeViewConfig` | `Pending(userId, approvalId)` keeps the immutable approval until confirmed completion; `Completed` contains no approval or entered password. |
+| `UsersModel` | Single feature model (renamed from `UsersListModel`). Wraps `UsersFeature.getAll()` (returns `UsersFeatureUser` — no email, see `features/users/README.md`), auth's `meState` only for caller identity/authorization, `EmailFeature.getMyEmail()` for the private users-owned `EmailProfile` (`email`, `emailApproved`, `pendingEmail`, `emailChangeRequestedAt`, `emailChangeAllowedAt`), `PasswordChangeFeature` for approval issuance/completion, admin `AdminFeature.usersManagement` (`updateUsername`, `setPassword`, `deleteUser`), and `FilesClientService` (`getAvatar`, `uploadAvatar`, `imageUrl`, `loadImageBytes`). The public list and auth `getMe` model are never used to read or reconstruct pending email state. |
 | `UsersListViewInteractor` | `onUserSelected(node, userId)` (→ user's all-items view), `onOpenProfile(node, userId)` (→ profile view) |
 | `UserViewInteractor` | `onBack(node)`, `onEditUser(node)` (→ edit) |
 | `UserEditViewInteractor` | `onNavigateBack(node)`, `onSaved(node)`, `onDeleted(node)` |
@@ -65,10 +69,10 @@ The advisory clock constructor accepts DateTime directly; legacy Long-clock over
 - **Users-feature owner projection:** The editor consumes `dev.inmo.wishlist.features.users.common.models.EmailProfile`, a private external users-feature model, through `EmailFeature.getMyEmail()`. Model ownership does not broaden visibility: auth remains identity/authorization only, the anonymous public users projection remains id/username, and root editing another account does not receive private pending state. Profile helpers come from users/common. Current/pending/draft separation, the five-field feedback snapshot, requested-at reconciliation, DateTime cooldown admission, fresh reads, dispatcher confinement, cancellation, and renderer privacy remain unchanged.
 
 - All views use the shared `ScreenTitle` / `BackButton` / `ListRow` components from `features/common/client` (`ui.components`).
-- All three screens' interactors are implemented in `client/ClientPlugin` (intra-feature push/pop). `onOpenProfile`/`UserViewInteractor.onEditUser` push `UserViewConfig`/`UserEditViewConfig` onto `node.chain`.
+- Screen interactors are implemented in `client/ClientPlugin` (intra-feature push/pop). `onOpenProfile`/`UserViewInteractor.onEditUser` push `UserViewConfig`/`UserEditViewConfig` onto `node.chain`.
 - `build.gradle` deps: `features/auth/client` (caller/me state), `features/admin/client` (`AdminFeature`), `features/email/client` (`EmailFeature`), `features/files/client` (`FilesClientService`).
-- **Single model**: `UsersListModel` was renamed to `UsersModel` and expanded to back all three screens (matching the one-model-per-UI-feature convention used by `wishlist`/`adminPanel`).
-- **Model implementation:** `DefaultUsersModel` implements `UsersModel` in the common UI package and is registered as an interface `single` in `Plugin.kt`. Its private constructor dependencies are `UsersFeature`, `EmailFeature`, the auth `meStateFlow` (identity/roles only), `AdminFeature`, `FilesClientService`, `CoroutineScope`, `AuthCredentialsStorage`, and `RolesFeature`. `getMyEmailProfile()` obtains the users-feature owner projection by delegating directly to the existing `EmailFeature.getMyEmail()` capability; it does not call `ClientAuthFeature.getMe()` or derive a profile from auth state.
+- **Single model**: `UsersListModel` was renamed to `UsersModel` and expanded to back all four screen families (matching the one-model-per-UI-feature convention used by `wishlist`/`adminPanel`).
+- **Model implementation:** `DefaultUsersModel` implements `UsersModel` in the common UI package and is registered as an interface `single` in `Plugin.kt`. Its private constructor dependencies are `UsersFeature`, `EmailFeature`, `PasswordChangeFeature`, the auth `meStateFlow` (identity/roles only), `AdminFeature`, `FilesClientService`, `CoroutineScope`, `AuthCredentialsStorage`, and `RolesFeature`. `getMyEmailProfile()` delegates to the users-feature owner projection via `EmailFeature.getMyEmail()`; it does not reconstruct a profile from auth state.
 - **Superadmin/functionality detection is client-side**, via `roles/client` (issue #68) — replaces the
   previous `me.value?.username?.string == "root"` comparison. `UsersModel.isCurrentUserRootFlow` is
   backed by `roles/client` `RolesFeature.isFunctionalityAvailable(adminPanelFunctionalityId)` over

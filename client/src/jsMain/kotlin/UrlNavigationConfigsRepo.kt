@@ -5,7 +5,6 @@ package dev.inmo.wishlist.client
 import dev.inmo.micro_utils.common.Warning
 import dev.inmo.navigation.core.repo.ConfigHolder
 import dev.inmo.navigation.core.repo.NavigationConfigsRepo
-import dev.inmo.navigation.core.urls.UrlParametersNavigationConfigsRepo
 import dev.inmo.navigation.core.urls.UrlParametersNavigationConfigsRepo.LocationData
 import dev.inmo.wishlist.features.common.client.models.LeftNavigationChainId
 import dev.inmo.wishlist.features.common.client.models.MainNavigationChainId
@@ -13,6 +12,7 @@ import dev.inmo.wishlist.features.common.client.models.TopNavigationChainId
 import dev.inmo.wishlist.features.common.client.models.ViewConfig
 import dev.inmo.wishlist.features.ui.topBar.ui.TopBarViewConfig
 import dev.inmo.wishlist.features.ui.users.ui.UserEditViewConfig
+import dev.inmo.wishlist.features.ui.users.ui.PasswordChangeViewConfig
 import dev.inmo.wishlist.features.ui.users.ui.UserViewConfig
 import dev.inmo.wishlist.features.ui.users.ui.UsersListViewConfig
 import dev.inmo.wishlist.features.ui.wishlist.ui.UserWishlistsViewConfig
@@ -21,9 +21,12 @@ import dev.inmo.wishlist.features.ui.wishlist.ui.WishlistItemEditViewConfig
 import dev.inmo.wishlist.features.ui.wishlist.ui.WishlistItemViewConfig
 import dev.inmo.wishlist.features.ui.wishlist.ui.WishlistViewConfig
 import dev.inmo.wishlist.features.users.common.models.UserId
+import dev.inmo.wishlist.features.auth.common.Constants as AuthConstants
+import dev.inmo.wishlist.features.auth.common.utils.isCanonicalPasswordChangeApprovalId
 import dev.inmo.wishlist.features.wishlist.common.models.WishlistId
 import dev.inmo.wishlist.features.wishlist.common.models.WishlistItemId
 import kotlinx.browser.document
+import kotlinx.browser.window
 import org.w3c.dom.url.URL
 
 /** Default browser-tab/site title; always resolved regardless of the current navigation state. */
@@ -46,6 +49,12 @@ private const val EDIT_SEGMENT = "edit"
 
 /** Path segment marking a create screen, where no entity id exists yet (`.../new`). */
 private const val NEW_SEGMENT = "new"
+
+/** Root path segment for an actionable email-authorized password-change page. */
+private const val PASSWORD_CHANGE_SEGMENT = AuthConstants.passwordChangePagePathPart
+
+/** Root path segment for the credential-free password-change completion page. */
+private const val PASSWORD_CHANGED_SEGMENT = AuthConstants.passwordChangedPagePathPart
 
 /**
  * Path segments of the directory the web client is mounted under (e.g. `/ui/` → `["ui"]`), derived
@@ -83,6 +92,7 @@ private fun List<ViewConfig>.toNodeChain(): ConfigHolder.Node<ViewConfig>? =
  * @return the path segments, or `null` when [config] is not a deep-linkable content screen.
  */
 private fun configPath(config: ViewConfig): List<String>? = when (config) {
+    is PasswordChangeViewConfig -> passwordChangeRouteSegments(config)
     is UserEditViewConfig ->
         listOf(USER_SEGMENT, config.userId.long.toString(), EDIT_SEGMENT)
     is UserWishlistsViewConfig ->
@@ -167,9 +177,49 @@ private fun LocationData.Builder.buildPath(holder: ConfigHolder<ViewConfig>) {
  * @return the stack, or `null` when [segments] do not describe a known screen.
  */
 private fun parseMainStack(segments: List<String>): List<ViewConfig>? = when (segments.firstOrNull()) {
+    PASSWORD_CHANGE_SEGMENT -> parsePasswordChangeStack(segments.drop(1))
+    PASSWORD_CHANGED_SEGMENT -> if (segments.size == 1) {
+        listOf(UsersListViewConfig(), PasswordChangeViewConfig.Completed)
+    } else {
+        null
+    }
     USER_SEGMENT -> parseUserStack(segments.drop(1))
     WISHLIST_SEGMENT -> parseWishlistStack(segments.drop(1))
     else -> null
+}
+
+/** Parses only an exact, safe password-change route; malformed paths never become pending screens. */
+private fun parsePasswordChangeStack(rest: List<String>): List<ViewConfig>? =
+    parsePasswordChangePendingSegments(rest)?.let { pending ->
+        listOf(UsersListViewConfig(), pending)
+    }
+
+/**
+ * Maps a password-change page configuration to its credential-safe browser route segments.
+ *
+ * @return canonical route segments, or `null` when a pending approval is malformed.
+ */
+internal fun passwordChangeRouteSegments(config: PasswordChangeViewConfig): List<String>? = when (config) {
+    is PasswordChangeViewConfig.Pending ->
+        if (config.userId.long > 0L && isCanonicalPasswordChangeApprovalId(config.approvalId)) {
+            listOf(PASSWORD_CHANGE_SEGMENT, config.userId.long.toString(), config.approvalId.string)
+        } else {
+            null
+        }
+    PasswordChangeViewConfig.Completed -> listOf(PASSWORD_CHANGED_SEGMENT)
+}
+
+/**
+ * Decodes exact pending password-change route segments without accepting normalized credentials.
+ *
+ * @return a pending page configuration, or `null` when the route is malformed.
+ */
+internal fun parsePasswordChangePendingSegments(rest: List<String>): PasswordChangeViewConfig.Pending? {
+    if (rest.size != 2) return null
+    val userId = rest[0].toLongOrNull()?.takeIf { it > 0L }?.let(::UserId) ?: return null
+    val approvalId = dev.inmo.wishlist.features.deeplinks.common.models.DeepLinkId(rest[1])
+    if (!isCanonicalPasswordChangeApprovalId(approvalId)) return null
+    return PasswordChangeViewConfig.Pending(userId, approvalId)
 }
 
 private fun parseUserStack(rest: List<String>): List<ViewConfig>? {
@@ -230,8 +280,25 @@ private fun parseItemStack(
  */
 private fun parsePath(data: LocationData): ConfigHolder.Chain<ViewConfig>? {
     val base = appBasePathSegments()
-    val segments = data.pathSegments.filter { it.isNotBlank() }
-    val appSegments = if (segments.take(base.size) == base) segments.drop(base.size) else segments
+    val rawSegments = data.pathSegments.toList()
+    // LocationData obtains path segments by splitting an absolute browser pathname, so discard only
+    // the one structural leading slash segment before matching the optional application base path.
+    val absolutePathSegments = if (rawSegments.firstOrNull()?.isEmpty() == true) {
+        rawSegments.drop(1)
+    } else {
+        rawSegments
+    }
+    val rawAppSegments = if (absolutePathSegments.take(base.size) == base) {
+        absolutePathSegments.drop(base.size)
+    } else {
+        absolutePathSegments
+    }
+    // Password approvals reject blank/extra decoded segments rather than accepting the legacy
+    // parser's whitespace repair, so encoded separators cannot be normalized into an approval URL.
+    val appSegments = rawAppSegments.filter { it.isNotBlank() }
+    if (appSegments.firstOrNull() == PASSWORD_CHANGE_SEGMENT && rawAppSegments.any { it.isBlank() }) {
+        return null
+    }
     if (appSegments.isEmpty()) return null
 
     val mainStack = parseMainStack(appSegments) ?: return null
@@ -273,9 +340,18 @@ private fun parsePath(data: LocationData): ConfigHolder.Chain<ViewConfig>? {
  * Builds the JS [NavigationConfigsRepo] that stores the navigation hierarchy in the page URL path, so
  * deep links to the content screens are shareable and survive a reload.
  */
-fun WishlistsAppUrlNavigationConfigsRepo(): NavigationConfigsRepo<ViewConfig> =
-    UrlParametersNavigationConfigsRepo(
-        buildSearchParams = { holder -> buildPath(holder) },
-        parseSearchParams = ::parsePath,
-        titleResolver = { SITE_TITLE }
+fun WishlistsAppUrlNavigationConfigsRepo(): NavigationConfigsRepo<ViewConfig> = object : NavigationConfigsRepo<ViewConfig> {
+    /** Writes the current hierarchy as a browser URL with a null history state. */
+    override fun save(holder: ConfigHolder<ViewConfig>) {
+        val locationData = LocationData.build { buildPath(holder) }
+        window.history.pushState(null, SITE_TITLE, locationData.buildUrl())
+    }
+
+    /** Restores a hierarchy from pathname and search without consulting history state. */
+    override fun get(): ConfigHolder<ViewConfig>? = parsePath(
+        LocationData(
+            document.location?.pathname ?: "",
+            document.location?.search ?: "",
+        )
     )
+}

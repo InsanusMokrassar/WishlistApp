@@ -18,6 +18,11 @@ successful required-email registration remains logged out: it stores a password 
 credentials until verification promotes `NewUser` to `User`; a later normal login is the first
 credential-producing step.
 
+Email also implements Auth's email-authorized password-change port. A one-use approval is delivered
+only to the exact approved current address; opening its link is read-only, while anonymous completion
+rechecks that same address and the persisted approval before changing the account's password. A pending
+replacement remains distinct from the approved current address throughout this flow.
+
 **Two independent capabilities:**
 - **Email storage** (`PUT /email/myEmail`) — any authenticated user can store or clear their own email address; does NOT require SMTP to be configured. State-changing requests are subject to the persisted post-approval cooldown when configured.
 - **Email profile read** (`GET /email/myEmail`) — an authenticated bearer caller receives only that caller's fresh `EmailProfile`; an existing email-less account returns `200` with an empty profile, a missing account returns `404`, and no target user id is accepted. The read is available with or without SMTP because storage and profile reads use the same account coordinator.

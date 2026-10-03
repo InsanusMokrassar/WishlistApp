@@ -9,6 +9,8 @@ import dev.inmo.wishlist.features.deeplinks.common.models.DeepLinkHandlerInfo
 import dev.inmo.wishlist.features.deeplinks.common.models.DeepLinkId
 import dev.inmo.wishlist.features.deeplinks.common.models.HandleResult
 import dev.inmo.wishlist.features.deeplinks.common.repo.DeepLinksRepo
+import kotlinx.coroutines.NonCancellable
+import kotlinx.coroutines.withContext
 
 /**
  * Server-only, in-process API for the deeplinks feature: mints deeplinks with attached handler info
@@ -55,9 +57,28 @@ class DeepLinksService(
      */
     suspend fun createDeepLink(handlerId: DeepLinkHandlerId, value: Any): DeepLinkId {
         val id = DeepLinkId(uuid4().toString())
-        repo.set(id, DeepLinkHandlerInfo(handlerId, value))
-        return id
+        try {
+            repo.set(id, DeepLinkHandlerInfo(handlerId, value))
+            return id
+        } catch (error: Throwable) {
+            try {
+                withContext(NonCancellable) {
+                    repo.unset(id)
+                }
+            } catch (cleanupError: Throwable) {
+                error.addSuppressed(cleanupError)
+            }
+            throw error
+        }
     }
+
+    /**
+     * Reads one persisted deeplink record without dispatching or consuming it.
+     *
+     * @param deeplinkId Identifier to inspect internally.
+     * @return Stored handler information, or `null` when absent.
+     */
+    suspend fun getDeepLinkInfo(deeplinkId: DeepLinkId): DeepLinkHandlerInfo? = repo.get(deeplinkId)
 
     /**
      * Removes a previously minted deeplink after the owning operation fails.

@@ -17,12 +17,16 @@ import dev.inmo.navigation.core.NavigationNodeState
 import dev.inmo.navigation.core.extensions.changesInSubtreeFlow
 import dev.inmo.navigation.core.extensions.dropNodesInSubTree
 import dev.inmo.navigation.core.extensions.findInSubTree
+import dev.inmo.navigation.core.extensions.rootChain
+import dev.inmo.navigation.core.repo.NavigationConfigsRepo
+import dev.inmo.navigation.core.repo.storeHierarchy
 import dev.inmo.wishlist.features.common.client.models.EmptyConfig
 import dev.inmo.wishlist.features.common.client.models.MainNavigationChainId
 import dev.inmo.wishlist.features.common.client.models.RootNodeFactoryGetter
 import dev.inmo.wishlist.features.common.client.models.ViewConfig
 import dev.inmo.wishlist.features.common.client.utils.replaceLastOrBackUntil
 import dev.inmo.wishlist.features.common.client.utils.resetToSingleNode
+import dev.inmo.wishlist.client.utils.WithPasswordChangeNavigationBinding
 import dev.inmo.wishlist.features.ui.adminPanel.ui.AdminPanelViewConfig
 import dev.inmo.wishlist.features.ui.adminPanel.ui.AdminPanelViewInteractor
 import dev.inmo.wishlist.features.ui.adminPanel.ui.AdminUserEditViewConfig
@@ -52,6 +56,8 @@ import dev.inmo.wishlist.features.ui.topBar.ui.TopBarViewConfig
 import dev.inmo.wishlist.features.ui.topBar.ui.TopBarViewInteractor
 import dev.inmo.wishlist.features.ui.users.ui.UserEditViewConfig
 import dev.inmo.wishlist.features.ui.users.ui.UserEditViewInteractor
+import dev.inmo.wishlist.features.ui.users.ui.PasswordChangeViewConfig
+import dev.inmo.wishlist.features.ui.users.ui.PasswordChangeViewInteractor
 import dev.inmo.wishlist.features.ui.users.ui.UserViewConfig
 import dev.inmo.wishlist.features.ui.users.ui.UserViewInteractor
 import dev.inmo.wishlist.features.ui.users.ui.UsersListViewConfig
@@ -110,6 +116,7 @@ object ClientPlugin : StartPlugin {
     val mainScaffoldConfig: ScaffoldViewConfig
         get() = mainScaffoldConfigProvider()
 
+    /** Registers client navigation, feature models, ViewModels, and root-owned transition state. */
     override fun Module.setupDI(config: JsonObject) {
         single<RootNodeFactoryGetter> {
             val nodeFactory: NavigationNodeFactory<ViewConfig> = getKoin().nodeFactory<ViewConfig>()
@@ -168,6 +175,9 @@ object ClientPlugin : StartPlugin {
                 }
             }
         }
+
+        single { PasswordChangeNavigationOwner(get<NavigationConfigsRepo<ViewConfig>>()) }
+        single<PasswordChangeViewInteractor> { get<PasswordChangeNavigationOwner>() }
 
         single<TopBarViewInteractor> {
             val rootChain = get<NavigationChain<ViewConfig>>()
@@ -590,25 +600,36 @@ object ClientPlugin : StartPlugin {
         return "$spacers[Chain ${id?.string ?: "Anonymous"}] State ${parentNode ?.state ?: NavigationNodeState.RESUMED}\n${stack.joinToString("\n") { it.makeNodeString("$spacers  ") }}"
     }
 
+    /**
+     * Starts the root composition and binds password transitions to the composition-owned root scope.
+     *
+     * The binding survives child ViewModel replacement, persists only live root hierarchies, and unbinds
+     * when the root composition is disposed.
+     */
     override suspend fun startPlugin(koin: Koin) {
         super.startPlugin(koin)
         val rootChain = koin.get<NavigationChain<ViewConfig>>()
+        val navigationConfigsRepo = koin.get<NavigationConfigsRepo<ViewConfig>>()
+        val passwordChangeNavigationOwner = koin.get<PasswordChangeNavigationOwner>()
         koin.get<(@Composable () -> Unit) -> Unit>().invoke {
-            initNavigation<ViewConfig>(
-                EmptyConfig(),
-                configsRepo = koin.get(),
-                nodesFactory = koin.get<RootNodeFactoryGetter>().invoke(),
-                dropRedundantChainsOnRestore = true,
-                rootChain = rootChain
-            ) {
-                val rootChain = getChainFromLocalProvider<ViewConfig>()!!
-                LaunchedEffect(rootChain) {
-                    rootChain.either<NavigationChain<ViewConfig>, NavigationNode<out ViewConfig, ViewConfig>>().changesInSubtreeFlow().conflate().collect {
-                        println(rootChain.makeChainString(""))
+            WithPasswordChangeNavigationBinding(passwordChangeNavigationOwner, rootChain) { rootScope ->
+                initNavigation<ViewConfig>(
+                    EmptyConfig(),
+                    configsRepo = navigationConfigsRepo,
+                    nodesFactory = koin.get<RootNodeFactoryGetter>().invoke(),
+                    scope = rootScope,
+                    dropRedundantChainsOnRestore = true,
+                    rootChain = rootChain
+                ) {
+                    val rootChain = getChainFromLocalProvider<ViewConfig>()!!
+                    LaunchedEffect(rootChain) {
+                        rootChain.either<NavigationChain<ViewConfig>, NavigationNode<out ViewConfig, ViewConfig>>().changesInSubtreeFlow().conflate().collect {
+                            println(rootChain.makeChainString(""))
+                        }
                     }
-                }
-                InjectNavigationChain<ViewConfig> {
-                    InjectNavigationNode(mainScaffoldConfig)
+                    InjectNavigationChain<ViewConfig> {
+                        InjectNavigationNode(mainScaffoldConfig)
+                    }
                 }
             }
         }

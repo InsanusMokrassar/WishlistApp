@@ -36,6 +36,7 @@ import dev.inmo.navigation.mvvm.compose.ComposeView
 import dev.inmo.wishlist.features.common.client.models.ViewConfig
 import dev.inmo.wishlist.features.common.client.ui.components.BackButton
 import dev.inmo.wishlist.features.email.common.models.EmailVerificationRequestResult
+import dev.inmo.wishlist.features.auth.common.models.PasswordChangeEmailRequestResult
 import dev.inmo.wishlist.features.ui.topBar.ui.TopBarTitleProvider
 import dev.inmo.wishlist.features.ui.users.UsersListStrings
 import dev.inmo.wishlist.features.ui.users.utils.emailChangeDeadlineText
@@ -75,6 +76,7 @@ class UserEditView(
         val canMutateOwnEmail by viewModel.canMutateOwnEmailState.collectAsState()
         val canSaveEmail by viewModel.canSaveEmailState.collectAsState()
         val canResendEmail by viewModel.canResendEmailVerificationState.collectAsState()
+        val canRequestPasswordChangeEmail by viewModel.canRequestPasswordChangeEmailState.collectAsState()
         val emailCapability by viewModel.emailCapabilityState.collectAsState()
         val ownEmailProfile by viewModel.ownEmailProfileState.collectAsState()
         val emailInput by viewModel.emailInputState.collectAsState()
@@ -83,6 +85,7 @@ class UserEditView(
         val emailError by viewModel.emailErrorState.collectAsState()
         val emailLoadFailed by viewModel.emailLoadFailedState.collectAsState()
         val emailVerificationResult by viewModel.emailVerificationResultState.collectAsState()
+        val passwordChangeEmailResult by viewModel.passwordChangeEmailResultState.collectAsState()
         val emailSaved by viewModel.emailSavedState.collectAsState()
         val emailOperationInterrupted by viewModel.emailOperationInterruptedState.collectAsState()
         val emailChangeRestriction by viewModel.emailChangeRestrictionState.collectAsState()
@@ -261,6 +264,13 @@ class UserEditView(
                                 Text(UsersListStrings.resendEmailVerificationButton.translation(resources))
                             }
                         }
+                        if (currentEmail != null && ownEmailProfile?.emailApproved == true && emailCapability == EmailCapabilityState.Enabled) {
+                            Button(
+                                onClick = { viewModel.onRequestPasswordChangeEmail() },
+                                enabled = canRequestPasswordChangeEmail,
+                                modifier = Modifier.fillMaxWidth(),
+                            ) { Text(UsersListStrings.requestPasswordChangeButton.translation(resources)) }
+                        }
                     }
                 }
                 when (emailError) {
@@ -274,6 +284,10 @@ class UserEditView(
                     )
                     EmailEditorError.EmailChanged -> Text(
                         UsersListStrings.emailVerificationChanged.translation(resources),
+                        color = MaterialTheme.colorScheme.error,
+                    )
+                    EmailEditorError.PasswordChangeRequestFailed -> Text(
+                        UsersListStrings.passwordChangeEmailDeliveryFailed.translation(resources),
                         color = MaterialTheme.colorScheme.error,
                     )
                     EmailEditorError.LoadFailed, null -> Unit
@@ -328,6 +342,13 @@ class UserEditView(
                         UsersListStrings.emailVerificationDeliveryFailed.translation(resources),
                         color = MaterialTheme.colorScheme.error,
                     )
+                    null -> Unit
+                }
+                when (passwordChangeEmailResult) {
+                    PasswordChangeEmailRequestResult.Sent -> Text(UsersListStrings.passwordChangeEmailSent.translation(resources))
+                    PasswordChangeEmailRequestResult.Unavailable,
+                    PasswordChangeEmailRequestResult.Ineligible -> Text(UsersListStrings.passwordChangeEmailUnavailable.translation(resources), color = MaterialTheme.colorScheme.error)
+                    PasswordChangeEmailRequestResult.DeliveryFailed -> Text(UsersListStrings.passwordChangeEmailDeliveryFailed.translation(resources), color = MaterialTheme.colorScheme.error)
                     null -> Unit
                 }
             }

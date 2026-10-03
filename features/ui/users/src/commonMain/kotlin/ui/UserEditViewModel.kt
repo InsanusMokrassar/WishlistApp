@@ -9,6 +9,7 @@ import dev.inmo.navigation.core.NavigationNodeState
 import dev.inmo.navigation.core.onResumeFlow
 import dev.inmo.navigation.mvvm.ViewModel
 import dev.inmo.wishlist.features.auth.common.models.Password
+import dev.inmo.wishlist.features.auth.common.models.PasswordChangeEmailRequestResult
 import dev.inmo.wishlist.features.common.client.models.ViewConfig
 import dev.inmo.wishlist.features.email.common.models.Email
 import dev.inmo.wishlist.features.email.common.models.EmailChangeCooldownException
@@ -198,6 +199,12 @@ class UserEditViewModel(
     val emailVerificationResultState: StateFlow<EmailVerificationRequestResult?> =
         _emailVerificationResultState.asStateFlow()
 
+    private val _passwordChangeEmailResultState = MutableRedeliverStateFlow<PasswordChangeEmailRequestResult?>(null)
+
+    /** Most recent password-approval request outcome for the current owner. */
+    val passwordChangeEmailResultState: StateFlow<PasswordChangeEmailRequestResult?> =
+        _passwordChangeEmailResultState.asStateFlow()
+
     private val _emailSavedState = MutableRedeliverStateFlow<Email?>(null)
 
     /** Acknowledged saved address confirmed by the mutation's final matching private read. */
@@ -281,6 +288,13 @@ class UserEditViewModel(
             canMutate &&
                 capability == EmailCapabilityState.Enabled &&
             profile?.verificationCandidate() != null
+        }.stateIn(workScope, SharingStarted.Eagerly, false)
+
+    /** Password approval uses the approved current address, independent of the email-change cooldown. */
+    val canRequestPasswordChangeEmailState: StateFlow<Boolean> =
+        combine(isCurrentAuthenticatedOwnerFlow, _emailCapabilityState, _ownEmailProfileState, emailMutationIdleState) { owner, capability, profile, idle ->
+            owner && capability == EmailCapabilityState.Enabled && idle &&
+                profile?.userId == userId.long && profile.email != null && profile.emailApproved
         }.stateIn(workScope, SharingStarted.Eagerly, false)
 
     private var emailRefreshVersion = 0L
@@ -378,6 +392,7 @@ class UserEditViewModel(
         emailCooldownSnapshot = null
         clearEmailSavedFeedback()
         clearEmailVerificationFeedback()
+        _passwordChangeEmailResultState.value = null
     }
 
     /** Invalidates all private email work when the caller, authorization, or selected target changes. */
@@ -565,6 +580,7 @@ class UserEditViewModel(
         clearEmailVerificationFeedback()
         clearEmailSavedFeedback()
         _emailOperationInterruptedState.value = false
+        _passwordChangeEmailResultState.value = null
     }
 
     /** Applies a checked private profile while retaining a dirty or explicitly preserved draft. */
@@ -572,6 +588,10 @@ class UserEditViewModel(
         profile: EmailProfile,
         preserveDraft: Boolean,
     ) {
+        val previous = _ownEmailProfileState.value
+        if (previous?.email != profile.email || previous?.emailApproved != profile.emailApproved) {
+            _passwordChangeEmailResultState.value = null
+        }
         val snapshot = EmailFeedbackSnapshot(
             email = profile.email,
             emailApproved = profile.emailApproved,
@@ -641,7 +661,7 @@ class UserEditViewModel(
     }
 
     /** Admits one owner-bound mutation after repeating raw owner, target, capability, and busy checks. */
-    private fun beginEmailMutation(requireEnabledSmtp: Boolean): OwnerEmailMutation? {
+    private fun beginEmailMutation(requireEnabledSmtp: Boolean, enforceEmailChangeCooldown: Boolean = true): OwnerEmailMutation? {
         val session = synchronizeOwnerSession()
         val callerId = session.callerId ?: return null
         if (!isCurrentRawOwner(callerId)) return null
@@ -650,9 +670,11 @@ class UserEditViewModel(
         if (requireEnabledSmtp && capability != EmailCapabilityState.Enabled) return null
         if (_ownEmailProfileState.value?.userId != userId.long) return null
         if (_emailLoadFailedState.value || _emailLoadingState.value || _emailBusyState.value) return null
-        _ownEmailProfileState.value?.emailChangeAllowedAt?.takeIf { now() < it }?.let {
-            publishEmailCooldown(it)
-            return null
+        if (enforceEmailChangeCooldown) {
+            _ownEmailProfileState.value?.emailChangeAllowedAt?.takeIf { now() < it }?.let {
+                publishEmailCooldown(it)
+                return null
+            }
         }
 
         val mutation = OwnerEmailMutation(
@@ -1063,6 +1085,32 @@ class UserEditViewModel(
         }
     }
 
+    /** Requests approval for the exact current approved address; no email-change cooldown applies. */
+    fun onRequestPasswordChangeEmail() {
+        val profile = _ownEmailProfileState.value ?: return
+        val email = profile.email ?: return
+        if (!profile.emailApproved || profile.userId != userId.long) return
+        val mutation = beginEmailMutation(requireEnabledSmtp = true, enforceEmailChangeCooldown = false) ?: return
+        launchEmailMutation(mutation) {
+            if (!canContinueEmailMutation(mutation)) return@launchEmailMutation
+            val result = try {
+                model.requestPasswordChangeEmail(email)
+            } catch (error: CancellationException) {
+                throw error
+            } catch (_: Throwable) {
+                null
+            }
+            if (!canContinueEmailMutation(mutation)) return@launchEmailMutation
+            val current = reconcileOwnedEmailProfile(mutation, preserveDraft = true)
+            if (!canContinueEmailMutation(mutation)) return@launchEmailMutation
+            if (current?.email != email || !current.emailApproved || result == null) {
+                _emailErrorState.value = EmailEditorError.PasswordChangeRequestFailed
+            } else {
+                _passwordChangeEmailResultState.value = result
+            }
+        }
+    }
+
     /** Refreshes private state after an external change and clears a prior interruption notice. */
     fun onRefreshEmail() {
         val session = synchronizeOwnerSession()
@@ -1213,4 +1261,7 @@ enum class EmailEditorError {
 
     /** A checked private read did not contain the exact address required by the active operation. */
     EmailChanged,
+
+    /** Password-approval request could not be confirmed for the current owner address. */
+    PasswordChangeRequestFailed,
 }

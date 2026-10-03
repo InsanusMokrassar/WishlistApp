@@ -42,6 +42,23 @@ Cross-cutting infrastructure loaded by every consumer. Provides: shared domain m
   mounts configured static folders with `staticFiles(path, dir) { default("index.html") }` so unmatched
   root paths still serve the SPA shell; `client/src/jsMain/resources/index.html` declares
   `<base href="/">`. No `/ui` redirect or `/ui` mount is present.
+- **Password-change browser navigation:** the client-owned adapter adds an explicit replacement-only
+  supplement for Navigation 0.7.7, whose generic saver does not persist replaced-only diffs. The
+  supplement shares the root-composition lifetime, observes the exact replacement, and saves the
+  current hierarchy; `/password-changed` remains the active URL after a confirmed replacement and
+  reload restores `Completed`. The adapter preserves `/password-change/{positiveUserId}/{canonical-v4-id}`
+  through scaffold restoration, stores `null` in `history.state`, and restores from pathname/search;
+  older browser history entries remain intact. Malformed blank/extra segments are not normalized into
+  an approval route; older user and wishlist parsing stays intact. Pending destruction cancels no
+  root-owned save, while root disposal, process termination, adapter failure, and repository failure
+  are outside the persistence guarantee. Common itself gains no Auth/UI dependency for these states.
+- **Secret-safe shell and server logging:** the web shell places `<meta name="referrer"
+  content="no-referrer">` before external resources. The global StatusPages exception boundary keeps
+  Ktor's typed 400/404/413/415 mappings and maps non-cancellation timeout failures to 504, while
+  sanitizing unexpected failures to 500 and rethrowing cancellation. Server `CallLogging` uses the
+  shared `safeCallLogLine` formatter, which emits only HTTP method and final status; boundary logs
+  contain method/status only and attach no throwable, while request URLs, query, headers, bodies,
+  exceptions, and redirect locations remain absent.
 - **Shared UI components** live in `common/client/src/<jsMain|jvmMain|androidMain>/kotlin/ui/components/ListComponents.kt` (package `dev.inmo.wishlist.features.common.client.ui.components`): `ScreenTitle`, `BackButton`, and `ListRow`. Each is a platform-specific Composable with an identical public signature per target (JS = Calm Studio Compose-HTML, JVM/Android = Material3); no `expect/actual` is used because callers are themselves per-platform `View`s. `ListRow` has two overloads: `ListRow(text, onSelect, trailing)` for a plain-text row and `ListRow(onSelect, trailing) { content }` for a custom primary slot (badges, prices, secondary text). All list/detail/edit views across `ui/wishlist`, `ui/users`, and `ui/adminPanel` consume these instead of hand-rolling titles, back buttons, and list rows.
 - **Logout-exit helper (`utils/SubscribeOnLoggedOut.kt`, issue #53):** `fun StateFlow<Boolean>.subscribeOnLoggedOut(scope, action)` runs `action` exactly once per genuine logged-in→logged-out transition of a login-state flow. Chain: `distinctUntilChanged().drop(1).filter { !it }.subscribeLoggingDropExceptions(scope) { action() }`. `drop(1)` discards the StateFlow's replayed current value so neither a cold start that begins logged-out nor the initial replay fires `action` — only a `true→false` change after subscription does. The helper stays generic over `StateFlow<Boolean>` (common/client has no dependency on `auth.client`); callers pass `AuthCredentialsStorage.userAuthorised`. Consumed by all six edit ViewModels (`ui/wishlist`, `ui/users`, `ui/adminPanel`) to exit an open editor to its read view on logout.
 - **Web toaster (`ui/components/Toaster.kt`):** `Toaster.show(String)` preserves the shared string publisher, while `Toaster.show(ToastNotification(message, timeout))` accepts composable text with a millisecond timeout (default `2600L`; negative values are rejected). A private `MutableSharedFlow` uses one replay/pending slot and `DROP_OLDEST`: before host mounting only the newest notification is retained, while active-host overflow drops the oldest pending notification. The single scaffold `ToastHost` consumes values sequentially, clears replay immediately after dequeue and before suspension, then displays and hides each notification; an acknowledged displayed notification is not replayed after host remount.
