@@ -64,6 +64,16 @@ tasks.named("jsNodeTest") {
     filter.excludeTestsMatching("dev.inmo.wishlist.client.PasswordChangeNavigationBrowserTest")
 }
 
+// Kotlin 2.3.21 gives stdout and stderr separate parser threads; concurrent callbacks
+// can corrupt Gradle's binary test output and fail HTML report generation (KT-69896).
+def jsTestStreamsPreload = file("src/jsTest/merge-test-streams.cjs")
+["jsNodeTest", "jsBrowserTest"].each { taskName ->
+    tasks.named(taskName) {
+        inputs.file(jsTestStreamsPreload)
+        nodeJsArgs.addAll(["--require", jsTestStreamsPreload.absolutePath])
+    }
+}
+
 compose.desktop {
     application {
         mainClass = "dev.inmo.wishlist.client.MainKt"
