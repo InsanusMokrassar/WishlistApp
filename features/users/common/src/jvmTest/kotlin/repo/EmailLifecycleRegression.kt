@@ -70,13 +70,16 @@ internal suspend fun verifyInvalidEmailClockMatrix(
                 val current = Email("matrix-current-$suffix@example.com")
                 val replacement = Email("matrix-replacement-$suffix@example.com")
                 val user = repo.create(NewUser(Username("matrix-$suffix"), current)).single()
-                if (approved) {
-                    assertNotNull(repo.approveEmail(user.id, current, if (futureDeadline) 5_000L else 0L))
-                    clock.value = DateTime.fromUnixMillis(6_000L)
-                    assertNotNull(repo.setEmail(user.id, replacement))
-                } else if (futureDeadline) {
-                    // A raw future deadline is valid storage even before first approval.
-                    setRawLifecycle(url, user.id.long, requestedAt = 1_000L, allowedAt = 6_000L)
+                when {
+                    approved -> {
+                        assertNotNull(repo.approveEmail(user.id, current, if (futureDeadline) 5_000L else 0L))
+                        clock.value = DateTime.fromUnixMillis(6_000L)
+                        assertNotNull(repo.setEmail(user.id, replacement))
+                    }
+                    futureDeadline -> {
+                        // A raw future deadline is valid storage even before first approval.
+                        setRawLifecycle(url, user.id.long, requestedAt = 1_000L, allowedAt = 6_000L)
+                    }
                 }
                 settle()
                 val before = rawUsersSnapshot(url)
@@ -217,12 +220,13 @@ internal suspend fun verifyWarmedCacheFailureMatrix(
                     clock.value = DateTime.fromUnixMillis(1_000L)
                     clock.reset()
                     val user = cache.create(NewUser(Username("cache-matrix-$suffix"), current)).single()
-                    if (approved) {
-                        assertNotNull(cache.approveEmail(user.id, current, if (futureDeadline) 5_000L else 0L))
-                        clock.value = DateTime.fromUnixMillis(6_000L)
-                        assertNotNull(cache.setEmail(user.id, pending))
-                    } else if (futureDeadline) {
-                        setRawLifecycle(url, user.id.long, requestedAt = 1_000L, allowedAt = 6_000L)
+                    when {
+                        approved -> {
+                            assertNotNull(cache.approveEmail(user.id, current, if (futureDeadline) 5_000L else 0L))
+                            clock.value = DateTime.fromUnixMillis(6_000L)
+                            assertNotNull(cache.setEmail(user.id, pending))
+                        }
+                        futureDeadline -> setRawLifecycle(url, user.id.long, requestedAt = 1_000L, allowedAt = 6_000L)
                     }
                     settle()
                     val before = rawUsersSnapshot(url)

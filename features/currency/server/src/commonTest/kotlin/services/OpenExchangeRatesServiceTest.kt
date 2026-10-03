@@ -133,13 +133,16 @@ class OpenExchangeRatesServiceTest {
         var dictionaryRequests = 0
         var failing = false
         val client = HttpClient(MockEngine { request ->
-            if (failing) respond("upstream failure", HttpStatusCode.InternalServerError)
-            else if (request.url.encodedPath.endsWith("latest.json")) {
-                ratesRequests++
-                respond("""{"base":"USD","rates":{"EUR":0.9}}""", headers = headersOf(HttpHeaders.ContentType, "application/json"))
-            } else {
-                dictionaryRequests++
-                respond("""{"EUR":"Euro","USD":"US Dollar"}""", headers = headersOf(HttpHeaders.ContentType, "application/json"))
+            when {
+                failing -> respond("upstream failure", HttpStatusCode.InternalServerError)
+                request.url.encodedPath.endsWith("latest.json") -> {
+                    ratesRequests++
+                    respond("""{"base":"USD","rates":{"EUR":0.9}}""", headers = headersOf(HttpHeaders.ContentType, "application/json"))
+                }
+                else -> {
+                    dictionaryRequests++
+                    respond("""{"EUR":"Euro","USD":"US Dollar"}""", headers = headersOf(HttpHeaders.ContentType, "application/json"))
+                }
             }
         }) { install(ContentNegotiation) { json() } }
         try {

@@ -17,11 +17,10 @@ import kotlin.math.pow
 import kotlin.math.truncate
 
 /**
- * Fixed-point decimal value backed by separate integer and fractional parts.
+ * Fixed-point decimal value backed by unsigned integer and fractional magnitudes plus sign and scale.
  *
- * Stored as [Pair] of [Long] (integer part) and [ULong] (fractional digits after the decimal point,
- * treated as a raw digit string, e.g. `0.05` → decimalPart = `5uL`).
- * Arithmetic is performed via [Double] conversion, so results may not be exact for very large values.
+ * The fractional magnitude is a raw digit sequence whose [decimalPlaces] retains leading zeroes, so
+ * `0.05` has decimalPart `5uL` and scale `2`. Exact fixed-point operations preserve that scale.
  *
  * @property integerPart The integer portion of the amount.
  * @property decimalPart The fractional portion as an unsigned raw digit sequence.
@@ -30,7 +29,9 @@ import kotlin.math.truncate
 data class Amount(
     val integerPart: ULong,
     val decimalPart: ULong,
+    /** Whether the represented amount is negative. */
     val negative: Boolean,
+    /** Number of fractional decimal digits retained by [decimalPart]. */
     val decimalPlaces: Int = decimalPart.decimalDigitCount()
 ) : Comparable<Amount> {
     init {
@@ -39,7 +40,10 @@ data class Amount(
         }
     }
 
+    /** Multiplier that applies the stored sign to numeric conversions. */
     val signMultiplier = if (negative) -1 else 1
+
+    /** Prefix used by [toString] to render a negative amount. */
     val signStringPrefix = if (negative) "-" else ""
 
     /**
@@ -161,6 +165,7 @@ data class Amount(
     /** Returns this amount divided by [other]. */
     operator fun div(other: Number): Amount = Amount(toDouble() / other.toDouble())
 
+    /** Returns the remainder after dividing this amount by [i]. */
     operator fun rem(i: Number): Amount = Amount((toDouble() % i.toDouble()))
 
     override fun equals(other: Any?): Boolean {
@@ -173,6 +178,7 @@ data class Amount(
                 )
     }
 
+    /** Returns the same magnitude with the opposite sign. */
     operator fun unaryMinus(): Amount = Amount(
         integerPart = integerPart,
         decimalPart = decimalPart,
@@ -196,10 +202,12 @@ data class Amount(
         "$signStringPrefix$integerPart.${decimalPart.toString().padStart(decimalPlaces, '0')}"
     }
 
+    /** Provides Amount parsing, serialization, and the zero constant. */
     companion object : KSerializer<Amount> {
         /** Amount representing zero. */
         val ZERO = Amount(0)
 
+        /** Parses a signed fixed-point decimal string while retaining its fractional scale. */
         fun fromString(string: String): Amount {
             val negative = string.startsWith('-')
             val magnitudeString = string.removePrefix("-")

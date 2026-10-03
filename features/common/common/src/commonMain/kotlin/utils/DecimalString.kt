@@ -4,6 +4,7 @@ import dev.inmo.micro_utils.common.fixed
 import kotlin.math.absoluteValue
 import kotlin.math.pow
 
+/** Formats this value as a decimal string with configurable fractional precision. */
 fun Double.toDecimalString(decimals: Int = 14, dropTrailingZeros: Boolean = true): String {
     val signPrefix = if (this < 0) "-" else ""
     val additionalFracPartMultiplier = 10.0.pow(decimals)

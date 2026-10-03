@@ -1,0 +1,13 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<SmellBaseline>
+  <ManuallySuppressedIssues/>
+  <CurrentIssues>
+    <ID>UndocumentedPublicClass:AndroidPlugin.kt:AndroidPlugin : StartPlugin</ID>
+    <ID>UndocumentedPublicClass:JSPlugin.kt:JSPlugin : StartPlugin</ID>
+    <ID>UndocumentedPublicClass:JVMPlugin.kt:JVMPlugin : StartPlugin</ID>
+    <ID>UndocumentedPublicClass:KtorSampleFeature.kt:KtorSampleFeature : SampleFeature</ID>
+    <ID>UndocumentedPublicClass:Plugin.kt:Plugin : StartPlugin</ID>
+    <ID>UndocumentedPublicClass:SampleFeature.kt:SampleFeature</ID>
+    <ID>UndocumentedPublicFunction:SampleFeature.kt:SampleFeature$suspend fun getSampleText: String</ID>
+  </CurrentIssues>
+</SmellBaseline>

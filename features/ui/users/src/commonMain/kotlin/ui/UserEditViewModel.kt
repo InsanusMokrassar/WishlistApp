@@ -910,15 +910,13 @@ class UserEditViewModel(
         val materiallyChanged = _emailInputState.value.trim() != email.trim()
         _emailInputState.value = email
         _emailDraftDirtyState.value = isEmailDraftDirty(email, profile.editableEmailBaseline())
-        if (materiallyChanged) {
-            clearEmailOperationFeedback()
-        } else if (_emailErrorState.value == EmailEditorError.InvalidEmail) {
-            _emailErrorState.value = null
+        when {
+            materiallyChanged -> clearEmailOperationFeedback()
+            _emailErrorState.value == EmailEditorError.InvalidEmail -> _emailErrorState.value = null
         }
-        if (email.isNotBlank() && Email.parse(email).isFailure) {
-            _emailErrorState.value = EmailEditorError.InvalidEmail
-        } else if (_emailErrorState.value == EmailEditorError.InvalidEmail) {
-            _emailErrorState.value = null
+        when {
+            email.isNotBlank() && Email.parse(email).isFailure -> _emailErrorState.value = EmailEditorError.InvalidEmail
+            _emailErrorState.value == EmailEditorError.InvalidEmail -> _emailErrorState.value = null
         }
     }
 

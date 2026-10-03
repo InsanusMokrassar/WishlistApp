@@ -1,0 +1,16 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<SmellBaseline>
+  <ManuallySuppressedIssues/>
+  <CurrentIssues>
+    <ID>UndocumentedPublicClass:AndroidPlugin.kt:AndroidPlugin : StartPlugin</ID>
+    <ID>UndocumentedPublicClass:JSPlugin.kt:JSPlugin : StartPlugin</ID>
+    <ID>UndocumentedPublicClass:JVMPlugin.kt:JVMPlugin : StartPlugin</ID>
+    <ID>UndocumentedPublicClass:Plugin.kt:Plugin : StartPlugin</ID>
+    <ID>UndocumentedPublicClass:ReadUsersRepo.kt:ReadUsersRepo : ReadCRUDRepo</ID>
+    <ID>UndocumentedPublicClass:Username.kt:Username</ID>
+    <ID>UndocumentedPublicClass:UsersRepo.kt:UsersRepo : ReadUsersRepoWriteUsersRepoCRUDRepo</ID>
+    <ID>UndocumentedPublicFunction:ReadUsersRepo.kt:ReadUsersRepo$suspend fun getUserByUsername: RegisteredUser?</ID>
+    <ID>UndocumentedPublicProperty:User.kt:UserId$val long: Long</ID>
+    <ID>UndocumentedPublicProperty:Username.kt:Username$val string: String</ID>
+  </CurrentIssues>
+</SmellBaseline>

@@ -1,0 +1,19 @@
+config:
+  validation: true
+  warningsAsErrors: true
+  excludes:
+    - 'wishlist.*'
+
+comments:
+  active: true
+  UndocumentedPublicClass:
+    active: true
+  UndocumentedPublicFunction:
+    active: true
+  UndocumentedPublicProperty:
+    active: true
+
+wishlist:
+  active: true
+  NoElseIf:
+    active: true

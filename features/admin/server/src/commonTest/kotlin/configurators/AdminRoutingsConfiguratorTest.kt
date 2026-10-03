@@ -123,6 +123,7 @@ class AdminRoutingsConfiguratorTest {
         assertEquals(user, backing.getById(user.id))
     }
 
+    /** Verifies that a cooldown response leaves the requested identity update unapplied. */
     @Test
     fun fullUpdateMapsCooldownWithoutPartiallyRenamingUser() = testApplication {
         val backing = FakeUsersRepo(mapOf(user.id to user))

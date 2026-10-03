@@ -1,0 +1,13 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<SmellBaseline>
+  <ManuallySuppressedIssues/>
+  <CurrentIssues>
+    <ID>UndocumentedPublicClass:AndroidPlugin.kt:AndroidPlugin : StartPlugin</ID>
+    <ID>UndocumentedPublicClass:Constants.kt:Constants</ID>
+    <ID>UndocumentedPublicClass:JSPlugin.kt:JSPlugin : StartPlugin</ID>
+    <ID>UndocumentedPublicClass:JVMPlugin.kt:JVMPlugin : StartPlugin</ID>
+    <ID>UndocumentedPublicClass:Plugin.kt:Plugin : StartPlugin</ID>
+    <ID>UndocumentedPublicProperty:Constants.kt:Constants$const val getTextPathPart = "getSampleText"</ID>
+    <ID>UndocumentedPublicProperty:Constants.kt:Constants$const val prefixPathPart = "sample"</ID>
+  </CurrentIssues>
+</SmellBaseline>
