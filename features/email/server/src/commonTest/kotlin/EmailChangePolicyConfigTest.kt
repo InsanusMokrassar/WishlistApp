@@ -1,0 +1,49 @@
+package dev.inmo.wishlist.features.email.server
+
+import dev.inmo.wishlist.features.email.server.utils.validatedCooldownMillis
+import korlibs.time.DateTime
+import kotlin.test.Test
+import kotlin.test.assertEquals
+import kotlin.test.assertFailsWith
+import kotlin.time.Duration
+import kotlin.time.Duration.Companion.milliseconds
+import kotlin.time.Duration.Companion.nanoseconds
+
+/** Verifies durable cooldown conversion independently from SMTP graph selection. */
+class EmailChangePolicyConfigTest {
+    /** Omission and explicit zero disable future deadline issuance. */
+    @Test
+    fun omittedAndZeroPolicyDisableCooldown() {
+        assertEquals(0L, EmailChangePolicyConfig().validatedCooldownMillis(now = DateTime.fromUnixMillis(1L)))
+        assertEquals(0L, EmailChangePolicyConfig(Duration.ZERO).validatedCooldownMillis(now = DateTime.fromUnixMillis(1L)))
+    }
+
+    /** Positive fractional milliseconds round up rather than becoming an ineffective zero delay. */
+    @Test
+    fun positiveFractionalMillisecondsRoundUp() {
+        assertEquals(10L, EmailChangePolicyConfig(10.milliseconds).validatedCooldownMillis(now = DateTime.EPOCH))
+        assertEquals(1L, EmailChangePolicyConfig(1.nanoseconds).validatedCooldownMillis(now = DateTime.fromUnixMillis(1L)))
+        assertEquals(2L, EmailChangePolicyConfig(1_500_000.nanoseconds).validatedCooldownMillis(now = DateTime.fromUnixMillis(1L)))
+        assertEquals(5L, EmailChangePolicyConfig(5.milliseconds).validatedCooldownMillis(now = DateTime.fromUnixMillis(4_503_599_627_370_491L)))
+    }
+
+    /** Negative, infinite, and deadline-overflow policies are refused before server startup completes. */
+    @Test
+    fun invalidOrUnrepresentablePoliciesFailValidation() {
+        assertFailsWith<IllegalArgumentException> {
+            EmailChangePolicyConfig((-1).milliseconds).validatedCooldownMillis(now = DateTime.fromUnixMillis(1L))
+        }
+        assertFailsWith<IllegalArgumentException> {
+            EmailChangePolicyConfig(Duration.INFINITE).validatedCooldownMillis(now = DateTime.fromUnixMillis(1L))
+        }
+        assertFailsWith<IllegalArgumentException> {
+            EmailChangePolicyConfig(1.milliseconds).validatedCooldownMillis(now = DateTime.fromUnixMillis(4_503_599_627_370_496L))
+        }
+        assertFailsWith<IllegalArgumentException> {
+            EmailChangePolicyConfig(1.milliseconds).validatedCooldownMillis(now = DateTime(0.5))
+        }
+        assertFailsWith<IllegalArgumentException> {
+            EmailChangePolicyConfig(Long.MAX_VALUE.milliseconds).validatedCooldownMillis(now = DateTime.EPOCH)
+        }
+    }
+}

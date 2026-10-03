@@ -1,0 +1,20 @@
+Model: GPT-6 Codex
+Changed files: features/users/common/src/jvmTest/kotlin/repo/EmailLifecycleRegression.kt; features/users/common/src/jvmTest/kotlin/repo/ExposedUsersRepoSqliteTest.kt; features/users/common/src/jvmTest/kotlin/repo/PostgresUsersRepoTest.kt; features/users/common/src/jvmTest/kotlin/repo/CacheUsersRepoSqliteTest.kt; agents/task/27.09.2026_12.06.14-f2105259-1433-44bd-b2a2-59f5b81ef191/018-coding.md.
+
+## Outcome
+
+Closed the four residual V3 proof gaps identified in the permitted excerpt of 017-validating.md. Invalid emailed creation now has a collector on `newObjectsFlow` before the rejected-create window, and each failed attempt asserts that no creation event appeared after observers settle. The earlier complete raw-row, update-event, and one-sample assertions remain.
+
+Both SQL engines now run one shared warmed-cache failure matrix. It covers all seven invalid DateTime samples across unapproved and approved-with-pending layouts, with absent and future deadlines. Each layout exercises clear, replacement, occupied replacement, full update, and positive-policy approval through `CacheUsersRepo`. It also covers a later-invalid batch element and pending-promotion approval overflow. Every failed operation checks all raw rows through an independent JDBC connection, the full reduced cache contents, the instrumented cache set-call count, both backing and cache update-event windows, and the expected clock sample count. The cache collectors are cancelled after each fixture.
+
+The raw SQL endpoint test now asserts both projected DateTime fields at the inclusive minimum and maximum on SQLite and PostgreSQL. Application creation at each endpoint also asserts the projected requested-at value. Approval arithmetic now covers the approved-current/pending-promotion branch: maximum-minus-five plus ten throws `ArithmeticException` with full raw rollback and no event; maximum-minus-ten plus ten stores the exact maximum, promotes the pending address, clears pending/request history, and publishes exactly one matching committed event. The existing unapproved branch remains covered. Only test sources changed; no feature README delta or production API change was needed. Accepted V1, V2, V4, and V6 behavior remains untouched.
+
+## Execution evidence
+
+`./gradlew :wishlist.features.users.common:jvmTest --no-parallel` passed after the last source edit: `BUILD SUCCESSFUL in 40s`, with the `jvmTest` task executed. Its JUnit XML contains 49 tests, zero failures, zero errors, and zero skips.
+
+`WISHLIST_POSTGRES_TEST_JDBC_URL='jdbc:postgresql://127.0.0.1:55482/wishlist_pr82_test?user=aleksey' ./gradlew :wishlist.features.users.common:postgresEmailLifecycleTest --no-parallel --rerun-tasks` passed after the last source edit: `BUILD SUCCESSFUL in 32s`, 14 actionable tasks executed. The dedicated task executed against a fresh disposable PostgreSQL 18.6 cluster under `/tmp/wishlist-pr82-postgres`; its JUnit XML contains 13 tests, zero failures, zero errors, and zero skips. An earlier invocation could not connect because the handoff's temporary cluster had disappeared. That infrastructure failure was resolved by recreating the disposable cluster; it is not counted as a regression result. The cluster remains available on loopback port 55482 for subsequent verification.
+
+`./gradlew :wishlist.features.users.common:build --no-parallel` passed after the last source edit: `BUILD SUCCESSFUL in 17s`, 425 actionable tasks, 7 executed and 418 up-to-date. `git diff --check` passed. The installed `ast-index` initially could not write under the read-only home cache; rebuilding with `XDG_CACHE_HOME=/tmp/wishlist-pr82-ast-index` completed and indexed 826 source files after the source edits. No required gate was waived.
+
+The first sandboxed PostgreSQL test invocation also encountered a read-only Gradle wrapper lock. Narrow escalation permitted the wrapper and local socket access. No auto-review rejection occurred. No production database scan, timestamp rewrite, or network publication occurred.

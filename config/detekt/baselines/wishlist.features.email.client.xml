@@ -5,6 +5,13 @@
     <ID>UndocumentedPublicFunction:KtorEmailFeatureTest.kt:KtorEmailFeatureTest$@Test fun capabilityAndVerificationRejectNonSuccessResponses</ID>
     <ID>UndocumentedPublicFunction:KtorEmailFeatureTest.kt:KtorEmailFeatureTest$@Test fun capabilityNetworkFailurePropagatesToTheRecoverableViewModelState</ID>
     <ID>UndocumentedPublicFunction:KtorEmailFeatureTest.kt:KtorEmailFeatureTest$@Test fun enabledDecodesSuccessfulTrueAndFalseBodies</ID>
+    <ID>UndocumentedPublicFunction:KtorEmailFeatureTest.kt:KtorEmailFeatureTest$@Test fun getMyEmailGetsExistingPopulatedAndEmptyProfiles</ID>
+    <ID>UndocumentedPublicFunction:KtorEmailFeatureTest.kt:KtorEmailFeatureTest$@Test fun getMyEmailMapsOnlyNotFoundToNull</ID>
+    <ID>UndocumentedPublicFunction:KtorEmailFeatureTest.kt:KtorEmailFeatureTest$@Test fun getMyEmailPropagatesCancellation</ID>
+    <ID>UndocumentedPublicFunction:KtorEmailFeatureTest.kt:KtorEmailFeatureTest$@Test fun getMyEmailRejectsMalformedSuccessfulModelsAndTransportFailures</ID>
+    <ID>UndocumentedPublicFunction:KtorEmailFeatureTest.kt:KtorEmailFeatureTest$@Test fun setMyEmailDecodesOnlyWellFormedCooldownResponses</ID>
+    <ID>UndocumentedPublicFunction:KtorEmailFeatureTest.kt:KtorEmailFeatureTest$@Test fun setMyEmailNetworkFailurePropagates</ID>
+    <ID>UndocumentedPublicFunction:KtorEmailFeatureTest.kt:KtorEmailFeatureTest$@Test fun setMyEmailPutsOnlyEmailAndReturnsStatusSuccess</ID>
     <ID>UndocumentedPublicFunction:KtorEmailFeatureTest.kt:KtorEmailFeatureTest$@Test fun verificationPostsOnlyExpectedEmailAndDecodesEveryResult</ID>
   </CurrentIssues>
 </SmellBaseline>

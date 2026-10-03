@@ -1,0 +1,20 @@
+Model: GPT-6 Codex; fixed main-session host binding; root remains in the main session as required by the root contract.
+Changed files: agents/task/27.09.2026_12.06.14-f2105259-1433-44bd-b2a2-59f5b81ef191/029-orchestrator.md; agents/task/27.09.2026_12.06.14-f2105259-1433-44bd-b2a2-59f5b81ef191/REVIEW-001.md
+
+# Review implementation and blocked verification
+
+The requested pending-email ownership correction is implemented in commit c358891f7393d7ce22904398b24f112c9a1a2a3d. EmailProfile and its candidate/draft helpers now belong to users/common as a separate private external users-feature model. User carries ordinary identity and current-email information. The email capability transports the users-owned projection through the existing owner endpoint. Consumer references, the email client API dependency, ownership KDocs and five Architecture Notes sections were updated. Operator Notes were preserved.
+
+Preparation reached complete, unconditional four-role consensus in 026-preparation.md, committed as 864d705. The existing task-specific capacity approval governed the recorded batches and host-delayed dispatch. All naming, serializer-descriptor and test alternatives have originator dispositions; the corrected admin Operator Notes observation is retained as a nonblocking factual note. Fresh independent contexts and frozen common inputs were used. The recovery invocation began after confirming that the interrupted invocation had written no report or council evidence.
+
+Coding completed 251 JVM tests and 13 disposable PostgreSQL tests without failures, and the affected JS/Android production/test compilation passed. The task-owned PostgreSQL cluster was stopped. No production database, source migration or deployment was performed. Four additional ownership-only KDoc paths were explicitly authorized by root: AuthFeatureUser.kt, AdminUser.kt, EmailLifecycleRegression.kt and the admin client UsersManagementFeature.kt. The implementation report 027-coding.md records the exact source scope, proof and unmet dependent suites.
+
+The required root build independently failed with exit code 1 at :wishlist.features.wishlist.common:compileKotlinJvm, recorded in 028-verification.md and committed as 3561dbe. ExposedWishlistItemRepo.kt:115 still constructs Amount using the former signed integer interface, while :178 writes an unsigned value to a signed nullable column. The current Amount also carries explicit sign and decimal precision. The same errors occurred before the review source edits. A cast or default sign would choose storage semantics without proving preservation. The wishlist and Amount source remain outside the implemented review correction.
+
+The root build executed no tests before failure. Admin/common, admin/server, ui/users, ui/adminPanel and ui/sidebar JVM gates remain unmet. The successful 264-test and platform proof is reported separately from the failed root build; no full acceptance or validation PASS is claimed. The root workflow requires verification PASS before validation, so no validator was invoked and no push was performed.
+
+## ESCALATION
+
+Full workflow completion is blocked by the existing Amount persistence compatibility defect. The operator was asked asynchronously whether to include a preserving Amount repair or keep the pending-email review focused and report the blocked gates. No answer was received before this report, and no authorization for that additional persistence design was inferred from elapsed time. The requested model correction is committed and reviewable. Any additional requirement must be recorded as a new immutable input and receive the required design handoff before Amount source changes.
+
+Root checked repository status and committed path scope after completed council waves and every ordinary role. No unexpected application modification or deletion was found. Before this root report, only the root-created REVIEW-001.md remained untracked. Root persists that source review together with this report; earlier records remain immutable. The task has no explicitly linked issue for escalation, so the blocker is recorded here and surfaced directly to the operator.

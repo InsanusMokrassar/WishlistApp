@@ -112,12 +112,18 @@ class AuthFeatureService(
         }
     }
 
+    /**
+     * Resolves fresh authenticated identity/current-email state for [token].
+     *
+     * Pending email, requested-at, and cooldown state belongs to the email feature and is not
+     * reconstructed through this auth model.
+     */
     override suspend fun getUser(token: Token): AuthFeatureUser? {
         locker.withReadAcquire {
             val entry = tokens.get(token) ?: return null
             if (entry.issued + tokenTtl > DateTime.now()) {
                 if (!hasUserRole(entry.id)) return null
-                return usersRepo.getById(entry.id)?.asAuthFeatureUser()
+                return usersRepo.getByIdFresh(entry.id)?.asAuthFeatureUser()
             }
             return null
         }

@@ -32,6 +32,7 @@ import dev.inmo.wishlist.features.wishlist.common.models.WishlistItemId
 import dev.inmo.wishlist.features.wishlist.common.models.WishlistsFeatureItem
 import dev.inmo.wishlist.features.wishlist.common.models.WishlistsFeatureWishlist
 import io.ktor.client.HttpClient
+import korlibs.time.DateTime
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -291,7 +292,7 @@ class WishlistsModelTest {
     private class RecordingCurrencyFeature : CurrencyFeature {
         val eur = CurrencyCode("EUR")
         val currencies = listOf(CurrencyInfo(eur, "Euro"))
-        val rates = CurrencyRates(CurrencyCode("USD"), mapOf("EUR" to 0.9), 123L)
+        val rates = CurrencyRates(CurrencyCode("USD"), mapOf("EUR" to 0.9), DateTime.fromUnixMillis(123L))
         var enabledCalls = 0
         var currencyCalls = 0
         var rateCalls = 0

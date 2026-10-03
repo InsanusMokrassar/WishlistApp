@@ -2,12 +2,24 @@
 <SmellBaseline>
   <ManuallySuppressedIssues/>
   <CurrentIssues>
-    <ID>UndocumentedPublicClass:Amount.kt:Amount$Companion</ID>
+    <ID>UndocumentedPublicClass:AmountTests.kt:AmountTests</ID>
     <ID>UndocumentedPublicClass:AndroidPlugin.kt:AndroidPlugin : StartPlugin</ID>
     <ID>UndocumentedPublicClass:Constants.kt:EchoConstants</ID>
     <ID>UndocumentedPublicClass:JSPlugin.kt:JSPlugin : StartPlugin</ID>
     <ID>UndocumentedPublicClass:JVMPlugin.kt:JVMPlugin : StartPlugin</ID>
     <ID>UndocumentedPublicClass:Plugin.kt:Plugin : StartPlugin</ID>
+    <ID>UndocumentedPublicFunction:AmountTests.kt:AmountTests$@Test fun addsAmounts</ID>
+    <ID>UndocumentedPublicFunction:AmountTests.kt:AmountTests$@Test fun addsAmountsWhenDecimalPartExceedsDoublePrecision</ID>
+    <ID>UndocumentedPublicFunction:AmountTests.kt:AmountTests$@Test fun addsNumbers</ID>
+    <ID>UndocumentedPublicFunction:AmountTests.kt:AmountTests$@Test fun calculatesRemainder</ID>
+    <ID>UndocumentedPublicFunction:AmountTests.kt:AmountTests$@Test fun calculatesWithLeadingDecimalZeros</ID>
+    <ID>UndocumentedPublicFunction:AmountTests.kt:AmountTests$@Test fun comparesAmounts</ID>
+    <ID>UndocumentedPublicFunction:AmountTests.kt:AmountTests$@Test fun dividesByNumbers</ID>
+    <ID>UndocumentedPublicFunction:AmountTests.kt:AmountTests$@Test fun multipliesByNumbers</ID>
+    <ID>UndocumentedPublicFunction:AmountTests.kt:AmountTests$@Test fun multipliesWithoutDoublePrecisionLoss</ID>
+    <ID>UndocumentedPublicFunction:AmountTests.kt:AmountTests$@Test fun preservesLeadingDecimalZeros</ID>
+    <ID>UndocumentedPublicFunction:AmountTests.kt:AmountTests$@Test fun subtractsAmounts</ID>
+    <ID>UndocumentedPublicFunction:AmountTests.kt:AmountTests$@Test fun subtractsNumbers</ID>
     <ID>UndocumentedPublicProperty:Constants.kt:EchoConstants$const val fullGetEchoPath = "$prefixPathPart/$getEchoPathPart"</ID>
     <ID>UndocumentedPublicProperty:Constants.kt:EchoConstants$const val getEchoPathPart = "echo"</ID>
     <ID>UndocumentedPublicProperty:Constants.kt:EchoConstants$const val prefixPathPart = "echo"</ID>
