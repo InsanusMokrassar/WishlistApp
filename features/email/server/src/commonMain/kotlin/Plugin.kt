@@ -22,6 +22,7 @@ import dev.inmo.wishlist.features.email.server.services.EmailPasswordChangeDeepL
 import dev.inmo.wishlist.features.email.server.services.EmailPasswordChangeService
 import dev.inmo.wishlist.features.email.server.models.EmailVerificationPayload
 import dev.inmo.wishlist.features.email.server.models.EmailPasswordChangePayload
+import dev.inmo.wishlist.features.email.server.utils.validatedCooldownMillis
 import dev.inmo.wishlist.features.roles.common.FeatureRolesRegistry
 import dev.inmo.wishlist.features.roles.common.models.SuperAdminRole
 import dev.inmo.wishlist.features.roles.common.utils.singleRequirement
@@ -62,11 +63,13 @@ import org.koin.core.module.Module
  * in this `commonMain` source set — the same approach used by `currency/server` with OkHttp.
  */
 object Plugin : StartPlugin {
-    /** Registers Email services, serializers, handlers, and password-change orchestration. */
     override fun Module.setupDI(config: JsonObject) {
         val emailConfigElement = emailConfigElementOrNull(config)
         val serverConfig = Json { ignoreUnknownKeys = true }
             .decodeFromJsonElement(ServerConfig.serializer(), config)
+        val policy = Json { ignoreUnknownKeys = true }
+            .decodeFromJsonElement(EmailChangePolicyConfig.serializer(), config)
+        val cooldownMillis = policy.validatedCooldownMillis()
         if (emailConfigElement != null) {
             single { get<Json>().decodeFromJsonElement(EmailConfig.serializer(), emailConfigElement) }
             single { SmtpEmailService(get<EmailConfig>()) }
@@ -76,6 +79,7 @@ object Plugin : StartPlugin {
             EmailVerificationAccountCoordinator(
                 usersRepo = get<UsersRepo>(),
                 rolesRepo = get<RolesRepo>(),
+                cooldownMillis = cooldownMillis,
             )
         }
         single<EmailFeature> {
@@ -125,7 +129,6 @@ object Plugin : StartPlugin {
         }
     }
 
-    /** Starts Email server initialization after optional SMTP bindings are available. */
     override suspend fun startPlugin(koin: Koin) {
         super.startPlugin(koin)
     }

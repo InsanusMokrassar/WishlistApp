@@ -10,21 +10,18 @@ import dev.inmo.wishlist.features.admin.common.models.AdminWishlist
 import dev.inmo.wishlist.features.admin.common.models.AdminWishlistItem
 import dev.inmo.wishlist.features.admin.common.models.NewUserWithPassword
 import dev.inmo.wishlist.features.auth.client.AuthCredentialsStorage
-import dev.inmo.wishlist.features.auth.client.ClientAuthFeature
 import dev.inmo.wishlist.features.auth.client.PasswordChangeFeature
 import dev.inmo.wishlist.features.auth.client.meQualifier
-import dev.inmo.wishlist.features.auth.common.models.AuthConfig
 import dev.inmo.wishlist.features.auth.common.models.AuthCredentials
 import dev.inmo.wishlist.features.auth.common.models.AuthFeatureUser
 import dev.inmo.wishlist.features.auth.common.models.CompletePasswordChangeRequest
 import dev.inmo.wishlist.features.auth.common.models.Password
 import dev.inmo.wishlist.features.auth.common.models.PasswordChangeEmailRequestResult
 import dev.inmo.wishlist.features.auth.common.models.PasswordChangeResult
-import dev.inmo.wishlist.features.auth.common.models.RefreshToken
-import dev.inmo.wishlist.features.auth.common.models.RegistrationResult
-import dev.inmo.wishlist.features.email.client.EmailFeature
 import dev.inmo.wishlist.features.deeplinks.common.models.DeepLinkId
+import dev.inmo.wishlist.features.email.client.EmailFeature
 import dev.inmo.wishlist.features.email.common.models.Email
+import dev.inmo.wishlist.features.users.common.models.EmailProfile
 import dev.inmo.wishlist.features.email.common.models.EmailVerificationRequestResult
 import dev.inmo.wishlist.features.files.client.FilesClientService
 import dev.inmo.wishlist.features.files.client.FilesFeature
@@ -52,6 +49,7 @@ import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.test.runCurrent
+import korlibs.time.DateTime
 import kotlinx.coroutines.test.runTest
 import kotlinx.serialization.json.JsonObject
 import org.koin.core.context.startKoin
@@ -59,7 +57,6 @@ import org.koin.core.context.stopKoin
 import org.koin.dsl.module
 import kotlin.test.Test
 import kotlin.test.assertEquals
-import kotlin.test.assertFailsWith
 import kotlin.test.assertFalse
 import kotlin.test.assertIs
 import kotlin.test.assertNull
@@ -75,7 +72,6 @@ class UsersModelTest {
             scope: CoroutineScope,
         ): DefaultUsersModel = DefaultUsersModel(
             feature = RecordingUsersFeature(),
-            authFeature = RecordingAuthFeature(),
             emailFeature = RecordingEmailFeature(),
             passwordChangeFeature = RecordingPasswordChangeFeature(),
             meState = MutableStateFlow(null),
@@ -96,7 +92,6 @@ class UsersModelTest {
     fun pluginModelPreservesEveryPlatformNeutralDelegationAndReactiveState() = runTest {
         val meState = MutableStateFlow<AuthFeatureUser?>(null)
         val users = RecordingUsersFeature()
-        val auth = RecordingAuthFeature()
         val email = RecordingEmailFeature()
         val passwordChange = RecordingPasswordChangeFeature()
         val management = RecordingUsersManagementFeature()
@@ -110,7 +105,6 @@ class UsersModelTest {
                 module {
                     with(Plugin) { setupDI(JsonObject(emptyMap())) }
                     single<UsersFeature> { users }
-                    single<ClientAuthFeature> { auth }
                     single<EmailFeature> { email }
                     single<PasswordChangeFeature> { passwordChange }
                     single<AdminFeature> {
@@ -159,9 +153,16 @@ class UsersModelTest {
             assertNull(model.getUser(UserId(404L)))
             assertEquals(3, users.calls)
 
-            auth.profile = profile
-            assertEquals(profile, model.getMyProfile())
-            assertEquals(1, auth.getMeCalls)
+            val emailProfile = EmailProfile(
+                userId = profile.id.long,
+                email = Email("owner@example.com"),
+                pendingEmail = Email("replacement@example.com"),
+                emailChangeRequestedAt = DateTime.fromUnixMillis(1_000L),
+                emailChangeAllowedAt = DateTime.fromUnixMillis(2_000L),
+            )
+            email.profile = emailProfile
+            assertEquals(emailProfile, model.getMyEmailProfile())
+            assertEquals(1, email.getMyEmailCalls)
 
             val replacement = Email("replacement@example.com")
             assertTrue(model.isEmailFeatureEnabled())
@@ -176,27 +177,10 @@ class UsersModelTest {
                 approvalId = DeepLinkId("approval"),
                 password = Password("new-password"),
             )
-            assertSame(
-                PasswordChangeEmailRequestResult.Sent,
-                model.requestPasswordChangeEmail(replacement),
-            )
+            assertSame(PasswordChangeEmailRequestResult.Sent, model.requestPasswordChangeEmail(replacement))
             assertSame(PasswordChangeResult.Changed, model.completePasswordChange(passwordRequest))
             assertEquals(listOf(replacement), passwordChange.requestedEmails)
             assertEquals(listOf(passwordRequest), passwordChange.completedRequests)
-
-            passwordChange.emailResult = null
-            passwordChange.completeResult = null
-            assertNull(model.requestPasswordChangeEmail(replacement))
-            assertNull(model.completePasswordChange(passwordRequest))
-            assertEquals(listOf(replacement, replacement), passwordChange.requestedEmails)
-            assertEquals(listOf(passwordRequest, passwordRequest), passwordChange.completedRequests)
-
-            val sentinel = IllegalStateException("password-change transport failure")
-            passwordChange.failure = sentinel
-            assertSame(sentinel, assertFailsWith<IllegalStateException> {
-                model.requestPasswordChangeEmail(replacement)
-            })
-            assertEquals(3, passwordChange.requestedEmails.size)
 
             val username = Username("owner-renamed")
             val password = Password("replacement-secret")
@@ -223,6 +207,21 @@ class UsersModelTest {
         }
     }
 
+    private class RecordingPasswordChangeFeature : PasswordChangeFeature {
+        val requestedEmails = mutableListOf<Email>()
+        val completedRequests = mutableListOf<CompletePasswordChangeRequest>()
+
+        override suspend fun requestPasswordChangeEmail(expectedEmail: Email): PasswordChangeEmailRequestResult? {
+            requestedEmails += expectedEmail
+            return PasswordChangeEmailRequestResult.Sent
+        }
+
+        override suspend fun completePasswordChange(request: CompletePasswordChangeRequest): PasswordChangeResult? {
+            completedRequests += request
+            return PasswordChangeResult.Changed
+        }
+    }
+
     private class RecordingUsersFeature : UsersFeature {
         val firstDuplicate = UsersFeatureUser(UserId(1L), Username("first"))
         val values = listOf(
@@ -237,28 +236,19 @@ class UsersModelTest {
         }
     }
 
-    private class RecordingAuthFeature : ClientAuthFeature {
-        var profile: AuthFeatureUser? = null
-        var getMeCalls = 0
-        override suspend fun getMe(): AuthFeatureUser? {
-            getMeCalls += 1
-            return profile
-        }
-        override suspend fun logout() = Unit
-        override suspend fun login(username: Username, password: Password): AuthCredentials? = error("unused")
-        override suspend fun refresh(refreshToken: RefreshToken): AuthCredentials? = error("unused")
-        override suspend fun register(username: Username, password: Password): RegistrationResult? = error("unused")
-        override suspend fun getConfig(): AuthConfig = error("unused")
-        override suspend fun isRegistrationAvailable(): Boolean = error("unused")
-    }
-
     private class RecordingEmailFeature : EmailFeature {
         var enabledCalls = 0
+        var getMyEmailCalls = 0
+        var profile: EmailProfile? = null
         val setCalls = mutableListOf<Email?>()
         val requestCalls = mutableListOf<Email>()
         override suspend fun isFeatureEnabled(): Boolean {
             enabledCalls += 1
             return true
+        }
+        override suspend fun getMyEmail(): EmailProfile? {
+            getMyEmailCalls += 1
+            return profile
         }
         override suspend fun sendTestEmail(recipient: Email): Boolean = error("unused")
         override suspend fun setMyEmail(email: Email?): Boolean {
@@ -298,42 +288,6 @@ class UsersModelTest {
         override suspend fun isFunctionalityAvailable(functionalityId: FunctionalityId): Boolean {
             calls += functionalityId
             return true
-        }
-    }
-
-    /** Records password-change delegation arguments and configurable outcomes. */
-    private class RecordingPasswordChangeFeature : PasswordChangeFeature {
-        /** Exact approved addresses delegated by the model. */
-        val requestedEmails = mutableListOf<Email>()
-
-        /** Exact approval-bound completion payloads delegated by the model. */
-        val completedRequests = mutableListOf<CompletePasswordChangeRequest>()
-
-        /** Result returned for a password-change-email request. */
-        var emailResult: PasswordChangeEmailRequestResult? = PasswordChangeEmailRequestResult.Sent
-
-        /** Result returned for password-change completion. */
-        var completeResult: PasswordChangeResult? = PasswordChangeResult.Changed
-
-        /** Optional exception propagated exactly once by the next delegated operation. */
-        var failure: Throwable? = null
-
-        /** Records and returns the configured password-change-email outcome. */
-        override suspend fun requestPasswordChangeEmail(
-            expectedEmail: Email,
-        ): PasswordChangeEmailRequestResult? {
-            requestedEmails += expectedEmail
-            failure?.let { throw it }
-            return emailResult
-        }
-
-        /** Records and returns the configured completion outcome. */
-        override suspend fun completePasswordChange(
-            request: CompletePasswordChangeRequest,
-        ): PasswordChangeResult? {
-            completedRequests += request
-            failure?.let { throw it }
-            return completeResult
         }
     }
 

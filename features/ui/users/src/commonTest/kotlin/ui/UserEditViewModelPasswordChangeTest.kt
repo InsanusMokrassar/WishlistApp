@@ -1,10 +1,10 @@
 package dev.inmo.wishlist.features.ui.users.ui
 
-import dev.inmo.wishlist.features.auth.common.models.AuthFeatureUser
 import dev.inmo.wishlist.features.auth.common.models.PasswordChangeEmailRequestResult
 import dev.inmo.wishlist.features.email.common.models.Email
+import dev.inmo.wishlist.features.users.common.models.EmailProfile
 import dev.inmo.wishlist.features.users.common.models.UserId
-import dev.inmo.wishlist.features.users.common.models.Username
+import korlibs.time.DateTime
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.Job
@@ -41,7 +41,7 @@ class UserEditViewModelPasswordChangeTest {
         id: UserId = ownerId,
         email: Email? = approvedEmail,
         approved: Boolean = true,
-    ) = AuthFeatureUser(id, Username("owner"), email = email, emailApproved = approved)
+    ) = EmailProfile(userId = id.long, email = email, emailApproved = approved)
 
     /** Creates a serial-dispatcher ViewModel and completes its initial owner reconciliation. */
     private suspend fun createViewModel(
@@ -80,6 +80,31 @@ class UserEditViewModelPasswordChangeTest {
             } finally {
                 close(viewModel)
             }
+        }
+    }
+
+    /** A pending replacement and email-edit cooldown cannot redirect or suppress approved-address authorization. */
+    @Test
+    fun approvedCurrentEmailRemainsPasswordRecipientWhileReplacementIsPending() = runTest {
+        val pending = Email("pending@example.com")
+        val model = UserEditTestUsersModel(
+            ownerId,
+            profile().copy(
+                pendingEmail = pending,
+                emailChangeAllowedAt = DateTime.fromUnixMillis(4_102_444_800_000L),
+            ),
+        )
+        val viewModel = createViewModel(model)
+        try {
+            advanceUntilIdle()
+            assertFalse(viewModel.canMutateOwnEmailState.value)
+            assertTrue(viewModel.canRequestPasswordChangeEmailState.value)
+            viewModel.onRequestPasswordChangeEmail()
+            advanceUntilIdle()
+            assertEquals(listOf(approvedEmail), model.passwordChangeRequestedEmails)
+            assertEquals(PasswordChangeEmailRequestResult.Sent, viewModel.passwordChangeEmailResultState.value)
+        } finally {
+            close(viewModel)
         }
     }
 
@@ -186,7 +211,7 @@ class UserEditViewModelPasswordChangeTest {
     fun unknownLoadingAndRefreshKeepPasswordRequestIneligible() = runTest {
         val dispatcher = StandardTestDispatcher(testScheduler)
         val probeRelease = CompletableDeferred<Boolean>()
-        val profileRelease = CompletableDeferred<AuthFeatureUser?>()
+        val profileRelease = CompletableDeferred<EmailProfile?>()
         var holdProfile = true
         val model = UserEditTestUsersModel(ownerId, profile()).apply {
             probeHandler = { probeRelease.await() }
@@ -220,7 +245,7 @@ class UserEditViewModelPasswordChangeTest {
             advanceUntilIdle()
             assertTrue(viewModel.canRequestPasswordChangeEmailState.value)
 
-            val heldRefresh = CompletableDeferred<AuthFeatureUser?>()
+            val heldRefresh = CompletableDeferred<EmailProfile?>()
             holdProfile = false
             model.profileHandler = { heldRefresh.await() }
             viewModel.onRefreshEmail()
@@ -279,7 +304,7 @@ class UserEditViewModelPasswordChangeTest {
     @Test
     fun staleFalseDoesNotBlockValidRawAdmission() = runTest {
         val dispatcher = StandardTestDispatcher(testScheduler)
-        val profileRelease = CompletableDeferred<AuthFeatureUser?>()
+        val profileRelease = CompletableDeferred<EmailProfile?>()
         val model = UserEditTestUsersModel(ownerId, profile()).apply {
             profileHandler = { profileRelease.await() }
         }

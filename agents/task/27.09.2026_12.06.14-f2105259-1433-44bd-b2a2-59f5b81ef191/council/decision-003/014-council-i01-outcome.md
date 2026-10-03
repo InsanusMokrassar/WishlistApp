@@ -1,0 +1,22 @@
+Model: GPT-6; HL coordinator; no fallback.
+Changed files: council/decision-003/014-council-i01-outcome.md.
+
+# Outcome i01
+
+Task: 27.09.2026_12.06.14-f2105259-1433-44bd-b2a2-59f5b81ef191. Writer: /root/pr82_preparation_decision. Brief: 001-council-brief.md. Accepted candidate: 007-council-i01-candidate.md. Issues snapshot: 008-council-i01-issues.md. Dispatch evidence: 013-council-launch.md. Terminal state: CONSENSUS. One of five available voting cycles was used.
+
+The complete expected and received roster is architect, designer, programmer and security. All four independent proposals 002–005 returned before candidate collation. All four fresh i01 votes 009–012 returned before outcome derivation. Every vote explicitly states unconditional AGREE on the same unchanged candidate and accepts every attributed amendment. No vote is missing, duplicated, stale, conditional or substituted. The coordinator has no vote.
+
+Architect vote 009 resolves ARCH-1 with the delegated finite integral ±2^52 policy, raw-before-Double validation, checked arithmetic, distinct failures, no rewriting and no-event rollback. It confirms current research and automated specifications for every planned changed function/model/state family. No manual-only functionality waiver or product question remains.
+
+Programmer vote 011 resolves P1 through exact boundary arithmetic, the supported range, production-resolution adapter and error-class preservation. P2 is resolved as design handling: the dedicated disposable PostgreSQL gate remains mandatory and unavailable infrastructure blocks an execution claim. P3 is resolved by explicit directional wire compatibility, old-reader evidence and coordinated deployment. The environment dependency remains real and unexecuted, not administratively marked passed.
+
+Designer vote 010 resolves DES-01 through preserved owner journeys/null/equality/Refresh/privacy/copy; DES-02 through supported legacy input and explicit Double-output deployment; DES-03 through bounded rejection, exact failures and faithful extreme formatting; DES-04 through unchanged BIGINT/cache/upload semantics and deterministic tests; DES-05 through all six documentation deltas and Operator Notes preservation. DES-PREFLIGHT's request for affected-row identifiers is WITHDRAWN_BY_ORIGINATOR: per-column plus combined counts suffice for go/no-go, and identifiers belong to separately authorized remediation. The original alternative remains retained in proposal 003 and issues 008.
+
+Security vote 012 resolves SEC-01 through precision validation, checked issuance and rollback/no events; SEC-02 through unchanged storage/keys, direct serializer, validation and rollout; SEC-03 through post-lock sampling, equality, idempotence, privacy and correct 429/409 distinction; SEC-04 through cache mutex/age/fallback and file expiry/deletion/cancellation; SEC-05 through project/feature documentation and recovery limits. All originators explicitly accept the candidate amendments. No blocking comment, unresolved alternative or optional plan amendment remains.
+
+R1/AC1 is supported by root's recorded fetch and ancestry evidence. R2/AC2 maps to the complete DateTime inventory, exact domain policy, boundary/model/repository/policy/transport/UI/cache/file contracts and their automated tests. R3/AC3 maps to the complete root plus five feature README deltas, corrected KDoc/model types, semantic Long audit and Operator Notes comparison. Implementation and application tests are not performed or claimed by this council.
+
+Observed process checks confirm stable discovered roster/contracts, equal frozen packets, fresh proposal/voting contexts, the approved delayed two-pair scheduling, no observed peer-output exposure, complete-wave collation, complete same-candidate unconditional votes and originator closure. The host cannot supply a filesystem access audit; isolation claims are limited to native fresh contexts, instructions and participant reports. Draft interruption/retry history is fully retained in launch evidence. No historical completed record was changed. Only allocated reports/evidence are persisted.
+
+The accepted candidate's complete substantive text is copied unchanged into 003-preparation.md; final additions are administrative outcome, coverage and disposition evidence only. No new design decision is introduced during publication. Return the report to root and stop; this outcome selects no subsequent stage.

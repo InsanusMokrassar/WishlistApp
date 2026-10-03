@@ -265,7 +265,9 @@ class EmailPasswordChangeIssuanceTest {
         val fixture = PasswordChangeTestFixtures.fixture(emails)
         val preserved = seedUnrelatedRecords(fixture)
         emails.beforeReturn = {
-            fixture.coordinator.updateStoredEmail(fixture.user.id, Email("changed@example.com"))
+            val changedEmail = Email("changed@example.com")
+            fixture.coordinator.updateStoredEmail(fixture.user.id, changedEmail)
+            fixture.users.approveEmail(fixture.user.id, changedEmail, 0L)
         }
 
         assertEquals(

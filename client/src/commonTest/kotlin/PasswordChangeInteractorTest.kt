@@ -8,7 +8,7 @@ import dev.inmo.navigation.core.extensions.rootChain
 import dev.inmo.navigation.core.repo.ConfigHolder
 import dev.inmo.navigation.core.repo.NavigationConfigsRepo
 import dev.inmo.micro_utils.common.MPPFile
-import dev.inmo.wishlist.features.auth.common.models.AuthFeatureUser
+import dev.inmo.wishlist.features.users.common.models.EmailProfile
 import dev.inmo.wishlist.features.auth.common.models.CompletePasswordChangeRequest
 import dev.inmo.wishlist.features.auth.common.models.Password
 import dev.inmo.wishlist.features.auth.common.models.PasswordChangeEmailRequestResult
@@ -109,7 +109,7 @@ internal class HeldPasswordChangeUsersModel(
     /** Returns no user detail for this navigation-only test. */
     override suspend fun getUser(id: UserId): UsersFeatureUser? = null
     /** Returns no authenticated profile for this navigation-only test. */
-    override suspend fun getMyProfile(): AuthFeatureUser? = null
+    override suspend fun getMyEmailProfile(): EmailProfile? = null
     /** Reports email infrastructure as unavailable. */
     override suspend fun isEmailFeatureEnabled(): Boolean = false
     /** Rejects private email mutation in this test double. */

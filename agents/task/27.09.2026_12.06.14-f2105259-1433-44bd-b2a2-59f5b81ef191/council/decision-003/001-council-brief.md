@@ -1,0 +1,36 @@
+Model: GPT-6; HL; runtime variant is not exposed; no fallback.
+Changed files: council/decision-003/001-council-brief.md and coordinator-only frozen contracts.
+
+# Frozen council brief
+
+The task is 27.09.2026_12.06.14-f2105259-1433-44bd-b2a2-59f5b81ef191, PR #82, branch feat/issue-79-user-email-change. Preparation coordinator identity is /root/pr82_preparation_decision. Repository HEAD at freeze is d04b0b5fcfbb1b83c9788fb680a66a02074a9f08. This is a new attempt after completed reports 001-preparation.md and 002-preparation.md. Maximum voting cycles: five. Model policy is HL first, ML only with documented fallback; never LL.
+
+## Requirements and answers
+
+R1/AC1: Check branch freshness against master, merging fresh master commits if needed. Root fetched on 2026-09-27 and established origin/master f786ad9 as ancestor of PR head 5664e7f; no merge was needed.
+
+R2/AC2: Replace application Long values representing instants with korlibs.time.DateTime and use the serializer supplied by MicroUtils. Preserve surrounding behavior except changes explicitly accepted by the council under the delegated timestamp compatibility decision. Durations, IDs, counts, sizes, monetary amounts and monotonic elapsed measurements are excluded.
+
+R3/AC3: Document the project-wide korlibs DateTime rule. Preserve all Operator Notes. Supply complete Architecture Notes deltas for affected feature READMEs and the project rule.
+
+The source is PROMPT.md in the task directory. OPERATOR-ANSWER-001.md authorizes two independent batches of two participants per proposal/vote wave; local.PROTOCOL.md records allowed host-cleanup launch retries. OPERATOR-ANSWER-002.md answers the former extreme-timestamp question: “lets council decide, what to do in that case”. The operator delegates preservation, rejection or other feasible compatibility treatment to the full council. No policy is preselected. Compare alternatives, choose and justify a concrete policy, specify tests and rollout/rollback effects, and resolve by complete-roster votes. Do not repeat the delegated question unless genuinely undecidable product information remains.
+
+## Permitted completed evidence
+
+Participants may read PROMPT.md and both OPERATOR-ANSWER files. Do not read top-level prior preparation reports because their process descriptions quote ordinary role instructions. The following is the permitted technical excerpt from completed 002-preparation.md; original historical records stay unchanged.
+
+Previous independent investigation found MicroUtils 0.30.1 DateTimeSerializer decodes and encodes Double epoch milliseconds; korlibs-time 5.4.0 DateTime stores Double milliseconds and documents a lossless range of minus to plus 2^52 milliseconds. Arbitrary Long values cannot retain exact identity. Existing ExposedUsersRepo uses Math.addExact for email approval deadlines; ExposedUsersRepoSqliteTest.approvalDeadlineOverflowRollsBackWithoutPublishingAnEvent supplies Long.MAX_VALUE minus five and expects rollback without an event. Prior architect ARCH-1 and programmer P1 required a compatibility decision, now delegated to this council. Their provisional recommendation was finite integral durable email instants in [-2^52,+2^52], checked arithmetic/storage boundaries, fail-closed rejection without rewriting unsupported rows, and a read-only deployment data check. This is evidence of a proposal, not accepted policy.
+
+Prior designer comments DES-01 through DES-05 requested preserved owner journeys, null history, exact-equality admission, Refresh availability, private-state removal and UI text; preserved wire keys and explicit legacy-input/Double-output compatibility; precision/error classification; unchanged BIGINT and cache/upload boundaries; and root plus five feature documentation updates. Prior security SEC-01 through SEC-05 requested precision and rollback without events; unchanged BIGINT/wire compatibility; post-lock server sampling, private projections, idempotent approval and typed 429 versus 409; cache TTL/mutex/deletion/fallback invariants; and project/feature documentation. New proposals must explicitly adopt, reject or supersede these role-specific prior issues, preserving rationale and origin.
+
+Previously identified scope: EmailProfile, EmailChangeCooldown, users cooldown exception, ExposedUsersRepo clocks/mapping/deadlines, EmailChangePolicy instant parameter, UserEditViewModel state/clock/snapshots, emailChangeDeadlineText, CurrencyRates and OpenExchangeRatesService caches, TimedTemporalFilesUtilizer first-seen tracking. Existing auth timestamps already use DateTime. Previous proposed exclusions were schema rewriting, custom serializer, dependency upgrade, UI redesign and monotonic-clock redesign. Verify independently. Dev.inmo source investigation begins in /home/aleksey/projects/own; pinned installed source archives may provide exact-version evidence. ast-index was available but uninitialized in the prior run; record any scoped read-only fallback without rebuilding during this investigation.
+
+Previous verification proposals included model round-trip/legacy numeric input/null defaults, precision boundaries, SQLite and dedicated PostgreSQL concurrency/storage, policy rounding/overflow, typed transport errors, UI equality/privacy/feedback identity, deterministic currency TTL/fallback and temporal-file expiry/cancellation, platform compilation and documentation checks. PostgreSQL availability is unverified. Compilation does not establish browser/device execution. No implementation or tests have been performed by preparation. Architect must supply fresh complete implementation, external best-practice research, tests for every change, and README delta.
+
+## Shared access and roster
+
+Shared instructions are agents/council/COMMON.md, agents/council/PROTOCOL.md, agents/council/local.PROTOCOL.md and agents/council/MODELS.md. Each participant reads only its own frozen contract. The recursively discovered roster is architect at agents/council/roles/ARCHITECT.md, designer at agents/council/roles/DESIGNER.md, programmer at agents/council/roles/PROGRAMMER.md and security at agents/council/roles/SECURITY.md. Coordinator-only copies preserve every full contract in contracts/. Participants may read only their assigned contract copy there.
+
+Read repository source/configuration/documentation directly and relevant completed technical evidence within these boundaries. Read affected feature READMEs fully. Exclude AGENTS.md, agents root/ordinary instruction files, other role contracts, other task histories and all current-wave peer outputs, including copies in searches/history. No private messages, persistent memory, Git writes, source edits or further delegation. Write only the allocated proposal/vote. Normal prose is required for narrative; no structured data block is necessary. Record model, output path, role, invocation and exact packet paths.
+
+Proposal outputs are allocated before dispatch: 002-council-proposal-architect.md, 003-council-proposal-designer.md, 004-council-proposal-programmer.md and 005-council-proposal-security.md. Batch one is architect/designer; batch two is programmer/security. Every participant receives this identical frozen packet. No current-wave output is read or collated by the coordinator until the complete wave returns. Host cleanup retries preserve inputs and isolation.

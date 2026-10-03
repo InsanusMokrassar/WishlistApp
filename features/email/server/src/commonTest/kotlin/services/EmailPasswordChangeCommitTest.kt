@@ -64,7 +64,7 @@ class EmailPasswordChangeCommitTest {
 
     /** Proves a subsequent coordinator-then-Auth operation completes after a failed commit boundary. */
     private suspend fun assertLocksCanBeReacquired(fixture: PasswordChangeFixture) {
-        assertTrue(fixture.coordinator.getCurrentUser(fixture.user.id) != null)
+        assertTrue(fixture.coordinator.getCurrentEmailProfile(fixture.user.id) != null)
         assertTrue(fixture.auth.passwordChangeState(fixture.user.id) != null)
         assertEquals(
             PasswordChangeEmailRequestResult.Sent,

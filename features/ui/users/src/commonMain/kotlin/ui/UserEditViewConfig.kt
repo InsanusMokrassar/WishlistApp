@@ -8,9 +8,10 @@ import kotlinx.serialization.Serializable
  * Navigation config for the user profile edit screen.
  *
  * Reachable only for the profile owner and `root`. A non-root owner cannot edit administrator-managed
- * text fields but may upload an avatar and manage a missing own email when verification delivery is
- * enabled; `root` may edit the username and password and delete the user. The user id itself is never
- * editable. Creation of users is not done here (it is an admin-panel concern).
+ * text fields but may upload an avatar and manage the stored own email, including replacing missing,
+ * pending, or approved addresses. Email storage does not depend on SMTP; SMTP only enables the
+ * verification-delivery action. `root` may edit the username and password and delete the user. The
+ * user id itself is never editable. Creation of users is not done here (it is an admin-panel concern).
  *
  * @property userId Identifier of the user being edited.
  */

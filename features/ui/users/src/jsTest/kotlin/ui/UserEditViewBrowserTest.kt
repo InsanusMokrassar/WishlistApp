@@ -3,13 +3,12 @@ package dev.inmo.wishlist.features.ui.users.ui
 import dev.inmo.navigation.core.NavigationChain
 import dev.inmo.navigation.core.NavigationNode
 import dev.inmo.navigation.core.NavigationNodeFactory
-import dev.inmo.wishlist.features.auth.common.models.AuthFeatureUser
 import dev.inmo.wishlist.features.auth.common.models.PasswordChangeEmailRequestResult
 import dev.inmo.wishlist.features.common.client.models.ViewConfig
 import dev.inmo.wishlist.features.email.common.models.Email
 import dev.inmo.wishlist.features.ui.users.JSPlugin
+import dev.inmo.wishlist.features.users.common.models.EmailProfile
 import dev.inmo.wishlist.features.users.common.models.UserId
-import dev.inmo.wishlist.features.users.common.models.Username
 import androidx.compose.runtime.Composition
 import kotlinx.coroutines.MainScope
 import kotlinx.coroutines.CompletableDeferred
@@ -91,7 +90,7 @@ class UserEditViewBrowserTest {
         val response = CompletableDeferred<PasswordChangeEmailRequestResult?>()
         val model = UserEditTestUsersModel(
             initialUserId = ownerId,
-            initialProfile = AuthFeatureUser(ownerId, Username("owner"), email, emailApproved = true),
+            initialProfile = EmailProfile(ownerId.long, email, emailApproved = true),
         ).apply {
             passwordChangeRequestHandler = { response.await() }
         }
@@ -148,12 +147,12 @@ class UserEditViewBrowserTest {
         val ownerId = UserId(7L)
         val model = UserEditTestUsersModel(
             ownerId,
-            AuthFeatureUser(ownerId, Username("owner"), Email("owner@example.com"), emailApproved = true),
+            EmailProfile(ownerId.long, Email("owner@example.com"), emailApproved = true),
         ).apply { emailFeatureEnabled = false }
         assertPasswordChangeRequestHidden(
             model,
             ownerId,
-            privateEmailMustBeHidden = true,
+            privateEmailMustBeHidden = false,
             settled = { model.probeReads > 0 },
         )
     }
@@ -165,7 +164,7 @@ class UserEditViewBrowserTest {
         val ownerId = UserId(7L)
         val model = UserEditTestUsersModel(
             ownerId,
-            AuthFeatureUser(ownerId, Username("owner"), email = null, emailApproved = false),
+            EmailProfile(ownerId.long, email = null, emailApproved = false),
         )
         assertPasswordChangeRequestHidden(
             model,
@@ -182,7 +181,7 @@ class UserEditViewBrowserTest {
         val ownerId = UserId(7L)
         val model = UserEditTestUsersModel(
             ownerId,
-            AuthFeatureUser(ownerId, Username("owner"), Email("owner@example.com"), emailApproved = false),
+            EmailProfile(ownerId.long, Email("owner@example.com"), emailApproved = false),
         )
         assertPasswordChangeRequestHidden(
             model,
@@ -200,7 +199,7 @@ class UserEditViewBrowserTest {
         assertPasswordChangeRequestHidden(
             UserEditTestUsersModel(
                 UserId(8L),
-                AuthFeatureUser(ownerId, Username("owner"), Email("owner@example.com"), emailApproved = true),
+                EmailProfile(ownerId.long, Email("owner@example.com"), emailApproved = true),
             ),
             ownerId,
             privateEmailMustBeHidden = true,
@@ -215,7 +214,7 @@ class UserEditViewBrowserTest {
         assertPasswordChangeRequestHidden(
             UserEditTestUsersModel(
                 UserId(8L),
-                AuthFeatureUser(ownerId, Username("owner"), Email("owner@example.com"), emailApproved = true),
+                EmailProfile(ownerId.long, Email("owner@example.com"), emailApproved = true),
             ).apply { rootState.value = true },
             ownerId,
             privateEmailMustBeHidden = true,
@@ -227,11 +226,11 @@ class UserEditViewBrowserTest {
     @Test
     fun heldRefreshRemovesCurrentPasswordChangeRequest() = MainScope().promise {
         val ownerId = UserId(7L)
-        val heldProfile = CompletableDeferred<AuthFeatureUser?>()
+        val heldProfile = CompletableDeferred<EmailProfile?>()
         var holdRefresh = false
         val model = UserEditTestUsersModel(
             ownerId,
-            AuthFeatureUser(ownerId, Username("owner"), Email("owner@example.com"), emailApproved = true),
+            EmailProfile(ownerId.long, Email("owner@example.com"), emailApproved = true),
         ).apply {
             profileHandler = {
                 if (holdRefresh) heldProfile.await() else profileState.value

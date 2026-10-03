@@ -1,10 +1,9 @@
 package dev.inmo.wishlist.features.ui.users.ui
 
-import dev.inmo.wishlist.features.auth.common.models.AuthFeatureUser
 import dev.inmo.wishlist.features.auth.common.models.PasswordChangeResult
 import dev.inmo.wishlist.features.deeplinks.common.models.DeepLinkId
+import dev.inmo.wishlist.features.users.common.models.EmailProfile
 import dev.inmo.wishlist.features.users.common.models.UserId
-import dev.inmo.wishlist.features.users.common.models.Username
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.Job
@@ -32,7 +31,7 @@ class PasswordChangeViewModelTest {
     fun matchingSubmissionUsesExactApprovalAndClearsSensitiveFields() = runTest {
         val model = UserEditTestUsersModel(
             initialUserId = null,
-            initialProfile = AuthFeatureUser(UserId(7L), Username("owner"), email = null),
+            initialProfile = EmailProfile(userId = 7L),
             initiallyAuthorised = false,
         )
         val interactor = RecordingPasswordChangeInteractor()

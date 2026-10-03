@@ -88,6 +88,31 @@ class EmailPasswordChangeServiceTest {
         assertEquals(PasswordChangeResult.InvalidApproval, fixture.service.completePasswordChange(request))
     }
 
+    /** A pending replacement never replaces the approved address used to issue or redeem approval. */
+    @Test
+    fun pendingReplacementKeepsApprovedCurrentAddressAsPasswordAuthority() = runTest {
+        val fixture = fixture()
+        val pending = Email("pending@example.com")
+        fixture.coordinator.updateStoredEmail(fixture.user.id, pending)
+
+        assertEquals(
+            PasswordChangeEmailRequestResult.Ineligible,
+            fixture.service.requestPasswordChangeEmail(fixture.user.id, pending),
+        )
+        assertEquals(
+            PasswordChangeEmailRequestResult.Sent,
+            fixture.service.requestPasswordChangeEmail(fixture.user.id, fixture.user.email!!),
+        )
+        val approvalId = fixture.linksRepo.getAll().keys.single()
+        assertEquals(
+            PasswordChangeResult.Changed,
+            fixture.service.completePasswordChange(
+                CompletePasswordChangeRequest(fixture.user.id, approvalId, Password("new-password")),
+            ),
+        )
+        assertTrue(fixture.auth.login(fixture.user.username, Password("new-password")) != null)
+    }
+
     /** Expiry, stale email, revoked direct role, and subject mismatch all reject without password mutation. */
     /** Verifies invalid approval states never replace a password. */
     @Test
@@ -106,7 +131,9 @@ class EmailPasswordChangeServiceTest {
         assertTrue(fixture.auth.login(fixture.user.username, oldPassword) != null)
 
         now = 1_000L
-        fixture.coordinator.updateStoredEmail(fixture.user.id, Email("changed@example.com"))
+        val changedEmail = Email("changed@example.com")
+        fixture.coordinator.updateStoredEmail(fixture.user.id, changedEmail)
+        fixture.users.approveEmail(fixture.user.id, changedEmail, 0L)
         assertEquals(PasswordChangeResult.InvalidApproval, fixture.service.completePasswordChange(validRequest))
         assertTrue(fixture.auth.login(fixture.user.username, oldPassword) != null)
 
@@ -247,9 +274,9 @@ class EmailPasswordChangeServiceTest {
         }
         run { var now = 1_000L; val (fixture, id) = issued({ now }); now += 15L * 60L * 1000L; invalid(fixture, id) }
         run { var now = 1_000L; val (fixture, id) = issued({ now }); now += 15L * 60L * 1000L + 1L; invalid(fixture, id) }
-        run { val (fixture, id) = issued(); fixture.coordinator.updateStoredEmail(fixture.user.id, Email("changed@example.com")); invalid(fixture, id) }
+        run { val (fixture, id) = issued(); val changedEmail = Email("changed@example.com"); fixture.coordinator.updateStoredEmail(fixture.user.id, changedEmail); fixture.users.approveEmail(fixture.user.id, changedEmail, 0L); invalid(fixture, id) }
         run { val (fixture, id) = issued(); fixture.coordinator.updateStoredEmail(fixture.user.id, null); invalid(fixture, id) }
-        run { val (fixture, id) = issued(); fixture.coordinator.updateStoredEmail(fixture.user.id, Email("other@example.com")); fixture.coordinator.updateStoredEmail(fixture.user.id, fixture.user.email!!); invalid(fixture, id) }
+        run { val (fixture, id) = issued(); val changedEmail = Email("other@example.com"); fixture.coordinator.updateStoredEmail(fixture.user.id, changedEmail); fixture.users.approveEmail(fixture.user.id, changedEmail, 0L); fixture.coordinator.updateStoredEmail(fixture.user.id, fixture.user.email!!); invalid(fixture, id) }
         run { val (fixture, id) = issued(); fixture.roles.directRolePresent = false; invalid(fixture, id) }
         run { val (fixture, id) = issued(); fixture.passwords.unset(listOf(fixture.user.id)); invalid(fixture, id) }
         run { val (fixture, id) = issued(); fixture.users.deleteById(fixture.user.id); invalid(fixture, id) }
@@ -301,6 +328,7 @@ class EmailPasswordChangeServiceTest {
         val previousPasswordGetHook = fixture.passwords.beforeGet
         val previousPasswordUnsetHook = fixture.passwords.beforeUnset
         val previousPasswordSetHook = fixture.passwords.beforeSet
+        val initialFreshReads = fixture.users.emailProfileReadCalls.size
         fixture.linksRepo.resetOperationRecords()
         fixture.passwords.resetIssuedPasswordWriteCount()
         fixture.linksRepo.beforeGet = { operationSequence += "link-read" }
@@ -324,8 +352,9 @@ class EmailPasswordChangeServiceTest {
         try {
             assertEquals(PasswordChangeResult.InvalidApproval, bridgeAbsentService.completePasswordChange(request))
             assertEquals(listOf(approvalId), fixture.linksRepo.getIds)
-            assertEquals(listOf(fixture.user.id, fixture.user.id), userReads)
-            assertEquals(listOf("link-read", "user-read", "user-read"), operationSequence)
+            assertEquals(listOf(fixture.user.id), userReads)
+            assertEquals(initialFreshReads + 1, fixture.users.emailProfileReadCalls.size)
+            assertEquals(listOf("link-read", "user-read"), operationSequence)
             assertTrue(passwordOperations.isEmpty())
             assertTrue(fixture.linksRepo.unsetIds.isEmpty())
             assertEquals(0, fixture.passwords.issuedPasswordWriteCount)
@@ -338,10 +367,11 @@ class EmailPasswordChangeServiceTest {
             operationSequence.clear()
             assertEquals(PasswordChangeResult.Changed, fixture.service.completePasswordChange(request))
             assertEquals(listOf(approvalId, approvalId), fixture.linksRepo.getIds)
-            assertEquals(listOf(fixture.user.id, fixture.user.id), userReads)
+            assertEquals(listOf(fixture.user.id), userReads)
+            assertEquals(initialFreshReads + 2, fixture.users.emailProfileReadCalls.size)
             assertEquals(listOf("password-read", "password-write"), passwordOperations)
             assertEquals(
-                listOf("link-read", "user-read", "user-read", "password-read", "link-read", "link-unset", "password-set"),
+                listOf("link-read", "user-read", "password-read", "link-read", "link-unset", "password-set"),
                 operationSequence,
             )
             assertEquals(listOf(approvalId), fixture.linksRepo.unsetIds)
