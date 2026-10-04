@@ -398,4 +398,142 @@ class UserEditViewModelPasswordChangeTest {
             close(viewModel)
         }
     }
+    /** Every acknowledged domain outcome survives held, failed, null, and wrong-owner reads and same-address recovery. */
+    @Test
+    fun acknowledgedOutcomesSurviveReadFailuresAndUnchangedRefreshRecovery() = runTest {
+        val outcomes = listOf(PasswordChangeEmailRequestResult.Sent, PasswordChangeEmailRequestResult.DeliveryFailed,
+            PasswordChangeEmailRequestResult.Unavailable, PasswordChangeEmailRequestResult.Ineligible)
+        for (outcome in outcomes) {
+            for (failure in listOf("throw", "null", "wrong")) {
+                val model = UserEditTestUsersModel(ownerId, profile()).apply { passwordChangeRequestResult = outcome }
+                val viewModel = createViewModel(model, dispatcher = StandardTestDispatcher(testScheduler))
+                try {
+                    advanceUntilIdle()
+                    viewModel.onEmailChanged("draft@example.com")
+                    model.profileHandler = {
+                        when (failure) {
+                            "throw" -> throw IllegalStateException("read")
+                            "null" -> null
+                            else -> profile(id = otherId)
+                        }
+                    }
+                    viewModel.onRequestPasswordChangeEmail()
+                    advanceUntilIdle()
+                    assertEquals(outcome, viewModel.passwordChangeEmailResultState.value)
+                    assertTrue(viewModel.emailLoadFailedState.value)
+                    assertFalse(viewModel.emailBusyState.value)
+                    assertFalse(viewModel.canRequestPasswordChangeEmailState.value)
+                    assertFalse(viewModel.emailErrorState.value == EmailEditorError.PasswordChangeRequestFailed)
+                    assertEquals("draft@example.com", viewModel.emailInputState.value)
+                    viewModel.onRefreshEmail()
+                    advanceUntilIdle()
+                    assertEquals(outcome, viewModel.passwordChangeEmailResultState.value)
+                    val refresh = CompletableDeferred<EmailProfile?>()
+                    model.profileHandler = { refresh.await() }
+                    viewModel.onRefreshEmail()
+                    runCurrent()
+                    assertNull(viewModel.ownEmailProfileState.value)
+                    assertEquals(outcome, viewModel.passwordChangeEmailResultState.value)
+                    assertFalse(viewModel.canRequestPasswordChangeEmailState.value)
+                    refresh.complete(profile())
+                    advanceUntilIdle()
+                    assertEquals(outcome, viewModel.passwordChangeEmailResultState.value)
+                    assertFalse(viewModel.emailLoadFailedState.value)
+                    assertEquals(1, model.passwordChangeRequestedEmails.size)
+                } finally { close(viewModel) }
+            }
+        }
+    }
+
+    /** Delivery is published before reconciliation; authoritative address or approval changes retire feedback. */
+    @Test
+    fun heldReconciliationPublishesSentBeforeGetAndCheckedChangesRetireFeedback() = runTest {
+        for (changed in listOf(false, true)) {
+            val model = UserEditTestUsersModel(ownerId, profile())
+            val viewModel = createViewModel(model, dispatcher = StandardTestDispatcher(testScheduler))
+            try {
+                advanceUntilIdle()
+                val response = CompletableDeferred<EmailProfile?>()
+                model.profileHandler = { response.await() }
+                viewModel.onRequestPasswordChangeEmail()
+                runCurrent()
+                assertEquals(PasswordChangeEmailRequestResult.Sent, viewModel.passwordChangeEmailResultState.value)
+                response.complete(if (changed) profile(email = Email("changed@example.com")) else profile().copy(pendingEmail = Email("pending@example.com")))
+                advanceUntilIdle()
+                assertEquals(if (changed) null else PasswordChangeEmailRequestResult.Sent, viewModel.passwordChangeEmailResultState.value)
+                if (!changed) {
+                    model.profileHandler = { profile(approved = false) }
+                    viewModel.onRefreshEmail()
+                    advanceUntilIdle()
+                    assertNull(viewModel.passwordChangeEmailResultState.value)
+                }
+                assertFalse(viewModel.emailErrorState.value == EmailEditorError.PasswordChangeRequestFailed)
+                assertEquals(1, model.passwordChangeRequestedEmails.size)
+            } finally { close(viewModel) }
+        }
+    }
+
+    /** Ordinary POST failures produce uncertainty without fabricating a delivery result. */
+    @Test
+    fun thrownPasswordEmailPostIsUnconfirmed() = runTest {
+        val model = UserEditTestUsersModel(ownerId, profile()).apply {
+            passwordChangeRequestHandler = { throw IllegalStateException("post") }
+        }
+        val viewModel = createViewModel(model)
+        try {
+            advanceUntilIdle()
+            viewModel.onRequestPasswordChangeEmail()
+            advanceUntilIdle()
+            assertNull(viewModel.passwordChangeEmailResultState.value)
+            assertEquals(EmailEditorError.PasswordChangeRequestFailed, viewModel.emailErrorState.value)
+            assertEquals(1, model.passwordChangeRequestedEmails.size)
+        } finally { close(viewModel) }
+    }
+
+    /** Stored request identity is retired with private feedback; obsolete held GET work cannot restore either outcome. */
+    @Test
+    fun capturedFeedbackClearsOnOperationLogoutCallerTargetAndDestruction() = runTest {
+        for (transition in listOf("operation", "logout", "caller", "target", "destroy")) {
+            val node = userEditTestNode(ownerId)
+            val model = UserEditTestUsersModel(ownerId, profile())
+            val viewModel = UserEditViewModel(node, model, RecordingUserEditInteractor(), StandardTestDispatcher(testScheduler))
+            val release = CompletableDeferred<EmailProfile?>()
+            try {
+                advanceUntilIdle()
+                viewModel.onRequestPasswordChangeEmail()
+                advanceUntilIdle()
+                assertEquals(PasswordChangeEmailRequestResult.Sent, viewModel.passwordChangeEmailResultState.value)
+                model.profileHandler = { withContext(NonCancellable) { release.await() } }
+                when (transition) {
+                    "operation" -> {
+                        val post = CompletableDeferred<PasswordChangeEmailRequestResult?>()
+                        model.passwordChangeRequestHandler = { post.await() }
+                        viewModel.onRequestPasswordChangeEmail()
+                        assertNull(viewModel.passwordChangeEmailResultState.value)
+                        post.complete(PasswordChangeEmailRequestResult.DeliveryFailed)
+                    }
+                    else -> {
+                        viewModel.onRefreshEmail()
+                        runCurrent()
+                        when (transition) {
+                            "logout" -> model.authorisedState.value = false
+                            "caller" -> model.currentUserIdState.value = otherId
+                            "target" -> node.retarget(otherId)
+                            "destroy" -> viewModel.scope.coroutineContext[Job]?.cancel()
+                        }
+                    }
+                }
+                runCurrent()
+                if (transition != "operation") assertNull(viewModel.passwordChangeEmailResultState.value)
+                release.complete(profile())
+                advanceUntilIdle()
+                assertEquals(if (transition == "operation") PasswordChangeEmailRequestResult.DeliveryFailed else null, viewModel.passwordChangeEmailResultState.value)
+                assertEquals(if (transition == "operation") 2 else 1, model.passwordChangeRequestedEmails.size)
+            } finally {
+                release.complete(profile())
+                close(viewModel)
+            }
+        }
+    }
+
 }

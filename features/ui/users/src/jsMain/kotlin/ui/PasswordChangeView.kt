@@ -53,6 +53,7 @@ class PasswordChangeView(
         val loading by viewModel.loadingState.collectAsState()
         val canSubmit by viewModel.canSubmitState.collectAsState()
         val result by viewModel.resultState.collectAsState()
+        val stopped by viewModel.submissionStoppedState.collectAsState()
         val mismatch by viewModel.passwordsMismatchState.collectAsState()
         val invalidPassword by viewModel.passwordInvalidState.collectAsState()
 
@@ -60,6 +61,17 @@ class PasswordChangeView(
             if (viewModel.completedState) {
                 PageHead(UsersListStrings.passwordChangeTitle.translation())
                 FormHint(UsersListStrings.passwordChanged.translation())
+                CalmButton(
+                    text = UsersListStrings.continueButton.translation(),
+                    onClick = viewModel::onContinue,
+                    variant = CalmButtonVariant.Primary,
+                )
+                return@ContentColumn
+            }
+
+            if (stopped) {
+                PageHead(UsersListStrings.passwordChangeTitle.translation())
+                passwordChangeHint(result)?.let { FormHint(it.first, it.second) }
                 CalmButton(
                     text = UsersListStrings.continueButton.translation(),
                     onClick = viewModel::onContinue,

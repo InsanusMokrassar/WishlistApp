@@ -22,6 +22,8 @@ kotlin {
         commonTest {
             dependencies {
                 implementation libs.ktor.server.test.host
+                implementation libs.psql
+                implementation libs.xerial.sql
             }
         }
     }

@@ -381,7 +381,7 @@ internal fun OwnerEmailEditor(
                 color = MaterialTheme.colors.error,
             )
             EmailEditorError.PasswordChangeRequestFailed -> Text(
-                UsersListStrings.passwordChangeEmailDeliveryFailed.translation(),
+                UsersListStrings.passwordChangeEmailUnconfirmed.translation(),
                 color = MaterialTheme.colors.error,
             )
             EmailEditorError.LoadFailed, null -> Unit

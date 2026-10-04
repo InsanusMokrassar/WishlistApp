@@ -59,6 +59,7 @@ class PasswordChangeView(
         val loading by viewModel.loadingState.collectAsState()
         val canSubmit by viewModel.canSubmitState.collectAsState()
         val result by viewModel.resultState.collectAsState()
+        val stopped by viewModel.submissionStoppedState.collectAsState()
         val mismatch by viewModel.passwordsMismatchState.collectAsState()
         val invalidPassword by viewModel.passwordInvalidState.collectAsState()
         Column(
@@ -69,6 +70,13 @@ class PasswordChangeView(
             Text(UsersListStrings.passwordChangeTitle.translation(), style = MaterialTheme.typography.h5)
             if (viewModel.completedState) {
                 Text(UsersListStrings.passwordChanged.translation())
+                Button(onClick = viewModel::onContinue, modifier = Modifier.fillMaxWidth()) {
+                    Text(UsersListStrings.continueButton.translation())
+                }
+                return@Column
+            }
+            if (stopped) {
+                passwordChangeMessage(result)?.let { Text(it) }
                 Button(onClick = viewModel::onContinue, modifier = Modifier.fillMaxWidth()) {
                     Text(UsersListStrings.continueButton.translation())
                 }

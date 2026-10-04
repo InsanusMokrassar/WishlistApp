@@ -65,6 +65,7 @@ class EmailPasswordChangeService(
         expectedEmail: Email,
     ): PasswordChangeEmailRequestResult {
         val links = deepLinksService ?: return PasswordChangeEmailRequestResult.Unavailable
+        if (!links.supportsMaintenance) return PasswordChangeEmailRequestResult.Unavailable
         val emails = emailsService ?: return PasswordChangeEmailRequestResult.Unavailable
         val credentialState = accountCoordinator.withApprovedEmail(callerId, expectedEmail) {
             authFeatureService.passwordChangeState(callerId)
@@ -159,8 +160,7 @@ class EmailPasswordChangeService(
                 if (currentPayload != payload || nowEpochMillis() >= payload.expiresAtEpochMillis) {
                     return@setPasswordIfAuthorized false
                 }
-                links.removeDeepLink(request.approvalId)
-                true
+                links.consumeDeepLink(request.approvalId, DeepLinkHandlerInfo(EmailPasswordChange.handlerId, payload))
             }
         } ?: PasswordChangeResult.InvalidApproval
     }

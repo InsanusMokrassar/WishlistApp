@@ -31,16 +31,32 @@ class PasswordChangeViewBrowserTest {
     /** Verifies native form submission uses password inputs and one guarded request. */
     @Test
     fun pendingFormUsesPasswordInputsAndNativeSubmitOnlyOnce() = MainScope().promise {
+        pendingTerminalContent(PasswordChangeResult.InvalidApproval)
+    }
+
+    /** Unknown completion draws truthful terminal content through the production browser view. */
+    @Test
+    fun unknownCompletionStopsFormAndOffersContinue() = MainScope().promise {
+        pendingTerminalContent(null)
+    }
+
+    /** Exercises captured native submit plus the synchronous ViewModel seam after controls disappear. */
+    private suspend fun kotlinx.coroutines.CoroutineScope.pendingTerminalContent(outcome: PasswordChangeResult?) {
         val response = CompletableDeferred<PasswordChangeResult?>()
         val model = UserEditTestUsersModel(null, null, initiallyAuthorised = false).apply {
             passwordChangeHandler = { response.await() }
         }
         val fixture = BrowserViewTestFixture.create()
+        lateinit var capturedViewModel: PasswordChangeViewModel
+        val interactor = RecordingPasswordChangeInteractor()
         val application = startKoin {
             modules(
                 module { with(JSPlugin) { setupDI(JsonObject(emptyMap())) } },
                 module { single<UsersModel> { model } },
-                module { single<PasswordChangeViewInteractor> { RecordingPasswordChangeInteractor() } },
+                module {
+                    single<PasswordChangeViewInteractor> { interactor }
+                    factory { parameters -> PasswordChangeViewModel(parameters.get(), get(), get()).also { capturedViewModel = it } }
+                },
             )
         }
         JSPlugin.startPlugin(application.koin)
@@ -107,11 +123,22 @@ class PasswordChangeViewBrowserTest {
             assertTrue((fixture.host.querySelector("#password-change-confirmation") as? HTMLInputElement)?.disabled == true)
             assertTrue((fixture.host.querySelector("button[type='submit']") as? HTMLButtonElement)?.disabled == true)
 
-            response.complete(PasswordChangeResult.InvalidApproval)
-            fixture.awaitRenderedState("invalid approval feedback") {
-                fixture.host.textContent.orEmpty().contains("This password-change link is no longer valid.")
-            }
-            assertTrue(fixture.host.textContent.orEmpty().contains("This password-change link is no longer valid."))
+            response.complete(outcome)
+            val expected = if (outcome == null) "The password may have changed, but the result could not be confirmed." else "This password-change link is no longer valid."
+            fixture.awaitRenderedState("terminal approval feedback") { fixture.host.textContent.orEmpty().contains(expected) }
+            assertEquals(0, fixture.host.querySelectorAll("input[type='password']").length)
+            assertEquals(null, fixture.host.querySelector("form"))
+            assertEquals(null, fixture.host.querySelector("button[type='submit']"))
+            assertFalse(fixture.host.textContent.orEmpty().contains("Password changed."))
+            form.dispatchEvent(Event("submit", js("({bubbles:true,cancelable:true})")))
+            capturedViewModel.onSubmitPasswordChange()
+            fixture.awaitRender()
+            assertEquals(1, model.passwordChangeRequests.size)
+            val buttons = fixture.host.querySelectorAll("button")
+            requireNotNull((0 until buttons.length).mapNotNull { buttons.item(it) as? HTMLButtonElement }
+                .firstOrNull { it.textContent == "Continue" }).click()
+            fixture.awaitRenderedState("safe exit") { interactor.continueCalls == 1 }
+            assertEquals(0, interactor.changedCalls)
         } finally {
             composition?.let { fixture.dispose(it, view, chain, chainJob, application) }
                 ?: fixture.disposeUncomposed(view, chain, chainJob, application)

@@ -256,7 +256,7 @@ class UserEditView(
                                 error = true,
                             )
                             EmailEditorError.PasswordChangeRequestFailed -> FormHint(
-                                UsersListStrings.passwordChangeEmailDeliveryFailed.translation(),
+                                UsersListStrings.passwordChangeEmailUnconfirmed.translation(),
                                 error = true,
                             )
                             EmailEditorError.LoadFailed, null -> Unit

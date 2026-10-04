@@ -9,6 +9,9 @@ import dev.inmo.wishlist.features.deeplinks.common.models.DeepLinkHandlerInfo
 import dev.inmo.wishlist.features.deeplinks.common.models.DeepLinkId
 import dev.inmo.wishlist.features.deeplinks.common.models.HandleResult
 import dev.inmo.wishlist.features.deeplinks.common.repo.DeepLinksRepo
+import dev.inmo.wishlist.features.deeplinks.common.repo.MaintainableDeepLinksRepo
+import dev.inmo.wishlist.features.deeplinks.common.repo.DeepLinkStorageCursor
+import dev.inmo.wishlist.features.deeplinks.common.repo.DeepLinkStoragePage
 import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.withContext
 
@@ -87,6 +90,24 @@ class DeepLinksService(
      */
     suspend fun removeDeepLink(deeplinkId: DeepLinkId) {
         repo.unset(deeplinkId)
+    }
+
+    /** Whether persistent conditional consumption and bounded scanning are available. */
+    val supportsMaintenance: Boolean get() = repo is MaintainableDeepLinksRepo
+
+    /** Authorizes only committed consumption; unsupported stores fail closed without unset. */
+    suspend fun consumeDeepLink(id: DeepLinkId, expectedInfo: DeepLinkHandlerInfo): Boolean =
+        (repo as? MaintainableDeepLinksRepo)?.consumeIfEquals(id, expectedInfo) ?: false
+
+    /** Captures a finite database-order scan boundary, or null for an empty/unsupported store. */
+    suspend fun scanUpperBound(): DeepLinkStorageCursor? =
+        (repo as? MaintainableDeepLinksRepo)?.scanUpperBound()
+
+    /** Delegates bounded raw scanning without interpreting feature-owned payloads. */
+    suspend fun scanPage(afterExclusive: DeepLinkStorageCursor?, throughInclusive: DeepLinkStorageCursor, limit: Int): DeepLinkStoragePage {
+        require(limit in 1..100)
+        return (repo as? MaintainableDeepLinksRepo)?.scanPage(afterExclusive, throughInclusive, limit)
+            ?: DeepLinkStoragePage(emptyList())
     }
 
     /**

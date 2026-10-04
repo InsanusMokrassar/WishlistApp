@@ -27,6 +27,7 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.CoroutineStart
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.awaitCancellation
 import kotlinx.coroutines.currentCoroutineContext
 import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.flow.SharingStarted
@@ -346,6 +347,13 @@ class UserEditViewModel(
         }.stateIn(workScope, SharingStarted.Eagerly, false)
 
     init {
+        workScope.launch(start = CoroutineStart.UNDISPATCHED) {
+            try {
+                awaitCancellation()
+            } finally {
+                clearPrivateEmailState()
+            }
+        }
         var inited = false
         merge(flowOf(Unit), node.onResumeFlow).takeWhile { !inited }.subscribeLoggingDropExceptions(workScope) {
             _loadingState.value = true
@@ -380,6 +388,15 @@ class UserEditViewModel(
         }
     }
 
+    /** Approved recipient captured for the acknowledged password-email outcome; never persisted or rendered. */
+    private var passwordChangeEmailFeedbackRecipient: Email? = null
+
+    /** Clears password-email feedback and its private request identity together. */
+    private fun clearPasswordChangeEmailFeedback() {
+        _passwordChangeEmailResultState.value = null
+        passwordChangeEmailFeedbackRecipient = null
+    }
+
     /** Clears every address-bearing private state value for the bound editor. */
     private fun clearPrivateEmailState() {
         _ownEmailProfileState.value = null
@@ -392,7 +409,7 @@ class UserEditViewModel(
         emailCooldownSnapshot = null
         clearEmailSavedFeedback()
         clearEmailVerificationFeedback()
-        _passwordChangeEmailResultState.value = null
+        clearPasswordChangeEmailFeedback()
     }
 
     /** Invalidates all private email work when the caller, authorization, or selected target changes. */
@@ -580,7 +597,7 @@ class UserEditViewModel(
         clearEmailVerificationFeedback()
         clearEmailSavedFeedback()
         _emailOperationInterruptedState.value = false
-        _passwordChangeEmailResultState.value = null
+        clearPasswordChangeEmailFeedback()
     }
 
     /** Applies a checked private profile while retaining a dirty or explicitly preserved draft. */
@@ -588,9 +605,9 @@ class UserEditViewModel(
         profile: EmailProfile,
         preserveDraft: Boolean,
     ) {
-        val previous = _ownEmailProfileState.value
-        if (previous?.email != profile.email || previous?.emailApproved != profile.emailApproved) {
-            _passwordChangeEmailResultState.value = null
+        val recipient = passwordChangeEmailFeedbackRecipient
+        if (recipient != null && (recipient != profile.email || !profile.emailApproved)) {
+            clearPasswordChangeEmailFeedback()
         }
         val snapshot = EmailFeedbackSnapshot(
             email = profile.email,
@@ -722,11 +739,13 @@ class UserEditViewModel(
      *
      * @param mutation Active owner/target token.
      * @param preserveDraft Keeps the caller's raw draft while recomputing dirtiness against storage.
+     * @param clearProfileOnFailure Withdraws password-email eligibility after an unconfirmed read.
      * @return Checked current-owner profile, or `null` when loading failed or returned another owner.
      */
     private suspend fun reconcileOwnedEmailProfile(
         mutation: OwnerEmailMutation,
         preserveDraft: Boolean,
+        clearProfileOnFailure: Boolean = false,
     ): EmailProfile? {
         if (!canContinueEmailMutation(mutation)) return null
         try {
@@ -752,6 +771,7 @@ class UserEditViewModel(
             throw error
         } catch (_: Throwable) {
             if (isCurrentEmailMutation(mutation)) {
+                if (clearProfileOnFailure) _ownEmailProfileState.value = null
                 clearCompletedEmailFeedback()
                 _emailLoadFailedState.value = true
                 if (_emailErrorState.value == null || _emailErrorState.value == EmailEditorError.LoadFailed) {
@@ -1101,13 +1121,13 @@ class UserEditViewModel(
                 null
             }
             if (!canContinueEmailMutation(mutation)) return@launchEmailMutation
-            val current = reconcileOwnedEmailProfile(mutation, preserveDraft = true)
-            if (!canContinueEmailMutation(mutation)) return@launchEmailMutation
-            if (current?.email != email || !current.emailApproved || result == null) {
+            if (result == null) {
                 _emailErrorState.value = EmailEditorError.PasswordChangeRequestFailed
             } else {
+                passwordChangeEmailFeedbackRecipient = email
                 _passwordChangeEmailResultState.value = result
             }
+            reconcileOwnedEmailProfile(mutation, preserveDraft = true, clearProfileOnFailure = true)
         }
     }
 

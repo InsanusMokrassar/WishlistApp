@@ -258,4 +258,65 @@ class UserEditViewBrowserTest {
         )
         if (!heldProfile.isCompleted) heldProfile.complete(model.profileState.value)
     }
+    /** Production browser owner gate keeps Sent beside failed GET and uses uncertainty only for an unknown POST. */
+    @Test
+    fun acknowledgedDeliveryReadFailureAndUnknownRequestRemainDistinct() = MainScope().promise {
+        val ownerId = UserId(7L)
+        val email = Email("owner@example.com")
+        val profile = EmailProfile(ownerId.long, email, emailApproved = true)
+        val model = UserEditTestUsersModel(ownerId, profile)
+        lateinit var capturedViewModel: UserEditViewModel
+        val fixture = BrowserViewTestFixture.create()
+        val application = startKoin {
+            modules(
+                module { with(JSPlugin) { setupDI(JsonObject(emptyMap())) } },
+                module { single<UsersModel> { model } },
+                module {
+                    single<UserEditViewInteractor> { RecordingUserEditInteractor() }
+                    factory { parameters -> UserEditViewModel(parameters.get(), get(), get()).also { capturedViewModel = it } }
+                },
+            )
+        }
+        JSPlugin.startPlugin(application.koin)
+        val chain = NavigationChain<ViewConfig>(
+            parentNode = null,
+            nodeFactory = NavigationNodeFactory { navigationChain, config ->
+                val edit = config as? UserEditViewConfig
+                if (edit == null) NavigationNode.Empty(navigationChain, config)
+                else UserEditView(navigationChain, edit)
+            },
+        )
+        val chainJob = chain.start(this)
+        val view = checkNotNull(chain.push(UserEditViewConfig(ownerId)) as? UserEditView)
+        var composition: Composition? = null
+        try {
+            composition = renderComposable(fixture.host) { view.onDraw() }
+            fixture.awaitRenderedState("approved owner") { fixture.passwordChangeRequestButton()?.disabled == false }
+            model.profileHandler = { throw IllegalStateException("read") }
+            requireNotNull(fixture.passwordChangeRequestButton()).click()
+            fixture.awaitRenderedState("acknowledged email and failed read") {
+                val text = fixture.host.textContent.orEmpty()
+                text.contains("Password-change email sent.") && text.contains("Could not load email settings.")
+            }
+            assertFalse(fixture.host.textContent.orEmpty().contains("Could not send the password-change email."))
+            model.profileHandler = { profile }
+            capturedViewModel.onRefreshEmail()
+            fixture.awaitRenderedState("same-owner recovery") { fixture.passwordChangeRequestButton()?.disabled == false }
+            assertTrue(fixture.host.textContent.orEmpty().contains("Password-change email sent."))
+            model.passwordChangeRequestResult = null
+            requireNotNull(fixture.passwordChangeRequestButton()).click()
+            fixture.awaitRenderedState("unknown request") { fixture.host.textContent.orEmpty().contains("The password-change email request could not be confirmed.") }
+            assertFalse(fixture.host.textContent.orEmpty().contains("Could not send the password-change email."))
+            model.passwordChangeRequestResult = PasswordChangeEmailRequestResult.DeliveryFailed
+            requireNotNull(fixture.passwordChangeRequestButton()).click()
+            fixture.awaitRenderedState("confirmed delivery failure") { fixture.host.textContent.orEmpty().contains("Could not send the password-change email.") }
+            model.authorisedState.value = false
+            fixture.awaitRenderedState("private owner feedback removed") { !fixture.host.textContent.orEmpty().contains("Could not send the password-change email.") }
+            assertEquals(3, model.passwordChangeRequestedEmails.size)
+        } finally {
+            composition?.let { fixture.dispose(it, view, chain, chainJob, application) }
+                ?: fixture.disposeUncomposed(view, chain, chainJob, application)
+        }
+    }
+
 }

@@ -105,7 +105,7 @@ class EmailPasswordChangeCommitTest {
         assertEquals(1, results.count { it == PasswordChangeResult.Changed })
         assertEquals(1, results.count { it == PasswordChangeResult.InvalidApproval })
         assertEquals(1, fixture.passwords.issuedPasswordWriteCount)
-        assertEquals(listOf(approvalId), fixture.linksRepo.unsetIds)
+        assertEquals(listOf(approvalId), fixture.linksRepo.consumeIds)
         assertNull(fixture.linksRepo.get(approvalId))
     }
 
@@ -131,7 +131,7 @@ class EmailPasswordChangeCommitTest {
 
         assertEquals(PasswordChangeResult.InvalidApproval, completion.await())
         assertTrue(fixture.linksRepo.get(approvalId) != null)
-        assertTrue(fixture.linksRepo.unsetIds.isEmpty())
+        assertTrue(fixture.linksRepo.consumeIds.isEmpty())
         assertEquals(0, fixture.passwords.issuedPasswordWriteCount)
     }
 
@@ -158,7 +158,7 @@ class EmailPasswordChangeCommitTest {
 
         assertEquals(PasswordChangeResult.InvalidApproval, completion.await())
         assertNull(fixture.linksRepo.get(approvalId))
-        assertTrue(fixture.linksRepo.unsetIds.isEmpty())
+        assertTrue(fixture.linksRepo.consumeIds.isEmpty())
         assertEquals(0, fixture.passwords.issuedPasswordWriteCount)
     }
 
@@ -252,7 +252,7 @@ class EmailPasswordChangeCommitTest {
     @Test
     fun removalFailureBeforeDelegationLeavesApprovalAndOldPassword() = runTest {
         val (fixture, approvalId) = issuedFixture()
-        fixture.linksRepo.beforeUnset = { throw RemovalBeforeDelegationFailure }
+        fixture.linksRepo.beforeConsume = { throw RemovalBeforeDelegationFailure }
 
         val thrown = captureFailure<IllegalStateException> {
             fixture.service.completePasswordChange(completionRequest(fixture, approvalId))
@@ -262,7 +262,7 @@ class EmailPasswordChangeCommitTest {
         assertTrue(fixture.linksRepo.get(approvalId) != null)
         assertEquals(0, fixture.passwords.issuedPasswordWriteCount)
         assertTrue(fixture.auth.login(fixture.user.username, PasswordChangeTestFixtures.oldPassword) != null)
-        fixture.linksRepo.beforeUnset = null
+        fixture.linksRepo.beforeConsume = null
         assertLocksCanBeReacquired(fixture)
     }
 
@@ -271,7 +271,7 @@ class EmailPasswordChangeCommitTest {
     @Test
     fun removalFailureAfterDelegationConsumesApprovalWithoutPasswordWrite() = runTest {
         val (fixture, approvalId) = issuedFixture()
-        fixture.linksRepo.afterUnset = { throw RemovalAfterDelegationFailure }
+        fixture.linksRepo.afterConsume = { throw RemovalAfterDelegationFailure }
 
         val thrown = captureFailure<IllegalStateException> {
             fixture.service.completePasswordChange(completionRequest(fixture, approvalId))
@@ -281,7 +281,7 @@ class EmailPasswordChangeCommitTest {
         assertNull(fixture.linksRepo.get(approvalId))
         assertEquals(0, fixture.passwords.issuedPasswordWriteCount)
         assertEquals(PasswordChangeResult.InvalidApproval, fixture.service.completePasswordChange(completionRequest(fixture, approvalId)))
-        fixture.linksRepo.afterUnset = null
+        fixture.linksRepo.afterConsume = null
         assertLocksCanBeReacquired(fixture)
     }
 
@@ -357,7 +357,7 @@ class EmailPasswordChangeCommitTest {
         val (fixture, approvalId) = issuedFixture()
         val removalEntered = CompletableDeferred<Unit>()
         val releaseRemoval = CompletableDeferred<Unit>()
-        fixture.linksRepo.beforeUnset = {
+        fixture.linksRepo.beforeConsume = {
             removalEntered.complete(Unit)
             releaseRemoval.await()
         }
@@ -372,7 +372,7 @@ class EmailPasswordChangeCommitTest {
         assertNull(fixture.linksRepo.get(approvalId))
         assertEquals(1, fixture.passwords.issuedPasswordWriteCount)
         assertEquals(PasswordChangeResult.InvalidApproval, fixture.service.completePasswordChange(completionRequest(fixture, approvalId)))
-        fixture.linksRepo.beforeUnset = null
+        fixture.linksRepo.beforeConsume = null
         assertLocksCanBeReacquired(fixture)
     }
 

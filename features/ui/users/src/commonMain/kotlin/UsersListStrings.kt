@@ -190,8 +190,13 @@ object UsersListStrings {
     }
 
     /** Feedback when completion outcome cannot be safely confirmed. */
-    val passwordChangeUnconfirmed = buildStringResource("Password change could not be confirmed. Do not retry this link; request a new email.") {
-        IetfLang.Russian("Не удалось подтвердить смену пароля. Не повторяйте эту ссылку; запросите новое письмо.")
+    val passwordChangeUnconfirmed = buildStringResource("The password may have changed, but the result could not be confirmed. Do not submit this link again. Continue, then try signing in with the new password. If needed, request a new link from your profile.") {
+        IetfLang.Russian("Пароль мог измениться, но результат не удалось подтвердить. Не отправляйте эту форму повторно. Нажмите «Продолжить» и попробуйте войти с новым паролем. При необходимости запросите новую ссылку в своём профиле.")
+    }
+
+    /** Feedback for an uncertain password-email POST, distinct from confirmed SMTP failure. */
+    val passwordChangeEmailUnconfirmed = buildStringResource("The password-change email request could not be confirmed. Check your inbox before requesting another link.") {
+        IetfLang.Russian("Не удалось подтвердить запрос письма для смены пароля. Проверьте входящие, прежде чем запрашивать новую ссылку.")
     }
 
     /** Credential-free completed-state message after a confirmed password replacement. */

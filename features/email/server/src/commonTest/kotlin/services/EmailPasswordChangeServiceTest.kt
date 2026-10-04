@@ -59,6 +59,49 @@ class EmailPasswordChangeServiceTest {
         roleBridgePresent: Boolean = true,
     ): PasswordChangeFixture = PasswordChangeTestFixtures.fixture(emails, nowEpochMillis, roleBridgePresent = roleBridgePresent)
 
+    /** Valid initial and final reads cannot authorize a zero-row conditional deletion. */
+    @Test
+    fun lostConditionalConsumeDeniesPasswordWriteAfterValidReads() = runTest {
+        val fixture = fixture()
+        assertEquals(PasswordChangeEmailRequestResult.Sent,
+            fixture.service.requestPasswordChangeEmail(user.id, user.email!!))
+        val id = fixture.linksRepo.getAll().keys.single()
+        fixture.linksRepo.resetOperationRecords()
+        fixture.passwords.resetIssuedPasswordWriteCount()
+        fixture.linksRepo.denyConsume = true
+        assertEquals(PasswordChangeResult.InvalidApproval,
+            fixture.service.completePasswordChange(CompletePasswordChangeRequest(user.id, id, Password("new-password"))))
+        assertEquals(listOf(id, id), fixture.linksRepo.getIds)
+        assertEquals(listOf(id), fixture.linksRepo.consumeIds)
+        assertTrue(fixture.linksRepo.unsetIds.isEmpty())
+        assertEquals(0, fixture.passwords.issuedPasswordWriteCount)
+        assertNotNull(fixture.linksRepo.get(id))
+        assertNotNull(fixture.auth.login(user.username, oldPassword))
+    }
+
+    /** Unsupported storage neither mints an approval nor falls back to unconditional removal. */
+    @Test
+    fun unsupportedApprovalStorageIsUnavailableAndCompletionFailsClosed() = runTest {
+        val fixture = fixture()
+        val ordinary = object : dev.inmo.wishlist.features.deeplinks.common.repo.DeepLinksRepo,
+            dev.inmo.micro_utils.repos.KeyValueRepo<DeepLinkId, DeepLinkHandlerInfo> by fixture.linksRepo {}
+        val links = dev.inmo.wishlist.features.deeplinks.server.services.DeepLinksService(ordinary, emptyList())
+        val service = EmailPasswordChangeService(FakeEmailsService(), links, fixture.coordinator, fixture.auth,
+            "https://wishlist.example", nowEpochMillis = { 1_000L })
+        assertEquals(PasswordChangeEmailRequestResult.Unavailable, service.requestPasswordChangeEmail(user.id, user.email!!))
+        assertTrue(fixture.linksRepo.getAll().isEmpty())
+        assertEquals(PasswordChangeEmailRequestResult.Sent, fixture.service.requestPasswordChangeEmail(user.id, user.email!!))
+        val id = fixture.linksRepo.getAll().keys.single()
+        fixture.linksRepo.resetOperationRecords()
+        fixture.passwords.resetIssuedPasswordWriteCount()
+        assertEquals(PasswordChangeResult.InvalidApproval,
+            service.completePasswordChange(CompletePasswordChangeRequest(user.id, id, Password("new-password"))))
+        assertEquals(0, fixture.passwords.issuedPasswordWriteCount)
+        assertTrue(fixture.linksRepo.consumeIds.isEmpty())
+        assertTrue(fixture.linksRepo.unsetIds.isEmpty())
+        assertNotNull(fixture.linksRepo.get(id))
+    }
+
     /** Requests one approval, proves GET is read-only, then consumes the exact id once. */
     /** Verifies read-only redirect and one subject-scoped completion. */
     @Test
@@ -323,7 +366,7 @@ class EmailPasswordChangeServiceTest {
         val passwordOperations = mutableListOf<String>()
         val operationSequence = mutableListOf<String>()
         val previousLinkGetHook = fixture.linksRepo.beforeGet
-        val previousLinkUnsetHook = fixture.linksRepo.beforeUnset
+        val previousLinkUnsetHook = fixture.linksRepo.beforeConsume
         val previousUserHook = fixture.trackedUsers.beforeGetById
         val previousPasswordGetHook = fixture.passwords.beforeGet
         val previousPasswordUnsetHook = fixture.passwords.beforeUnset
@@ -332,7 +375,7 @@ class EmailPasswordChangeServiceTest {
         fixture.linksRepo.resetOperationRecords()
         fixture.passwords.resetIssuedPasswordWriteCount()
         fixture.linksRepo.beforeGet = { operationSequence += "link-read" }
-        fixture.linksRepo.beforeUnset = { operationSequence += "link-unset" }
+        fixture.linksRepo.beforeConsume = { operationSequence += "link-consume" }
         fixture.trackedUsers.beforeGetById = {
             userReads += fixture.user.id
             operationSequence += "user-read"
@@ -356,7 +399,7 @@ class EmailPasswordChangeServiceTest {
             assertEquals(initialFreshReads + 1, fixture.users.emailProfileReadCalls.size)
             assertEquals(listOf("link-read", "user-read"), operationSequence)
             assertTrue(passwordOperations.isEmpty())
-            assertTrue(fixture.linksRepo.unsetIds.isEmpty())
+            assertTrue(fixture.linksRepo.consumeIds.isEmpty())
             assertEquals(0, fixture.passwords.issuedPasswordWriteCount)
             assertNotNull(fixture.linksRepo.get(approvalId))
 
@@ -371,17 +414,17 @@ class EmailPasswordChangeServiceTest {
             assertEquals(initialFreshReads + 2, fixture.users.emailProfileReadCalls.size)
             assertEquals(listOf("password-read", "password-write"), passwordOperations)
             assertEquals(
-                listOf("link-read", "user-read", "password-read", "link-read", "link-unset", "password-set"),
+                listOf("link-read", "user-read", "password-read", "link-read", "link-consume", "password-set"),
                 operationSequence,
             )
-            assertEquals(listOf(approvalId), fixture.linksRepo.unsetIds)
+            assertEquals(listOf(approvalId), fixture.linksRepo.consumeIds)
             assertEquals(1, fixture.passwords.issuedPasswordWriteCount)
             assertNull(fixture.linksRepo.get(approvalId))
             assertNull(fixture.auth.login(fixture.user.username, oldPassword))
             assertNotNull(fixture.auth.login(fixture.user.username, Password("new-password")))
         } finally {
             fixture.linksRepo.beforeGet = previousLinkGetHook
-            fixture.linksRepo.beforeUnset = previousLinkUnsetHook
+            fixture.linksRepo.beforeConsume = previousLinkUnsetHook
             fixture.trackedUsers.beforeGetById = previousUserHook
             fixture.passwords.beforeGet = previousPasswordGetHook
             fixture.passwords.beforeUnset = previousPasswordUnsetHook

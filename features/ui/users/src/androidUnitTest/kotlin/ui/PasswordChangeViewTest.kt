@@ -13,6 +13,8 @@ import androidx.compose.ui.test.hasSetTextAction
 import androidx.compose.ui.test.hasText
 import androidx.compose.ui.test.junit4.createEmptyComposeRule
 import androidx.compose.ui.test.onNodeWithText
+import androidx.compose.ui.test.performClick
+import androidx.compose.ui.semantics.SemanticsActions
 import androidx.compose.ui.test.performImeAction
 import androidx.compose.ui.test.performTextClearance
 import androidx.compose.ui.test.performTextInput
@@ -123,6 +125,49 @@ class PasswordChangeViewTest {
         }
     }
 
+    /** Terminal production content removes editable secrets and rejects the captured Done action before Continue. */
+    @Test
+    fun unknownCompletionOffersSafeContinue() {
+        terminalContent(null)
+    }
+
+    /** Invalid approval uses the same production exit without claiming a changed password. */
+    @Test
+    fun invalidApprovalOffersSafeContinue() {
+        terminalContent(PasswordChangeResult.InvalidApproval)
+    }
+
+    /** Drives the actual typed factory and reuses a captured production semantics callback. */
+    private fun terminalContent(outcome: PasswordChangeResult?) {
+        val response = CompletableDeferred<PasswordChangeResult?>()
+        val model = UserEditTestUsersModel(null, null, initiallyAuthorised = false).apply { passwordChangeHandler = { response.await() } }
+        val fixture = createFixture(model, pendingConfig())
+        try {
+            fixture.activity.setContent { fixture.view.onDraw() }
+            composeRule.waitForIdle()
+            passwordField(UsersListStrings.newPasswordLabel.translation()).performTextInput("valid-password")
+            passwordField(UsersListStrings.confirmPasswordLabel.translation()).performTextInput("valid-password")
+            composeRule.waitForIdle()
+            val captured = passwordField(UsersListStrings.confirmPasswordLabel.translation()).fetchSemanticsNode().config[SemanticsActions.OnImeAction].action
+            passwordField(UsersListStrings.confirmPasswordLabel.translation()).performImeAction()
+            composeRule.waitUntil { model.passwordChangeRequests.size == 1 }
+            response.complete(outcome)
+            composeRule.waitForIdle()
+            composeRule.onNodeWithText(if (outcome == null) UsersListStrings.passwordChangeUnconfirmed.translation() else UsersListStrings.passwordChangeInvalidApproval.translation()).assertExists()
+            composeRule.onNodeWithText(UsersListStrings.newPasswordLabel.translation()).assertDoesNotExist()
+            composeRule.onNodeWithText(UsersListStrings.confirmPasswordLabel.translation()).assertDoesNotExist()
+            composeRule.onNodeWithText(UsersListStrings.changePasswordButton.translation()).assertDoesNotExist()
+            composeRule.onNodeWithText(UsersListStrings.passwordChanged.translation()).assertDoesNotExist()
+            composeRule.runOnUiThread { captured?.invoke() }
+            composeRule.waitForIdle()
+            assertEquals(1, model.passwordChangeRequests.size)
+            composeRule.onNodeWithText(UsersListStrings.continueButton.translation()).performClick()
+            composeRule.waitForIdle()
+            assertEquals(1, fixture.interactor.continueCalls)
+            assertEquals(0, fixture.interactor.changedCalls)
+        } finally { fixture.close() }
+    }
+
     /** Locates a production text field by visible label and editable semantics. */
     private fun passwordField(label: String) = composeRule.onNode(
         hasSetTextAction() and hasAnyDescendant(hasText(label)),
@@ -147,12 +192,13 @@ class PasswordChangeViewTest {
         model: UserEditTestUsersModel,
         config: PasswordChangeViewConfig,
     ): PasswordChangeViewFixture {
+        val interactor = RecordingPasswordChangeInteractor()
         val application = startKoin {
             modules(
                 module { with(AndroidPlugin) { setupDI(JsonObject(emptyMap())) } },
                 module {
                     single<UsersModel> { model }
-                    single<PasswordChangeViewInteractor> { RecordingPasswordChangeInteractor() }
+                    single<PasswordChangeViewInteractor> { interactor }
                     factory { parameters -> PasswordChangeViewModel(parameters.get(), get(), get(), Dispatchers.Unconfined) }
                 },
             )
@@ -162,7 +208,7 @@ class PasswordChangeViewTest {
         val chainJob = chain.start(chainScope)
         val view = checkNotNull(chain.push(config) as? PasswordChangeView)
         val activity = Robolectric.buildActivity(ComponentActivity::class.java).setup().get()
-        return PasswordChangeViewFixture(application, chainScope, chain, chainJob, activity, config, view)
+        return PasswordChangeViewFixture(application, chainScope, chain, chainJob, activity, config, interactor, view)
     }
 
     /** Immutable pending route used to prove the Android factory preserves deeplink identity. */
@@ -194,6 +240,8 @@ class PasswordChangeViewTest {
         val activity: ComponentActivity,
         /** Exact configuration passed through the real typed factory. */
         val config: PasswordChangeViewConfig,
+        /** Records production-view navigation delegation. */
+        val interactor: RecordingPasswordChangeInteractor,
         /** Concrete Android production view returned by that factory. */
         val view: PasswordChangeView,
     ) {

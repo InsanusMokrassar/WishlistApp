@@ -292,4 +292,40 @@ class PasswordChangePluginTest {
             graph.close()
         }
     }
+    /** Email starts exactly one lifecycle-owned cleanup loop in every SMTP graph and resolution order. */
+    @OptIn(kotlinx.coroutines.ExperimentalCoroutinesApi::class)
+    @Test
+    fun cleanupBindingIsUnconditionalIdempotentAndLifecycleOwned() = kotlinx.coroutines.test.runTest {
+        for (smtp in listOf(false, true)) {
+            for (authFirst in listOf(false, true)) {
+                val graph = graph(smtp)
+                val scopeJob = kotlinx.coroutines.SupervisorJob()
+                val lifecycle = kotlinx.coroutines.CoroutineScope(scopeJob + kotlinx.coroutines.test.StandardTestDispatcher(testScheduler))
+                try {
+                    graph.application.modules(module { single<kotlinx.coroutines.CoroutineScope> { lifecycle } })
+                    resolveGraphServices(graph, authFirst)
+                    val cleanup = graph.application.koin.get<dev.inmo.wishlist.features.email.server.services.EmailPasswordChangeApprovalCleanup>()
+                    assertEquals(1, graph.application.koin.getAll<dev.inmo.wishlist.features.email.server.services.EmailPasswordChangeApprovalCleanup>().size)
+                    assertSame(cleanup, graph.application.koin.get<dev.inmo.wishlist.features.email.server.services.EmailPasswordChangeApprovalCleanup>())
+                    Plugin.startPlugin(graph.application.koin)
+                    Plugin.startPlugin(graph.application.koin)
+                    testScheduler.runCurrent()
+                    assertEquals(1, graph.linksRepo.scanStarts)
+                    testScheduler.advanceTimeBy(60_000)
+                    testScheduler.runCurrent()
+                    assertEquals(2, graph.linksRepo.scanStarts)
+                    scopeJob.cancel()
+                    testScheduler.runCurrent()
+                    scopeJob.join()
+                    testScheduler.advanceTimeBy(120_000)
+                    testScheduler.runCurrent()
+                    assertEquals(2, graph.linksRepo.scanStarts)
+                } finally {
+                    scopeJob.cancel()
+                    graph.close()
+                }
+            }
+        }
+    }
+
 }

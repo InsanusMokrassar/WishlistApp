@@ -105,10 +105,14 @@ Key data types:
 - **Email password handler:** `features/email/server` also registers `email.password_change` and its
   server-only payload through the aggregated polymorphic serializer. Its GET is deliberately
   repeatable and only returns a fixed `/password-change/{userId}/{sameId}` redirect after current
-  validation. Email consumes that exact record only during an authorized Auth completion POST; the
-  generic dispatcher provides neither universal consumption nor distributed transaction semantics.
+  validation. Email consumes that exact record only during an authorized Auth completion POST. The generic dispatcher does not consume on GET; persistent conditional consumption is a separate in-process storage capability and does not combine deletion with a password-write transaction.
 - **Handler-owned redirect safety.** The dispatcher preserves `Handled.Redirect(url)` without parsing
   or rewriting it. A concrete handler owns destination safety; the email handler emits only its fixed
   same-origin root path, never payload-controlled text.
 - **Public GET failures.** Lookup and handler failures are sanitized to HTTP 500 while cancellation,
   policy headers, and in-process exception propagation remain preserved.
+
+
+**Additive storage maintenance capability:** MaintainableDeepLinksRepo extends the existing generic store with semantic expected-info comparison followed by a conditional DELETE over the observed id and raw JSON, returning true only after one committed row deletion. No read-plus-unconditional-unset fallback is permitted. Raw comparison preserves changed records and tolerates equivalent stored JSON representations through prior semantic decoding. The existing table and mapped KeyValueRepo operations remain unchanged. Bounded scans use the full stored key/value ordering, an exclusive cursor, and an inclusive high-water bound; malformed or unknown payloads do not prevent cursor progress. Owning features interpret purpose and expiry. No new HTTP creation, inspection, consumption, or deletion endpoint is exposed, and deeplinks does not depend on Email.
+
+**Deployment and verification:** All server writers must use conditional consumption before a shared-storage one-use claim is made; old writers must be stopped during rollout. Independent PostgreSQL connections and repository instances test concurrent consumption, committed row-count authorization, replacement preservation, and rollback failures. Process-local test mutexes and SQLite-only runs do not establish that property. This storage guarantee does not advertise complete multi-process application support.

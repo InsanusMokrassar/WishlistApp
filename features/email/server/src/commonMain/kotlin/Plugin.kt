@@ -28,6 +28,8 @@ import dev.inmo.wishlist.features.roles.common.models.SuperAdminRole
 import dev.inmo.wishlist.features.roles.common.utils.singleRequirement
 import dev.inmo.wishlist.features.roles.server.RolesFeature
 import dev.inmo.wishlist.features.users.common.repo.UsersRepo
+import kotlinx.coroutines.CoroutineScope
+import dev.inmo.wishlist.features.email.server.services.EmailPasswordChangeApprovalCleanup
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.modules.SerializersModule
 import kotlinx.serialization.modules.polymorphic
@@ -120,6 +122,7 @@ object Plugin : StartPlugin {
                 publicHttpOrigin = serverConfig.publicHttpOrigin,
             )
         }
+        single { EmailPasswordChangeApprovalCleanup(getOrNull<DeepLinksService>(), get<Json>()) }
         single<ServerPasswordChangeFeature> { get<EmailPasswordChangeService>() }
         singleRequirement {
             FeatureRolesRegistry.Requirement(EmailConstants.sendTestFunctionalityId, SuperAdminRole)
@@ -131,6 +134,7 @@ object Plugin : StartPlugin {
 
     override suspend fun startPlugin(koin: Koin) {
         super.startPlugin(koin)
+        koin.get<EmailPasswordChangeApprovalCleanup>().start(koin.get<CoroutineScope>())
     }
 }
 

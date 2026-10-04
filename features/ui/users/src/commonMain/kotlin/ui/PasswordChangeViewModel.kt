@@ -9,6 +9,7 @@ import dev.inmo.wishlist.features.auth.common.models.Password
 import dev.inmo.wishlist.features.auth.common.models.PasswordChangeResult
 import dev.inmo.wishlist.features.auth.common.utils.isAcceptablePasswordChangePassword
 import dev.inmo.wishlist.features.common.client.models.ViewConfig
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -77,6 +78,15 @@ class PasswordChangeViewModel(
     /** Prevents a retained pending node from submitting again after a successful transition. */
     private val _submissionSucceededState = MutableRedeliverStateFlow(false)
 
+    /** Raw terminal latch for an unknown transport outcome, independent of editable feedback. */
+    private val _uncertainCompletionState = MutableRedeliverStateFlow(false)
+
+    /** Stops the pending form after rejection, uncertainty, or known success. */
+    val submissionStoppedState: StateFlow<Boolean> = combine(
+        _terminalInvalidApprovalState, _uncertainCompletionState, _submissionSucceededState,
+    ) { invalid, uncertain, succeeded -> completedState || invalid || uncertain || succeeded }
+        .stateIn(workScope, SharingStarted.Eagerly, config is PasswordChangeViewConfig.Completed)
+
     /** Whether this node already represents a credential-free completed state. */
     val completedState: Boolean = config is PasswordChangeViewConfig.Completed
 
@@ -100,13 +110,11 @@ class PasswordChangeViewModel(
             _passwordState,
             _confirmationState,
             _loadingState,
-            _terminalInvalidApprovalState,
-            _submissionSucceededState,
-        ) { password, confirmation, loading, terminalInvalidApproval, submissionSucceeded ->
+            submissionStoppedState,
+        ) { password, confirmation, loading, stopped ->
             config is PasswordChangeViewConfig.Pending &&
                 !loading &&
-                !terminalInvalidApproval &&
-                !submissionSucceeded &&
+                !stopped &&
                 password == confirmation &&
                 isAcceptablePasswordChangePassword(Password(password))
         }.stateIn(workScope, SharingStarted.Eagerly, false)
@@ -120,7 +128,7 @@ class PasswordChangeViewModel(
 
     /** Replaces the in-memory new password and clears stale retryable feedback. */
     fun onPasswordChanged(password: String) {
-        if (completedState || _terminalInvalidApprovalState.value) return
+        if (completedState || _terminalInvalidApprovalState.value || _uncertainCompletionState.value || _submissionSucceededState.value) return
         _passwordState.value = password
         if (_resultState.value != PasswordChangeSubmissionState.InvalidApproval) {
             _resultState.value = null
@@ -129,7 +137,7 @@ class PasswordChangeViewModel(
 
     /** Replaces the in-memory confirmation and clears stale retryable feedback. */
     fun onConfirmationChanged(confirmation: String) {
-        if (completedState || _terminalInvalidApprovalState.value) return
+        if (completedState || _terminalInvalidApprovalState.value || _uncertainCompletionState.value || _submissionSucceededState.value) return
         _confirmationState.value = confirmation
         if (_resultState.value != PasswordChangeSubmissionState.InvalidApproval) {
             _resultState.value = null
@@ -147,7 +155,7 @@ class PasswordChangeViewModel(
         val password = _passwordState.value
         val confirmation = _confirmationState.value
         when {
-            _loadingState.value || _terminalInvalidApprovalState.value || _submissionSucceededState.value -> return
+            _loadingState.value || _terminalInvalidApprovalState.value || _uncertainCompletionState.value || _submissionSucceededState.value -> return
             password != confirmation -> {
                 _resultState.value = PasswordChangeSubmissionState.Mismatch
                 return
@@ -162,7 +170,13 @@ class PasswordChangeViewModel(
         _resultState.value = null
         workScope.launchLoggingDropExceptions {
             try {
-                val result = model.completePasswordChange(request)
+                val result = try {
+                    model.completePasswordChange(request)
+                } catch (error: CancellationException) {
+                    throw error
+                } catch (_: Exception) {
+                    null
+                }
                 currentCoroutineContext().ensureActive()
                 when (result) {
                     PasswordChangeResult.Changed -> {
@@ -173,12 +187,17 @@ class PasswordChangeViewModel(
                     }
                     PasswordChangeResult.InvalidApproval -> {
                         _terminalInvalidApprovalState.value = true
+                        _passwordState.value = ""
+                        _confirmationState.value = ""
                         _resultState.value = PasswordChangeSubmissionState.InvalidApproval
                     }
                     PasswordChangeResult.InvalidPassword -> {
                         _resultState.value = PasswordChangeSubmissionState.InvalidPassword
                     }
                     null -> {
+                        _uncertainCompletionState.value = true
+                        _passwordState.value = ""
+                        _confirmationState.value = ""
                         _resultState.value = PasswordChangeSubmissionState.Unconfirmed
                     }
                 }

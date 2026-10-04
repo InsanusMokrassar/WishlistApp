@@ -57,8 +57,9 @@ class UserEditView(
     override val title: String
         @Composable get() = UsersListStrings.editProfileTitle.translation(LocalResources.current)
 
+    /** Draws the production editor, also used by the platform renderer test host. */
     @Composable
-    override fun onDraw() {
+    public override fun onDraw() {
         super.onDraw()
         val resources = LocalResources.current
         val isRoot by viewModel.isRootState.collectAsState()
@@ -287,7 +288,7 @@ class UserEditView(
                         color = MaterialTheme.colorScheme.error,
                     )
                     EmailEditorError.PasswordChangeRequestFailed -> Text(
-                        UsersListStrings.passwordChangeEmailDeliveryFailed.translation(resources),
+                        UsersListStrings.passwordChangeEmailUnconfirmed.translation(resources),
                         color = MaterialTheme.colorScheme.error,
                     )
                     EmailEditorError.LoadFailed, null -> Unit

@@ -924,4 +924,50 @@ class PasswordChangeInteractorTest {
             stopKoin()
         }
     }
+    /** Both terminal ViewModel outcomes persist an approval-free users destination without replay or success. */
+    @Test
+    fun terminalContinuePersistsUsersListWithoutApprovalOrAdditionalTransport() = runTest {
+        for (outcome in listOf<PasswordChangeResult?>(null, PasswordChangeResult.InvalidApproval)) {
+            for (failSave in listOf(false, true)) {
+                val repo = RecordingPasswordNavigationRepo(failFirstSave = failSave)
+                val owner = PasswordChangeNavigationOwner(repo)
+                val chain = NavigationChain<ViewConfig>(null, NavigationNodeFactory { parent, config -> NavigationNode.Empty(parent, config) })
+                val chainJob = chain.start(this)
+                val unbind = owner.bind(chain, this)
+                val model = HeldPasswordChangeUsersModel()
+                try {
+                    chain.push(UsersListViewConfig())
+                    val pending = checkNotNull(chain.push(PasswordChangeViewConfig.Pending(UserId(7), approvalId)))
+                        as NavigationNode<PasswordChangeViewConfig, ViewConfig>
+                    advanceUntilIdle()
+                    val viewModel = PasswordChangeViewModel(pending, model, owner, StandardTestDispatcher(testScheduler))
+                    viewModel.onPasswordChanged("valid-password")
+                    viewModel.onConfirmationChanged("valid-password")
+                    viewModel.onSubmitPasswordChange()
+                    runCurrent()
+                    model.completion.complete(outcome)
+                    advanceUntilIdle()
+                    assertEquals(1, model.requests.size)
+                    viewModel.onContinue()
+                    advanceUntilIdle()
+                    assertTrue(chain.stackFlow.value.isNotEmpty())
+                    assertTrue(chain.stackFlow.value.last().config is UsersListViewConfig)
+                    assertFalse(chain.stackFlow.value.any { it.config is PasswordChangeViewConfig })
+                    assertEquals(1, repo.saveAttempts)
+                    if (!failSave) {
+                        val configs = repo.holders.single().passwordNavigationConfigs()
+                        assertTrue(configs.any { it is UsersListViewConfig })
+                        assertFalse(configs.any { it is PasswordChangeViewConfig })
+                    }
+                    viewModel.onSubmitPasswordChange()
+                    advanceUntilIdle()
+                    assertEquals(1, model.requests.size)
+                } finally {
+                    unbind()
+                    chainJob.cancelAndJoin()
+                }
+            }
+        }
+    }
+
 }

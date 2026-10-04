@@ -133,4 +133,45 @@ class DeepLinksServiceTest {
         assertEquals(repo.unsetIds.single(), repo.unsetIds.distinct().single())
         assertEquals(emptyMap(), repo.getAll())
     }
+    /** The optional capability never authorizes an ordinary store through read-plus-unset fallback. */
+    @Test
+    fun unsupportedStoreCannotConsume() = runTest {
+        val repo = FakeDeepLinksRepo()
+        val id = DeepLinkId("approval")
+        val info = DeepLinkHandlerInfo(DeepLinkHandlerId("password"), "value")
+        repo.set(id, info)
+        val service = DeepLinksService(repo, emptyList())
+        kotlin.test.assertFalse(service.supportsMaintenance)
+        kotlin.test.assertFalse(service.consumeDeepLink(id, info))
+        assertEquals(info, service.getDeepLinkInfo(id))
+        kotlin.test.assertNull(service.scanUpperBound())
+    }
+
+    /** Capability wrappers forward exact record, cursors, high-water bound, and page limit without interpretation. */
+    @Test
+    fun maintainableStoreReceivesExactConsumeAndScanArguments() = runTest {
+        val id = DeepLinkId("approval")
+        val expected = DeepLinkHandlerInfo(DeepLinkHandlerId("password"), "value")
+        val bound = dev.inmo.wishlist.features.deeplinks.common.repo.DeepLinkStorageCursor(id, "opaque")
+        val page = dev.inmo.wishlist.features.deeplinks.common.repo.DeepLinkStoragePage(listOf(dev.inmo.wishlist.features.deeplinks.common.repo.DeepLinkStorageRecord(bound)))
+        var answer = false
+        val repo = object : dev.inmo.wishlist.features.deeplinks.common.repo.MaintainableDeepLinksRepo,
+            dev.inmo.micro_utils.repos.KeyValueRepo<DeepLinkId, DeepLinkHandlerInfo> by MapKeyValueRepo() {
+            override suspend fun consumeIfEquals(id: DeepLinkId, expectedInfo: DeepLinkHandlerInfo): Boolean {
+                assertEquals(bound.id, id); assertEquals(expected, expectedInfo); return answer
+            }
+            override suspend fun scanUpperBound() = bound
+            override suspend fun scanPage(afterExclusive: dev.inmo.wishlist.features.deeplinks.common.repo.DeepLinkStorageCursor?, throughInclusive: dev.inmo.wishlist.features.deeplinks.common.repo.DeepLinkStorageCursor, limit: Int): dev.inmo.wishlist.features.deeplinks.common.repo.DeepLinkStoragePage {
+                assertEquals(bound, afterExclusive); assertEquals(bound, throughInclusive); assertEquals(100, limit); return page
+            }
+        }
+        val service = DeepLinksService(repo, emptyList())
+        kotlin.test.assertTrue(service.supportsMaintenance)
+        kotlin.test.assertFalse(service.consumeDeepLink(id, expected))
+        answer = true
+        kotlin.test.assertTrue(service.consumeDeepLink(id, expected))
+        assertEquals(bound, service.scanUpperBound())
+        assertEquals(page, service.scanPage(bound, bound, 100))
+    }
+
 }

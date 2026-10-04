@@ -72,6 +72,9 @@ End-to-end bearer-token authentication. Handles login (BCrypt password check), o
 - `ServerUrlStorage` and `AuthCredentialsStorage` use `SmartRWLocker` for concurrent access safety.
 - JS `LocalStorageServerUrlStorage` takes `useFallbackToWindowAddress` (default `true`): when no URL is stored in `localStorage`, `getServerUrl()` falls back to `window.location.origin` so a web client served from the same host as the API works without explicit configuration. Pass `false` to disable and return `null` on absence.
 
+
+**Password-change commit preservation:** Email's final authorization callback now succeeds only after persistent conditional approval consumption. Auth retains its existing account/role/credential checks and local password write lock, and writes only after that callback succeeds. Consumption and password persistence remain separate commits: a failure after consumption requires another approval and does not restore the old approval. The operation issues no new session or role change and keeps pre-existing sessions. An uncertain client response cannot prove whether the password write happened; the UI stops the current form and offers safe navigation. Shared-storage same-approval protection does not change Auth's documented process-local session ownership.
+
 ## Client-side "me" State
 
 - New `features/auth/client/src/commonMain/kotlin/Me.kt` defines `meQualifier = named("me")` (Koin qualifier) and extensions `Koin.meStateFlow` / `Scope.meStateFlow` returning `StateFlow<AuthFeatureUser?>`.

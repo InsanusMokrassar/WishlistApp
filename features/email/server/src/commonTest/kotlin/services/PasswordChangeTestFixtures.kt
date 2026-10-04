@@ -12,6 +12,11 @@ import dev.inmo.wishlist.features.auth.server.services.AuthFeatureService
 import dev.inmo.wishlist.features.deeplinks.common.models.DeepLinkHandlerInfo
 import dev.inmo.wishlist.features.deeplinks.common.models.DeepLinkId
 import dev.inmo.wishlist.features.deeplinks.common.repo.DeepLinksRepo
+import dev.inmo.wishlist.features.deeplinks.common.repo.MaintainableDeepLinksRepo
+import dev.inmo.wishlist.features.deeplinks.common.repo.DeepLinkStorageCursor
+import dev.inmo.wishlist.features.deeplinks.common.repo.DeepLinkStoragePage
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 import dev.inmo.wishlist.features.deeplinks.server.services.DeepLinksService
 import dev.inmo.wishlist.features.email.common.models.Email
 import dev.inmo.wishlist.features.email.server.EmailsService
@@ -140,7 +145,47 @@ internal class PasswordChangePasswordsRepo(
 internal class PasswordChangeDeepLinksRepo(
     /** Underlying in-memory deeplink storage. */
     private val delegate: MapKeyValueRepo<DeepLinkId, DeepLinkHandlerInfo> = MapKeyValueRepo(),
-) : DeepLinksRepo, KeyValueRepo<DeepLinkId, DeepLinkHandlerInfo> by delegate {
+) : MaintainableDeepLinksRepo, KeyValueRepo<DeepLinkId, DeepLinkHandlerInfo> by delegate {
+    /** Test-only atomic compare-and-remove lock, shared by callers of this fixture store. */
+    private val consumeMutex = Mutex()
+
+    /** Hook before exact-record consumption; separate from issuance compensation. */
+    var beforeConsume: PasswordChangeRepositoryHook? = null
+
+    /** Hook after durable test-store consumption. */
+    var afterConsume: PasswordChangeRepositoryHook? = null
+
+    /** Exact approval identifiers submitted to conditional consumption. */
+    val consumeIds = mutableListOf<DeepLinkId>()
+
+    /** Allows tests to simulate losing a conditional DELETE after valid reads. */
+    var denyConsume: Boolean = false
+
+    /** Atomic fake behavior representing the production persistent compare-and-delete contract. */
+    override suspend fun consumeIfEquals(id: DeepLinkId, expectedInfo: DeepLinkHandlerInfo): Boolean {
+        consumeIds += id
+        beforeConsume?.invoke()
+        val consumed = consumeMutex.withLock {
+            if (denyConsume || delegate.get(id) != expectedInfo) return@withLock false
+            delegate.unset(listOf(id))
+            true
+        }
+        if (consumed) afterConsume?.invoke()
+        return consumed
+    }
+
+    /** Counts startup sweeps to prove plugin lifecycle binding independently from SMTP. */
+    var scanStarts: Int = 0
+
+    /** Completion fixture has no raw scan population; cleanup uses a dedicated raw fixture. */
+    override suspend fun scanUpperBound(): DeepLinkStorageCursor? { scanStarts++; return null }
+
+    /** Returns an empty bounded page for the completion-only fixture. */
+    override suspend fun scanPage(afterExclusive: DeepLinkStorageCursor?, throughInclusive: DeepLinkStorageCursor, limit: Int): DeepLinkStoragePage {
+        require(limit in 1..100)
+        return DeepLinkStoragePage(emptyList())
+    }
+
     /** Hook executed before a delegated deeplink read. */
     var beforeGet: PasswordChangeRepositoryHook? = null
 
@@ -201,6 +246,7 @@ internal class PasswordChangeDeepLinksRepo(
         setIds.clear()
         getIds.clear()
         unsetIds.clear()
+        consumeIds.clear()
     }
 }
 
