@@ -202,13 +202,19 @@ internal class RecordingUserEditInteractor : UserEditViewInteractor {
 /** Creates a live-config navigation node without starting platform navigation infrastructure. */
 internal fun userEditTestNode(userId: UserId): UserEditTestNode = UserEditTestNode(userId)
 
-/** Recording delegate for password-completion navigation. */
-internal class RecordingPasswordChangeInteractor : PasswordChangeViewInteractor {
+/**
+ * Recording delegate for password-completion navigation.
+ * @param onChangedHandler Optional handoff behavior invoked after recording known success.
+ */
+internal class RecordingPasswordChangeInteractor(
+    private val onChangedHandler: suspend () -> Unit = {},
+) : PasswordChangeViewInteractor {
     var changedCalls = 0
     var continueCalls = 0
 
     override suspend fun onChanged(node: NavigationNode<PasswordChangeViewConfig, ViewConfig>) {
         changedCalls += 1
+        onChangedHandler()
     }
 
     override suspend fun onContinue(node: NavigationNode<PasswordChangeViewConfig, ViewConfig>) {

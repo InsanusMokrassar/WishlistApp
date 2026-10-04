@@ -1,5 +1,7 @@
 package dev.inmo.wishlist.features.ui.users.ui
 
+import dev.inmo.kslog.common.CallbackKSLog
+import dev.inmo.kslog.common.KSLog
 import dev.inmo.wishlist.features.auth.common.models.PasswordChangeResult
 import dev.inmo.wishlist.features.deeplinks.common.models.DeepLinkId
 import dev.inmo.wishlist.features.users.common.models.EmailProfile
@@ -12,9 +14,14 @@ import kotlinx.coroutines.test.runCurrent
 import kotlinx.coroutines.test.runTest
 import kotlinx.coroutines.test.StandardTestDispatcher
 import kotlinx.coroutines.CompletableDeferred
+import kotlinx.coroutines.flow.collect
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.test.UnconfinedTestDispatcher
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
+import kotlin.test.assertNull
+import kotlin.test.assertSame
 import kotlin.test.assertTrue
 
 /** Shared ViewModel tests for approval-bound password submission and secret clearing. */
@@ -148,6 +155,86 @@ class PasswordChangeViewModelTest {
             assertEquals(1, model.passwordChangeRequests.size)
             assertEquals(1, interactor.changedCalls)
         } finally {
+            viewModel.scope.cancel()
+        }
+    }
+
+    /** Known success keeps retained pending admission closed even when the navigation handoff throws. */
+    @Test
+    fun changedHandoffExceptionKeepsRetainedPendingClosedWithoutUnconfirmed() = runTest {
+        val response = CompletableDeferred<PasswordChangeResult?>()
+        var returnedCompletion: PasswordChangeResult? = null
+        val model = UserEditTestUsersModel(null, null, initiallyAuthorised = false).apply {
+            passwordChangeHandler = { response.await().also { returnedCompletion = it } }
+        }
+        val handoffFailure = IllegalStateException("Expected navigation handoff failure")
+        val interactor = RecordingPasswordChangeInteractor(onChangedHandler = { throw handoffFailure })
+        val viewModel = PasswordChangeViewModel(
+            passwordChangeTestNode(pendingConfig), model, interactor, StandardTestDispatcher(testScheduler),
+        )
+        val observedResults = mutableListOf<PasswordChangeSubmissionState?>()
+        backgroundScope.launch(UnconfinedTestDispatcher(testScheduler)) {
+            viewModel.resultState.collect { observedResults += it }
+        }
+        val previousLogger = KSLog.default
+        val capturedHandoffFailures = mutableListOf<Throwable>()
+        val unexpectedFailures = mutableListOf<Throwable>()
+        KSLog.default = CallbackKSLog { level, tag, message, throwable ->
+            when {
+                throwable === handoffFailure -> capturedHandoffFailures += handoffFailure
+                throwable != null -> {
+                    unexpectedFailures += throwable
+                    previousLogger.performLog(level, tag, message, throwable)
+                    throw throwable
+                }
+                else -> previousLogger.performLog(level, tag, message, throwable)
+            }
+        }
+        try {
+            runCurrent()
+            viewModel.onPasswordChanged("new-password")
+            viewModel.onConfirmationChanged("new-password")
+            runCurrent()
+            assertTrue(viewModel.canSubmitState.value)
+            viewModel.onSubmitPasswordChange()
+            runCurrent()
+            assertTrue(viewModel.loadingState.value)
+            assertEquals(1, model.passwordChangeRequests.size)
+
+            response.complete(PasswordChangeResult.Changed)
+            runCurrent()
+            assertEquals(PasswordChangeResult.Changed, returnedCompletion)
+            assertEquals(1, interactor.changedCalls)
+            assertSame(handoffFailure, capturedHandoffFailures.single())
+            assertSame(pendingConfig, viewModel.config)
+            assertFalse(viewModel.completedState)
+            assertTrue(checkNotNull(viewModel.scope.coroutineContext[Job]).isActive)
+            assertNull(viewModel.resultState.value)
+            assertEquals("", viewModel.passwordState.value)
+            assertEquals("", viewModel.confirmationState.value)
+            assertFalse(viewModel.loadingState.value)
+
+            viewModel.onPasswordChanged("second-password")
+            viewModel.onConfirmationChanged("second-password")
+            viewModel.onSubmitPasswordChange()
+            assertEquals("", viewModel.passwordState.value)
+            assertEquals("", viewModel.confirmationState.value)
+            assertFalse(viewModel.loadingState.value)
+            advanceUntilIdle()
+            assertTrue(viewModel.submissionStoppedState.value)
+            assertFalse(viewModel.canSubmitState.value)
+            viewModel.onSubmitPasswordChange()
+            advanceUntilIdle()
+            assertEquals(1, model.passwordChangeRequests.size)
+            assertEquals(1, interactor.changedCalls)
+            assertEquals(0, interactor.continueCalls)
+            assertEquals(1, capturedHandoffFailures.size)
+            assertTrue(observedResults.isNotEmpty())
+            assertTrue(observedResults.all { it == null })
+            assertTrue(unexpectedFailures.isEmpty())
+            assertTrue(checkNotNull(viewModel.scope.coroutineContext[Job]).isActive)
+        } finally {
+            KSLog.default = previousLogger
             viewModel.scope.cancel()
         }
     }
