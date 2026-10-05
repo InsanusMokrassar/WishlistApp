@@ -7,7 +7,7 @@ Repo: `InsanusMokrassar/WishlistApp`.
 ## Steps
 
 1. Run `/caveman full` (rule: `agents/ALL.md`).
-2. Read `CLAUDE.md` (and follow `AGENTS.md` / `agents/SHORTCUTS.md` chain it points to).
+2. Start with the explicit root invocation in `agents/ROOT_PROMPT.md`, read the shared `AGENTS.md`, and explicitly load `agents/SHORTCUTS.md`. Follow `CLAUDE.md` guidance without using an automatically loaded file as a routing catalog.
 3. List open issues: `gh issue list --repo InsanusMokrassar/WishlistApp --state open`.
 4. Pick ONE issue that has NO merged and NO open linked PR. Check linked PRs via the GitHub API — a branch-name pattern alone is NOT sufficient:
    ```

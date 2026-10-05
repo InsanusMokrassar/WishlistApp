@@ -8,6 +8,12 @@ apply from: "$mppJvmJsAndroid"
 
 kotlin {
     sourceSets {
+        jvmTest {
+            dependencies {
+                implementation libs.psql
+                implementation libs.xerial.sql
+            }
+        }
         commonMain {
             dependencies {
                 api project(":wishlist.features.common.common")

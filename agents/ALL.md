@@ -7,7 +7,7 @@ THIS AGENT MUST WRITE `agents/task/<TASK_ID_FORMAT>/<STEP_NUMBER_FORMAT>.md` WIT
 
 EVERY ROLE SUBAGENT MUST NOT EDIT ANY FILE except its allocated step report and additional paths explicitly authorized in its own invocation. Do not delegate unless the assigned role instructions and root's invocation expressly permit it.
 
-Read only your own instruction bundle, permitted repository evidence and already-completed input artifacts. Do not inspect other role instructions, root routing/workflow files, active sibling outputs or excluded history/search results. Do not infer later steps, future consumers or their requirements. If excluded content is exposed, stop and report the input-boundary breach to root. Complete your assigned work, return your self-contained report and stop; root alone decides any next action.
+The automatically loaded shared `AGENTS.md` is permitted for every invocation and does not authorize loading another instruction bundle. Read only your own instruction bundle, permitted repository evidence and already-completed input artifacts. Do not inspect other role instructions, root routing/workflow files, active sibling outputs or excluded history/search results. Do not infer later steps, future consumers or their requirements. If excluded content is exposed, stop and report the input-boundary breach to root. Complete your assigned work, return your self-contained report and stop; root alone decides any next action.
 
 See `agents/PROTOCOL.md` for TASK_ID_FORMAT and STEP_NUMBER_FORMAT specifications.
 See `agents/GIT.md` for all git commit and push rules.

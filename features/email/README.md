@@ -18,6 +18,11 @@ successful required-email registration remains logged out: it stores a password 
 credentials until verification promotes `NewUser` to `User`; a later normal login is the first
 credential-producing step.
 
+Email also implements Auth's email-authorized password-change port. A one-use approval is delivered
+only to the exact approved current address; opening its link is read-only, while anonymous completion
+rechecks that same address and the persisted approval before changing the account's password. A pending
+replacement remains distinct from the approved current address throughout this flow.
+
 **Two independent capabilities:**
 - **Email storage** (`PUT /email/myEmail`) — any authenticated user can store or clear their own email address; does NOT require SMTP to be configured. State-changing requests are subject to the persisted post-approval cooldown when configured.
 - **Email profile read** (`GET /email/myEmail`) — an authenticated bearer caller receives only that caller's fresh `EmailProfile`; an existing email-less account returns `200` with an empty profile, a missing account returns `404`, and no target user id is accepted. The read is available with or without SMTP because storage and profile reads use the same account coordinator.
@@ -114,6 +119,11 @@ When no `"email"` object is present in the server config (the key is entirely ab
   }
   ```
 - **Invite rollback ownership:** After SMTP accepts an invitation, `EmailRegistrationInviteSender` returns a closure holding only that request's exact `DeepLinkId` and `DeepLinksService`. Auth owns the closure during required-email finalization; owner verification uses the same exact-recipient sender and the email service removes the handle only when a post-delivery fresh profile makes the request stale. Legacy Boolean callers discard the handle and retain the link. No shared user-to-link map or singleton ownership registry exists.
+
+
+**Password approval storage authorization:** Email's existing final approved-email, role, expiry, subject, and credential-state checks precede a persistent compare-and-delete of the exact approval. A committed one-row deletion is the authorization result; a missing, changed, ambiguous, undecodable, or concurrently consumed record denies the password write. Alternate deeplink storage without the maintenance capability reports password-email issuance unavailable and completion fails closed. Email still consumes before Auth writes the password, so a later write failure can burn the approval. Existing sessions are retained. The storage check prevents two processes from completing the same approval; broader distributed account and session semantics are unchanged.
+
+**Unused password-approval retention:** A lifecycle-owned maintenance coroutine starts immediately and sweeps again 60 seconds after each completed sweep, including when SMTP is disabled. Ordered raw keyset pages contain at most 100 records and stop at a captured database-order high-water mark, so growing traffic cannot extend one sweep indefinitely. The worker removes only decoded email.password_change approvals at or after their recorded expiry and conditionally matches observed content before deletion. Unopened approvals issued by previous versions are included. Email verification, other handler types, unexpired approvals, and undecodable records retain their behavior. Per-record failures are retried on later sweeps; scan failures back off to the normal interval; cancellation stops the worker. Logs do not contain mailboxes, fingerprints, approval ids, or raw payloads. Cleanup bounds memory and page work; healthy retention depends on the scheduled interval and finite sweep duration, and no hard retention SLA is promised through outages or unbounded table growth. No schema or wire change is required.
 
 ## Rollout and recovery
 

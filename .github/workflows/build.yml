@@ -5,6 +5,22 @@ on: [push]
 jobs:
   build:
     runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:18
+        env:
+          POSTGRES_DB: wishlist_tests
+          POSTGRES_USER: wishlist_tests
+          POSTGRES_PASSWORD: wishlist_tests
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U wishlist_tests -d wishlist_tests"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+    env:
+      WISHLIST_TEST_POSTGRES_URL: jdbc:postgresql://127.0.0.1:5432/wishlist_tests?user=wishlist_tests&password=wishlist_tests
     steps:
       - uses: actions/checkout@v2
       - name: Set up JDK 17
