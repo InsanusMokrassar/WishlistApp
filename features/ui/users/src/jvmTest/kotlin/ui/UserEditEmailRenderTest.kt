@@ -854,4 +854,54 @@ class UserEditEmailRenderTest {
             viewModel.scope.cancel()
         }
     }
+    /** Production editor separates acknowledged delivery from read failure and transport uncertainty, then hides private feedback. */
+    @Test
+    fun passwordEmailFeedbackUsesIndependentDeliveryReadAndUncertaintyCopy() {
+        val ownerId = UserId(7L)
+        val profile = EmailProfile(ownerId.long, Email("approved@example.com"), emailApproved = true)
+        val model = UserEditTestUsersModel(ownerId, profile)
+        val scheduler = TestCoroutineScheduler()
+        val node = userEditTestNode(ownerId)
+        val viewModel = UserEditViewModel(node, model, RecordingUserEditInteractor(), StandardTestDispatcher(scheduler))
+        try {
+            runDesktopComposeUiTest(width = 1024, height = 1200) {
+                setContent { MaterialTheme { Column { OwnerEmailEditor(viewModel, node) } } }
+                runOnUiThread { scheduler.advanceUntilIdle() }
+                awaitIdle()
+                runOnUiThread {
+                    model.profileHandler = { throw IllegalStateException("read") }
+                    viewModel.onRequestPasswordChangeEmail()
+                    scheduler.advanceUntilIdle()
+                }
+                awaitIdle()
+                onNodeWithText(UsersListStrings.passwordChangeEmailSent.translation()).assertExists()
+                onNodeWithText(UsersListStrings.emailLoadFailed.translation()).assertExists()
+                onNodeWithText(UsersListStrings.passwordChangeEmailDeliveryFailed.translation()).assertDoesNotExist()
+                runOnUiThread {
+                    model.profileHandler = { profile }
+                    viewModel.onRefreshEmail()
+                    scheduler.advanceUntilIdle()
+                    model.passwordChangeRequestResult = null
+                    viewModel.onRequestPasswordChangeEmail()
+                    scheduler.advanceUntilIdle()
+                }
+                awaitIdle()
+                onNodeWithText(UsersListStrings.passwordChangeEmailUnconfirmed.translation()).assertExists()
+                onNodeWithText(UsersListStrings.passwordChangeEmailDeliveryFailed.translation()).assertDoesNotExist()
+                runOnUiThread {
+                    model.passwordChangeRequestResult = dev.inmo.wishlist.features.auth.common.models.PasswordChangeEmailRequestResult.DeliveryFailed
+                    viewModel.onRequestPasswordChangeEmail()
+                    scheduler.advanceUntilIdle()
+                }
+                awaitIdle()
+                onNodeWithText(UsersListStrings.passwordChangeEmailDeliveryFailed.translation()).assertExists()
+                onNodeWithText(UsersListStrings.passwordChangeEmailUnconfirmed.translation()).assertDoesNotExist()
+                runOnUiThread { node.retarget(UserId(8L)) }
+                awaitIdle()
+                onNodeWithText(UsersListStrings.passwordChangeEmailDeliveryFailed.translation()).assertDoesNotExist()
+                assertEquals(3, model.passwordChangeRequestedEmails.size)
+            }
+        } finally { viewModel.scope.cancel() }
+    }
+
 }

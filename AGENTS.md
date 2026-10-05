@@ -1,19 +1,17 @@
-## Execution classes
+# Shared repository instructions
 
-Root must label each invocation as root, an ordinary stage role or a council participant before loading role instructions. The routing paragraphs below are root-only: root supplies each worker only its own instruction bundle, permitted repository evidence and completed input artifacts, not this routing catalog or its private conversation.
+Codex loads this file automatically. Keep this file limited to guidance applicable to every invocation; routing catalogs, workflow order and instructions reserved for particular roles belong in explicitly loaded instruction files.
 
-- **Root**: use `agents/SHORTCUTS.md` to select the instruction bundle. Only root reads the workflow order and transition rules in `agents/ORCHESTRATOR.md`.
-- **Ordinary stage roles**: receive `agents/ALL.md`, applicable shared instructions and only their assigned role instructions. Root supplies the communication policy below without the routing catalog. Do not read other role instructions or root workflow files.
-- **Council participants**: follow `agents/council/COMMON.md`, `agents/council/PROTOCOL.md`, `agents/council/MODELS.md`, their assigned role file, and the frozen task packet. They may inspect repository evidence and permitted completed task history, but not other participants' current-wave outputs or ordinary role/root workflow instructions, including copies in searches/history. Do not supply the remaining sections of this file as participant instructions.
+Before loading additional instructions, identify the execution class and role assigned by the invocation. Read only the assigned instruction bundle, permitted repository evidence and completed input artifacts. An automatic copy of this shared file does not authorize loading another instruction file.
 
-Preparation is the coordinator defined in `agents/PREPARATION.md`. Root grants it the explicit exception to launch all council roles as fresh parallel subagents and persist allocated council evidence with its final report after all workers stop. Root alone manages stage order, transitions and handoffs. Workers receive no future-stage identities, consumers or requirements; they must not discover those through repository searches or history. Root filters instruction files and historical reports accordingly, providing relevant completed evidence excerpts where necessary without altering the original records.
+Follow the invocation's file-access and write restrictions. Do not discover additional roles, workflow stages or consumers through repository searches, filenames, history or peer outputs. Report an exposed excluded input or a missing assignment before continuing dependent work.
 
 ## Communication Protocol Precedence
 
 When communication rules conflict, the higher rule wins:
 
 1. Normal-prose requirement — step report narrative, operator questions, PR bodies, and commit messages are ALWAYS normal prose, never caveman-compressed.
-2. Caveman mode (`/caveman full`, per `agents/ALL.md`) — internal agent thinking, search, and working notes.
+2. Caveman mode (`/caveman full`, when required by the assigned bundle) — internal agent thinking, search, and working notes.
 3. AML-HIP (below) — applies ONLY to structured data blocks inside step files.
 
 YOU MUST FOLLOW NEXT RULES WITHOUT ANY QUESTIONS OR DOUBTS

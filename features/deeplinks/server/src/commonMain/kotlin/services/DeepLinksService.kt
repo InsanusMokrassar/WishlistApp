@@ -9,6 +9,11 @@ import dev.inmo.wishlist.features.deeplinks.common.models.DeepLinkHandlerInfo
 import dev.inmo.wishlist.features.deeplinks.common.models.DeepLinkId
 import dev.inmo.wishlist.features.deeplinks.common.models.HandleResult
 import dev.inmo.wishlist.features.deeplinks.common.repo.DeepLinksRepo
+import dev.inmo.wishlist.features.deeplinks.common.repo.MaintainableDeepLinksRepo
+import dev.inmo.wishlist.features.deeplinks.common.repo.DeepLinkStorageCursor
+import dev.inmo.wishlist.features.deeplinks.common.repo.DeepLinkStoragePage
+import kotlinx.coroutines.NonCancellable
+import kotlinx.coroutines.withContext
 
 /**
  * Server-only, in-process API for the deeplinks feature: mints deeplinks with attached handler info
@@ -55,9 +60,28 @@ class DeepLinksService(
      */
     suspend fun createDeepLink(handlerId: DeepLinkHandlerId, value: Any): DeepLinkId {
         val id = DeepLinkId(uuid4().toString())
-        repo.set(id, DeepLinkHandlerInfo(handlerId, value))
-        return id
+        try {
+            repo.set(id, DeepLinkHandlerInfo(handlerId, value))
+            return id
+        } catch (error: Throwable) {
+            try {
+                withContext(NonCancellable) {
+                    repo.unset(id)
+                }
+            } catch (cleanupError: Throwable) {
+                error.addSuppressed(cleanupError)
+            }
+            throw error
+        }
     }
+
+    /**
+     * Reads one persisted deeplink record without dispatching or consuming it.
+     *
+     * @param deeplinkId Identifier to inspect internally.
+     * @return Stored handler information, or `null` when absent.
+     */
+    suspend fun getDeepLinkInfo(deeplinkId: DeepLinkId): DeepLinkHandlerInfo? = repo.get(deeplinkId)
 
     /**
      * Removes a previously minted deeplink after the owning operation fails.
@@ -66,6 +90,24 @@ class DeepLinksService(
      */
     suspend fun removeDeepLink(deeplinkId: DeepLinkId) {
         repo.unset(deeplinkId)
+    }
+
+    /** Whether persistent conditional consumption and bounded scanning are available. */
+    val supportsMaintenance: Boolean get() = repo is MaintainableDeepLinksRepo
+
+    /** Authorizes only committed consumption; unsupported stores fail closed without unset. */
+    suspend fun consumeDeepLink(id: DeepLinkId, expectedInfo: DeepLinkHandlerInfo): Boolean =
+        (repo as? MaintainableDeepLinksRepo)?.consumeIfEquals(id, expectedInfo) ?: false
+
+    /** Captures a finite database-order scan boundary, or null for an empty/unsupported store. */
+    suspend fun scanUpperBound(): DeepLinkStorageCursor? =
+        (repo as? MaintainableDeepLinksRepo)?.scanUpperBound()
+
+    /** Delegates bounded raw scanning without interpreting feature-owned payloads. */
+    suspend fun scanPage(afterExclusive: DeepLinkStorageCursor?, throughInclusive: DeepLinkStorageCursor, limit: Int): DeepLinkStoragePage {
+        require(limit in 1..100)
+        return (repo as? MaintainableDeepLinksRepo)?.scanPage(afterExclusive, throughInclusive, limit)
+            ?: DeepLinkStoragePage(emptyList())
     }
 
     /**

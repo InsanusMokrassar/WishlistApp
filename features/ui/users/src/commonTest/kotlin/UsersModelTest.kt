@@ -10,10 +10,15 @@ import dev.inmo.wishlist.features.admin.common.models.AdminWishlist
 import dev.inmo.wishlist.features.admin.common.models.AdminWishlistItem
 import dev.inmo.wishlist.features.admin.common.models.NewUserWithPassword
 import dev.inmo.wishlist.features.auth.client.AuthCredentialsStorage
+import dev.inmo.wishlist.features.auth.client.PasswordChangeFeature
 import dev.inmo.wishlist.features.auth.client.meQualifier
 import dev.inmo.wishlist.features.auth.common.models.AuthCredentials
 import dev.inmo.wishlist.features.auth.common.models.AuthFeatureUser
+import dev.inmo.wishlist.features.auth.common.models.CompletePasswordChangeRequest
 import dev.inmo.wishlist.features.auth.common.models.Password
+import dev.inmo.wishlist.features.auth.common.models.PasswordChangeEmailRequestResult
+import dev.inmo.wishlist.features.auth.common.models.PasswordChangeResult
+import dev.inmo.wishlist.features.deeplinks.common.models.DeepLinkId
 import dev.inmo.wishlist.features.email.client.EmailFeature
 import dev.inmo.wishlist.features.email.common.models.Email
 import dev.inmo.wishlist.features.users.common.models.EmailProfile
@@ -68,6 +73,7 @@ class UsersModelTest {
         ): DefaultUsersModel = DefaultUsersModel(
             feature = RecordingUsersFeature(),
             emailFeature = RecordingEmailFeature(),
+            passwordChangeFeature = RecordingPasswordChangeFeature(),
             meState = MutableStateFlow(null),
             adminFeature = object : AdminFeature {
                 override val usersManagement: UsersManagementFeature = RecordingUsersManagementFeature()
@@ -87,6 +93,7 @@ class UsersModelTest {
         val meState = MutableStateFlow<AuthFeatureUser?>(null)
         val users = RecordingUsersFeature()
         val email = RecordingEmailFeature()
+        val passwordChange = RecordingPasswordChangeFeature()
         val management = RecordingUsersManagementFeature()
         val roles = RecordingRolesFeature()
         val files = RecordingFilesFeature()
@@ -99,6 +106,7 @@ class UsersModelTest {
                     with(Plugin) { setupDI(JsonObject(emptyMap())) }
                     single<UsersFeature> { users }
                     single<EmailFeature> { email }
+                    single<PasswordChangeFeature> { passwordChange }
                     single<AdminFeature> {
                         object : AdminFeature {
                             override val usersManagement: UsersManagementFeature = management
@@ -164,6 +172,16 @@ class UsersModelTest {
             assertEquals(listOf<Email?>(replacement), email.setCalls)
             assertEquals(listOf(replacement), email.requestCalls)
 
+            val passwordRequest = CompletePasswordChangeRequest(
+                userId = profile.id,
+                approvalId = DeepLinkId("approval"),
+                password = Password("new-password"),
+            )
+            assertSame(PasswordChangeEmailRequestResult.Sent, model.requestPasswordChangeEmail(replacement))
+            assertSame(PasswordChangeResult.Changed, model.completePasswordChange(passwordRequest))
+            assertEquals(listOf(replacement), passwordChange.requestedEmails)
+            assertEquals(listOf(passwordRequest), passwordChange.completedRequests)
+
             val username = Username("owner-renamed")
             val password = Password("replacement-secret")
             assertTrue(model.updateUsername(profile.id, username))
@@ -186,6 +204,21 @@ class UsersModelTest {
         } finally {
             stopKoin()
             client.close()
+        }
+    }
+
+    private class RecordingPasswordChangeFeature : PasswordChangeFeature {
+        val requestedEmails = mutableListOf<Email>()
+        val completedRequests = mutableListOf<CompletePasswordChangeRequest>()
+
+        override suspend fun requestPasswordChangeEmail(expectedEmail: Email): PasswordChangeEmailRequestResult? {
+            requestedEmails += expectedEmail
+            return PasswordChangeEmailRequestResult.Sent
+        }
+
+        override suspend fun completePasswordChange(request: CompletePasswordChangeRequest): PasswordChangeResult? {
+            completedRequests += request
+            return PasswordChangeResult.Changed
         }
     }
 

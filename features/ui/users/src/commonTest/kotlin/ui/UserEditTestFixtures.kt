@@ -6,6 +6,9 @@ import dev.inmo.navigation.core.NavigationNode
 import dev.inmo.navigation.core.NavigationNodeFactory
 import dev.inmo.navigation.core.NavigationNodeState
 import dev.inmo.wishlist.features.auth.common.models.Password
+import dev.inmo.wishlist.features.auth.common.models.CompletePasswordChangeRequest
+import dev.inmo.wishlist.features.auth.common.models.PasswordChangeEmailRequestResult
+import dev.inmo.wishlist.features.auth.common.models.PasswordChangeResult
 import dev.inmo.wishlist.features.common.client.models.ViewConfig
 import dev.inmo.wishlist.features.email.common.models.Email
 import dev.inmo.wishlist.features.users.common.models.EmailProfile
@@ -34,6 +37,8 @@ internal class UserEditTestUsersModel(
     var nextEmailChangeRequestedAt = 10_000L
     var saveEmailResult = true
     var requestResult = EmailVerificationRequestResult.Sent
+    var passwordChangeRequestResult: PasswordChangeEmailRequestResult? = PasswordChangeEmailRequestResult.Sent
+    var passwordChangeResult: PasswordChangeResult? = PasswordChangeResult.Changed
     var updateUsernameResult = true
     var setPasswordResult = true
 
@@ -67,11 +72,15 @@ internal class UserEditTestUsersModel(
         saveEmailResult
     }
     var requestHandler: suspend (Email) -> EmailVerificationRequestResult = { requestResult }
+    var passwordChangeRequestHandler: suspend (Email) -> PasswordChangeEmailRequestResult? = { passwordChangeRequestResult }
+    var passwordChangeHandler: suspend (CompletePasswordChangeRequest) -> PasswordChangeResult? = { passwordChangeResult }
     var updateUsernameHandler: suspend (UserId, Username) -> Boolean = { _, _ -> updateUsernameResult }
     var setPasswordHandler: suspend (UserId, Password) -> Boolean = { _, _ -> setPasswordResult }
 
     val savedEmails = mutableListOf<Email?>()
     val requestedEmails = mutableListOf<Email>()
+    val passwordChangeRequestedEmails = mutableListOf<Email>()
+    val passwordChangeRequests = mutableListOf<CompletePasswordChangeRequest>()
     val emailEvents = mutableListOf<String>()
     val usernameUpdates = mutableListOf<Pair<UserId, Username>>()
     val passwordUpdates = mutableListOf<Pair<UserId, Password>>()
@@ -108,6 +117,16 @@ internal class UserEditTestUsersModel(
         requestedEmails += expectedEmail
         emailEvents += "POST:${expectedEmail.string}"
         return requestHandler(expectedEmail)
+    }
+
+    override suspend fun requestPasswordChangeEmail(expectedEmail: Email): PasswordChangeEmailRequestResult? {
+        passwordChangeRequestedEmails += expectedEmail
+        return passwordChangeRequestHandler(expectedEmail)
+    }
+
+    override suspend fun completePasswordChange(request: CompletePasswordChangeRequest): PasswordChangeResult? {
+        passwordChangeRequests += request
+        return passwordChangeHandler(request)
     }
 
     override suspend fun updateUsername(id: UserId, username: Username): Boolean {
@@ -182,3 +201,34 @@ internal class RecordingUserEditInteractor : UserEditViewInteractor {
 
 /** Creates a live-config navigation node without starting platform navigation infrastructure. */
 internal fun userEditTestNode(userId: UserId): UserEditTestNode = UserEditTestNode(userId)
+
+/**
+ * Recording delegate for password-completion navigation.
+ * @param onChangedHandler Optional handoff behavior invoked after recording known success.
+ */
+internal class RecordingPasswordChangeInteractor(
+    private val onChangedHandler: suspend () -> Unit = {},
+) : PasswordChangeViewInteractor {
+    var changedCalls = 0
+    var continueCalls = 0
+
+    override suspend fun onChanged(node: NavigationNode<PasswordChangeViewConfig, ViewConfig>) {
+        changedCalls += 1
+        onChangedHandler()
+    }
+
+    override suspend fun onContinue(node: NavigationNode<PasswordChangeViewConfig, ViewConfig>) {
+        continueCalls += 1
+    }
+}
+
+/** Creates an isolated password-change node without platform navigation infrastructure. */
+internal fun passwordChangeTestNode(
+    config: PasswordChangeViewConfig,
+): NavigationNode<PasswordChangeViewConfig, ViewConfig> {
+    val chain = NavigationChain<ViewConfig>(
+        parentNode = null,
+        nodeFactory = NavigationNodeFactory { _, _ -> null },
+    )
+    return NavigationNode.Empty(chain, config)
+}
