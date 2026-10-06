@@ -10,6 +10,9 @@ Preparation uses this reading and reasoning checklist before publishing the coun
 - Confirm the final Preparation report contains complete implementation instructions without relying on council internals.
 - Confirm the final report carries complete requirement and comment dispositions with evidence.
 - Distinguish proposed test specifications from observed test execution; a passing build is not proof that every requirement or comment is satisfied.
+- Check the complete [feature acceptance contract](../FEATURE_ACCEPTANCE.md) against participant-authored candidate content: stable IDs, behavior/persistence/authorization/failure/recovery where applicable, UI/visual expectations, platform reasons, check setup/assertions, evidence requirements and traceability. A checklist link or generic smoke specification cannot replace the substantive plan.
+- Confirm affected state/transition records, Mermaid/overview delta, realization links or descriptive `TBD`, and justified entry/exit/neighboring coverage are present. Check diagram/record agreement when a diagram is supplied. A planned realization `TBD` is allowed; missing expected behavior or a mandatory decision is not.
+- Confirm visual intent and baseline control cannot be self-approved, and any unautomatable criterion has the operator's handling decision before acceptance. Missing substantive specifications return to their authors and require the existing full-roster acceptance process; the coordinator cannot fill them.
 
 ## Process evidence
 
@@ -49,6 +52,10 @@ Preparation uses this reading and reasoning checklist before publishing the coun
 | Precise external information is missing | NEEDS_INFORMATION with a specific question |
 | Valid incompatible objections remain at the limit | IRRECONCILABLE; no forced unanimity |
 | Build/tests pass but a requirement or council comment is unfulfilled | Unresolved requirement/comment; passing mechanical checks do not waive it |
+| Candidate has generic startup tests but no criteria/checks for a changed save/reload or denied/retry transition | Incomplete acceptance plan; no CONSENSUS publication |
+| Candidate includes descriptive implementation `TBD` records with complete expectations, checks and resolved decisions | Valid planned work; no claim of realized or verified behavior |
+| New screenshots are offered as approved baselines without an operator/design-process approval record | Missing mandatory visual decision; NEEDS_INFORMATION, not an agent-created waiver |
+| A non-UI change excludes browser, visual or native checks with concrete applicability reasons | Allowed scoped plan; still require applicable checks and evidence specifications |
 | Old reports describe v1 scripts/reference seals | Preserve history; never use them as proof of a new v2 run |
 
 Preparation records council outcomes and evidence, returns its allocated report and stops.

@@ -1,6 +1,6 @@
 # Council Protocol
 
-Preparation coordinates the council; the council [Architect](roles/ARCHITECT.md) performs substantive investigation, architecture research, design and test planning. The outer coordinator collates participant-authored content and manages the process, not its own technical solution. Participants apply only [COMMON](COMMON.md), this protocol, [MODELS](MODELS.md), and their assigned role contract. Role links identify responsibilities, not permission to load a peer's contract.
+Preparation coordinates the council; the council [Architect](roles/ARCHITECT.md) performs substantive investigation, architecture research, design and test planning. The outer coordinator collates participant-authored content and manages the process, not its own technical solution. Participants apply only [COMMON](COMMON.md), this protocol, [MODELS](MODELS.md), the shared [feature acceptance data contract](../FEATURE_ACCEPTANCE.md), and their assigned role contract. Role links identify responsibilities, not permission to load a peer's contract.
 
 ## Allocated artifacts
 
@@ -45,7 +45,7 @@ Council filenames are prefixed by the attempt-local `NNN`. Within each brief, vo
 | `council-brief` | Preparation | Frozen requirements/evidence/shared instructions, complete discovered roster IDs/paths, maximum cycles, model policy and prior-attempt link if any; role-contract snapshots stay coordinator-only |
 | `council-launch` | Preparation | Phase/cycle, role-file-to-subagent mapping, actual model, shared packet paths, independent context setup and unique output allocations |
 | `council-proposal-<role>` | Assigned role | Brief and role identity, evidence, recommendations, alternatives, concrete impacts, tests, assumptions, confidence and blockers |
-| `council-i<cycle>-candidate` | Preparation | Complete proposed Preparation implementation report; source attribution, unresolved alternatives, planned changes, test specifications and README delta |
+| `council-i<cycle>-candidate` | Preparation | Complete proposed Preparation implementation report and feature acceptance plan/affected model; source attribution, unresolved alternatives, planned changes, test specifications and README delta |
 | `council-i<cycle>-issues` | Preparation | Candidate/brief paths; every comment and objection with stable ID, originator, source, proposed response and status |
 | `council-i<cycle>-vote-<role>` | Assigned role | Role/file/subagent identity, model, exact brief/candidate/issues paths, vote, evidence, comments, originating-issue dispositions and explicit final acceptance or objection |
 | `council-i<cycle>-outcome` | Preparation | Complete expected/received roster comparison, actual invocation evidence, all votes, comment dispositions with citations, current outcome and next action |

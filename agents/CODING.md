@@ -18,6 +18,16 @@ Everything below this section is hard rules — always in force.
 
 ---
 
+## Feature acceptance implementation
+
+Implement the complete accepted plan and its [feature acceptance contract](FEATURE_ACCEPTANCE.md). Preserve requirement/scenario/transition/criterion IDs and add or update the specified tests together with each planned change. Generic smoke tests, compilation and Kotlin/JS browser-unit tests cannot replace planned feature or served-application checks.
+
+For each existing implementation increment, consult the same accepted affected model and its bounded coverage set. Maintain the repository's authoritative transition records and matching Mermaid projection/overview; replace completed descriptive `TBD` entries with actual responsible file/symbol links and reviewed revision, including authorization/persistence layers where relevant. Keep code realization separate from test execution and conformance evidence. Record implemented, partial and pending transition IDs and graph/record consistency; never overwrite the accepted report or historical artifacts.
+
+Missing prerequisites, unclear expectations, visual references or baseline/manual decisions are explicit blockers/questions, not permission to omit tests or approve a baseline. Changes to expected behavior, guards, required coverage or visual intent require a new accepted decision through the existing process; never weaken expectations after a failed check. Apply AML-HIP to structured records inside the allocated step report and keep Mermaid outside step files.
+
+---
+
 ## Feature README.md
 
 See `ALL.md` for the full rule. Role-specific duty:
