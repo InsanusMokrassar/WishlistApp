@@ -60,20 +60,297 @@ See `agents/CODING.md` for the full coding conventions and feature patterns.
 
 ## Prerequisites
 
-- JDK 17+
-- Docker engine + Docker Compose (for PostgreSQL and the local Mailpit SMTP inbox)
+- JDK 17 for development and the full Gradle build
+- Android SDK for Android compilation (see [Development and test environment](#development-and-test-environment))
+- Docker engine for the optional disposable PostgreSQL test path; Docker Compose for the local Mailpit SMTP inbox
+
+The served Web browser gate supports Linux runners with JDK 17 and the Chromium
+runtime libraries installed. Ubuntu is the supported CI baseline. On Ubuntu, install
+the same libraries used by CI before running the gate: `libnss3`, `libnspr4`,
+`libdbus-1-3`, `libatk1.0-0`, `libatk-bridge2.0-0`, `libatspi2.0-0`,
+`libxcomposite1`, `libxdamage1`, `libxfixes3`, `libxrandr2`, `libgbm1`,
+`libasound2t64`, `libcups2`, `libpango-1.0-0`, `libcairo2`, `libx11-6`, `libxcb1`,
+`libxext6`, and `libxkbcommon0`.
+
+## Development and test environment
+
+### JDK, Android SDK, and browsers
+
+From the repository root, select a JDK 17 installation in the current shell and check
+that Gradle sees it:
+
+```bash
+export JAVA_HOME=/path/to/jdk-17
+export PATH="$JAVA_HOME/bin:$PATH"
+java -version
+./gradlew --version
+```
+
+For Android compilation, install the Android SDK platform **37** and Build Tools
+**37.0.0**, matching `android-compileSdk` and `android-buildTools` in
+`gradle/libs.versions.toml`, and accept the SDK licenses. Set `ANDROID_HOME` to
+that SDK in the current shell, or put `sdk.dir=/path/to/android-sdk` in an
+untracked root `local.properties`. Check the installed packages with the SDK's
+`sdkmanager --list_installed`; install missing packages with that SDK's
+`sdkmanager` and run `sdkmanager --licenses` as needed. Use your own paths, not another developer's home directory.
+
+The served [browser gate](#served-web-browser-verification) downloads and validates
+its own Playwright-managed Chromium; it does not require `CHROME_BIN`. Kotlin/JS
+`jsBrowserTest` is a separate browser-unit task and may require a locally installed
+Chrome/Chromium and `CHROME_BIN` pointing to its executable. Passing browser-unit
+tests is not a substitute for the served gate. See the Chromium runtime-library
+prerequisites above and the browser cache/artifact guidance below.
+
+### Disposable PostgreSQL for integration tests
+
+Use a **separate, throwaway database**, never the application or production database.
+PostgreSQL 18 is a known-working test version. The Docker path also requires a
+PostgreSQL `psql` client installed on the host to verify the published TCP port.
+If Docker is available, choose an unused localhost port (55488 is only an
+example; check it before use), then start one temporary named container from
+the repository root. Run this in Bash and keep the same shell for the URLs and
+tests below:
+
+```bash
+PG_TEST_PORT=55488
+PG_TEST_PASSWORD='wishlist_tests_only'
+PG_TEST_CONTAINER="wishlist-tests-$$"
+PG_TEST_READY=0
+# Check that 127.0.0.1:$PG_TEST_PORT is unused before continuing.
+start_docker_test_postgres() {
+  command -v psql >/dev/null || { printf 'Install a host PostgreSQL psql client first.\n' >&2; return 1; }
+  docker run --rm -d --name "$PG_TEST_CONTAINER" \
+    -e POSTGRES_USER=wishlist_tests -e POSTGRES_PASSWORD="$PG_TEST_PASSWORD" \
+    -e POSTGRES_DB=wishlist_tests -e POSTGRES_INITDB_ARGS='--auth-host=scram-sha-256' \
+    -p "127.0.0.1:${PG_TEST_PORT}:5432" postgres:18 >/dev/null || return 1
+  local attempt
+  for attempt in {1..30}; do
+    if [[ $(docker inspect -f '{{.State.Running}}' "$PG_TEST_CONTAINER" 2>/dev/null) != true ]]; then
+      printf 'Test PostgreSQL container exited before readiness; do not run tests.\n' >&2
+      return 1
+    fi
+    if docker exec "$PG_TEST_CONTAINER" pg_isready -h 127.0.0.1 -U wishlist_tests -d wishlist_tests >/dev/null 2>&1; then
+      if PGPASSWORD="$PG_TEST_PASSWORD" psql -h 127.0.0.1 -p "$PG_TEST_PORT" \
+        -U wishlist_tests -d wishlist_tests -c 'SELECT 1'; then
+        PG_TEST_READY=1
+        return 0
+      fi
+      printf 'Published TCP authentication failed; do not run tests.\n' >&2
+      docker stop "$PG_TEST_CONTAINER" >/dev/null 2>&1 || true
+      return 1
+    fi
+    sleep 1
+  done
+  printf 'Test PostgreSQL did not become ready in 30 attempts; do not run tests.\n' >&2
+  docker stop "$PG_TEST_CONTAINER" >/dev/null 2>&1 || true
+  return 1
+}
+start_docker_test_postgres || printf 'Fix the setup failure before exporting URLs or running Gradle.\n' >&2
+```
+
+`pg_isready` checks readiness, while the `psql` command proves an authenticated
+TCP connection. Stop only this container when finished:
+`docker stop "$PG_TEST_CONTAINER"` (`--rm` removes it). The example password is disposable;
+do not reuse it for an application database.
+
+If Docker is unavailable, use **already installed, compatible** `initdb`, `pg_ctl`,
+`createdb`, `pg_isready`, and `psql` binaries. The following Bash commands keep
+the cluster, socket, password file, and log in one private temporary directory;
+choose and check an unused localhost port first. If the binaries are absent,
+install PostgreSQL through your normal platform tooling before following this
+path; this repository does not bundle them.
+
+```bash
+PG_TEST_PORT=55488
+PG_TEST_PASSWORD='wishlist_tests_only'
+PG_TEST_READY=0
+start_local_test_postgres() {
+  PG_TEST_TMP=$(mktemp -d) || return 1  # private, mode 0700
+  mkdir "$PG_TEST_TMP/socket" || return 1
+  printf '%s\n' "$PG_TEST_PASSWORD" > "$PG_TEST_TMP/password" || return 1
+  chmod 600 "$PG_TEST_TMP/password" || return 1
+  initdb -D "$PG_TEST_TMP/data" --username=wishlist_tests \
+    --auth-local=scram-sha-256 --auth-host=scram-sha-256 \
+    --pwfile="$PG_TEST_TMP/password" || return 1
+  pg_ctl -D "$PG_TEST_TMP/data" \
+    -o "-h 127.0.0.1 -p $PG_TEST_PORT -k $PG_TEST_TMP/socket" \
+    -l "$PG_TEST_TMP/server.log" -w start || return 1
+  PGPASSWORD="$PG_TEST_PASSWORD" createdb -h 127.0.0.1 -p "$PG_TEST_PORT" \
+    -U wishlist_tests wishlist_tests || return 1
+  pg_isready -h 127.0.0.1 -p "$PG_TEST_PORT" -U wishlist_tests -d wishlist_tests || return 1
+  PGPASSWORD="$PG_TEST_PASSWORD" psql -h 127.0.0.1 -p "$PG_TEST_PORT" \
+    -U wishlist_tests -d wishlist_tests -c 'SELECT 1' || return 1
+  PG_TEST_READY=1
+}
+start_local_test_postgres || printf 'Fix the setup failure before exporting URLs or running Gradle.\n' >&2
+```
+
+This uses SCRAM authentication even on the private socket; localhost binding
+alone would not restrict other local users. After the tests, stop the cluster
+with `pg_ctl -D "$PG_TEST_TMP/data" -m fast -w stop`, then remove **only the
+directory you created** at `PG_TEST_TMP` after verifying its
+path. If startup fails after `pg_ctl`, stop only this cluster before cleaning
+up its directory; do not continue to `createdb` or tests. Do not change system
+services, socket permissions, or user groups for this test setup; no `sudo`
+workaround is needed.
+
+Set both test URLs in the same shell before the Gradle commands below. They may
+point to the same disposable database. The test user needs `CREATE SCHEMA` and
+`DROP SCHEMA` permissions; test fixtures own their generated schemas. The JDBC
+URL must include an explicit `user` (omitting it caused a PostgreSQL startup
+failure), and a `password` when SCRAM is used. URL-encode non-example credentials
+when placing them in query parameters. Keep real URLs out of shared diagnostics.
+
+```bash
+unset WISHLIST_TEST_POSTGRES_URL WISHLIST_POSTGRES_TEST_JDBC_URL
+if [[ ${PG_TEST_READY:-0} == 1 ]]; then
+  export WISHLIST_TEST_POSTGRES_URL="jdbc:postgresql://127.0.0.1:${PG_TEST_PORT}/wishlist_tests?user=wishlist_tests&password=${PG_TEST_PASSWORD}"
+  export WISHLIST_POSTGRES_TEST_JDBC_URL="$WISHLIST_TEST_POSTGRES_URL"
+else
+  printf 'PostgreSQL setup failed; do not run Gradle tests.\n' >&2
+fi
+```
+
+`WISHLIST_TEST_POSTGRES_URL` is required by the deeplink and email password
+PostgreSQL tests included in `build`.
+`WISHLIST_POSTGRES_TEST_JDBC_URL` is required by the separate
+`:wishlist.features.users.common:postgresEmailLifecycleTest` task, which
+`build` does **not** run.
+
+### Verification commands and evidence
+
+Run these from the repository root after the environment is ready. This Bash
+helper preserves each Gradle exit code when using `tee`; in Bash capture
+`${PIPESTATUS[0]}` immediately after the pipeline (or capture `$?` immediately
+with `pipefail`). In zsh, use its corresponding `pipestatus[1]` instead.
+The `&&` sequence stops at the first failed gate, including a failed setup
+guard; fix that failure before rerunning later commands. Do not infer success
+from `tee` or an old XML file. The `local.*` log names are ignored by Git.
+
+```bash
+set -o pipefail
+run_gradle() {
+  local log_file=$1
+  shift
+  "$@" 2>&1 | tee "$log_file"
+  local gradle_status=${PIPESTATUS[0]}
+  printf 'Gradle exit status: %s\n' "$gradle_status"
+  return "$gradle_status"
+}
+if [[ ${PG_TEST_READY:-0} == 1 && -n ${WISHLIST_TEST_POSTGRES_URL:-} && -n ${WISHLIST_POSTGRES_TEST_JDBC_URL:-} ]] &&
+  run_gradle local.build.log ./gradlew --no-parallel build --console=plain &&
+  run_gradle local.postgres-lifecycle.log ./gradlew --no-parallel \
+    :wishlist.features.users.common:postgresEmailLifecycleTest --console=plain &&
+  run_gradle local.deeplinks-postgres.log ./gradlew --no-parallel \
+    :wishlist.features.deeplinks.common:jvmTest \
+    --tests '*ExposedDeepLinksRepoTest.requiredPostgresIndependentConnectionsSelectOneWinnerAndPreserveReplacement' --console=plain &&
+  run_gradle local.email-postgres.log ./gradlew --no-parallel \
+    :wishlist.features.email.server:jvmTest --tests '*EmailPasswordChangePostgresTest' --console=plain &&
+  run_gradle local.email-commit.log ./gradlew --no-parallel \
+    :wishlist.features.email.server:jvmTest --tests '*EmailPasswordChangeCommitTest' --console=plain &&
+  run_gradle local.browser.log ./gradlew browserTest --console=plain; then
+  printf 'All requested gates passed.\n'
+else
+  printf 'Setup or a gate failed; later gates were not run.\n' >&2
+fi
+```
+
+After stopping only the test container or cluster you started as described
+above, clear both JDBC URLs and the disposable password from this shell:
+
+```bash
+unset WISHLIST_TEST_POSTGRES_URL WISHLIST_POSTGRES_TEST_JDBC_URL \
+  PG_TEST_PASSWORD PGPASSWORD PG_TEST_READY
+```
+
+If `build` stops before any tests execute, run `./gradlew --no-parallel allTests
+--console=plain` after fixing the prerequisite. `UP-TO-DATE` is not fresh test
+execution; add `--rerun-tasks` selectively to a relevant integration task when
+fresh proof is needed. A filtered `jvmTest` can replace that task's previous XML
+results, so save any needed evidence locally before the next filtered run. Do
+not describe a mixed tree of old and new XML as one fresh suite result. Logs
+may contain a full JDBC URL, and browser `server.log` may contain a generated
+root password; redact those before sharing. Tooling unpacked under `/tmp` is
+not a durable developer installation.
+
+### Dependency and setup failures
+
+For npm, Yarn, or Maven HTTP 502 errors, check the proxy/network policy first.
+Only if direct networking is permitted, try a **per-command** proxy bypass:
+
+```bash
+env -u HTTP_PROXY -u HTTPS_PROXY -u ALL_PROXY \
+  -u http_proxy -u https_proxy -u all_proxy NO_PROXY='*' \
+  ./gradlew --no-parallel build --console=plain
+```
+
+Gradle JVM settings and npm configuration can set proxies separately; inspect
+them if the per-command environment is insufficient. Do not globally change
+proxy settings, disable TLS, wipe caches, or blindly upgrade dependencies.
+Missing JDBC variables fail the required PostgreSQL tests; a JDBC URL without
+`user` can fail at connection startup. If Docker is unavailable, use the
+installed-binary path above. For Android SDK version mismatches, compare with
+the catalog values above. For Chromium runtime-library or cache failures, use
+the prerequisites and cache-repair behavior in
+[Served Web browser verification](#served-web-browser-verification), then
+inspect its failure artifacts.
+
+## Served Web browser verification
+
+Run the real-browser smoke suite with the Gradle wrapper:
+
+```bash
+./gradlew browserTest
+```
+
+The gate builds the development Web bundle, provisions the Playwright-managed
+Chromium revision pinned by the Gradle catalog (`com.microsoft.playwright:playwright`
+1.52.0), starts the Ktor server on a loopback ephemeral port, and runs eight JUnit
+tests: two served Chromium smoke tests and six focused browser-response classifier
+tests. The smoke tests check the rendered application, then register a unique
+disposable account and check authenticated wishlist controls.
+The default is headless. Use `./gradlew browserTest -PbrowserHeaded=true` to watch
+the run locally.
+
+Every invocation creates its own temporary SQLite database, upload directory,
+server configuration, and port. Cleanup stops the server and removes that temporary
+state; the operator's database and files under `server/src` are not used. Browser
+installation is cached at `browserTests/build/playwright`. Each gate invocation
+launches the pinned headless browser to validate that cache before the test suite;
+an empty or partial pinned cache is repaired automatically, while unrelated browser
+revisions are preserved. Repeating the command does not reinstall a healthy matching
+browser. Unrelated Gradle tasks do not provision a browser or start the test server.
+
+The browser gate treats every console error, page exception, and HTTP 401 as a
+failure. Anonymous startup must emit zero Playwright `onRequest` events for
+same-origin `GET /api/wishlist/getMy`; counting request events also catches an
+attempt that fails before receiving an HTTP response. Public browsing of an
+explicitly selected owner's wishlists remains available anonymously.
+
+On a failed browser test, inspect `browserTests/build/artifacts/<invocation>/` for
+`server.log` and, for each failed test, `failure.png` and `trace.zip`. CI runs the
+same `./gradlew browserTest` command after installing the Chromium runtime libraries
+and uploads `browserTests/build/artifacts/**` when the job fails.
+
+`jsBrowserTest` checks Kotlin/JS browser-unit behavior. `browserTest` checks the
+served Web application through the real Ktor server and managed Chromium; both
+checks cover different layers.
 
 ## Running the server (with the web client)
 
 The server also serves the compiled web client as static files, so a single `run` brings up
 both the API and the Web UI.
 
-1. Start the PostgreSQL database (config expects it on `127.0.0.1:8501`):
+1. Start Mailpit for development email delivery. `server/dev.config.json` uses
+   a local SQLite database; PostgreSQL is not required for this server run.
+   The PostgreSQL service in `server/docker-compose.yml` is commented out, so
+   this Compose command starts **Mailpit only** (SMTP on 1025, UI on 8025).
+   The disposable PostgreSQL instructions above are for integration tests, not
+   the application database.
 
    ```bash
    # from the project root
-   cd server
-   docker compose up        # PostgreSQL on 8501, Mailpit SMTP on 1025, UI on 8025
+   docker compose -f server/docker-compose.yml up
    ```
 
 2. Run the server with the development config. The `run` task automatically builds the web
@@ -115,9 +392,9 @@ template (see [Production deployment](#production-deployment)). Key fields:
 
 ## Production deployment
 
-Local development uses `server/dev.config.json` together with `server/docker-compose.yml`
-(a throwaway PostgreSQL with `test`/`test` credentials and Mailpit at
-<http://127.0.0.1:8025>). Registration invites are delivered to Mailpit through SMTP on
+Local development uses `server/dev.config.json` (SQLite) together with
+`server/docker-compose.yml` (Mailpit at <http://127.0.0.1:8025>; its PostgreSQL
+service is commented out). Registration invites are delivered to Mailpit through SMTP on
 `127.0.0.1:1025`; opening the invite calls `/api/links/{deeplink_uuid}` and promotes the
 account from `NewUser` to `User`. Production runs from a set of
 **sample template files** in `server/` — copy each one, replace its placeholder values, and

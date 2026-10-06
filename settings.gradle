@@ -62,6 +62,7 @@ String[] includes = [
 
     ":client",
     ":client:android",
+    ":browserTests",
 //    ":android_client",
     ":server",
 ]
