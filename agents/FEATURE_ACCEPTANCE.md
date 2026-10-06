@@ -6,11 +6,12 @@ permission to load another role's instructions. Apply only the input/output duti
 assigned to the invocation. An accepted plan must contain the substantive records
 in full; a link to this checklist or a generic smoke suite is insufficient.
 
-The operator's decisions for issue #89 establish Mermaid diagrams, an application
-overview with incremental feature subgraphs, authoritative transition records,
-existing implementation increments as chapters, and implementation links or
-descriptive `TBD` entries on transitions. No new workflow stage, automatic test
-generation, visual tooling, or application-wide backfill is introduced.
+The operator's decisions for issue #89 establish one common
+[graph of navigation](../NAVIGATION.md) at the project root, maintained by every
+change, with Mermaid feature subgraphs, authoritative transition records, existing
+implementation increments as chapters, and implementation links or descriptive
+`TBD` entries on transitions. No new workflow stage, automatic test generation,
+visual tooling, or application-wide backfill is introduced.
 
 ## Accepted feature plan
 
@@ -53,17 +54,26 @@ non-applicable items and explicit unresolved decisions.
 
 ## Graph representation and authority
 
-The [application overview](../docs/acceptance/README.md) links to detailed feature
-models at `docs/acceptance/features/<feature-id>.md`. Each model contains its scope,
-state and transition records, and a Mermaid `flowchart` displaying those same IDs.
-The records are authoritative; diagrams are a readable projection. Each edge label
-includes a transition ID and a short action/result plus `implemented`, `partial`
-or `TBD` realization status. Implementation hyperlinks belong to the matching
-transition record so renderer-specific diagram click support is unnecessary.
-Detailed guard/side-effect text may stay in the referenced record; any conflicting
-state, action, guard or realization annotation in the projection is model drift.
+The common [graph of navigation](../NAVIGATION.md) is the required shared model
+entry point for every change. Its Mermaid `flowchart` contains the accepted
+modeled states and transitions, organized into feature subgraphs, alongside
+explicitly unmodeled overview relationships. Its navigation index links detailed
+feature models at `docs/acceptance/features/<feature-id>.md`. Each model contains
+its scope and complete state/transition records using the same IDs. The records
+are authoritative for expectations; the common diagram is their navigation
+projection. Optional detailed diagrams cannot replace the common graph or define
+independent IDs or conflicting shared-state expectations.
 
-The overview describes major journeys, shared states and cross-feature
+Each modeled edge label includes its transition ID and short action/result plus
+`implemented`, `partial` or `TBD` realization status. Its matching root index entry
+links the owning record and includes responsible implementation hyperlinks or
+descriptive `TBD`, with separate check/evidence references and conformance status.
+The realization and evidence fields must agree with the detailed record;
+renderer-specific diagram click support is unnecessary. Detailed guard/side-effect
+text may stay in the referenced record; conflicting state, action, guard,
+realization or conformance annotations are model drift.
+
+The common graph also describes major journeys, shared states and cross-feature
 relationships. Mark every unmodeled area explicitly. An overview relationship is
 not an accepted transition or evidence of coverage. Add detailed models when
 behavior changes, rather than modeling every existing journey now. Link shared
@@ -95,8 +105,11 @@ Each **transition record** contains:
 - Recorded check/evidence references and current conformance status. Keep
   implementation and evidence status separate: implemented can remain unverified.
 
-The accepted plan contains the complete affected records, intended diagram/overview
-delta and required coverage set. Inside step files, encode structured records using
+The accepted plan identifies the common graph's baseline revision, complete
+affected records, required coverage set and intended edit to `NAVIGATION.md` plus
+any supporting models. A no-navigation-impact plan still specifies the root
+change-impact record, affected IDs (or an explicit empty set), reason and applicable
+documentation checks. Inside step files, encode structured records using
 the full AML-HIP block structure and self-check from shared `AGENTS.md`; do not put
 Markdown tables, JSON/YAML records or Mermaid data blocks there. Keep Mermaid in
 the repository model or an explicitly allocated supporting artifact outside step
@@ -114,14 +127,26 @@ and invariants plus relevant incoming/outgoing transitions and neighboring
 regression paths, with a reason for inclusion/exclusion. Enumerate the bounded set;
 never claim every possible application path has been covered.
 
-Specify new/changed models and overview relationships in the accepted plan before
-implementation. In each increment, maintain the repository records and Mermaid
-projection, replace realization `TBD` entries with actual revision/symbol links as
-work completes, and record only checks actually executed against the same IDs,
-leaving other conformance evidence unverified. Compare the diagram and records for
-missing/duplicate IDs, differing endpoints, conflicting guard/action annotations
-and stale status; record the observed consistency check. Tests or evidence explicitly
-name the IDs they cover. Structural consistency does not establish behavioral conformance.
+Before every change, consult the existing common graph of navigation and specify
+its baseline and intended delta in the accepted plan. Every change must edit
+`NAVIGATION.md`; a separate feature model or report alone is insufficient. For
+navigation changes, update affected shared states, edges, index entries and
+overview relationships together with their detailed records. Replace realization
+`TBD` entries with actual revision/symbol links as work completes, and record only
+checks actually executed against the same IDs, leaving other conformance evidence
+unverified. For changes without navigation impact, including documentation,
+maintenance or test-only changes, add or update a root change-impact record with
+the stable change/chapter ID, baseline, affected IDs (or an explicit empty set), concrete
+reason and plan/check/evidence references. Do not invent navigation edges for an
+unaffected change. A timestamp-only edit or a product-check exclusion cannot waive
+the required root graph update.
+
+Compare the common graph, its index and detailed records for missing/duplicate IDs,
+differing endpoints, conflicting guard/action annotations and stale realization
+or evidence status. Confirm the root file changed against the supplied baseline
+and describes the delivered scope; record the observed checks and link validation.
+Tests or evidence explicitly name the IDs they cover. Structural consistency does
+not establish behavioral conformance.
 ID uniqueness, endpoints and reference completeness can be checked mechanically
 with available tools; semantic scope, guard correctness, visual intent and actual
 conformance require recorded review and specified test/inspection evidence. When
@@ -131,8 +156,8 @@ No new parser, council evaluator or graph-derived test generator is required.
 Adding code links or execution evidence does not change an expectation. Changing
 requirements, guards, expected results, coverage, visual intent or baseline policy
 uses the existing operator/design decision process and a new accepted immutable
-plan; do not weaken the model after a failed test to make the result pass. Update
-the overview when feature boundaries or cross-feature relationships change.
+plan; do not weaken the model after a failed test to make the result pass. Maintain
+the common graph's overview when feature boundaries or cross-feature relationships change.
 Retired IDs retain a supersession reference. Historical task reports and accepted
 snapshots remain untouched; repository models record the current accepted scope.
 
@@ -172,8 +197,9 @@ attach the exact decision, affected IDs, rationale and residual limitation inste
 of relabeling an unexecuted check as passed. An exception cannot waive unrelated
 criteria, council consensus or input isolation.
 
-Unconditional acceptance requires all mandatory decisions resolved, all required
-transitions realized, all mandatory checks passed with the required evidence at the
+Unconditional acceptance requires the common graph of navigation updated for the
+delivered change, all mandatory decisions resolved, all required transitions
+realized, all mandatory checks passed with the required evidence at the
 delivered revision, approved visual baselines/inspections where applicable, and
 conformance to the unchanged accepted expectations. `partial`/`TBD` on a required
 transition or an unjustified exclusion blocks completion. A build or green CI
@@ -195,7 +221,7 @@ observed evidence; keep hypothetical walkthroughs distinct from executed tests.
 
 | Input condition | Required disposition |
 |---|---|
-| Every required transition is realized; all criteria have sufficient passing evidence; visual approvals and decisions are present | `ACCEPTED` for the explicitly bounded scope |
+| The common navigation graph is updated; every required transition is realized; all criteria have sufficient passing evidence; visual approvals and decisions are present | `ACCEPTED` for the explicitly bounded scope |
 | Build and startup smoke pass; changed save/reload transition has no scenario-specific evidence | `BLOCKED`; missing feature coverage remains visible |
 | Required transition has implementation links but its behavior failed or was not tested | `BLOCKED`; realization links cannot substitute for conformance |
 | Required transition is `TBD` or partial with a description of remaining work | Valid planning record; `BLOCKED` at completion |
@@ -205,9 +231,11 @@ observed evidence; keep hypothetical walkthroughs distinct from executed tests.
 | Screenshot is captured but no specified comparison or approved inspection occurs | `UNVERIFIED`; capture is diagnostic evidence only |
 | A failed transition's expected result is changed without a newly accepted decision | `BLOCKED`; retain the failure and original expectation |
 | Report has old XML or cached output when the plan requires fresh execution | `UNVERIFIED`; `BLOCKED` until fresh proof exists |
-| Documentation-only change excludes UI/browser/native checks because no application behavior or rendering changes | `NOT_APPLICABLE` with that rationale; applicable documentation checks still required |
+| Documentation-only change excludes UI/browser/native checks because no application behavior or rendering changes | `NOT_APPLICABLE` with that rationale; update the root navigation graph's impact record and run applicable documentation checks |
 | Operator explicitly excepts one unavailable viewport check; all remaining requirements pass | `ACCEPTED_WITH_APPROVED_LIMITATIONS`; retain the unavailable outcome and decision; other viewport checks remain required |
 | Mermaid and transition records disagree or omit a required ID | `BLOCKED`; resolve drift without silently changing accepted intent |
+| Feature model and checks are complete, but `NAVIGATION.md` is unchanged or omits the accepted navigation | `BLOCKED`; the common graph update is mandatory |
+| Documentation/test-only change claims no navigation impact and leaves the common graph unchanged or only changes a timestamp | `BLOCKED`; record the concrete scope, affected IDs or explicit empty set, reason and plan/check/evidence references |
 
 See the [worked wishlist example](examples/wishlist-acceptance.md) for the record
 format, planned fixtures, realization links/`TBD`, UI checks and coverage limits.

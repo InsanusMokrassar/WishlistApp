@@ -4,7 +4,7 @@ Mechanical verification confirms the build compiles and the applicable specified
 
 ## Steps
 
-1. Read the supplied latest completed report and governing accepted plan to identify what was coded, the bounded required transition/criterion/check IDs, applicable platforms, commands, setup and evidence requirements. Missing required specifications are a reported gap, not permission to substitute generic smoke tests.
+1. Read the supplied latest completed report, governing accepted plan and common [graph of navigation](../NAVIGATION.md) to identify what was coded, its graph baseline/delta, the bounded required transition/criterion/check IDs, applicable platforms, commands, setup and evidence requirements. Missing required specifications are a reported gap, not permission to substitute generic smoke tests.
 2. Run the build (compiles AND runs `check`, which includes every test task on all KMP targets):
    ```bash
    set -o pipefail
@@ -25,6 +25,8 @@ Mechanical verification confirms the build compiles and the applicable specified
 ## Feature check execution and evidence
 
 Execute each applicable specified unit/integration/served-browser/visual check, using the plan's fixtures, deterministic conditions and cleanup. Inspect reports from the current invocation for actual assertions, counts and failing names; distinguish cached/UP-TO-DATE tasks from fresh execution and prior XML files. Record delivered source revision and working-tree delta, environment/browser/viewport/native identity, exact commands and exit statuses, artifacts and limitations against the stable IDs. Record required, checked, failed, skipped, unavailable and unverified sets with reasons; do not infer native or cross-browser results from Chromium.
+
+For every change, verify that root `NAVIGATION.md` differs from the supplied graph baseline and contains the specified delta. Check common Mermaid/index/detailed-record IDs, endpoints, realization/evidence status and links for consistency. A change without navigation impact must still update the root change-impact record with its change/chapter ID, baseline, affected IDs (or an explicit empty set), concrete reason and plan/check/evidence references; timestamp-only edits are insufficient. A missing required graph update or structural/link check is FAIL even when product/UI checks are not applicable. Record the observed checks; mechanical consistency does not approve expected behavior or prove conformance.
 
 Collect approved manual inspection evidence only under its recorded handling decision and identify reviewer, date, exact criteria, revision/environment and observations. Missing manual or visual approval evidence remains explicit and unverified even when mechanical checks pass. Failure screenshots/traces and captured DOM are diagnostics; a specified comparison or approved inspection is still required for visual criteria. Do not approve initial/new baselines or update expectations to make a failed comparison pass.
 

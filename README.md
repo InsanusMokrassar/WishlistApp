@@ -340,10 +340,13 @@ checks cover different layers.
 
 Feature work uses the [acceptance contract](agents/FEATURE_ACCEPTANCE.md) to specify
 observable behavior, UI states, applicable platforms, checks and required evidence
-before implementation. The [application overview](docs/acceptance/README.md) links
-incrementally maintained Mermaid feature graphs with authoritative transition
+before implementation. The common [graph of navigation](NAVIGATION.md) at the
+project root contains the shared Mermaid graph and links authoritative feature
 records, source/symbol links or descriptive `TBD` entries, and separate test/evidence
-references. Unmodeled journeys and unverified transitions remain explicit.
+references. Every change must consult and edit it; changes without navigation
+impact still record their scope, reason and checks there. Detailed feature models
+extend the common graph using the same IDs. Unmodeled journeys and unverified
+transitions remain explicit.
 
 The [worked wishlist example](agents/examples/wishlist-acceptance.md) shows
 authenticated/anonymous paths, persistence, errors/retry and visual criteria. It is

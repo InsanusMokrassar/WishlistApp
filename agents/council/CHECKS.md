@@ -11,7 +11,7 @@ Preparation uses this reading and reasoning checklist before publishing the coun
 - Confirm the final report carries complete requirement and comment dispositions with evidence.
 - Distinguish proposed test specifications from observed test execution; a passing build is not proof that every requirement or comment is satisfied.
 - Check the complete [feature acceptance contract](../FEATURE_ACCEPTANCE.md) against participant-authored candidate content: stable IDs, behavior/persistence/authorization/failure/recovery where applicable, UI/visual expectations, platform reasons, check setup/assertions, evidence requirements and traceability. A checklist link or generic smoke specification cannot replace the substantive plan.
-- Confirm affected state/transition records, Mermaid/overview delta, realization links or descriptive `TBD`, and justified entry/exit/neighboring coverage are present. Check diagram/record agreement when a diagram is supplied. A planned realization `TBD` is allowed; missing expected behavior or a mandatory decision is not.
+- Confirm the common [graph of navigation](../../NAVIGATION.md) baseline and intended root-file edit are present for every change, along with affected state/transition records, shared Mermaid/index delta, realization links or descriptive `TBD`, and justified entry/exit/neighboring coverage. Check common graph/index/detailed-record agreement when a diagram is supplied. A planned realization `TBD` is allowed; missing expected behavior or a mandatory decision is not. A no-navigation-impact plan still specifies the root change-impact record, affected IDs or explicit empty set, concrete reason and applicable checks/evidence; a separate feature graph cannot replace it.
 - Confirm visual intent and baseline control cannot be self-approved, and any unautomatable criterion has the operator's handling decision before acceptance. Missing substantive specifications return to their authors and require the existing full-roster acceptance process; the coordinator cannot fill them.
 
 ## Process evidence
@@ -55,7 +55,9 @@ Preparation uses this reading and reasoning checklist before publishing the coun
 | Candidate has generic startup tests but no criteria/checks for a changed save/reload or denied/retry transition | Incomplete acceptance plan; no CONSENSUS publication |
 | Candidate includes descriptive implementation `TBD` records with complete expectations, checks and resolved decisions | Valid planned work; no claim of realized or verified behavior |
 | New screenshots are offered as approved baselines without an operator/design-process approval record | Missing mandatory visual decision; NEEDS_INFORMATION, not an agent-created waiver |
-| A non-UI change excludes browser, visual or native checks with concrete applicability reasons | Allowed scoped plan; still require applicable checks and evidence specifications |
+| A non-UI change excludes browser, visual or native checks with concrete applicability reasons | Allowed scoped plan; still require the common navigation graph's intended update and applicable checks/evidence specifications |
+| Candidate proposes a complete independent feature model but no edit to root `NAVIGATION.md` | Incomplete acceptance plan; no CONSENSUS publication until the common graph delta is supplied |
+| Candidate says navigation is unaffected and omits the root change-impact record | Incomplete acceptance plan; require a concrete reason, affected IDs or explicit empty set and plan/check/evidence references |
 | Old reports describe v1 scripts/reference seals | Preserve history; never use them as proof of a new v2 run |
 
 Preparation records council outcomes and evidence, returns its allocated report and stops.

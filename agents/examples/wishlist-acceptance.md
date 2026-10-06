@@ -6,6 +6,11 @@ a newly approved visual baseline. The denial presentation and other example
 decisions below would need confirmation for a real feature plan. `TBD` identifies
 required behavior/checks to implement, not an assertion that existing code is wrong.
 
+The common [graph of navigation](../../NAVIGATION.md) is the required project-root
+model. This unaccepted example stays separate; a real accepted feature would add
+its states/transitions and owning-record links to that shared graph using these
+same IDs, with realization links or descriptive `TBD` and separate evidence.
+
 ## Requirements, scope and decisions
 
 - `WL-R01`: an authenticated owner submitting a valid unique title creates exactly
@@ -163,7 +168,11 @@ A real accepted plan would resolve those decisions, inspect/name actual symbols
 and check commands, and copy the complete substantive records into its immutable
 report using AML-HIP. Each existing implementation increment consults that same
 accepted scope, replaces completed realization `TBD` entries, updates the Mermaid
-status labels and attaches fresh evidence by ID. Code links alone leave conformance
+status labels in the common root graph and matching detailed projection, and
+attaches fresh evidence by ID. Every change edits `NAVIGATION.md`; changes with no
+navigation impact still record the chapter/baseline, affected IDs or explicit empty set, concrete
+reason and plan/check/evidence there. An independent example or feature diagram
+cannot satisfy that duty. Code links alone leave conformance
 unverified. A failed save/reload, missing recovery test, unjustified native skip or
 self-approved visual baseline remains blocked under the
 [focused contract checks](../FEATURE_ACCEPTANCE.md#focused-contract-checks).
