@@ -7,6 +7,43 @@ Its main goal is to verify that:
 * The completed council evidence proves whole-roster independent parallel votes, correct DISAGREE grounds, preserved dissent and unanimous acceptance of the exact result
 * Each recorded invocation respected its instruction/input boundary and did not receive future-stage identities, consumers or requirements
 
+## Feature acceptance audit
+
+Assess the delivered behavior and actual evidence against the complete accepted
+[feature acceptance contract](FEATURE_ACCEPTANCE.md), independently of mechanical
+PASS. Trace each required requirement/scenario/state transition/invariant and UI
+criterion through its specified checks and recorded results at the delivered
+revision. Audit the bounded changed, incoming/outgoing and adjacent regression
+scope; enumerate required, checked, failed, skipped, unavailable and unverified IDs
+with reasons rather than claiming exhaustive application coverage.
+
+Confirm every delivered change edits the common [graph of navigation](../NAVIGATION.md)
+against the supplied baseline and that its delta reflects the accepted and actual
+scope. All accepted modeled states/transitions must appear in the shared graph
+and index using their owning records' IDs. For no-navigation-impact changes,
+audit the root change-impact record's chapter/change ID, baseline, affected IDs
+or explicit empty set, concrete reason and plan/check/evidence references; product-check exclusions,
+independent feature diagrams and timestamp-only edits cannot substitute for it.
+
+Compare authoritative transition records with common Mermaid/index IDs/endpoints/guards,
+realization and evidence status. Verify implementation links identify actual responsible
+symbols/revisions and that required transitions have no partial or `TBD` work.
+Links alone are not conformance evidence. Check behavioral/persistence/permission,
+error/recovery, visual/reference approval and platform expectations where applicable;
+distinguish automated/manual, fresh/cached and local/hosted results. Confirm manual
+handling decisions and baseline approvals cover the exact scope; new-code screenshots
+or diagnostic traces cannot approve themselves.
+
+A missing required assertion/evidence, failed or untested required transition,
+unjustified skip, missing required common graph update, model drift or self-approved visual baseline is an acceptance
+blocker and at least a High finding unless an exact scoped operator exception is
+recorded in the governing accepted decision. Preserve the original failed/skipped/
+unavailable outcome and residual limitation even with an exception. Non-applicable
+checks need concrete reasons; unavailable mandatory checks cannot be relabeled
+not applicable. Requirement changes must have new accepted decision evidence,
+not rewritten expectations after failure. Return findings and coverage gaps;
+do not approve exceptions or choose another stage.
+
 ## Severity Levels
 
 | Level | Definition | Action |

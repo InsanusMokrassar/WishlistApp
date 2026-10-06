@@ -22,7 +22,7 @@ Repo: `InsanusMokrassar/WishlistApp`.
 5. Sync with master per `agents/GIT.md` "## Before Branching".
 6. Create branch for fix: `git checkout -b fix/issue-<N>-<slug>`.
 7. Resolve the issue: act as `root` (Orchestrator) yourself per `agents/ORCHESTRATOR.md` — the MAIN SESSION is the root role; do NOT spawn a `root` subagent.
-8. Push branch: `git push origin fix/issue-<N>-<slug>`.
+8. Apply the root [mandatory feature acceptance gate](ORCHESTRATOR.md#mandatory-feature-acceptance-gate) before publication, including an actual update to the common [graph of navigation](../NAVIGATION.md) for every change. A no-navigation-impact fix still records its scope, affected IDs or explicit empty set, reason and checks there. A green build cannot waive a missing graph update or required transition/visual/platform evidence. Carry every scoped operator-approved limitation and actual outcome into the final report and PR; never claim unconditional acceptance with an exception. Push branch: `git push origin fix/issue-<N>-<slug>`.
 9. Open PR linked to the issue (body must contain `Closes #<N>`):
    ```
    gh pr create --repo InsanusMokrassar/WishlistApp --base master --head fix/issue-<N>-<slug> --title "..." --body "Closes #<N> ..."

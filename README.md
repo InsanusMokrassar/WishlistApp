@@ -336,6 +336,25 @@ and uploads `browserTests/build/artifacts/**` when the job fails.
 served Web application through the real Ktor server and managed Chromium; both
 checks cover different layers.
 
+## Feature acceptance planning
+
+Feature work uses the [acceptance contract](agents/FEATURE_ACCEPTANCE.md) to specify
+observable behavior, UI states, applicable platforms, checks and required evidence
+before implementation. The common [graph of navigation](NAVIGATION.md) at the
+project root contains the shared Mermaid graph and links authoritative feature
+records, source/symbol links or descriptive `TBD` entries, and separate test/evidence
+references. Every change must consult and edit it; changes without navigation
+impact still record their scope, reason and checks there. Detailed feature models
+extend the common graph using the same IDs. Unmodeled journeys and unverified
+transitions remain explicit.
+
+The [worked wishlist example](agents/examples/wishlist-acceptance.md) shows
+authenticated/anonymous paths, persistence, errors/retry and visual criteria. It is
+a proposed example, not proof those paths already pass. New screenshot baselines
+need recorded approval; screenshot capture and green smoke/build checks do not
+establish feature or visual conformance. See the contract for setup/evidence,
+baseline review, model maintenance, scoped exceptions and assurance limits.
+
 ## Running the server (with the web client)
 
 The server also serves the compiled web client as static files, so a single `run` brings up
